@@ -1,0 +1,108 @@
+{
+  "$description": "A deliberately short scale. The dashboard reads at two sizes and writes at three weights; pretending otherwise is where drift starts.",
+  "font": {
+    "sans": {
+      "$type": "fontFamily",
+      "$value": "Inter, ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+      "$description": "Inter, because the app already loads it. Everything below the first entry is the stock system stack."
+    },
+    "mono": {
+      "$type": "fontFamily",
+      "$value": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
+      "$description": "Tailwind's stock mono stack, kept verbatim \u2014 there is no reason for the system to ship a shorter fallback chain than the framework it sits on."
+    }
+  },
+  "weight": {
+    "regular": {
+      "$type": "fontWeight",
+      "$value": 400,
+      "$description": "Body copy only. Rarely written \u2014 it is the default."
+    },
+    "medium": {
+      "$type": "fontWeight",
+      "$value": 500,
+      "$description": "Labels, nav items, table cells. 1,144 uses \u2014 the most-written weight."
+    },
+    "semibold": {
+      "$type": "fontWeight",
+      "$value": 600,
+      "$description": "Headings, buttons, stat values. 818 uses."
+    }
+  },
+  "text": {
+    "display": {
+      "$type": "typography",
+      "$value": {
+        "fontSize": "1.875rem",
+        "lineHeight": "2rem",
+        "fontWeight": "{weight.semibold}"
+      },
+      "$description": "Stat tile values. 30/32."
+    },
+    "heading": {
+      "$type": "typography",
+      "$value": {
+        "fontSize": "1.25rem",
+        "lineHeight": "2rem",
+        "fontWeight": "{weight.semibold}"
+      },
+      "$description": "Every page title in the dashboard. 20/32."
+    },
+    "title": {
+      "$type": "typography",
+      "$value": {
+        "fontSize": "1.125rem",
+        "lineHeight": "1.75rem",
+        "fontWeight": "{weight.semibold}"
+      },
+      "$description": "Overlay and section titles \u2014 sheet headers, modal headings, empty-state headings. 18/28. Added after the fact: the app uses 18px 99 times, three times more than 20px, so leaving it out was a gap rather than a simplification and rounding those up would have been a change disguised as a migration."
+    },
+    "section": {
+      "$type": "typography",
+      "$value": {
+        "fontSize": "0.875rem",
+        "lineHeight": "1.25rem",
+        "fontWeight": "{weight.semibold}"
+      },
+      "$description": "Panel headers and card titles. 14/20."
+    },
+    "body": {
+      "$type": "typography",
+      "$value": {
+        "fontSize": "0.875rem",
+        "lineHeight": "1.5rem",
+        "fontWeight": "{weight.regular}"
+      },
+      "$description": "The workhorse. 1,705 uses \u2014 if a size is unspecified, it is this one. 14/24."
+    },
+    "body-touch": {
+      "$type": "typography",
+      "$value": {
+        "fontSize": "1rem",
+        "lineHeight": "1.5rem",
+        "fontWeight": "{weight.regular}"
+      },
+      "$description": "Inputs below the sm breakpoint. 16px stops iOS zooming the page on focus. 16/24."
+    },
+    "meta": {
+      "$type": "typography",
+      "$value": {
+        "fontSize": "0.75rem",
+        "lineHeight": "1rem",
+        "fontWeight": "{weight.regular}"
+      },
+      "$description": "Timestamps, counts, helper text, badge copy. 989 uses. 12/16."
+    },
+    "overline": {
+      "$type": "typography",
+      "$value": {
+        "fontSize": "0.75rem",
+        "lineHeight": "1rem",
+        "fontWeight": "{weight.medium}",
+        "letterSpacing": "0.05em",
+        "textTransform": "uppercase"
+      },
+      "$description": "Table column headers."
+    }
+  }
+}

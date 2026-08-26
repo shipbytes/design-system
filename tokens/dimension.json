@@ -1,0 +1,94 @@
+{
+  "$description": "Radius, elevation and control geometry. Every value is the one the dashboard already converged on \u2014 the counts are real usage, and the scale is deliberately short so there is no room to drift.",
+  "radius": {
+    "$description": "Named for the JOB, not a size step. Deliberately NOT sm/md/lg: Tailwind already owns those names with different values, and redefining them would silently resize every existing `rounded-lg` in a consuming app \u2014 1,438 of them in the dashboard this was extracted from.",
+    "chip": {
+      "$type": "dimension",
+      "$value": "0.375rem",
+      "$description": "Chips, delta pills, tight icon buttons."
+    },
+    "control": {
+      "$type": "dimension",
+      "$value": "0.5rem",
+      "$description": "The default: buttons, inputs, cards. 827 uses."
+    },
+    "panel": {
+      "$type": "dimension",
+      "$value": "0.75rem",
+      "$description": "Panels, modals, the sidebar nav card. 161 uses."
+    },
+    "sheet": {
+      "$type": "dimension",
+      "$value": "1rem",
+      "$description": "Top corners of the mobile bottom sheet."
+    },
+    "full": {
+      "$type": "dimension",
+      "$value": "9999px",
+      "$description": "Avatars, badges, pills. 9999px rather than v4's calc(infinity * 1px) \u2014 same render, but only the finite value is portable outside Tailwind."
+    }
+  },
+  "shadow": {
+    "$description": "Named for the job for the same reason as radius: Tailwind's `shadow-sm` means something different again in v4, and taking that name back would undo the v3->v4 rename.",
+    "raised": {
+      "$type": "shadow",
+      "$value": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+      "$description": "Resting cards and the active nav item. 195 uses \u2014 the only elevation most screens need."
+    },
+    "float": {
+      "$type": "shadow",
+      "$value": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+      "$description": "Things that float over the page on demand \u2014 dropdowns, popovers, drawers."
+    },
+    "overlay": {
+      "$type": "shadow",
+      "$value": "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
+      "$description": "Modal panels only \u2014 the one surface that blocks the page behind it."
+    }
+  },
+  "control": {
+    "$description": "Control heights. The same component takes the lg size below the sm breakpoint and md above it, so a 44px touch target needs no separate mobile component.",
+    "sm": {
+      "$type": "dimension",
+      "$value": "2rem",
+      "$description": "32px \u2014 inside table rows and card footers."
+    },
+    "md": {
+      "$type": "dimension",
+      "$value": "2.25rem",
+      "$description": "36px \u2014 the default, at sm and up."
+    },
+    "lg": {
+      "$type": "dimension",
+      "$value": "2.75rem",
+      "$description": "44px \u2014 below sm, and the studio action bar."
+    },
+    "fab": {
+      "$type": "dimension",
+      "$value": "3.5rem",
+      "$description": "56px \u2014 the mobile floating action button. Larger than lg on purpose: it is the one control a thumb reaches for without looking, and it overlaps the bar rather than sitting in it."
+    }
+  },
+  "space": {
+    "$description": "A 4px base scale. Named steps exist only where the system relies on a specific one.",
+    "base": {
+      "$type": "dimension",
+      "$value": "0.25rem"
+    },
+    "gutter": {
+      "$type": "dimension",
+      "$value": "1rem",
+      "$description": "Grid gap between cards."
+    },
+    "section": {
+      "$type": "dimension",
+      "$value": "1.5rem",
+      "$description": "Gap between stacked panels."
+    },
+    "page": {
+      "$type": "dimension",
+      "$value": "2.5rem",
+      "$description": "Content card padding at lg and up."
+    }
+  }
+}

@@ -1,0 +1,1579 @@
+{
+  "$description": "Heroicons used by the dashboard, derived by matching inlined SVG path data against the heroicons package. Consume via blade-heroicons, @heroicons/react or @heroicons/vue — the names are identical across all three.",
+  "generated": "scripts/build-icons.mjs",
+  "target": "heroicons v2 — blade-heroicons, @heroicons/react and @heroicons/vue all ship v2",
+  "totals": {
+    "distinctPaths": 270,
+    "resolvedToHeroicons": 159,
+    "distinctIcons": 105,
+    "customArtwork": 111
+  },
+  "icons": [
+    {
+      "heroicon": "x",
+      "uses": 48,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "x-mark",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "plus",
+      "uses": 46,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "plus"
+    },
+    {
+      "heroicon": "chevron-right",
+      "uses": 40,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "chevron-right"
+    },
+    {
+      "heroicon": "check",
+      "uses": 40,
+      "styles": [
+        "20/solid",
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "check"
+    },
+    {
+      "heroicon": "chevron-down",
+      "uses": 32,
+      "styles": [
+        "20/solid",
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "chevron-down"
+    },
+    {
+      "heroicon": "check-circle",
+      "uses": 22,
+      "styles": [
+        "20/solid",
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "check-circle"
+    },
+    {
+      "heroicon": "arrow-right",
+      "uses": 21,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "arrow-right"
+    },
+    {
+      "heroicon": "document-text",
+      "uses": 20,
+      "styles": [
+        "20/solid",
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "document-text"
+    },
+    {
+      "heroicon": "trash",
+      "uses": 19,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "trash"
+    },
+    {
+      "heroicon": "location-marker",
+      "uses": 18,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "map-pin",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "briefcase",
+      "uses": 17,
+      "styles": [
+        "20/solid",
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "briefcase"
+    },
+    {
+      "heroicon": "cog",
+      "uses": 16,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "cog",
+      "redrawnInV2": true
+    },
+    {
+      "heroicon": "magnifying-glass",
+      "uses": 15,
+      "styles": [
+        "20/solid",
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "magnifying-glass"
+    },
+    {
+      "heroicon": "star",
+      "uses": 14,
+      "styles": [
+        "20/solid",
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "star"
+    },
+    {
+      "heroicon": "eye",
+      "uses": 14,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "eye"
+    },
+    {
+      "heroicon": "chevron-left",
+      "uses": 13,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "chevron-left",
+      "redrawnInV2": true
+    },
+    {
+      "heroicon": "mail",
+      "uses": 13,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "envelope",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "envelope",
+      "uses": 13,
+      "styles": [
+        "20/solid",
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "envelope"
+    },
+    {
+      "heroicon": "adjustments",
+      "uses": 12,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "adjustments-horizontal",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "arrow-down-tray",
+      "uses": 11,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "arrow-down-tray"
+    },
+    {
+      "heroicon": "light-bulb",
+      "uses": 9,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "light-bulb"
+    },
+    {
+      "heroicon": "share",
+      "uses": 9,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "share"
+    },
+    {
+      "heroicon": "document",
+      "uses": 9,
+      "styles": [
+        "20/solid",
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "document"
+    },
+    {
+      "heroicon": "academic-cap",
+      "uses": 9,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "academic-cap",
+      "redrawnInV2": true
+    },
+    {
+      "heroicon": "shield-check",
+      "uses": 8,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "shield-check"
+    },
+    {
+      "heroicon": "clock",
+      "uses": 8,
+      "styles": [
+        "20/solid",
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "clock"
+    },
+    {
+      "heroicon": "map-pin",
+      "uses": 8,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "map-pin"
+    },
+    {
+      "heroicon": "document-duplicate",
+      "uses": 7,
+      "styles": [
+        "20/solid",
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "document-duplicate"
+    },
+    {
+      "heroicon": "template",
+      "uses": 7,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "rectangle-group",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "sparkles",
+      "uses": 7,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "sparkles"
+    },
+    {
+      "heroicon": "question-mark-circle",
+      "uses": 7,
+      "styles": [
+        "20/solid",
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "question-mark-circle"
+    },
+    {
+      "heroicon": "link",
+      "uses": 7,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "link"
+    },
+    {
+      "heroicon": "arrow-left",
+      "uses": 7,
+      "styles": [
+        "20/solid",
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "arrow-left"
+    },
+    {
+      "heroicon": "exclamation",
+      "uses": 7,
+      "styles": [
+        "20/solid",
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "exclamation-triangle",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "lock-closed",
+      "uses": 7,
+      "styles": [
+        "20/solid",
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "lock-closed"
+    },
+    {
+      "heroicon": "chart-bar",
+      "uses": 6,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "chart-bar"
+    },
+    {
+      "heroicon": "user",
+      "uses": 6,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "user"
+    },
+    {
+      "heroicon": "arrow-up-tray",
+      "uses": 6,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "arrow-up-tray"
+    },
+    {
+      "heroicon": "view-grid",
+      "uses": 6,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "squares-2x2",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "currency-dollar",
+      "uses": 5,
+      "styles": [
+        "20/solid",
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "currency-dollar"
+    },
+    {
+      "heroicon": "external-link",
+      "uses": 5,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "arrow-top-right-on-square",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "search",
+      "uses": 5,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "magnifying-glass",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "arrow-left-end-on-rectangle",
+      "uses": 4,
+      "styles": [
+        "20/solid"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "arrow-left-end-on-rectangle"
+    },
+    {
+      "heroicon": "users",
+      "uses": 4,
+      "styles": [
+        "20/solid",
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "users"
+    },
+    {
+      "heroicon": "credit-card",
+      "uses": 4,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "credit-card"
+    },
+    {
+      "heroicon": "chat-bubble-oval-left-ellipsis",
+      "uses": 4,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "chat-bubble-oval-left-ellipsis"
+    },
+    {
+      "heroicon": "bookmark",
+      "uses": 4,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "bookmark"
+    },
+    {
+      "heroicon": "phone",
+      "uses": 4,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "phone",
+      "redrawnInV2": true
+    },
+    {
+      "heroicon": "support",
+      "uses": 3,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "lifebuoy",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "home",
+      "uses": 3,
+      "styles": [
+        "20/solid",
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "home"
+    },
+    {
+      "heroicon": "exclamation-circle",
+      "uses": 3,
+      "styles": [
+        "20/solid",
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "exclamation-circle"
+    },
+    {
+      "heroicon": "duplicate",
+      "uses": 3,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "square-2-stack",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "pencil-alt",
+      "uses": 3,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "pencil-square",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "globe",
+      "uses": 3,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "globe-americas",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "chat-bubble-left-right",
+      "uses": 3,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "chat-bubble-left-right"
+    },
+    {
+      "heroicon": "badge-check",
+      "uses": 3,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "check-badge",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "collection",
+      "uses": 3,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "rectangle-stack",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "rocket-launch",
+      "uses": 3,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "rocket-launch"
+    },
+    {
+      "heroicon": "information-circle",
+      "uses": 3,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "information-circle"
+    },
+    {
+      "heroicon": "chevron-up-down",
+      "uses": 3,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "chevron-up-down"
+    },
+    {
+      "heroicon": "arrow-small-right",
+      "uses": 3,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "arrow-small-right"
+    },
+    {
+      "heroicon": "calendar",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "calendar",
+      "redrawnInV2": true
+    },
+    {
+      "heroicon": "user-group",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1+v2",
+      "v2Name": "user-group"
+    },
+    {
+      "heroicon": "user-circle",
+      "uses": 2,
+      "styles": [
+        "20/solid"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "user-circle"
+    },
+    {
+      "heroicon": "ellipsis-horizontal",
+      "uses": 2,
+      "styles": [
+        "20/solid"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "ellipsis-horizontal"
+    },
+    {
+      "heroicon": "logout",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "arrow-right-on-rectangle",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "chat",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "chat-bubble-oval-left",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "reply",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "arrow-uturn-left",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "ticket",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "ticket"
+    },
+    {
+      "heroicon": "key",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "key"
+    },
+    {
+      "heroicon": "globe-alt",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "globe-alt"
+    },
+    {
+      "heroicon": "document-download",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "document-arrow-down",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "menu-alt-1",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "bars-3-center-left",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "color-swatch",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "swatch",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "ellipsis-vertical",
+      "uses": 2,
+      "styles": [
+        "16/solid"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "ellipsis-vertical"
+    },
+    {
+      "heroicon": "bell",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "bell",
+      "redrawnInV2": true
+    },
+    {
+      "heroicon": "volume-off",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "speaker-x-mark",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "camera",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "camera",
+      "redrawnInV2": true
+    },
+    {
+      "heroicon": "dots-vertical",
+      "uses": 2,
+      "styles": [
+        "20/solid"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "ellipsis-vertical",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "eye-off",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "eye-slash",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "refresh",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "arrow-path",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "photograph",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "photo",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "save",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "inbox-arrow-down",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "chevron-up",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "chevron-up",
+      "redrawnInV2": true
+    },
+    {
+      "heroicon": "document-arrow-down",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "document-arrow-down"
+    },
+    {
+      "heroicon": "paint-brush",
+      "uses": 2,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "paint-brush"
+    },
+    {
+      "heroicon": "bars-3",
+      "uses": 1,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "bars-3"
+    },
+    {
+      "heroicon": "newspaper",
+      "uses": 1,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "newspaper",
+      "redrawnInV2": true
+    },
+    {
+      "heroicon": "switch-horizontal",
+      "uses": 1,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "arrows-right-left",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "squares-2x2",
+      "uses": 1,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "squares-2x2"
+    },
+    {
+      "heroicon": "paper-airplane",
+      "uses": 1,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "paper-airplane",
+      "redrawnInV2": true
+    },
+    {
+      "heroicon": "x-mark",
+      "uses": 1,
+      "styles": [
+        "20/solid"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "x-mark"
+    },
+    {
+      "heroicon": "cursor-arrow-rays",
+      "uses": 1,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "cursor-arrow-rays"
+    },
+    {
+      "heroicon": "x-circle",
+      "uses": 1,
+      "styles": [
+        "20/solid"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "x-circle"
+    },
+    {
+      "heroicon": "office-building",
+      "uses": 1,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "building-office",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "arrow-up-right",
+      "uses": 1,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "arrow-up-right"
+    },
+    {
+      "heroicon": "menu",
+      "uses": 1,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "bars-3",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "upload",
+      "uses": 1,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "arrow-up-tray",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "pencil",
+      "uses": 1,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "pencil",
+      "redrawnInV2": true
+    },
+    {
+      "heroicon": "plus-sm",
+      "uses": 1,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "plus",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "filter",
+      "uses": 1,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "funnel",
+      "renamedInV2": true
+    },
+    {
+      "heroicon": "arrow-top-right-on-square",
+      "uses": 1,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "arrow-top-right-on-square"
+    },
+    {
+      "heroicon": "identification",
+      "uses": 1,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "identification"
+    },
+    {
+      "heroicon": "command-line",
+      "uses": 1,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v2",
+      "v2Name": "command-line"
+    },
+    {
+      "heroicon": "printer",
+      "uses": 1,
+      "styles": [
+        "24/outline"
+      ],
+      "heroiconsVersion": "v1",
+      "v2Name": "printer",
+      "redrawnInV2": true
+    }
+  ],
+  "custom": [
+    {
+      "uses": 61,
+      "files": 2,
+      "pathStart": "M9,12.75L11.25,15L15,9.75"
+    },
+    {
+      "uses": 27,
+      "files": 16,
+      "pathStart": "M9.81,15.9L9,18.75L8.19,15.9A4.5,4.5,0,0,0,5.1,12.81L2.25,12L5.1,11.19"
+    },
+    {
+      "uses": 26,
+      "files": 15,
+      "pathStart": "M5.23,7.21A0.75,0.75,0,0,1,6.29,7.23L10,11.17L13.71,7.23A0.75,0.75,0,1"
+    },
+    {
+      "uses": 14,
+      "files": 10,
+      "pathStart": "M4,12A8,8,0,0,1,12,4V0C5.37,0,0,5.37,0,12H4Z"
+    },
+    {
+      "uses": 13,
+      "files": 8,
+      "pathStart": "M5,0L6,4L10,5L6,6L5,10L4,6L0,5L4,4L5,0Z"
+    },
+    {
+      "uses": 12,
+      "files": 10,
+      "pathStart": "M4,12A8,8,0,0,1,12,4V0C5.37,0,0,5.37,0,12H4ZM6,17.29A7.96,7.96,0,0,1,4"
+    },
+    {
+      "uses": 10,
+      "files": 9,
+      "pathStart": "M9.81,15.9L9,18.75L8.19,15.9A4.5,4.5,0,0,0,5.1,12.81L2.25,12L5.1,11.19"
+    },
+    {
+      "uses": 9,
+      "files": 6,
+      "pathStart": "M12,9V11M12,15H12.01M5.07,19H18.93C20.47,19,21.43,17.33,20.66,16.5L13."
+    },
+    {
+      "uses": 8,
+      "files": 5,
+      "pathStart": "M12,10V16M12,16L9,13M12,16L15,13M6,20H18A2,2,0,0,0,20,18V8L14,2H6A2,2,"
+    },
+    {
+      "uses": 6,
+      "files": 6,
+      "pathStart": "M20.45,20.45H16.89V14.88C16.89,13.56,16.87,11.85,15.04,11.85C13.19,11."
+    },
+    {
+      "uses": 5,
+      "files": 5,
+      "pathStart": "M8,0L9.5,6.5L16,8L9.5,9.5L8,16L6.5,9.5L0,8L6.5,6.5L8,0Z"
+    },
+    {
+      "uses": 4,
+      "files": 3,
+      "pathStart": "M10,18A8,8,0,1,0,10,2A8,8,0,0,0,10,18ZM10.75,5A0.75,0.75,0,0,0,9.25,5V"
+    },
+    {
+      "uses": 4,
+      "files": 3,
+      "pathStart": "M7,2A2,2,0,1,0,7,6A2,2,0,0,0,7,2ZM7,8A2,2,0,1,0,7,12A2,2,0,0,0,7,8ZM7,"
+    },
+    {
+      "uses": 4,
+      "files": 4,
+      "pathStart": "M20.45,20.45H16.89V14.88C16.89,13.56,16.87,11.85,15.04,11.85C13.19,11."
+    },
+    {
+      "uses": 4,
+      "files": 3,
+      "pathStart": "M20,10C20,16,12,22,12,22S4,16,4,10A8,8,0,0,1,20,10Z"
+    },
+    {
+      "uses": 3,
+      "files": 3,
+      "pathStart": "M7.21,14.77A0.75,0.75,0,0,1,7.23,13.71L11.17,10L7.23,6.29A0.75,0.75,0,"
+    },
+    {
+      "uses": 3,
+      "files": 1,
+      "pathStart": "M3.5,6L5.5,8L8.5,4"
+    },
+    {
+      "uses": 3,
+      "files": 2,
+      "pathStart": "M15.75,17.25V20.63C15.75,21.25,15.25,21.75,14.63,21.75H5.13A1.13,1.13,"
+    },
+    {
+      "uses": 3,
+      "files": 3,
+      "pathStart": "M14.86,17.08A23.85,23.85,0,0,0,20.31,15.77A8.97,8.97,0,0,1,18,9.75V9.0"
+    },
+    {
+      "uses": 3,
+      "files": 3,
+      "pathStart": "M13.88,18.82A10.05,10.05,0,0,1,12,19C7.52,19,3.73,16.06,2.46,12A9.97,9"
+    },
+    {
+      "uses": 3,
+      "files": 3,
+      "pathStart": "M22,16.92V19.92A2,2,0,0,1,19.82,21.92A19.79,19.79,0,0,1,11.19,18.85A19"
+    },
+    {
+      "uses": 3,
+      "files": 3,
+      "pathStart": "M10,13A5,5,0,0,0,17.54,13.54L20.54,10.54A5,5,0,0,0,13.47,3.47L11.75,5."
+    },
+    {
+      "uses": 3,
+      "files": 3,
+      "pathStart": "M14,11A5,5,0,0,0,6.46,10.46L3.46,13.46A5,5,0,0,0,10.53,20.53L12.24,18."
+    },
+    {
+      "uses": 2,
+      "files": 2,
+      "pathStart": "M10,3A0.75,0.75,0,0,1,10.55,3.24L13.8,6.74A0.75,0.75,0,1,1,12.7,7.76L1"
+    },
+    {
+      "uses": 2,
+      "files": 1,
+      "pathStart": "M19,8.84L11.44,12.62A2.75,2.75,0,0,1,8.56,12.62L1,8.84V14A2,2,0,0,0,3,"
+    },
+    {
+      "uses": 2,
+      "files": 1,
+      "pathStart": "M10,2C7.76,2,5.57,2.18,3.43,2.52C1.99,2.75,1,3.98,1,5.38V10.62C1,12.02"
+    },
+    {
+      "uses": 2,
+      "files": 2,
+      "pathStart": "M7,2A2,2,0,0,0,5,4V20A2,2,0,0,0,7,22H17A2,2,0,0,0,19,20V8L13,2H7ZM13,3"
+    },
+    {
+      "uses": 2,
+      "files": 2,
+      "pathStart": "M16.86,4.49L18.55,2.8A1.88,1.88,0,1,1,21.2,5.45L10.58,16.07A4.5,4.5,0,"
+    },
+    {
+      "uses": 2,
+      "files": 1,
+      "pathStart": "M10.32,4.32C10.75,2.56,13.25,2.56,13.67,4.32A1.72,1.72,0,0,0,16.25,5.3"
+    },
+    {
+      "uses": 2,
+      "files": 2,
+      "pathStart": "M22.56,12.25C22.56,11.47,22.49,10.72,22.36,10H12V14.26H17.92A5.06,5.06"
+    },
+    {
+      "uses": 2,
+      "files": 2,
+      "pathStart": "M12,23C14.97,23,17.46,22.02,19.28,20.34L15.71,17.57C14.73,18.23,13.48,"
+    },
+    {
+      "uses": 2,
+      "files": 2,
+      "pathStart": "M5.84,14.09C5.62,13.43,5.49,12.73,5.49,12S5.62,10.57,5.84,9.91V7.07H2."
+    },
+    {
+      "uses": 2,
+      "files": 2,
+      "pathStart": "M12,5.38C13.62,5.38,15.06,5.94,16.21,7.02L19.36,3.87C17.45,2.09,14.97,"
+    },
+    {
+      "uses": 2,
+      "files": 2,
+      "pathStart": "M12,9V11M12,15H12.01"
+    },
+    {
+      "uses": 2,
+      "files": 2,
+      "pathStart": "M4,8V4M4,4H8M4,4L9,9M20,4V8M20,4H16M20,4L15,9M4,16V20M4,20H8M4,20L9,15"
+    },
+    {
+      "uses": 2,
+      "files": 2,
+      "pathStart": "M15,10H5M5,10L9,6M5,10L9,14"
+    },
+    {
+      "uses": 2,
+      "files": 1,
+      "pathStart": "M9,22V18H15V22"
+    },
+    {
+      "uses": 2,
+      "files": 1,
+      "pathStart": "M8,6H8.01M16,6H16.01M12,6H12.01M12,10H12.01M12,14H12.01M16,10H16.01M16"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M305.8,81.13C305.77,81,305.69,80.89,305.65,80.75C305.56,80.53,305.49,8"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M18.24,2.25H21.55L14.32,10.51L22.83,21.75H16.17L10.96,14.93L4.99,21.75"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M12,0C8.74,0,8.33,0.01,7.05,0.07C5.78,0.13,4.91,0.33,4.14,0.63C3.35,0."
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M4,5A1,1,0,0,1,5,4H9A1,1,0,0,1,10,5V9A1,1,0,0,1,9,10H5A1,1,0,0,1,4,9V5"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M8.34,1.8A1,1,0,0,1,9.32,1H10.68A1,1,0,0,1,11.66,1.8L11.96,3.28C12.45,"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M3,15.05V14.37C3.13,14.42,3.25,14.47,3.39,14.51C5.48,15.15,7.7,15.5,10"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M10.32,4.32C10.75,2.56,13.25,2.56,13.67,4.32A1.72,1.72,0,0,0,16.25,5.3"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M10.75,10.82V13.43A3.13,3.13,0,0,0,11.89,13C12.37,12.69,12.5,12.35,12."
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M14,20H26M20,14V26"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M9,12L11,14L15,10"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M62,80L140,130L218,80V170C218,175.52,213.52,180,208,180H72C66.48,180,6"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M62,80L140,130L218,80"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M62,80L140,145L218,80"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M172,155L176,159L184,151"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M15.75,6A3.75,3.75,0,1,1,8.25,6A3.75,3.75,0,0,1,15.75,6ZM4.5,20.12A7.5"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M100,66C100,60.48,104.48,56,110,56S120,60.48,120,66"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M92,20.5L94.5,23L99,17.5"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M15,35L65,75L115,35"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M15,125L50,85"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M115,125L80,85"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M100,12L101.5,17.25A3,3,0,0,0,103.56,19.31L109,20.75L103.56,22.19A3,3,"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M112,30L112.8,32.8A2,2,0,0,0,114.2,34.2L117,35L114.2,35.8A2,2,0,0,0,11"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M48,40V32A8,8,0,0,1,56,24H74A8,8,0,0,1,82,32V40"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M101.5,29.5L106,34"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M30,60L25,72L42,60"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M100,120L108,132L95,120"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M25,25L60,50L95,25V65C95,68,92,70,89,70H31C28,70,25,68,25,65V25Z"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M25,25L60,50L95,25"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M8,38L10,34L14,38L10,39L8,38Z"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M106,14L108,10L112,14L108,15L106,14Z"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M47,30V27A3,3,0,0,1,53,27V30"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M8,55L10,51L14,55L10,56L8,55Z"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M100,10L102,6L106,10L102,11L100,10Z"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M5,50L7,46L11,50L7,51L5,50Z"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M110,20L112,16L116,20L112,21L110,20Z"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M35,55C35,49.48,39.48,45,45,45S55,49.48,55,55"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M230,115C230,109.48,234.48,105,240,105S250,109.48,250,115"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M117,70V66A4,4,0,0,1,121,62H129A4,4,0,0,1,133,66V70"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M55.5,10L57,11.5L60.5,8.5"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M15,0C9.48,0,5,4.48,5,10C5,18,15,28,15,28S25,18,25,10C25,4.48,20.52,0,"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M70,20H170A8,8,0,0,1,178,28V148L120,118L62,148V28A8,8,0,0,1,70,20Z"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M15,0L18.5,10.5H30L20.75,17L24.25,27.5L15,21L5.75,27.5L9.25,17L0,10.5H"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M120,20C120,20,118,20,118,20C104,22,93,34,93,48V72C93,78,90,84,85,88L7"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M78,93C78,93,78,97,80,100C82,103,86,105,90,105H150C154,105,158,103,160"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M160,55C165,58,168,64,168,70"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M167,48C175,53,180,63,180,73"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M80,55C75,58,72,64,72,70"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M73,48C65,53,60,63,60,73"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M0,9L20,23L40,9"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M12,9V11M12,15H12.01M21,12A9,9,0,1,1,3,12A9,9,0,0,1,21,12Z"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M4,6H20M4,12H14M4,18H18"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M4,6H20M7,12H17M5,18H19"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M4,6H20M10,12H20M6,18H20"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M8.48,2.5C9.16,1.33,10.84,1.33,11.51,2.5L17.79,13.37C18.47,14.54,17.63"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M10,20V16C10,11.58,13.58,8,18,8C22.42,8,26,11.58,26,16V20"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M23,26C23,28,21,30,18,30"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M60,15H140C143.31,15,146,17.69,146,21V120L139,116L132,120L125,116L118,"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M5,10H15M15,10L11,6M15,10L11,14"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M12,12.75C13.15,12.75,14.28,12.83,15.38,12.99C16.42,13.13,17.25,13.95,"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M20.25,14.15V18.4C20.25,19.49,19.46,20.44,18.38,20.58C16.29,20.86,14.1"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M16.02,9.35H21.02V9.35M2.98,19.64V14.65M2.98,14.65H7.98M2.98,14.65L6.1"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M13.19,8.69A4.5,4.5,0,0,1,14.43,15.93L9.93,20.43A4.5,4.5,0,0,1,3.57,14"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M13.19,8.69A4.5,4.5,0,0,1,14.43,15.93L9.93,20.43A4.5,4.5,0,0,1,3.57,14"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M22,10V16M2,10L12,5L22,10L12,15Z"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M6,12V17C6,18.1,8.7,20,12,20S18,18.1,18,17V12"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M21,10C21,17,12,23,12,23S3,17,3,10A9,9,0,0,1,21,10Z"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M61.85,14.63C61.88,14.71,61.89,14.8,61.89,14.89V28.56C61.89,28.74,61.8"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M23,4A1,1,0,0,0,21.55,3.11L12.22,7.77A0.5,0.5,0,0,1,11.78,7.77L2.45,3."
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M24,8.25A0.5,0.5,0,0,0,23.5,7.75H0.5A0.5,0.5,0,0,0,0,8.25V20.25A2.5,2."
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M8.75,4.5H5.5C4.81,4.5,4.25,5.06,4.25,5.75V10.5C4.25,11.19,4.81,11.75,"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M24,10A3,3,0,0,0,21,7H19V2.5A2,2,0,0,0,17,0.5H2A2,2,0,0,0,0,2.5V20A3.5"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M12.75,6.05H14.75A0.75,0.75,0,0,1,15.5,6.8V7.3A0.75,0.75,0,0,1,14.75,8"
+    },
+    {
+      "uses": 1,
+      "files": 1,
+      "pathStart": "M16.6,12.63A0.25,0.25,0,0,0,16.52,12.4A2.23,2.23,0,0,1,15.75,10.72C15."
+    }
+  ]
+}

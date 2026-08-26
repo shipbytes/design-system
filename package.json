@@ -1,0 +1,44 @@
+{
+  "name": "@shipbytes/design-tokens",
+  "version": "0.1.0",
+  "description": "Design tokens for the Shipbytes dashboard system — CSS custom properties, a Tailwind v4 theme, and JS values. Framework-agnostic: Blade, React, Vue and plain HTML all consume the same files.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist",
+    "tokens",
+    "icons"
+  ],
+  "exports": {
+    ".": "./dist/tokens.js",
+    "./tokens.css": "./dist/tokens.css",
+    "./theme.css": "./dist/theme.css",
+    "./tokens.json": "./dist/tokens.json",
+    "./icons.json": "./icons/icons.json"
+  },
+  "scripts": {
+    "build": "node scripts/build-tokens.mjs && node scripts/build-icons.mjs",
+    "build:tokens": "node scripts/build-tokens.mjs",
+    "build:icons": "node scripts/build-icons.mjs",
+    "test": "node scripts/test-tokens.mjs && node scripts/test-render.mjs && node scripts/test-behaviour.mjs",
+    "build:gallery": "node scripts/build-gallery.mjs",
+    "test:tokens": "node scripts/test-tokens.mjs",
+    "test:render": "node scripts/test-render.mjs",
+    "build:docs": "node scripts/build-docs.mjs",
+    "test:behaviour": "node scripts/test-behaviour.mjs"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "alpinejs": "^3.16.3",
+    "heroicons": "^2.2.0",
+    "heroicons-v1": "npm:heroicons@^1.0.6",
+    "playwright-core": "^1.62.1",
+    "tailwindcss": "^4.3.3"
+  },
+  "keywords": [
+    "design-tokens",
+    "design-system",
+    "tailwind",
+    "dtcg"
+  ]
+}

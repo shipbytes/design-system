@@ -1,0 +1,10 @@
+node_modules/
+scripts/_smoke/out.css
+.gallery-tmp/
+vendor/
+.render-tmp/
+.interactive-tmp/
+.phpunit.result.cache
+
+# A library does not pin its own dependencies — consumers resolve their own.
+composer.lock

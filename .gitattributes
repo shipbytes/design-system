@@ -1,0 +1,14 @@
+# Keep composer installs lean, but ship everything a consumer actually needs.
+#
+# dist/ IS exported on purpose. A Blade-only project should not have to install
+# an npm package to get the CSS — it can point Tailwind straight at
+# vendor/shipbytes/blade-ui/dist/tokens.css. The npm package is for JS and
+# non-PHP consumers, not a prerequisite.
+/scripts            export-ignore
+/tests              export-ignore
+# 1 MB of screenshots nobody reads out of vendor/. The docs live on GitHub.
+/docs               export-ignore
+/phpunit.xml        export-ignore
+/package-lock.json  export-ignore
+/.gitattributes     export-ignore
+/.gitignore         export-ignore
