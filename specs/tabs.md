@@ -68,16 +68,113 @@ The component does its half: roving `tabindex`, so only the selected tab is
 tabbable and the rest are reachable only through the arrows the host wires.
 
 ```blade
-<div x-data="{ tab: 'overview' }">
-    <x-ds::tabs label="Report sections">
-        <x-ds::tab controls="p-overview" ::active="tab === 'overview'" @click="tab = 'overview'">
-            Overview
-        </x-ds::tab>
+<div
+    x-data="{
+        tab: 'overview',
+        tabs: ['overview', 'activity'],
+        go(name) {
+            this.tab = name;
+            // Focus follows the selection. Without this the reader is left on a
+            // tab that is no longer the selected one, and the next arrow press
+            // moves from the wrong place.
+            this.$nextTick(() => this.$refs[name].focus());
+        },
+        move(step) {
+            const at = this.tabs.indexOf(this.tab);
+            this.go(this.tabs[(at + step + this.tabs.length) % this.tabs.length]);
+        },
+    }"
+>
+    <x-ds::tabs
+        label="Report sections"
+        @keydown.right.prevent="move(1)"
+        @keydown.left.prevent="move(-1)"
+    >
+        <x-ds::tab
+            id="tab-overview"
+            controls="p-overview"
+            x-ref="overview"
+            :active="true"
+            ::class="{
+                'border-fg text-fg': tab === 'overview',
+                'border-transparent text-fg-muted hover:border-border-strong hover:text-fg': tab !== 'overview',
+            }"
+            ::aria-selected="tab === 'overview'"
+            ::tabindex="tab === 'overview' ? 0 : -1"
+            @click="tab = 'overview'"
+        >Overview</x-ds::tab>
+
+        <x-ds::tab
+            id="tab-activity"
+            controls="p-activity"
+            x-ref="activity"
+            ::class="{
+                'border-fg text-fg': tab === 'activity',
+                'border-transparent text-fg-muted hover:border-border-strong hover:text-fg': tab !== 'activity',
+            }"
+            ::aria-selected="tab === 'activity'"
+            ::tabindex="tab === 'activity' ? 0 : -1"
+            @click="tab = 'activity'"
+        >Activity</x-ds::tab>
     </x-ds::tabs>
 
-    <x-ds::tab-panel id="p-overview" ::active="tab === 'overview'">…</x-ds::tab-panel>
+    <x-ds::tab-panel id="p-overview" labelledby="tab-overview" :active="true"
+        ::hidden="tab !== 'overview'">…</x-ds::tab-panel>
+
+    <x-ds::tab-panel id="p-activity" labelledby="tab-activity"
+        ::hidden="tab !== 'activity'">…</x-ds::tab-panel>
 </div>
 ```
+
+That is longer than it looks like it should be, and every line of it is load
+bearing. This exact markup is a specimen in `scripts/behaviour-specimens.blade.php`
+and is driven by `npm run test:behaviour`, because two earlier versions of this
+example were wrong in ways nothing reported.
+
+### Why not `::active`
+
+The first version of this spec documented `::active="tab === 'overview'"`. It
+does not work. `::active` binds an `active` **attribute** on the rendered
+element, and nothing reads that attribute — the component chose its classes from
+the PHP `$active` prop when the view rendered, before the browser saw anything.
+The panel switched and the tab never changed appearance. No error.
+
+This is not a tabs quirk. **Any prop that resolves to a class string in PHP
+behaves this way** — see
+[Driving components from client-side state](../docs/getting-started.md#driving-components-from-client-side-state)
+for the full list and the reason the props are built that way.
+
+### Why the object form of `::class`, and not the string form
+
+The obvious repair is worse, because it half works:
+
+```blade
+{{-- Broken, and it LOOKS right in the source --}}
+::class="tab === 'x' ? 'border-fg text-fg' : 'border-transparent text-fg-muted'"
+```
+
+Alpine's **string** form of `:class` only *adds* classes. It never removes one it
+did not add, and the component server-rendered `border-transparent`. So the tab
+switches its panel, and the element ends up carrying both:
+
+```
+class="… border-b-2 border-transparent text-fg-muted border-fg text-fg"
+```
+
+The underline is then decided by whichever rule Tailwind happened to emit last,
+which is not a decision anyone made. The **object** form removes a class whose
+value is falsy even when it was in the original `class` attribute. That is the
+only reason it is written the long way.
+
+### Why `:active` AND `::class` on the same tag
+
+`:active` is the PHP prop; `::class` is the Alpine binding. Keeping both is what
+makes the first paint correct — the right tab is already selected before Alpine
+boots, and in anything that never runs the JS the markup is still right. The
+binding takes over from there.
+
+Bind for what moves; render what does not. The components follow the same rule
+internally, which is why `select` renders its own tick from PHP.
 
 ## Do not
 
@@ -90,3 +187,8 @@ tabbable and the rest are reachable only through the arrows the host wires.
   order are a wizard, and tabs let the reader skip to step three.
 - **Do not exceed what fits.** A scrolling row of eleven tabs hides most of them
   off-screen with no affordance saying so.
+- **Do not bind `active`.** `::active` sets an attribute nothing reads. The tab
+  will switch its panel and never look selected. See above.
+- **Do not use the string form of `::class`.** It only adds classes, so the
+  server-rendered `border-transparent` stays on the element and fights the one
+  you just added.

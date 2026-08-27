@@ -30,12 +30,29 @@
         ? number_format($target)
         : $value;
 
-    $tone = $delta === null ? null : ($delta >= 0 ? 'success' : 'danger');
-    $deltaClasses = match ($tone) {
-        'success' => 'bg-success-tint text-on-success-tint',
-        'danger' => 'bg-danger-tint text-on-danger-tint',
+    /*
+     * Zero is its own tone, not a small rise.
+     *
+     * `>= 0` made a flat week render a GREEN +0% — the colour that means "up"
+     * and the sign that means "up", on the one reading that means neither. A
+     * dashboard of those quietly says everything is growing.
+     *
+     * The three cases are genuinely three: up, down, and no change. `null` is a
+     * fourth and different again — "nothing to compare against yet" — which is
+     * why it renders no chip at all rather than a 0%.
+     */
+    $direction = $delta === null ? null : ((float) $delta <=> 0.0);
+
+    $deltaClasses = match ($direction) {
+        1 => 'bg-success-tint text-on-success-tint',
+        -1 => 'bg-danger-tint text-on-danger-tint',
+        0 => 'bg-neutral-tint text-on-neutral-tint',
         default => '',
     };
+
+    // No `+` on zero either. "+0%" is a claim about direction that 0 does not
+    // make, and it is the half of the bug a colour change alone would leave.
+    $sign = $direction === 1 ? '+' : '';
 
     $classes = implode(' ', [
         'group block rounded-control border border-border-strong bg-surface p-4',
@@ -61,7 +78,7 @@
     @if ($delta !== null)
         <div class="mt-2 flex items-center gap-2 text-body">
             <span class="inline-flex items-center rounded-chip px-1.5 py-0.5 text-meta font-medium {{ $deltaClasses }}">
-                {{ $delta >= 0 ? '+' : '' }}{{ $delta }}%
+                {{ $sign }}{{ $delta }}%
             </span>
             <span class="text-fg-muted">{{ $caption ?? 'from last week' }}</span>
         </div>

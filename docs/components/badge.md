@@ -19,6 +19,12 @@ A small label that **annotates** something — a status, a count, a category.
 | `variant` | `tint` `solid` `outline` | `tint` | How loud it is. |
 | `dot` | bool | `false` | Leading status dot. |
 
+> **`tone` and `variant` resolve to classes on the server.** They are chosen when the view
+> renders, so binding either to Alpine state does nothing — `::tone="…"` sets an
+> attribute nothing reads. To change one in the browser, bind the classes yourself
+> with Alpine's **object** syntax, or re-render server-side. See
+> [Driving components from client-side state](../getting-started.md#driving-components-from-client-side-state).
+
 ## Tone is a claim about state
 
 `success` means the thing succeeded — not that it is green. Five tones exist and

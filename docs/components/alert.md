@@ -27,6 +27,12 @@ reason is gone.
 
 Each tone brings its own icon, so the common case needs no `icon`.
 
+> **`tone` resolve to classes on the server.** They are chosen when the view
+> renders, so binding it to Alpine state does nothing — `::tone="…"` sets an
+> attribute nothing reads. To change it in the browser, bind the classes yourself
+> with Alpine's **object** syntax, or re-render server-side. See
+> [Driving components from client-side state](../getting-started.md#driving-components-from-client-side-state).
+
 ## One sentence needs no title
 
 A title that restates the sentence below it is two copies of the same message.

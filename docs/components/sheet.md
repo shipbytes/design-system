@@ -29,7 +29,7 @@ The mobile form of a modal or a drawer. Covers `sheet` and `sheet-item`.
 
 | Prop | Type | Default | What it does |
 |---|---|---|---|
-| `open` | Alpine expression | *required* | The boolean **you** declare. |
+| `open` | Alpine **reference** | *required* | The boolean **you** declare. Must be assignable: the component sets it to `false` from the ✕ and the backdrop, so `open="mode === 'more'"` opens and then never closes. It throws rather than rendering that. |
 | `title` | string | — | Heading and close button. |
 | `maxHeight` | CSS length | `85vh` | Cap on the panel height. |
 
@@ -59,6 +59,12 @@ A chevron is a claim that the row goes somewhere. A link gets one; a submit
 button does not. Sign out is a `POST`, so giving it a chevron would promise a
 page it never shows. Disabled rows render as a `div` and fall out of the same
 rule.
+
+> **`sheet-item`'s `tone` resolve to classes on the server.** They are chosen when the view
+> renders, so binding it to Alpine state does nothing — `::tone="…"` sets an
+> attribute nothing reads. To change it in the browser, bind the classes yourself
+> with Alpine's **object** syntax, or re-render server-side. See
+> [Driving components from client-side state](../getting-started.md#driving-components-from-client-side-state).
 
 ## Tone: three, not ten
 

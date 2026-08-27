@@ -71,8 +71,37 @@ The title is `title` (18/28), a size added to the scale *because of* this
 component. The scale originally jumped 14 → 20, which would have rounded 99
 existing 18px usages up — a change disguised as a migration.
 
+
+### `open` must be assignable
+
+`open` is a **reference**, not a condition. The component does not just read it —
+the close button, the backdrop both write to it:
+
+```blade
+@click="{{ $open }} = false"
+```
+
+```blade
+{{-- Broken: opens, and then nothing closes it --}}
+<x-ds::sheet open="mode === 'more'">
+
+{{-- Works --}}
+<div x-data="{ show: { more: false, share: false } }">
+    <x-ds::sheet open="show.more">
+</div>
+```
+
+The broken form compiles to `mode === 'more' = false`. Reading the expression is fine,
+so the sheet **opens correctly**, and then every dismiss path silently does
+nothing. HTTP 200, a clean server log, and one `Uncaught SyntaxError: Invalid
+left-hand side in assignment` in a console nobody had open. It cost a consumer
+half an hour, which is why it is a render-time exception now
+(`Support\OpenState`) rather than a docblock alone.
+
 ## Do not
 
 - Nest a sheet inside a sheet. Two dismissible layers give the reader no way to
   know what "back" means.
+- Give `open` a comparison. `open="mode === 'more'"` opens and then ignores
+  both the ✕ and the backdrop. It has to be assignable — see above.
 - Use a sheet above `lg`. It is the mobile form of a modal, not a second modal.

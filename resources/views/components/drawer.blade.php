@@ -1,16 +1,36 @@
 @props([
-    /** Alpine expression holding the open state, e.g. "filtersOpen". */
+    /**
+     * Alpine REFERENCE holding the open state, e.g. `filtersOpen` or
+     * `panels.filters`.
+     *
+     * Must be ASSIGNABLE, not merely readable. The component does not just read
+     * this — it writes to it, setting it to false from the close button, the
+     * backdrop and Escape. A comparison such as `mode === 'filters'` reads
+     * correctly, so the drawer OPENS, and then every dismiss path silently
+     * does nothing: `mode === 'filters' = false` is not an assignment. The only
+     * evidence is an "Invalid left-hand side in assignment" in the browser
+     * console. OpenState::assertAssignable() below turns that into an
+     * exception at render time rather than a console-only surprise.
+     *
+     * The component owns no state — the host declares it and this points at it,
+     * which is what keeps the same markup usable from Blade, Livewire or Volt.
+     */
     'open',
     /** Heading. Also becomes the dialog's accessible name. */
     'title' => null,
     /** right | left */
     'side' => 'right',
-    /** sm | md | lg */
+    /** sm | md | lg | xl | 2xl | full */
     'size' => 'md',
     'dismissible' => true,
 ])
 
 @php
+    // `open` is assigned to, not just read — see the prop docblock. A
+    // non-assignable expression opens fine and then ignores every way of
+    // closing, which is a console-only failure. Make it a loud one.
+    \Shipbytes\BladeUi\Support\OpenState::assertAssignable($open, 'ds::drawer');
+
     // Closed sets, literal classes. Position, transform origin and the two
     // transition endpoints all have to agree, so they live in one map rather
     // than being assembled from a `side` string at three separate points.
@@ -27,7 +47,20 @@
 
     $s = $sides[$side] ?? $sides['right'];
 
-    $sizes = ['sm' => 'max-w-sm', 'md' => 'max-w-md', 'lg' => 'max-w-lg'];
+    $sizes = [
+        'sm' => 'max-w-sm',     // 24rem — a filter list
+        'md' => 'max-w-md',     // 28rem — the default
+        'lg' => 'max-w-lg',     // 32rem — the widest the source dashboard used
+        'xl' => 'max-w-xl',     // 36rem ┐ a record beside the list it came from,
+        '2xl' => 'max-w-2xl',   // 42rem ┘ a detail pane with a table in it
+        // NOT `max-w-none`. This container is `fixed inset-0` with no padding,
+        // so `none` would run the panel edge to edge with no page visible behind
+        // it — and a panel covering everything is a screen, not a drawer. The
+        // sliver is what says the thing you came from is still there and one
+        // click away, which is the whole difference between the two.
+        'full' => 'max-w-[calc(100vw-3rem)]',
+    ];
+
     $width = $sizes[$size] ?? $sizes['md'];
 
     $id = 'ds-drawer-'.substr(md5($title.$open.$side), 0, 8);

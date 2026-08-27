@@ -34,9 +34,10 @@ final class EmittedClassesExistTest extends TestCase
      * it should not be in the markup".
      */
     private const NOT_UTILITIES = [
-        // Alpine's own hook. Styled by the host with [x-cloak]{display:none},
-        // which is documented in the consumer contract rather than shipped —
-        // it has to apply before any of our CSS loads.
+        // Alpine's own hook, and an ATTRIBUTE rather than a utility — so it
+        // never needs a `.x-cloak` rule. The rule it does need, `[x-cloak] {
+        // display: none }`, now ships in dist/theme.css and is checked by
+        // every_x_cloak_component_has_a_rule_that_hides_it() below.
         'x-cloak',
     ];
 
@@ -90,6 +91,55 @@ final class EmittedClassesExistTest extends TestCase
             $this->cssHasRuleFor($this->compiledCss(), 'size-4.5'),
             'size-4.5 has no rule — this is the exact bug that made every alert '
             .'render a checkmark the height of its panel',
+        );
+    }
+
+    /**
+     * The other half of the same idea, for an ATTRIBUTE selector.
+     *
+     * Nine components hide themselves with `x-cloak` until Alpine boots and
+     * `x-show` takes over. The attribute does nothing on its own — it is a hook
+     * for a CSS rule, and Alpine does not ship that rule. Without one, every
+     * overlay on the page renders open, backdrop and all, from first paint
+     * until the script runs.
+     *
+     * That is the same failure as `size-4.5`: a selector with no rule behind it
+     * is not an error, it is nothing. The rule now ships in dist/theme.css; this
+     * asserts it is still there, and that the set of components relying on it is
+     * still covered.
+     */
+    #[Test]
+    public function every_x_cloak_component_has_a_rule_that_hides_it(): void
+    {
+        $css = $this->compiledCss();
+
+        $cloaked = [];
+
+        foreach (glob(__DIR__.'/../resources/views/components/*.blade.php') as $file) {
+            if (preg_match('/(?<![\w:-])x-cloak(?![\w-])/', (string) file_get_contents($file))) {
+                $cloaked[] = basename($file, '.blade.php');
+            }
+        }
+
+        // If this ever hits zero the check has stopped meaning anything —
+        // a passing test over an empty set is the failure mode it exists to
+        // avoid, so the set itself is asserted first.
+        $this->assertNotEmpty(
+            $cloaked,
+            'no component emits x-cloak any more — either that is wrong, or this '
+            .'test is now checking nothing and should go.',
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/\[x-cloak\][^{]*\{[^}]*display\s*:\s*none/i',
+            $css,
+            "these components hide themselves with x-cloak and the compiled CSS has\n"
+            ."no rule behind it, so every one of them renders FULLY VISIBLE from\n"
+            ."first paint until Alpine boots:\n\n  "
+            .implode(', ', $cloaked)."\n\n"
+            ."The rule is emitted by scripts/build-tokens.mjs into dist/theme.css.\n"
+            ."If it was moved back out to the consumer contract, getting-started.md\n"
+            ."has to say so as a REQUIRED line, not an aside.\n",
         );
     }
 

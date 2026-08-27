@@ -37,8 +37,34 @@ All three share `z-50`, and none of them may be open at the same time.
 the reader's attention already is after they clicked something on the right.
 Left for navigation, because that is where navigation lives.
 
-`size`: `sm` | `md` | `lg` — `max-w-sm` through `max-w-lg`, plus `w-full`, so a
-drawer is full width on a phone and a panel on a desktop.
+| `size` | Width | When |
+|---|---|---|
+| `sm` | 24rem / 384px | A filter list. |
+| `md` | 28rem / 448px | **Default.** |
+| `lg` | 32rem / 512px | The widest the source dashboard ever used. |
+| `xl` | 36rem / 576px | A record shown beside the list it came from. |
+| `2xl` | 42rem / 672px | A detail pane with a table in it. |
+| `full` | `calc(100vw - 3rem)` | A reader that wants the room but is still a drawer. |
+
+Each is paired with `w-full`, so a drawer is full width on a phone and a panel on
+a desktop, at every size.
+
+`xl` and `2xl` are for the case the dashboard did not have: a drawer used to
+*read* a record rather than to filter one. Filters are a narrow list and always
+were.
+
+**`full` is `calc(100vw - 3rem)`, not `max-w-none`, and the sliver is the
+point.** This container is `fixed inset-0` with no padding of its own, so `none`
+would run the panel edge to edge with nothing of the page visible behind it — and
+a panel covering everything is a screen, not a drawer. The strip of page still
+showing is what says the thing you came from is still there and one click away.
+That is the whole difference between the two, and a full-bleed drawer would
+quietly become a worse page.
+
+Position, border side and both transition endpoints are separate from this and
+come from the `side` map. The transitions are `translate-x-full` /
+`-translate-x-full`, which are relative to the element's own width, so they hold
+at every size without a second lookup.
 
 Position, border side and both transition endpoints come from **one map**. Split
 across three lookups, a `side` change silently keeps the previous slide
@@ -87,6 +113,33 @@ as literal text. Two copies of ten lines, each next to the component it belongs
 to, is cheaper than that indirection. **If a third overlay appears, extract
 then.**
 
+
+### `open` must be assignable
+
+`open` is a **reference**, not a condition. The component does not just read it —
+the close button, the backdrop and Escape all write to it:
+
+```blade
+@click="{{ $open }} = false"
+```
+
+```blade
+{{-- Broken: opens, and then nothing closes it --}}
+<x-ds::drawer open="side === 'right'">
+
+{{-- Works --}}
+<div x-data="{ show: { right: false, left: false } }">
+    <x-ds::drawer open="show.right">
+</div>
+```
+
+The broken form compiles to `side === 'right' = false`. Reading the expression is fine,
+so the drawer **opens correctly**, and then every dismiss path silently does
+nothing. HTTP 200, a clean server log, and one `Uncaught SyntaxError: Invalid
+left-hand side in assignment` in a console nobody had open. It cost a consumer
+half an hour, which is why it is a render-time exception now
+(`Support\OpenState`) rather than a docblock alone.
+
 ## Do not
 
 - **Do not open a drawer from a drawer.** Same rule as the modal, same reason:
@@ -95,5 +148,9 @@ then.**
   hides primary navigation behind a button on a desktop hides it for no reason.
 - **Do not put a form's only submit in the scrolling body.** That is what the
   footer slot is for.
+- **Do not drive several drawers from one variable.** `open="side === 'right'"`
+  is the natural way to write that and it is not assignable: the drawer opens
+  and then the ✕, the backdrop and Escape all do nothing. One property per
+  panel — see above.
 - **Do not animate `width`.** Transform only — animating width relayouts the
   contents on every frame, and a filter list visibly reflows as it opens.

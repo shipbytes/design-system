@@ -27,6 +27,12 @@ Does something, or goes somewhere.
 Anything else you pass — `type`, `wire:click`, `@click`, `class` — goes straight
 through to the element.
 
+> **`variant` and `size` resolve to classes on the server.** They are chosen when the view
+> renders, so binding either to Alpine state does nothing — `::variant="…"` sets an
+> attribute nothing reads. To change one in the browser, bind the classes yourself
+> with Alpine's **object** syntax, or re-render server-side. See
+> [Driving components from client-side state](../getting-started.md#driving-components-from-client-side-state).
+
 ## Variants
 
 Exactly **one `primary` per view.** If two things are equally important, neither

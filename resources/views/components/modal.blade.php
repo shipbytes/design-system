@@ -1,7 +1,18 @@
 @props([
     /**
-     * Alpine expression holding the open state, e.g. "confirmOpen".
-     * The component owns no state — the host declares it and this reads it,
+     * Alpine REFERENCE holding the open state, e.g. `confirmOpen` or
+     * `panels.confirm`.
+     *
+     * Must be ASSIGNABLE, not merely readable. The component does not just read
+     * this — it writes to it, setting it to false from the close button, the
+     * backdrop and Escape. A comparison such as `mode === 'confirm'` reads
+     * correctly, so the modal OPENS, and then every dismiss path silently
+     * does nothing: `mode === 'confirm' = false` is not an assignment. The only
+     * evidence is an "Invalid left-hand side in assignment" in the browser
+     * console. OpenState::assertAssignable() below turns that into an
+     * exception at render time rather than a console-only surprise.
+     *
+     * The component owns no state — the host declares it and this points at it,
      * which is what keeps the same markup usable from Blade, Livewire or Volt.
      */
     'open',
@@ -9,7 +20,7 @@
     'title' => null,
     /** Second line under the title, for the "are you sure" sentence. */
     'description' => null,
-    /** sm | md | lg | xl */
+    /** sm | md | lg | xl | 2xl | 3xl | 4xl | full */
     'size' => 'md',
     /**
      * Backdrop click, Escape and the close button. Turn it off for a modal the
@@ -20,6 +31,11 @@
 ])
 
 @php
+    // `open` is assigned to, not just read — see the prop docblock. A
+    // non-assignable expression opens fine and then ignores every way of
+    // closing, which is a console-only failure. Make it a loud one.
+    \Shipbytes\BladeUi\Support\OpenState::assertAssignable($open, 'ds::modal');
+
     // A CLOSED set of sizes, so this is a lookup of literal class strings and
     // not "max-w-{$size}". Tailwind reads source TEXT: `max-w-lg` written here
     // is scannable, an interpolated one is not — the same blindness that shipped
@@ -27,10 +43,30 @@
     // whenever the set of values is finite; only an open-ended prop (icon's
     // `size`) needs the @source inline list.
     $sizes = [
-        'sm' => 'max-w-sm',
-        'md' => 'max-w-md',
-        'lg' => 'max-w-lg',
-        'xl' => 'max-w-xl',
+        'sm' => 'max-w-sm',     // 24rem — a confirm, a one-field form
+        'md' => 'max-w-md',     // 28rem — the default
+        'lg' => 'max-w-lg',     // 32rem
+        'xl' => 'max-w-xl',     // 36rem — the widest the source dashboard used
+        '2xl' => 'max-w-2xl',   // 42rem ┐ the sizes a dialog needs when its
+        '3xl' => 'max-w-3xl',   // 48rem │ content is WIDE rather than long:
+        '4xl' => 'max-w-4xl',   // 56rem ┘ a table preview, a diff, a log excerpt
+        /*
+         * Near-full-screen, with a ceiling.
+         *
+         * `w-full` inside a `fixed inset-0 p-4` root already means "the
+         * container, less the gutter", so the p-4 IS the margin and `max-w-none`
+         * would be enough. Measured, that gives 1408px at 1440 and **2528px on a
+         * 2560 monitor** — a dialog wider than anything else in the system, with
+         * a line length nobody can read. The cap only engages above a ~1568px
+         * viewport; every laptop gets the identical result either way.
+         *
+         * A plain rem value and not `min(96rem, calc(100vw - 2rem))`, for the
+         * same reason `max-h-full` is not 100dvh: `max-w` only CAPS, so `w-full`
+         * still supplies "the container less the gutter" below the ceiling —
+         * and it stays right when the root is not the viewport, which is exactly
+         * what a transformed ancestor makes it.
+         */
+        'full' => 'max-w-[96rem]',
     ];
 
     $width = $sizes[$size] ?? $sizes['md'];

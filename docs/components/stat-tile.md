@@ -24,16 +24,26 @@ One number, with its change.
 ## `delta` is a number, and its sign picks the colour
 
 Pass `:delta="18"` — not `"+18%"`. The component adds the sign and the `%`, and
-**derives the tone from the sign**: positive is `success`, negative is `danger`.
-There is no `deltaTone` prop.
+**derives the tone from the sign**. There are three cases, not two:
+
+| `delta` | Chip | Tone |
+|---|---|---|
+| `18` | `+18%` | `success` |
+| `-9` | `-9%` | `danger` |
+| `0` | `0%` | `neutral` — no sign, no colour |
+| omitted | no chip at all | — |
 
 ```blade
 <x-ds::stat-tile label="Collaborators" value="4" :delta="-9" />   {{-- red, "-9%" --}}
-<x-ds::stat-tile label="Open tasks"   value="31" :delta="0" />    {{-- green, "+0%" --}}
+<x-ds::stat-tile label="Open tasks"   value="31" :delta="0" />    {{-- grey, "0%" --}}
 ```
 
-Passing a string like `"+12%"` does **not** error — it just compares as a string
-and lands on the wrong colour.
+**Zero is flat, not a small rise.** Until v1.1 it rendered a green `+0%`: the
+colour that means "up" and the sign that means "up", on the one reading that
+means neither. A dashboard of those quietly claims everything is growing.
+
+There is no `deltaTone` prop. Passing a string like `"+12%"` does **not** error —
+it just compares as a string and lands on the wrong colour.
 
 > A rise is not always good news. For a metric where up is bad — churn, errors,
 > latency — the automatic green will be wrong. Either omit `delta` and use
@@ -43,7 +53,8 @@ and lands on the wrong colour.
 
 Omit `delta` and pass `caption` instead. The component deliberately does **not**
 render a `0%` chip in that case: "no change" and "nothing to compare against
-yet" are different statements, and a `0%` reads as the first.
+yet" are different statements, and a `0%` reads as the first. That is exactly
+why `:delta="0"` *does* render one — it is the statement that means "no change".
 
 ```blade
 <x-ds::stat-tile label="Page views" value="2847" caption="Total public views" />

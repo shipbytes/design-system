@@ -55,16 +55,56 @@ below the fold — the two buttons the modal exists to offer.
 
 ## Sizes
 
-`sm` | `md` | `lg` | `xl` — `max-w-sm` through `max-w-xl`. A closed set, mapped
-to literal class strings.
+| `size` | Width | When |
+|---|---|---|
+| `sm` | 24rem / 384px | A confirm. One sentence and two buttons. |
+| `md` | 28rem / 448px | **Default.** A short form. |
+| `lg` | 32rem / 512px | A form with a second column of help text. |
+| `xl` | 36rem / 576px | The widest the source dashboard ever used. |
+| `2xl` | 42rem / 672px | Content that is **wide** rather than long. |
+| `3xl` | 48rem / 768px | A table preview, a diff, a side-by-side compare. |
+| `4xl` | 56rem / 896px | A log excerpt, an image with its metadata beside it. |
+| `full` | the container less its `p-4`, capped at 96rem | A near-full-screen reader. |
 
-That is not a style choice, it is the scanner rule: `max-w-{$size}` built at
-runtime is invisible to Tailwind and generates no rule at all. A map of literals
-is scannable text. **Any prop with a finite set of values gets a map; only an
-open-ended one (icon's `size`) needs the `@source inline` list.**
+A closed set, mapped to literal class strings. That is not a style choice, it is
+the scanner rule: `max-w-{$size}` built at runtime is invisible to Tailwind and
+generates no rule at all. A map of literals is scannable text. **Any prop with a
+finite set of values gets a map; only an open-ended one (icon's `size`) needs the
+`@source inline` list.**
 
-There is no `full`. A modal that fills the viewport is a page, and a page should
-have a URL.
+`sm` through `xl` are the sizes the source dashboard actually used, and they are
+still the right answer for the things a dialog is usually for. The four above
+them exist for the shape of content the dashboard never had in one: something
+whose natural measure is horizontal. A table at 28rem is not a preview of a
+table, it is a column of wrapped cells.
+
+**Past roughly `3xl`, ask whether it wants to be a page.** The reason is the same
+one that used to be written here as "there is no `full`": a dialog is a thing you
+answer and leave, and something that needs 900px of horizontal room usually also
+wants a URL, a back button, and somewhere to link to. The widths are here because
+"preview this file" is a real case that a page would be too heavy for — not
+because a bigger modal is a better modal. The height cap is the same hint from
+the other direction: if the body scrolls far, it was a page.
+
+`full` is `max-w-[96rem]`, not a viewport unit and not `max-w-none`.
+
+The root is `fixed inset-0 p-4` and the panel is `w-full`, so 100% of the
+container is *already* "the viewport, less the gutter" — the `p-4` is the margin,
+and it stays right when the root is not the viewport, which is what a transformed
+ancestor makes it. That is the same argument as `max-h-full`, and `max-w-none`
+would have been enough on its own.
+
+The ceiling is there because `max-w` only *caps*: below it, `w-full` still
+supplies the container less the gutter, so nothing changes. Measured, the
+uncapped version gives 1408px at a 1440 viewport and **2528px at 2560** — a
+dialog wider than any content in the system, at a line length nobody reads. The
+cap engages above roughly a 1568px viewport and is invisible below it:
+
+| Viewport | `full` |
+|---|---|
+| 380 | 348 |
+| 1440 | 1408 |
+| 2560 | 1536 |
 
 ## State
 
@@ -132,6 +172,33 @@ believes and the DOM does not honour. That is the exact shape of every entry in
 this repo's "traps that have already bitten" list, and it would have been the
 sixth. Ten lines inline depend on nothing.
 
+
+### `open` must be assignable
+
+`open` is a **reference**, not a condition. The component does not just read it —
+the close button, the backdrop and Escape all write to it:
+
+```blade
+@click="{{ $open }} = false"
+```
+
+```blade
+{{-- Broken: opens, and then nothing closes it --}}
+<x-ds::modal open="mode === 'confirm'">
+
+{{-- Works --}}
+<div x-data="{ show: { confirm: false, rename: false } }">
+    <x-ds::modal open="show.confirm">
+</div>
+```
+
+The broken form compiles to `mode === 'confirm' = false`. Reading the expression is fine,
+so the modal **opens correctly**, and then every dismiss path silently does
+nothing. HTTP 200, a clean server log, and one `Uncaught SyntaxError: Invalid
+left-hand side in assignment` in a console nobody had open. It cost a consumer
+half an hour, which is why it is a render-time exception now
+(`Support\OpenState`) rather than a docblock alone.
+
 ## Do not
 
 - **Nest a modal in a modal.** Two blocking layers give the reader no way to know
@@ -141,5 +208,7 @@ sixth. Ten lines inline depend on nothing.
 - **Put a form's only validation errors in a modal that closes on submit.** The
   reader never sees them.
 - **Use `dismissible="false"` without an explicit exit** in the footer.
+- **Give `open` a comparison.** `open="mode === 'confirm'"` opens and then
+  ignores the ✕, the backdrop and Escape. It has to be assignable — see above.
 - **Reach for a modal to hold a workflow.** More than one decision belongs on a
   page. The height cap is a hint: if the body scrolls far, it was a page.

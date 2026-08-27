@@ -50,6 +50,29 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/*
+  The rule Alpine depends on and does not ship.
+
+  Nine components mark their overlay root `x-cloak`: modal, drawer, sheet,
+  dropdown, tooltip, select, combobox, date-picker and file-upload. Alpine
+  removes the attribute once it boots, and `x-show` takes over from there — but
+  until that moment the attribute is the ONLY thing hiding them. With no rule
+  behind it, every dialog on the page renders open, backdrop and all, from first
+  paint until Alpine runs. On a slow connection that is the whole page load.
+
+  Same shape as every other trap in this repo: a selector with no rule is not an
+  error, it is nothing, and nothing is what it did. Alpine's own docs tell each
+  project to add this by hand, which is one more line for a consumer to miss —
+  and the components here are the ones that break when they do. So it ships.
+
+  `!important` because the elements carrying x-cloak also carry `fixed` and
+  `flex`, which set `display` at the same specificity; without it the winner is
+  whichever rule Tailwind happens to emit last.
+*/
+[x-cloak] {
+  display: none !important;
+}
+
 @theme {
   --color-white: var(--ds-color-white);
   --color-black: var(--ds-color-black);

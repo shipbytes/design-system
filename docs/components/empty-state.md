@@ -30,6 +30,33 @@ What a region says when it has nothing in it.
 
 Plus an `action` slot.
 
+## The button goes in `action`, and there is no default slot
+
+`empty-state` is the one component in the system whose body is *props* rather
+than a slot: the words are `title` and `description`, and the button is the named
+`action` slot.
+
+```blade
+{{-- Broken: renders nothing, and used to say nothing about it --}}
+<x-ds::empty-state title="No reports yet">
+    <x-ds::button>New report</x-ds::button>
+</x-ds::empty-state>
+
+{{-- Works --}}
+<x-ds::empty-state title="No reports yet">
+    <x-slot:action>
+        <x-ds::button>New report</x-ds::button>
+    </x-slot:action>
+</x-ds::empty-state>
+```
+
+Every other component here treats its default slot as the body, so passing the
+button there is the reasonable guess — and an anonymous Blade component simply
+**drops** content it never renders. No error, no button, HTTP 200: an empty state
+missing the one control that would fix the emptiness.
+
+Since v1.1 that throws instead of rendering nothing.
+
 ## Writing one
 
 The parts are mostly a writing problem:
@@ -59,6 +86,9 @@ Two nested frames is a box in a box, and the dashed edge starts to look like a
 drop target.
 
 ## Don't
+
+- **Don't pass the button as the default slot.** There isn't one. It belongs in
+  `<x-slot:action>` — see above.
 
 - **Don't use it for a loading state.** That is [skeleton](skeleton.md) — "nothing
   here" and "not here yet" are opposite claims.

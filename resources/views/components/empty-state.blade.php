@@ -12,6 +12,34 @@
 ])
 
 @php
+    /*
+     * This component has NO default slot. Its body is `title` and `description`,
+     * and the button goes in the named `action` slot.
+     *
+     * Every other component in the system treats its default slot as the body,
+     * so passing buttons there is the reasonable guess — and an anonymous
+     * component simply drops content it never renders. No error, no button,
+     * HTTP 200, an empty state with the one control that would fix the emptiness
+     * silently missing. That is the same shape as the <x-slot:head> a table
+     * never rendered.
+     *
+     * So it is refused rather than ignored. `bare` is the only thing here that
+     * is easy to get wrong AND cheap to get wrong; this one is not.
+     */
+    if (trim((string) $slot) !== '') {
+        throw new \InvalidArgumentException(
+            "<x-ds::empty-state> has no default slot, so the content passed to it "
+            ."would render nowhere at all.\n\n"
+            ."The button belongs in the `action` slot:\n\n"
+            ."  <x-ds::empty-state title=\"No reports yet\" icon=\"document\">\n"
+            ."      <x-slot:action>\n"
+            ."          <x-ds::button>New report</x-ds::button>\n"
+            ."      </x-slot:action>\n"
+            ."  </x-ds::empty-state>\n\n"
+            ."Prose belongs in `description`, which wraps at a readable measure.\n",
+        );
+    }
+
     $tones = [
         'neutral' => 'bg-neutral-tint text-on-neutral-tint',
         'accent' => 'bg-accent-tint text-on-accent-tint',

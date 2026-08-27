@@ -498,6 +498,51 @@
     </div>
 
     <div class="{{ $plate }}">
+        <div class="ds-plate-label">Wide <span>&middot; size 3xl &middot; for content whose natural measure is HORIZONTAL &mdash; a table at 28rem is a column of wrapped cells, not a preview</span></div>
+        <div class="relative h-96 [transform:translateZ(0)]">
+            <x-ds::modal open="true" size="3xl" title="invoice-2026-08.csv" description="First 4 of 1,204 rows">
+                <x-ds::table :columns="[
+                    ['label' => 'Reference', 'width' => 'w-32'],
+                    'Account',
+                    ['label' => 'Period', 'width' => 'w-28'],
+                    ['label' => 'Amount', 'align' => 'right', 'width' => 'w-32'],
+                ]">
+                    @foreach ([
+                        ['INV-4821', 'Northwind Trading', 'Aug 2026', '1,240.00'],
+                        ['INV-4822', 'Contoso Logistics', 'Aug 2026', '318.50'],
+                        ['INV-4823', 'Fabrikam Industrial', 'Aug 2026', '9,700.25'],
+                        ['INV-4824', 'Tailspin Freight', 'Aug 2026', '76.00'],
+                    ] as [$ref, $account, $period, $amount])
+                        <x-ds::table-row>
+                            <x-ds::table-cell :nowrap="true" class="font-medium text-fg">{{ $ref }}</x-ds::table-cell>
+                            <x-ds::table-cell>{{ $account }}</x-ds::table-cell>
+                            <x-ds::table-cell :nowrap="true">{{ $period }}</x-ds::table-cell>
+                            <x-ds::table-cell align="right" class="tabular-nums">{{ $amount }}</x-ds::table-cell>
+                        </x-ds::table-row>
+                    @endforeach
+                </x-ds::table>
+                <x-slot:footer>
+                    <x-ds::button variant="secondary" size="sm">Close</x-ds::button>
+                    <x-ds::button size="sm">Import</x-ds::button>
+                </x-slot:footer>
+            </x-ds::modal>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Every width <span>&middot; sm 24rem &middot; md 28 &middot; lg 32 &middot; xl 36 &middot; 2xl 42 &middot; 3xl 48 &middot; 4xl 56 &middot; full = the container less its p-4 gutter, capped at 96rem</span></div>
+        <div class="flex flex-col gap-1.5 p-4">
+            @foreach (['sm' => 'max-w-sm', 'md' => 'max-w-md', 'lg' => 'max-w-lg', 'xl' => 'max-w-xl', '2xl' => 'max-w-2xl', '3xl' => 'max-w-3xl', '4xl' => 'max-w-4xl', 'full' => 'max-w-[96rem]'] as $name => $class)
+                <div class="flex items-center gap-3">
+                    <code class="w-12 shrink-0 text-meta text-fg-muted">{{ $name }}</code>
+                    <div class="{{ $class }} h-6 w-full rounded-chip bg-neutral-tint"></div>
+                </div>
+            @endforeach
+        </div>
+        <div class="ds-note"><code>full</code> is capped at 96rem: uncapped it measures 2528px on a 2560 monitor, which is a line length nobody reads. Below a ~1568px viewport the cap does nothing at all. Past roughly <code>3xl</code>, ask whether it wants to be a page. Something needing 900px of horizontal room usually also wants a URL and a back button.</div>
+    </div>
+
+    <div class="{{ $plate }}">
         <div class="ds-plate-label">Not dismissible <span>&middot; no close button, no backdrop dismiss &mdash; so the footer MUST offer a way out</span></div>
         <div class="relative h-72 [transform:translateZ(0)]">
             <x-ds::modal open="true" size="sm" title="Session expired" :dismissible="false">
@@ -834,6 +879,42 @@
                 <x-slot:footer>
                     <x-ds::button variant="ghost" size="sm">Reset</x-ds::button>
                     <x-ds::button size="sm">Apply</x-ds::button>
+                </x-slot:footer>
+            </x-ds::drawer>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Every width <span>&middot; sm 24rem &middot; md 28 &middot; lg 32 &middot; xl 36 &middot; 2xl 42 &middot; full = calc(100vw &minus; 3rem)</span></div>
+        <div class="flex flex-col items-end gap-1.5 p-4">
+            @foreach (['sm' => 'max-w-sm', 'md' => 'max-w-md', 'lg' => 'max-w-lg', 'xl' => 'max-w-xl', '2xl' => 'max-w-2xl', 'full' => 'max-w-[calc(100vw-3rem)]'] as $name => $class)
+                <div class="flex w-full items-center gap-3">
+                    <code class="w-12 shrink-0 text-meta text-fg-muted">{{ $name }}</code>
+                    <div class="{{ $class }} ml-auto h-6 w-full rounded-l-chip border-l border-border bg-neutral-tint"></div>
+                </div>
+            @endforeach
+        </div>
+        <div class="ds-note"><code>full</code> is <code>calc(100vw &minus; 3rem)</code>, not <code>max-w-none</code>. The container is <code>fixed inset-0</code> with no padding, so edge-to-edge would leave nothing of the page visible &mdash; and a panel covering everything is a screen, not a drawer. The sliver is what says the thing you came from is one click away.</div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Wide <span>&middot; size 2xl &middot; a drawer used to READ a record rather than filter one</span></div>
+        <div class="relative h-96 [transform:translateZ(0)]">
+            <x-ds::drawer open="true" title="Run #4821" side="right" size="2xl">
+                <x-ds::panel title="Summary">
+                    @foreach ([['Started', '26 Aug 2026, 09:14'], ['Duration', '4m 08s'], ['Steps', '31 of 31']] as [$k, $v])
+                        <x-ds::panel-row>
+                            <span class="w-32 shrink-0 text-fg-muted">{{ $k }}</span>
+                            <span class="min-w-0 flex-1 text-fg">{{ $v }}</span>
+                        </x-ds::panel-row>
+                    @endforeach
+                    <x-ds::panel-row>
+                        <span class="w-32 shrink-0 text-fg-muted">Result</span>
+                        <span class="min-w-0 flex-1"><x-ds::badge tone="success">Passed</x-ds::badge></span>
+                    </x-ds::panel-row>
+                </x-ds::panel>
+                <x-slot:footer>
+                    <x-ds::button variant="secondary" size="sm">Download log</x-ds::button>
                 </x-slot:footer>
             </x-ds::drawer>
         </div>

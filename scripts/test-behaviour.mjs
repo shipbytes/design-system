@@ -88,7 +88,9 @@ await writeFile(
     join(TMP, 'page.html'),
     `<!doctype html><html><head><meta charset="utf-8">
 <style>${css}</style>
-<style>[x-cloak] { display: none !important; }</style>
+<!-- No hand-written [x-cloak] rule here on purpose. It ships in dist/theme.css,
+    which is imported above, so this page proves the SHIPPED one works — an
+    injected copy would hide a regression in the thing consumers actually get. -->
 <script defer>${alpine}</script>
 </head><body>${specimens}</body></html>`,
 );
@@ -225,6 +227,40 @@ await check('Escape closes and restores focus', async () => {
     await page.keyboard.press('Escape');
     await settle(350);
     return (await active()) === 'open-drawer' || `focus on ${await active()}`;
+});
+
+/*
+ * The three dismiss paths, each pressed for real.
+ *
+ * These would not have caught the bug that prompted them — that one was in the
+ * CONSUMER, who passed a comparison as `open` so that `{{ $open }} = false`
+ * compiled to an assignment to an expression. But all three dismiss paths write
+ * to `open` through the same mechanism, so any change to how that is emitted
+ * breaks all three at once and in silence: the dialog opens, and nothing closes
+ * it. Cheap insurance on the half of the contract we own.
+ */
+const drawerOpen = () => page.locator('#drawer-apply').isVisible();
+
+await check('the close button closes it', async () => {
+    await page.click('#open-drawer');
+    await settle(400);
+    if (!(await drawerOpen())) return 'did not open';
+
+    await page.locator('[data-ds-drawer-panel] button[aria-label=Close]').click();
+    await settle(400);
+    return (await drawerOpen()) === false || 'the ✕ did nothing';
+});
+
+await check('the backdrop closes it', async () => {
+    await page.click('#open-drawer');
+    await settle(400);
+    if (!(await drawerOpen())) return 'did not open';
+
+    // The backdrop is the sibling of the panel, so a corner click cannot land on
+    // the panel by accident whichever side the drawer is on.
+    await page.mouse.click(8, 8);
+    await settle(400);
+    return (await drawerOpen()) === false || 'clicking the backdrop did nothing';
 });
 
 // ---------------------------------------------------------------- dropdown
@@ -505,6 +541,122 @@ await check('removing takes it out of the INPUT, not just the list', async () =>
     await settle();
     return JSON.stringify((await posted())['files[]']) === '["icon.png"]'
         || `the form still carries ${JSON.stringify((await posted())['files[]'])}`;
+});
+
+// ---------------------------------------------------------------- tabs
+
+/*
+ * The host wiring from specs/tabs.md, driven rather than described.
+ *
+ * The spec used to document `::active="tab === 'overview'"`. That binds an
+ * `active` ATTRIBUTE, which nothing reads — the component computes its classes
+ * from the PHP prop at render time — so the panel switched and the tab never
+ * changed appearance. No error, no warning, a tab row with no selected tab.
+ *
+ * The obvious repair is worse, because it half works: the STRING form of
+ * `:class` only ADDS classes, so the server-rendered `border-transparent`
+ * stays on the element and wins, and the element ends up carrying both. The
+ * object form is what removes a class it did not add. That is the distinction
+ * these checks exist to hold in place, so the spec cannot drift back.
+ */
+group('tabs (the host wiring the spec documents)');
+
+const tabState = async (id) => page.evaluate((tabId) => {
+    const tab = document.getElementById(tabId);
+    const panel = document.getElementById(tab.getAttribute('aria-controls'));
+    return {
+        selected: tab.getAttribute('aria-selected'),
+        tabindex: tab.getAttribute('tabindex'),
+        classes: tab.className,
+        panelHidden: panel.hasAttribute('hidden'),
+    };
+}, id);
+
+await check('renders the right tab selected BEFORE Alpine could have run', async () => {
+    // The PHP `:active` half. Bound-only wiring flashes the wrong tab on load
+    // and is simply wrong in anything that never runs the JS.
+    const overview = await tabState('tab-overview');
+    return (overview.selected === 'true' && !overview.panelHidden)
+        || `overview came up selected=${overview.selected}, panel hidden=${overview.panelHidden}`;
+});
+
+await check('the unselected tab is out of the tab order', async () => {
+    const activity = await tabState('tab-activity');
+    return (activity.tabindex === '-1' && activity.panelHidden)
+        || `activity has tabindex=${activity.tabindex}, panel hidden=${activity.panelHidden}`;
+});
+
+await check('clicking a tab actually CHANGES ITS APPEARANCE', async () => {
+    await page.click('#tab-activity');
+    await settle();
+
+    const activity = await tabState('tab-activity');
+
+    if (!activity.classes.includes('border-fg')) {
+        return `still not marked selected — classes are "${activity.classes}"`;
+    }
+    // The half the string form of :class fails. Both classes present means the
+    // underline is being drawn by whichever rule Tailwind emitted last.
+    if (activity.classes.includes('border-transparent')) {
+        return 'carries border-fg AND border-transparent — the string form of :class only adds';
+    }
+    return activity.selected === 'true' || `aria-selected is ${activity.selected}`;
+});
+
+await check('the tab it replaced gives up its selection', async () => {
+    const overview = await tabState('tab-overview');
+    return (overview.selected === 'false'
+        && overview.tabindex === '-1'
+        && overview.classes.includes('border-transparent')
+        && !overview.classes.includes('border-fg'))
+        || `overview is still selected=${overview.selected}, classes "${overview.classes}"`;
+});
+
+await check('the panels swapped with it', async () => {
+    const [overview, activity] = [await tabState('tab-overview'), await tabState('tab-activity')];
+    return (overview.panelHidden && !activity.panelHidden)
+        || `overview hidden=${overview.panelHidden}, activity hidden=${activity.panelHidden}`;
+});
+
+await check('the arrow keys the spec says the host owns actually move it', async () => {
+    await page.keyboard.press('ArrowRight');
+    await settle();
+
+    const overview = await tabState('tab-overview');
+    if (overview.selected !== 'true') return `ArrowRight left activity selected`;
+
+    // Selection without focus is the half that is easy to miss: the reader
+    // presses again and moves from the tab they were on two presses ago.
+    return (await active()) === 'tab-overview' || `selection moved but focus is on ${await active()}`;
+});
+
+// ---------------------------------------------------------------- x-cloak
+
+/*
+ * The rule ships in dist/theme.css, and this page deliberately injects no copy
+ * of its own — see where page.html is written.
+ *
+ * Without it every overlay marked x-cloak renders in full from first paint until
+ * Alpine boots and x-show takes over. On the consumer gallery that prompted this
+ * it was every modal on the page at once, stacked with their backdrops.
+ */
+group('[x-cloak] (the rule the package now ships)');
+
+await check('the shipped stylesheet hides a cloaked element', async () => {
+    const display = await page.evaluate(() => {
+        const probe = document.createElement('div');
+        probe.setAttribute('x-cloak', '');
+        // `flex` is what the modal root carries, and it sets display at the same
+        // specificity — so this probes the rule that has to WIN, not just exist.
+        probe.className = 'flex';
+        document.body.appendChild(probe);
+        const result = getComputedStyle(probe).display;
+        probe.remove();
+        return result;
+    });
+
+    return display === 'none'
+        || `a cloaked .flex element computes display:${display} — the shipped rule is missing or is being overridden`;
 });
 
 // ---------------------------------------------------------------- overlay edges

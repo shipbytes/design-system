@@ -192,6 +192,13 @@ final class Specimens
                 <x-ds::modal open="b" title="Medium" size="md">Body</x-ds::modal>
                 <x-ds::modal open="c" title="Large" size="lg">Body</x-ds::modal>
                 <x-ds::modal open="d" title="Extra" size="xl">Body</x-ds::modal>
+                <x-ds::modal open="g" title="Wider" size="2xl">Body</x-ds::modal>
+                <x-ds::modal open="h" title="Wider still" size="3xl">Body</x-ds::modal>
+                <x-ds::modal open="i" title="Widest" size="4xl">Body</x-ds::modal>
+                {{-- `full` is an ARBITRARY value on both this and the drawer, and an
+                     arbitrary value with a stray space compiles to nothing at all
+                     — so both are in the specimens where the class check sees them. --}}
+                <x-ds::modal open="j" title="Near full screen" size="full">Body</x-ds::modal>
                 <x-ds::modal open="e" title="Locked" :dismissible="false">Body</x-ds::modal>
                 <x-ds::modal open="f">Untitled body only</x-ds::modal>
                 BLADE,
@@ -280,6 +287,13 @@ final class Specimens
                 </x-ds::drawer>
                 <x-ds::drawer open="b" title="Navigation" side="left" size="sm">Body</x-ds::drawer>
                 <x-ds::drawer open="c" title="Wide" size="lg" :dismissible="false">Body</x-ds::drawer>
+                <x-ds::drawer open="d" title="Wider" size="xl">Body</x-ds::drawer>
+                <x-ds::drawer open="e" title="Widest" size="2xl">Body</x-ds::drawer>
+                {{-- `full` is the one size here built from an ARBITRARY value, and
+                     an arbitrary value with a stray space compiles to nothing at
+                     all — so it is in the specimens where the class check can see
+                     it, not just in the map. --}}
+                <x-ds::drawer open="f" title="Near full width" size="full">Body</x-ds::drawer>
                 BLADE,
 
             'tooltip/all' => <<<'BLADE'

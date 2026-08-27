@@ -88,6 +88,79 @@
             <x-ds::date-picker name="period" id="period" label="Period" :range="true" value="2026-09-10" />
         </div>
 
+        {{-- ── tabs, wired by the host ──
+
+             This is the example in specs/tabs.md, verbatim. It is here so that
+             example is DRIVEN rather than asserted: the spec used to document
+             `::active`, which binds an `active` ATTRIBUTE and does nothing at
+             all, because the component computed its classes from the PHP prop at
+             render time. Nothing errored. The tab simply never changed.
+
+             Two things are being proved at once. That the classes actually flip
+             — which needs Alpine's OBJECT syntax, since the string form only
+             ADDS classes and the server-rendered `border-transparent` would
+             survive and win. And that the host's arrow keys move both the
+             selection and the focus. --}}
+        <div
+            class="mt-6"
+            x-data="{
+                tab: 'overview',
+                tabs: ['overview', 'activity'],
+                go(name) {
+                    this.tab = name;
+                    // Focus has to follow the selection, or a keyboard reader is
+                    // left sitting on a tab that is no longer the selected one.
+                    this.$nextTick(() => this.$refs[name].focus());
+                },
+                move(step) {
+                    const at = this.tabs.indexOf(this.tab);
+                    this.go(this.tabs[(at + step + this.tabs.length) % this.tabs.length]);
+                },
+            }"
+        >
+            <x-ds::tabs
+                label="Report sections"
+                @keydown.right.prevent="move(1)"
+                @keydown.left.prevent="move(-1)"
+            >
+                <x-ds::tab
+                    id="tab-overview"
+                    controls="p-overview"
+                    x-ref="overview"
+                    :active="true"
+                    ::class="{
+                        'border-fg text-fg': tab === 'overview',
+                        'border-transparent text-fg-muted hover:border-border-strong hover:text-fg': tab !== 'overview',
+                    }"
+                    ::aria-selected="tab === 'overview'"
+                    ::tabindex="tab === 'overview' ? 0 : -1"
+                    @click="tab = 'overview'"
+                >Overview</x-ds::tab>
+
+                <x-ds::tab
+                    id="tab-activity"
+                    controls="p-activity"
+                    x-ref="activity"
+                    ::class="{
+                        'border-fg text-fg': tab === 'activity',
+                        'border-transparent text-fg-muted hover:border-border-strong hover:text-fg': tab !== 'activity',
+                    }"
+                    ::aria-selected="tab === 'activity'"
+                    ::tabindex="tab === 'activity' ? 0 : -1"
+                    @click="tab = 'activity'"
+                >Activity</x-ds::tab>
+            </x-ds::tabs>
+
+            {{-- `:active` is the PHP prop and `::hidden` the Alpine binding, on
+                 purpose: the first paint is right before Alpine boots, and moves
+                 after it. --}}
+            <x-ds::tab-panel id="p-overview" labelledby="tab-overview" :active="true"
+                ::hidden="tab !== 'overview'">Overview panel</x-ds::tab-panel>
+
+            <x-ds::tab-panel id="p-activity" labelledby="tab-activity"
+                ::hidden="tab !== 'activity'">Activity panel</x-ds::tab-panel>
+        </div>
+
         {{-- ── file upload ── --}}
         <div class="mt-6 max-w-sm">
             <x-ds::file-upload name="files[]" id="files" label="Files" :multiple="true" />

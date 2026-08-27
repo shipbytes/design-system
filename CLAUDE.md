@@ -118,7 +118,11 @@ composer require shipbytes/blade-ui
 @source '../../vendor/shipbytes/blade-ui/resources/views';
 ```
 
-Three lines, not four — `theme.css` brings its own `@custom-variant dark`.
+Three lines, not four — `theme.css` brings its own `@custom-variant dark`. It
+also carries `[x-cloak] { display: none !important }`, which Alpine expects every
+project to write by hand: nine components mark their overlay root `x-cloak`, so
+without it every dialog on the page renders open, backdrop and all, until Alpine
+boots. That is our failure to ship, not the consumer's to remember.
 No npm step: the composer package ships `dist/`.
 
 Requires Tailwind v4. Dark mode is a `dark` class on `<html>`.
@@ -191,6 +195,32 @@ with no icon at all. The mirror case is just as quiet: a `<x-slot:head>` that no
 component renders is simply dropped, which is how the table specimen, the docs
 and the documentation screenshot were all wrong together. `npm test` now checks
 both directions.
+
+**A prop that resolves to classes in PHP cannot be driven from Alpine.** Every
+`tone`, `variant`, `size` and `active` is a lookup of literal class strings, done
+once at render time — which is the only reason Tailwind's scanner can see them.
+So `::tone="item.tone"` binds an attribute nothing reads, and an `x-for` over a
+toast list renders every toast neutral. Nothing errors. The repair has a second
+trap inside it: Alpine's STRING form of `:class` only *adds* classes, so the
+server-rendered `border-transparent` survives and the element carries both. Only
+the OBJECT form removes a class the server put there. `specs/tabs.md` documented
+the broken form for two releases; the working one is now a driven specimen in
+`scripts/behaviour-specimens.blade.php` so it cannot drift back.
+
+**`open` on modal, drawer and sheet is an lvalue, not an expression.** They
+assign to it — `@click="{{ $open }} = false"` — so `open="mode === 'x'"` compiles
+to `mode === 'x' = false`. The dialog OPENS, because reading is fine, and then
+the ✕, the backdrop and Escape all do nothing, with a clean server log and one
+console `SyntaxError`. `Support\OpenState` now refuses it at render time. The
+check is deliberately shallow — comparison and logical operators only. It must
+not grow into a JavaScript parser: a false positive here is worse than the bug,
+because the bug at least renders.
+
+**An anonymous component silently drops a slot it never renders.** `empty-state`
+has no default slot — its body is `title`/`description` and the button goes in
+`action` — so passing buttons the way every other component takes them rendered
+nothing at all. It throws now. Same shape as the `<x-slot:head>` the table
+ignored, and as `<x-ds::nav-item icon="home">` leaving `$icon` undefined.
 
 **Tailwind v4 auto-detects sources on top of `@source`.** Compiling anywhere
 inside the repo silently pulls in `scripts/gallery.blade.php`, `dist/gallery.html`

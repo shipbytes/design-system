@@ -133,6 +133,10 @@ ${css}
   [x-cloak] { display: none !important; }
   .shot { width: 1000px; display: grid; grid-template-columns: 1fr 1fr; }
   .shot-wide { width: 1360px; }
+  /* A 2xl drawer is 672px. In a 680px pane it fills the whole thing and the
+     picture then shows a screen, not a drawer — the one distinction that
+     size exists to preserve. 900px a side leaves the page visible behind it. */
+  .shot-widest { width: 1800px; }
   .pane { padding: 28px; overflow: hidden; }
   /* A divider between the two themes, so the seam is deliberate rather than
      looking like a rendering artefact in the image. */

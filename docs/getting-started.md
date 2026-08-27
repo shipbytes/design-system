@@ -86,11 +86,16 @@ Four more use it for **one optional prop** each, and work without it otherwise:
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
 ```
 
-Add this to your CSS so overlays do not flash on first paint:
+**You do not need to add an `[x-cloak]` rule.** Nine components hide themselves
+with `x-cloak` until Alpine boots, and Alpine does not ship the CSS rule that
+makes the attribute mean anything — every project is normally expected to write
+it by hand. Since it is *our* components that break without it, `theme.css`
+carries it. If you already have your own copy, it is harmless.
 
-```css
-[x-cloak] { display: none !important; }
-```
+Without the rule, every overlay on the page renders in full from first paint
+until the script runs: on a page with several modals, all of them at once with
+their backdrops. It is the `@source` failure again — nothing errors, and it is
+worst on the slow connections you are least likely to be testing on.
 
 **No plugins are needed.** The focus traps are written into the components
 rather than delegated to `@alpinejs/focus`, because Alpine silently ignores a
@@ -118,6 +123,132 @@ markup usable from plain Blade, a Livewire component, or a Volt page.
 
 `dropdown` and `tooltip` are the exceptions: leave `open` off and they scope
 their own state, so a menu on every row of a table needs no wrapper.
+
+## Driving components from client-side state
+
+Two rules that are not obvious from the prop tables, and that both fail
+**silently** — HTTP 200, nothing in the log, a component that looks right until
+you interact with it. If you are using this package with plain Alpine rather
+than Livewire, read both. Livewire re-renders on the server and sidesteps them
+entirely.
+
+### `open` is a reference, not a condition
+
+`modal`, `drawer` and `sheet` do not just *read* `open`. They **write** to it —
+the close button, the backdrop and Escape all set it to `false`. So it has to be
+something JavaScript can assign to.
+
+```blade
+{{-- Broken: opens, and then nothing closes it --}}
+<div x-data="{ side: null }">
+    <x-ds::button @click="side = 'right'">Open</x-ds::button>
+    <x-ds::drawer open="side === 'right'" title="Filters">…</x-ds::drawer>
+</div>
+```
+
+That compiles to `side === 'right' = false`. Reading the expression is fine, so
+the drawer **opens correctly**, and then the ✕, the backdrop and Escape all do
+nothing at all. The only evidence is `Uncaught SyntaxError: Invalid left-hand
+side in assignment` in the browser console.
+
+```blade
+{{-- Works: one property per panel --}}
+<div x-data="{ show: { right: false, left: false } }">
+    <x-ds::button @click="show.right = true">Open</x-ds::button>
+    <x-ds::drawer open="show.right" title="Filters">…</x-ds::drawer>
+</div>
+```
+
+Since v1.1 the three components **refuse** a non-assignable `open` with an
+exception at render time, naming the component and the expression, rather than
+letting it through to the console.
+
+### `tone`, `variant` and `size` resolve to classes on the server
+
+Every prop that selects a look is a lookup of literal class strings in PHP, done
+once when the view renders. That is not an implementation detail to work around
+— it is what lets Tailwind's scanner see the classes at all, and it is why the
+set of values is closed. See [the trap it prevents](../CLAUDE.md).
+
+The consequence is the part worth knowing: **binding one of those props to
+Alpine state does nothing.**
+
+```blade
+{{-- Renders every toast neutral, whatever item.tone says --}}
+<template x-for="item in toasts">
+    <x-ds::toast ::tone="item.tone" title="Saved" />
+</template>
+```
+
+`::tone` sets a `tone` *attribute* on the rendered element. Nothing reads it —
+the classes were chosen before the browser ever saw the markup. Affected props:
+
+| Component | Props |
+|---|---|
+| `toast` | `tone` |
+| `badge` | `tone`, `variant` |
+| `alert` | `tone` |
+| `sheet-item` | `tone` |
+| `button` | `variant`, `size` |
+| `tab` | `active` |
+| `modal`, `drawer` | `size` |
+
+Two ways out.
+
+**Re-render on the server** when the state lives there anyway — a Livewire
+component, or a fresh page. Nothing to do; it already works.
+
+**Bind the classes yourself**, with Alpine's **object** syntax:
+
+```blade
+<x-ds::tab
+    controls="p-overview"
+    :active="true"
+    ::class="{
+        'border-fg text-fg': tab === 'overview',
+        'border-transparent text-fg-muted hover:border-border-strong hover:text-fg': tab !== 'overview',
+    }"
+    ::aria-selected="tab === 'overview'"
+    ::tabindex="tab === 'overview' ? 0 : -1"
+    @click="tab = 'overview'"
+>Overview</x-ds::tab>
+```
+
+**The object form is not optional here.** Alpine's *string* form of `:class` only
+**adds** classes — it never removes one that was already on the element. The
+component server-rendered `border-transparent`, so the element ends up carrying
+both and the underline is decided by whichever rule Tailwind emitted last:
+
+```
+class="… border-b-2 border-transparent text-fg-muted border-fg text-fg"
+```
+
+The object form removes a class whose value is falsy even when the server put it
+there, which is the whole difference. Keep the PHP prop as well as the binding —
+`:active="true"` above — so the first paint is right before Alpine boots, and
+the binding takes over from there. That is the same rule the components follow
+internally: bind for what moves, render what does not.
+
+A worked example, arrow keys and all, is in [specs/tabs.md](../specs/tabs.md).
+
+### Where this bites hardest: `toast`
+
+A toast list is *inherently* dynamic, so it is the case where reaching for
+`::tone` is most natural and most disappointing. Until a tone-per-item toast is
+possible, the workaround is one `<template x-for>` per tone over a filtered
+list:
+
+```blade
+@foreach (['success', 'danger'] as $tone)
+    <template x-for="item in toasts.filter(t => t.tone === '{{ $tone }}')" :key="item.id">
+        <x-ds::toast tone="{{ $tone }}" ::title="item.title" x-text="item.body" />
+    </template>
+@endforeach
+```
+
+That is correct, and it has a real cost: toasts group by tone rather than by
+arrival order. If arrival order matters more than tone, render the region from
+the server instead. See [toast.md](components/toast.md#a-dynamic-list-of-toasts).
 
 ### Livewire, if you happen to use it
 
@@ -170,7 +301,10 @@ composer update shipbytes/blade-ui
 | What you see | Almost certainly |
 |---|---|
 | Everything renders unstyled | The `@source` line is missing. See above. |
-| An overlay flashes on page load | The `[x-cloak]` CSS rule is missing. |
+| An overlay flashes on page load | `theme.css` is not imported, or is imported after your own rules override it. The `[x-cloak]` rule ships in it. |
+| A dialog opens but the ✕, the backdrop and Escape all do nothing | `open` was given a comparison rather than a reference. See [Driving components from client-side state](#driving-components-from-client-side-state). |
+| A `tone` or `variant` never changes when your Alpine state does | Expected — those resolve to classes on the server. Same section. |
+| An empty state renders without its button | The button went in the default slot. It belongs in `<x-slot:action>`. |
 | A modal or dropdown does nothing | Alpine is not loaded, or there is no `x-data` scope above it. |
 | An icon renders enormous | You passed a `size` outside the generated range — see [icon.md](components/icon.md). |
 | Dark mode does nothing | The `dark` class is on `<body>` rather than `<html>`, or `theme.css` is imported before `tailwindcss`. |

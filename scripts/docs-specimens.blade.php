@@ -188,6 +188,10 @@
             <div class="grid grid-cols-2 gap-3">
                 <x-ds::stat-tile label="Projects" value="12" :delta="18" href="#" />
                 <x-ds::stat-tile label="Collaborators" value="4" :delta="-9" caption="vs last week" />
+                {{-- Zero is grey and unsigned. It rendered a green +0% until v1.1,
+                     which is the sort of thing only a picture shows. --}}
+                <x-ds::stat-tile label="Open tasks" value="31" :delta="0" />
+                <x-ds::stat-tile label="Page views" value="2847" caption="Total public views" />
             </div>
         </div>
     @endforeach
@@ -369,6 +373,62 @@
                 <x-slot:footer>
                     <x-ds::button variant="ghost" size="sm">Reset</x-ds::button>
                     <x-ds::button size="sm">Apply</x-ds::button>
+                </x-slot:footer>
+            </x-ds::drawer>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── modal, wide --}}
+<div data-shot="modal-wide" class="shot shot-wide shot-overlay">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }} relative [transform:translateZ(0)]">
+            <x-ds::modal open="shown" size="3xl" title="invoice-2026-08.csv" description="First 3 of 1,204 rows">
+                <x-ds::table :columns="[
+                    ['label' => 'Reference', 'width' => 'w-32'],
+                    'Account',
+                    ['label' => 'Amount', 'align' => 'right', 'width' => 'w-32'],
+                ]">
+                    @foreach ([
+                        ['INV-4821', 'Northwind Trading', '1,240.00'],
+                        ['INV-4822', 'Contoso Logistics', '318.50'],
+                        ['INV-4823', 'Fabrikam Industrial', '9,700.25'],
+                    ] as [$ref, $account, $amount])
+                        <x-ds::table-row>
+                            <x-ds::table-cell :nowrap="true" class="font-medium text-fg">{{ $ref }}</x-ds::table-cell>
+                            <x-ds::table-cell>{{ $account }}</x-ds::table-cell>
+                            <x-ds::table-cell align="right" class="tabular-nums">{{ $amount }}</x-ds::table-cell>
+                        </x-ds::table-row>
+                    @endforeach
+                </x-ds::table>
+                <x-slot:footer>
+                    <x-ds::button variant="secondary" size="sm">Close</x-ds::button>
+                    <x-ds::button size="sm">Import</x-ds::button>
+                </x-slot:footer>
+            </x-ds::modal>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── drawer, wide --}}
+<div data-shot="drawer-wide" class="shot shot-widest shot-overlay">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }} relative [transform:translateZ(0)]">
+            <x-ds::drawer open="shown" title="Run #4821" side="right" size="2xl">
+                <x-ds::panel title="Summary">
+                    @foreach ([['Started', '26 Aug 2026, 09:14'], ['Duration', '4m 08s'], ['Steps', '31 of 31']] as [$k, $v])
+                        <x-ds::panel-row>
+                            <span class="w-32 shrink-0 text-fg-muted">{{ $k }}</span>
+                            <span class="min-w-0 flex-1 text-fg">{{ $v }}</span>
+                        </x-ds::panel-row>
+                    @endforeach
+                    <x-ds::panel-row>
+                        <span class="w-32 shrink-0 text-fg-muted">Result</span>
+                        <span class="min-w-0 flex-1"><x-ds::badge tone="success">Passed</x-ds::badge></span>
+                    </x-ds::panel-row>
+                </x-ds::panel>
+                <x-slot:footer>
+                    <x-ds::button variant="secondary" size="sm">Download log</x-ds::button>
                 </x-slot:footer>
             </x-ds::drawer>
         </div>
