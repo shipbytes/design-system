@@ -8,3 +8,4 @@ vendor/
 
 # A library does not pin its own dependencies — consumers resolve their own.
 composer.lock
+packages/react/package-lock.json

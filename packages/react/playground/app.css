@@ -1,0 +1,11 @@
+/*
+ * Order matters: tokens define the custom properties, theme maps them onto
+ * utility names, and `@source` tells Tailwind where the component classes are
+ * written. Without that last line every class in src/ is scanned out of
+ * existence and the page renders unstyled.
+ */
+@import "tailwindcss";
+@import "@shipbytes/design-tokens/tokens.css";
+@import "@shipbytes/design-tokens/theme.css";
+
+@source "../src";
