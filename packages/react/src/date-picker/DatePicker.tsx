@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type R
 import { addDays, addMonths, format, parseISO, startOfMonth } from 'date-fns'
 import { Icon } from '../icon'
 import { cn } from '../lib/cn'
+import { mergeRefs, PopoverPortal, useAnchoredPopover } from '../lib/popover'
 
 /**
  * Rewritten from resources/views/components/date-picker.blade.php against
@@ -115,6 +116,16 @@ export function DatePicker({
 
   const root = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
+  const calendar = useRef<HTMLDivElement>(null)
+
+  /*
+   * The overlay this package's own behaviour suite measured 32px below the
+   * fold: a calendar is ~340px tall, so it is the one that bites. `flip` closes
+   * that; the portal stops a scrollable dialog body cutting it off (see
+   * lib/popover.tsx). It keeps its own width — a seven-column grid stretched to
+   * a wide field is mostly empty calendar.
+   */
+  const popover = useAnchoredPopover({ open })
 
   // Reopening on the month the value is in, not on the month last browsed to.
   useEffect(() => {
@@ -128,10 +139,16 @@ export function DatePicker({
       return
     }
 
+    // The calendar is portalled out of `root`, so a click inside it would read
+    // as a click outside and close the picker before the day's own handler ran.
     const close = (event: MouseEvent) => {
-      if (root.current && !root.current.contains(event.target as Node)) {
-        setOpen(false)
+      const target = event.target as Node
+
+      if (root.current?.contains(target) || calendar.current?.contains(target)) {
+        return
       }
+
+      setOpen(false)
     }
 
     document.addEventListener('mousedown', close)
@@ -249,7 +266,7 @@ export function DatePicker({
       ) : null}
 
       <button
-        ref={trigger}
+        ref={mergeRefs(trigger, popover.setAnchor)}
         type="button"
         id={fieldId}
         disabled={disabled}
@@ -282,113 +299,117 @@ export function DatePicker({
       </button>
 
       {open ? (
-        <div
-          role="dialog"
-          aria-modal={false}
-          aria-labelledby={label ? `${fieldId}-label` : undefined}
-          className="absolute z-50 mt-1 w-max origin-top rounded-control border border-border bg-surface p-3 shadow-float"
-        >
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <button
-              type="button"
-              aria-label="Previous month"
-              onClick={() => setCursor(iso(addMonths(parseISO(cursor), -1)))}
-              className="rounded-control p-1.5 text-fg-muted transition-colors hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-            >
-              <Icon name="chevron-left" variant="mini" size="4" />
-            </button>
+        <PopoverPortal>
+          <div
+            ref={mergeRefs(calendar, popover.setFloating)}
+            style={popover.floatingStyles}
+            role="dialog"
+            aria-modal={false}
+            aria-labelledby={label ? `${fieldId}-label` : undefined}
+            className="z-50 w-max origin-top rounded-control border border-border bg-surface p-3 shadow-float"
+          >
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                aria-label="Previous month"
+                onClick={() => setCursor(iso(addMonths(parseISO(cursor), -1)))}
+                className="rounded-control p-1.5 text-fg-muted transition-colors hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+              >
+                <Icon name="chevron-left" variant="mini" size="4" />
+              </button>
 
-            {/* A live region, because pressing the arrows changes the grid the
-                reader is standing in and nothing else announces it. */}
-            <span className="text-body font-medium text-fg" aria-live="polite">
-              {format(parseISO(cursor), 'MMMM yyyy')}
-            </span>
+              {/* A live region, because pressing the arrows changes the grid the
+                  reader is standing in and nothing else announces it. */}
+              <span className="text-body font-medium text-fg" aria-live="polite">
+                {format(parseISO(cursor), 'MMMM yyyy')}
+              </span>
 
-            <button
-              type="button"
-              aria-label="Next month"
-              onClick={() => setCursor(iso(addMonths(parseISO(cursor), 1)))}
-              className="rounded-control p-1.5 text-fg-muted transition-colors hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-            >
-              <Icon name="chevron-right" variant="mini" size="4" />
-            </button>
-          </div>
-
-          <div role="grid" onKeyDown={onGridKeyDown} onMouseLeave={() => setHovered(null)}>
-            <div role="row" className="grid grid-cols-7">
-              {dayNames.map((day) => (
-                <div key={day} role="columnheader" className="py-1 text-center text-meta font-medium text-fg-muted">
-                  {day}
-                </div>
-              ))}
+              <button
+                type="button"
+                aria-label="Next month"
+                onClick={() => setCursor(iso(addMonths(parseISO(cursor), 1)))}
+                className="rounded-control p-1.5 text-fg-muted transition-colors hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+              >
+                <Icon name="chevron-right" variant="mini" size="4" />
+              </button>
             </div>
 
-            <div className="grid grid-cols-7 gap-0.5">
-              {days.map((day, index) => (
-                <div key={day ?? `blank-${index}`} role="gridcell" className="flex">
-                  {day === null ? (
-                    <span className="size-9" />
-                  ) : (
-                    <button
-                      type="button"
-                      data-day={day}
-                      disabled={isDisabled(day)}
-                      // Exactly one day is in the tab order, so Tab enters the
-                      // grid once and the arrows do the walking.
-                      tabIndex={day === (start ?? cursor) ? 0 : -1}
-                      aria-selected={isSelected(day)}
-                      aria-current={day === todayIso() ? 'date' : undefined}
-                      onClick={() => pick(day)}
-                      onMouseEnter={() => setHovered(day)}
-                      className={cn(
-                        'size-9 rounded-control text-body tabular-nums transition-colors',
-                        'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring',
-                        'disabled:cursor-not-allowed disabled:text-fg-subtle',
-                        isSelected(day)
-                          ? 'bg-surface-inverse font-medium text-on-inverse'
-                          : isBetween(day)
-                            ? 'bg-accent-wash text-fg'
-                            : day === todayIso()
-                              ? 'font-semibold text-fg'
-                              : 'text-fg-body hover:bg-surface-subtle',
-                      )}
-                    >
-                      {Number(day.slice(8))}
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+            <div role="grid" onKeyDown={onGridKeyDown} onMouseLeave={() => setHovered(null)}>
+              <div role="row" className="grid grid-cols-7">
+                {dayNames.map((day) => (
+                  <div key={day} role="columnheader" className="py-1 text-center text-meta font-medium text-fg-muted">
+                    {day}
+                  </div>
+                ))}
+              </div>
 
-          <div className="mt-2 flex items-center justify-between gap-2 border-t border-divider pt-2">
-            {clearable ? (
+              <div className="grid grid-cols-7 gap-0.5">
+                {days.map((day, index) => (
+                  <div key={day ?? `blank-${index}`} role="gridcell" className="flex">
+                    {day === null ? (
+                      <span className="size-9" />
+                    ) : (
+                      <button
+                        type="button"
+                        data-day={day}
+                        disabled={isDisabled(day)}
+                        // Exactly one day is in the tab order, so Tab enters the
+                        // grid once and the arrows do the walking.
+                        tabIndex={day === (start ?? cursor) ? 0 : -1}
+                        aria-selected={isSelected(day)}
+                        aria-current={day === todayIso() ? 'date' : undefined}
+                        onClick={() => pick(day)}
+                        onMouseEnter={() => setHovered(day)}
+                        className={cn(
+                          'size-9 rounded-control text-body tabular-nums transition-colors',
+                          'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring',
+                          'disabled:cursor-not-allowed disabled:text-fg-subtle',
+                          isSelected(day)
+                            ? 'bg-surface-inverse font-medium text-on-inverse'
+                            : isBetween(day)
+                              ? 'bg-accent-wash text-fg'
+                              : day === todayIso()
+                                ? 'font-semibold text-fg'
+                                : 'text-fg-body hover:bg-surface-subtle',
+                        )}
+                      >
+                        {Number(day.slice(8))}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-2 flex items-center justify-between gap-2 border-t border-divider pt-2">
+              {clearable ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange(range ? [null, null] : null)
+                    setHovered(null)
+                  }}
+                  className="rounded-control px-2 py-1 text-meta font-medium text-fg-muted transition-colors hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                >
+                  Clear
+                </button>
+              ) : (
+                <span />
+              )}
+
               <button
                 type="button"
                 onClick={() => {
-                  onChange(range ? [null, null] : null)
-                  setHovered(null)
+                  setOpen(false)
+                  trigger.current?.focus()
                 }}
-                className="rounded-control px-2 py-1 text-meta font-medium text-fg-muted transition-colors hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                className="rounded-control px-2 py-1 text-meta font-medium text-fg transition-colors hover:bg-surface-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
               >
-                Clear
+                Done
               </button>
-            ) : (
-              <span />
-            )}
-
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false)
-                trigger.current?.focus()
-              }}
-              className="rounded-control px-2 py-1 text-meta font-medium text-fg transition-colors hover:bg-surface-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-            >
-              Done
-            </button>
+            </div>
           </div>
-        </div>
+        </PopoverPortal>
       ) : null}
 
       {error ? (

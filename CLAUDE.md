@@ -317,15 +317,29 @@ that never runs the JS. Bind for what moves; render what does not.
 
 Kept here so nobody has to rediscover them. Roughly in the order worth closing.
 
-**1. No overlay knows where the viewport edge is.** `dropdown`, `select`,
+**1. No BLADE overlay knows where the viewport edge is.** `dropdown`, `select`,
 `combobox`, `date-picker` and `tooltip` each take a placement and trust it.
-`npm run test:behaviour` now MEASURES the cost at the bottom of its run rather
-than describing it — at the time of writing the date picker runs **32px below the
+`npm run test:behaviour` MEASURES the cost at the bottom of its run rather than
+describing it — at the time of writing the date picker runs **32px below the
 fold** when its trigger sits at the bottom of the window, while the dropdown and
 the select still fit. A calendar is ~340px tall, so it is the one that bites.
 
-Fixing it properly means floating-ui, which would be this package's first real JS
-dependency. The number is there so that trade can be made on evidence.
+There is a second half the measurement does not show: an absolutely positioned
+overlay is also clipped by any ancestor with `overflow: hidden|auto`, so a
+combobox in a scrolling modal body is cut off at the footer whatever the
+viewport is doing.
+
+**Closed in `@shipbytes/react`** (M4 batch), where the evidence justified the
+trade: `src/lib/popover.tsx` is one hook and one portal — `strategy: 'fixed'`
+plus `flip`/`shift`/`size` from `@floating-ui/react-dom`, rendered into
+`document.body`. `combobox` and `date-picker` use it; `dropdown` already had the
+same behaviour through Radix, which uses floating-ui itself. Both regression
+tests assert the popover's parent is `document.body` while its trigger sits
+inside an `overflow-y-auto` box.
+
+**Still open for Blade**, which is what the number above is about: closing it
+there means Alpine plus floating-ui as this package's first shipped JS
+dependency, and no Blade consumer has asked yet.
 
 **2. The npm package is unpublished.** `@shipbytes/design-tokens` does not exist
 on the registry, so the `import { tokens } from '@shipbytes/design-tokens'` path

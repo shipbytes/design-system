@@ -10,6 +10,7 @@ import {
 } from 'react'
 import { Icon } from '../icon'
 import { cn } from '../lib/cn'
+import { mergeRefs, PopoverPortal, useAnchoredPopover } from '../lib/popover'
 
 /**
  * Copied from resources/views/components/combobox.blade.php.
@@ -102,6 +103,14 @@ export function Combobox({
   const search = useRef<HTMLInputElement>(null)
   const list = useRef<HTMLUListElement>(null)
 
+  /*
+   * The listbox is portalled and measured against the FIELD, not the root: the
+   * root also holds the label and the help text, and a list lined up with the
+   * label sits a row too high. See lib/popover.tsx for why it leaves the flow
+   * at all — a combobox in a scrollable dialog was being clipped at the footer.
+   */
+  const popover = useAnchoredPopover({ open, matchWidth: true, maxHeight: 240 })
+
   const selected = useMemo(
     () => (multiple ? (Array.isArray(value) ? value : []) : value == null ? [] : [String(value)]),
     [multiple, value],
@@ -122,11 +131,21 @@ export function Combobox({
       return
     }
 
+    /*
+     * The list is portalled to document.body, so it is no longer inside `root`
+     * and a click on an option would read as a click outside — closing the list
+     * before the option's own handler runs, which looks like the choice being
+     * ignored. Both nodes count as inside.
+     */
     const close = (event: MouseEvent) => {
-      if (root.current && !root.current.contains(event.target as Node)) {
-        setOpen(false)
-        setQuery('')
+      const target = event.target as Node
+
+      if (root.current?.contains(target) || list.current?.contains(target)) {
+        return
       }
+
+      setOpen(false)
+      setQuery('')
     }
 
     document.addEventListener('mousedown', close)
@@ -279,6 +298,7 @@ export function Combobox({
       {/* Clicking anywhere in the field focuses the text input. A combobox
           whose chips take the click and leave the caret elsewhere feels broken. */}
       <div
+        ref={popover.setAnchor}
         className={cn(
           'flex w-full flex-wrap items-center gap-1.5 rounded-control border bg-surface',
           'px-[calc(--spacing(2)-1px)] py-[calc(--spacing(1.5)-1px)] shadow-raised transition-colors',
@@ -350,50 +370,54 @@ export function Combobox({
       </div>
 
       {open ? (
-        <ul
-          ref={list}
-          id={`${fieldId}-listbox`}
-          role="listbox"
-          aria-multiselectable={multiple}
-          aria-labelledby={label ? `${fieldId}-label` : undefined}
-          onKeyDown={onListKeyDown}
-          // max-h so a long list scrolls inside itself instead of running off
-          // the page.
-          className="absolute z-50 mt-1 max-h-60 w-full origin-top overflow-y-auto rounded-control border border-border bg-surface py-1 shadow-float"
-        >
-          {visible.map((option) => (
-            <li
-              key={option.value}
-              role="option"
-              tabIndex={-1}
-              data-value={option.value}
-              aria-selected={selected.includes(option.value)}
-              aria-disabled={option.disabled || undefined}
-              onClick={() => choose(option)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault()
-                  choose(option)
-                }
-              }}
-              className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-body text-fg-body transition-colors hover:bg-surface-subtle hover:text-fg focus-visible:bg-surface-subtle focus-visible:text-fg focus-visible:outline-hidden aria-disabled:cursor-not-allowed aria-disabled:text-fg-subtle aria-selected:font-medium aria-selected:text-fg"
-            >
-              <span className="min-w-0 truncate">
-                {option.label}
-                {option.meta ? <span className="ml-2 text-meta text-fg-muted">{option.meta}</span> : null}
-              </span>
+        <PopoverPortal>
+          <ul
+            ref={mergeRefs(list, popover.setFloating)}
+            style={popover.floatingStyles}
+            id={`${fieldId}-listbox`}
+            role="listbox"
+            aria-multiselectable={multiple}
+            aria-labelledby={label ? `${fieldId}-label` : undefined}
+            onKeyDown={onListKeyDown}
+            // Width, position and the height cap all come from floating-ui
+            // (lib/popover.tsx); `overflow-y-auto` is what makes the cap scroll
+            // the list rather than clip it.
+            className="z-50 origin-top overflow-y-auto rounded-control border border-border bg-surface py-1 shadow-float"
+          >
+            {visible.map((option) => (
+              <li
+                key={option.value}
+                role="option"
+                tabIndex={-1}
+                data-value={option.value}
+                aria-selected={selected.includes(option.value)}
+                aria-disabled={option.disabled || undefined}
+                onClick={() => choose(option)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    choose(option)
+                  }
+                }}
+                className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-body text-fg-body transition-colors hover:bg-surface-subtle hover:text-fg focus-visible:bg-surface-subtle focus-visible:text-fg focus-visible:outline-hidden aria-disabled:cursor-not-allowed aria-disabled:text-fg-subtle aria-selected:font-medium aria-selected:text-fg"
+              >
+                <span className="min-w-0 truncate">
+                  {option.label}
+                  {option.meta ? <span className="ml-2 text-meta text-fg-muted">{option.meta}</span> : null}
+                </span>
 
-              {selected.includes(option.value) ? (
-                <Icon name="check" variant="mini" size="4" className="shrink-0 text-accent" />
-              ) : null}
-            </li>
-          ))}
+                {selected.includes(option.value) ? (
+                  <Icon name="check" variant="mini" size="4" className="shrink-0 text-accent" />
+                ) : null}
+              </li>
+            ))}
 
-          {/* An empty list with no message reads as a broken control. */}
-          {visible.length === 0 ? (
-            <li className="px-3 py-2 text-body text-fg-muted">{loading ? loadingText : emptyText}</li>
-          ) : null}
-        </ul>
+            {/* An empty list with no message reads as a broken control. */}
+            {visible.length === 0 ? (
+              <li className="px-3 py-2 text-body text-fg-muted">{loading ? loadingText : emptyText}</li>
+            ) : null}
+          </ul>
+        </PopoverPortal>
       ) : null}
 
       {error ? (

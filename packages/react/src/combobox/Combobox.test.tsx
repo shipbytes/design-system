@@ -126,6 +126,45 @@ describe('Combobox', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
+  /*
+   * Known gap 1. The list used to be `absolute` inside the component's own
+   * `relative` root, so any ancestor with `overflow: auto` clipped it — the ERP
+   * consuming this had to order a dialog's fields around the limitation. These
+   * two say the list has left the container and that leaving it did not break
+   * choosing from it, which is the half that regresses: the outside-click
+   * handler no longer sees option clicks as inside.
+   */
+  it('opens its list outside any scroll container that encloses it', async () => {
+    render(
+      <div data-testid="scroller" style={{ overflowY: 'auto', height: '80px' }}>
+        <Combobox options={options} value={null} onChange={() => {}} label="Unit" />
+      </div>,
+    )
+
+    await userEvent.click(screen.getByRole('combobox'))
+
+    const scroller = screen.getByTestId('scroller')
+    const listbox = screen.getByRole('listbox')
+
+    expect(scroller).not.toContainElement(listbox)
+    expect(listbox.parentElement).toBe(document.body)
+  })
+
+  it('still chooses an option from the portalled list', async () => {
+    const onChange = vi.fn()
+
+    render(
+      <div style={{ overflowY: 'auto', height: '80px' }}>
+        <Combobox options={options} value={null} onChange={onChange} />
+      </div>,
+    )
+
+    await userEvent.click(screen.getByRole('combobox'))
+    await userEvent.click(screen.getByRole('option', { name: /Metric tonne/ }))
+
+    expect(onChange).toHaveBeenCalledWith('2')
+  })
+
   it('replaces help with the error and marks the field invalid', () => {
     render(<Combobox options={options} value={null} onChange={() => {}} help="Pick one." error="Required." />)
 

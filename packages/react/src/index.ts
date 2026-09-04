@@ -84,3 +84,12 @@ export { Toast, ToastRegion } from './toast'
 export type { ToastPosition, ToastProps, ToastRegionProps, ToastTone } from './toast'
 
 export { cn } from './lib/cn'
+
+/*
+ * The overlay placement every popover in this package uses (known gap 1).
+ * Exported because an application building its own anchored surface — an
+ * autocomplete over its own data, a column menu — should not have to rediscover
+ * that the answer is a portal plus `strategy: 'fixed'`.
+ */
+export { mergeRefs, PopoverPortal, useAnchoredPopover } from './lib/popover'
+export type { AnchoredPopover, AnchoredPopoverOptions } from './lib/popover'

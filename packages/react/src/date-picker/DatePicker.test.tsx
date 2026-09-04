@@ -166,4 +166,40 @@ describe('DatePicker display format', () => {
 
     expect(onChange).toHaveBeenCalledWith('2026-03-20')
   })
+
+  /*
+   * Known gap 1, the case this component made worst: a calendar is ~340px tall,
+   * and `test:behaviour` measured it running 32px below the fold. It now leaves
+   * the flow entirely, so neither a scroll container nor the viewport edge can
+   * cut it off — and clicking a day through the portal still picks it.
+   */
+  it('opens its calendar outside any scroll container that encloses it', async () => {
+    render(
+      <div data-testid="scroller" style={{ overflowY: 'auto', height: '80px' }}>
+        <DatePicker value={'2026-03-10'} onChange={() => {}} label="Joined" />
+      </div>,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: /Joined/ }))
+
+    const calendar = screen.getByRole('dialog')
+
+    expect(screen.getByTestId('scroller')).not.toContainElement(calendar)
+    expect(calendar.parentElement).toBe(document.body)
+  })
+
+  it('still picks a day from the portalled calendar', async () => {
+    const onChange = vi.fn()
+
+    render(
+      <div style={{ overflowY: 'auto', height: '80px' }}>
+        <DatePicker value={'2026-03-10'} onChange={onChange} label="Joined" />
+      </div>,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: /Joined/ }))
+    await userEvent.click(screen.getByRole('button', { name: '18' }))
+
+    expect(onChange).toHaveBeenCalledWith('2026-03-18')
+  })
 })

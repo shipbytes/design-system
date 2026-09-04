@@ -81,6 +81,7 @@ Driven by the ERP milestones in `/var/www/jalaqua-erp/docs/BUILD_PLAN.md` §4.10
 | M0 | button, input, panel, alert, icon, skeleton, badge |
 | M1 | tabs, dropdown (+ items), modal, toast + toast-region; the icon registry above |
 | M3 | table (+ row, cell, head cell), checkbox, combobox, date-picker, pagination, empty-state |
+| M4 | no new components — `lib/popover.tsx`, which moves every overlay into a portal (known gap 1) |
 
 `src/index.ts` is the authoritative list; a component missing from it has not
 been ported, and the answer is `specs/<name>.md`, never an approximation.
@@ -165,3 +166,28 @@ been ported, and the answer is `specs/<name>.md`, never an approximation.
   (nothing in M3 has an instant-effect toggle; forms use checkboxes) and
   `tooltip` (field guidance renders as help text under the control, which
   `Input` and `Checkbox` already carry). Each is a screen's demand away.
+
+### Notes from the M4 batch
+
+- **Overlays leave the flow now** — `src/lib/popover.tsx`, and known gap 1 in
+  the repo's CLAUDE.md is closed on the React side. The gap was written as a
+  viewport-edge problem (a calendar 32px below the fold), and the consuming ERP
+  found the other half of it: an absolutely positioned overlay is clipped by any
+  ancestor with `overflow: auto`, so a combobox in a scrolling dialog is cut off
+  at the footer regardless of where the viewport is. One fix covers both —
+  `strategy: 'fixed'` to escape the containing block, a portal to
+  `document.body` to escape the clip, `flip`/`shift`/`size` to stay on screen
+  once out there.
+- **`@floating-ui/react-dom`, not `@floating-ui/react`.** The larger package
+  brings an interaction layer — dismissal, roving focus, list navigation — that
+  these components already have, written from their specs and tested. Taking it
+  would mean rewriting behaviour in order to close a positioning gap.
+- **`dropdown` needed nothing.** Radix's `DropdownMenu` already portals and
+  already collides, using floating-ui underneath; its placement prop has been a
+  preference rather than a commitment since the M1 batch. Listed in the gap
+  because the Blade component still trusts what it is told.
+- **The portal has one behavioural consequence and it is the one to watch.** An
+  outside-click handler that asks `root.contains(target)` now answers "outside"
+  for a click on the popover's own contents, which reads to a user as the choice
+  not registering. Both components ask about the popover as well, and both have
+  a test that clicks an option through the portal.
