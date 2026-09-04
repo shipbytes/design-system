@@ -73,6 +73,14 @@
   display: none !important;
 }
 
+@utility duration-enter {
+  transition-duration: var(--ds-duration-enter);
+}
+
+@utility duration-leave {
+  transition-duration: var(--ds-duration-leave);
+}
+
 @theme {
   --color-white: var(--ds-color-white);
   --color-black: var(--ds-color-black);
@@ -184,6 +192,8 @@
   --spacing-gutter: var(--ds-space-gutter);
   --spacing-section: var(--ds-space-section);
   --spacing-page: var(--ds-space-page);
+  --ease-enter: var(--ds-easing-enter);
+  --ease-leave: var(--ds-easing-leave);
   --font-sans: var(--ds-font-sans);
   --font-mono: var(--ds-font-mono);
   --text-display: var(--ds-text-display-font-size);
@@ -212,6 +222,38 @@
   --text-overline--font-weight: var(--ds-text-overline-font-weight);
   --text-overline--letter-spacing: var(--ds-text-overline-letter-spacing);
   /* overline: also apply `uppercase` */
+
+  /*
+    Overlay motion. Two directions, one pair of curves, applied by any component
+    that arrives over the page: the scrim fades, the panel fades and scales.
+
+    The scale is 95%, not 90%: large enough to read as "this came forward",
+    small enough that text inside it is never legibly the wrong size mid-flight.
+  */
+  --animate-overlay-in: ds-overlay-in var(--ds-duration-enter) var(--ds-easing-enter);
+  --animate-overlay-out: ds-overlay-out var(--ds-duration-leave) var(--ds-easing-leave);
+  --animate-dialog-in: ds-dialog-in var(--ds-duration-enter) var(--ds-easing-enter);
+  --animate-dialog-out: ds-dialog-out var(--ds-duration-leave) var(--ds-easing-leave);
+
+  @keyframes ds-overlay-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes ds-overlay-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  @keyframes ds-dialog-in {
+    from { opacity: 0; scale: 0.95; }
+    to { opacity: 1; scale: 1; }
+  }
+
+  @keyframes ds-dialog-out {
+    from { opacity: 1; scale: 1; }
+    to { opacity: 0; scale: 0.95; }
+  }
 }
 
 .dark {

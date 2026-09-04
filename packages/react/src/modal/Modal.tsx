@@ -38,11 +38,11 @@ const sizes = {
   '3xl': 'max-w-3xl', // 48rem │ WIDE rather than long: a table preview, a diff
   '4xl': 'max-w-4xl', // 56rem ┘
   /*
-   * Near-full-screen, with a ceiling. The root is `fixed inset-0 p-4`, so
-   * `w-full` already means "the container, less the gutter" and `max-w-none`
-   * would be enough — measured, that gives 1408px at a 1440 viewport and 2528px
-   * at 2560, a dialog wider than anything else in the system at a line length
-   * nobody reads. The cap only engages above roughly 1568px.
+   * Near-full-screen, with a ceiling. The panel's own width is already "the
+   * container, less the gutter", so `max-w-none` would be enough — measured,
+   * that gives 1408px at a 1440 viewport and 2528px at 2560, a dialog wider
+   * than anything else in the system at a line length nobody reads. The cap
+   * only engages above roughly 1568px.
    */
   full: 'max-w-[96rem]',
 } as const
@@ -101,107 +101,130 @@ export function Modal({
          * in dark, lighting the page up instead of pushing it back.
          */}
         {/*
-          * No enter/leave transition. The spec's is written in Alpine's
-          * `x-transition`, which has no equivalent here: Radix unmounts on
-          * close, so a utility-class transition would never be seen, and doing
-          * it properly means keyframes in the theme — a design-system change
-          * rather than a component one. Left undone deliberately rather than
-          * faked with classes that do nothing.
-          */}
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-scrim" />
+         * Motion comes from the theme's named animations, driven by the
+         * `data-state` attribute Radix puts on both parts.
+         *
+         * ANIMATIONS, not transitions, and that is the whole reason this
+         * needed a design-system change rather than a component one. Radix
+         * keeps a closing dialog mounted until `animationend` fires and only
+         * then removes it — an element being removed never completes a
+         * `transition`, so the Alpine spec's `x-transition` utility classes
+         * would have produced an enter that worked and a leave that was never
+         * seen. `animate-overlay-out` / `animate-dialog-out` are what Radix
+         * waits for.
+         */}
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-scrim data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out" />
 
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <Dialog.Content
-            onEscapeKeyDown={block}
-            onPointerDownOutside={block}
-            onInteractOutside={block}
+        {/*
+         * Centred by the panel itself, not by a flex wrapper around it.
+         *
+         * The Blade version centres with a `fixed inset-0 p-4 flex` root, and
+         * the port did too until the leave animation went in. Dialog.Portal
+         * wraps EACH of its direct children in its own Presence: a wrapper div
+         * has no animation, so Presence unmounts it — and the panel inside it —
+         * the instant `open` goes false, and the exit animation it was waiting
+         * on never runs. The panel has to be the Portal's own child for Radix to
+         * wait for it.
+         *
+         * `calc(100% - 2rem)` reproduces exactly what the wrapper's `p-4` gave:
+         * a percentage resolves against the containing block, so this is still
+         * "the container, less the gutter", and it stays right when the
+         * containing block is not the viewport — which is what a transformed
+         * ancestor makes it. 100vw/100dvh would not: on a phone with a visible
+         * URL bar the footer buttons, the two the modal exists to offer, would
+         * land below the fold.
+         */}
+        <Dialog.Content
+          onEscapeKeyDown={block}
+          onPointerDownOutside={block}
+          onInteractOutside={block}
+          className={cn(
+            'fixed top-1/2 left-1/2 z-50 -translate-x-1/2 -translate-y-1/2',
+            'flex w-[calc(100%-2rem)] max-h-[calc(100%-2rem)] flex-col overflow-hidden',
+            'rounded-panel bg-surface shadow-overlay outline-hidden',
+            // Fades and scales from 95%; see the overlay above for why these
+            // are animations rather than transitions. The keyframes animate
+            // `scale`, which is its own property in CSS and in Tailwind v4 —
+            // so it composes with the centring `translate` instead of
+            // overwriting it, which a `transform: scale()` would have done.
+            'data-[state=open]:animate-dialog-in data-[state=closed]:animate-dialog-out',
+            width,
+            className,
+          )}
+        >
+          {hasHeader ? (
+            <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
+              <div className="min-w-0">
+                {/*
+                 * The visible heading IS the accessible name — Radix wires
+                 * aria-labelledby to this element. Never an aria-label: that
+                 * is a second copy of the title nobody can see and nobody
+                 * updates when the title changes.
+                 */}
+                {title ? (
+                  <Dialog.Title className="text-title text-fg">{title}</Dialog.Title>
+                ) : (
+                  // Radix warns without a Title, and a dialog with no
+                  // accessible name is the thing it is warning about. A
+                  // titleless modal is rare and still needs one.
+                  <Dialog.Title className="sr-only">Dialog</Dialog.Title>
+                )}
+                {/*
+                 * Always rendered, hidden when empty. Radix warns about a
+                 * dialog with no description, and the warning is right: the
+                 * alternative is suppressing it with an aria-describedby
+                 * override that would also break the case that HAS one.
+                 */}
+                <Dialog.Description
+                  className={description ? 'mt-1 text-body text-fg-muted' : 'sr-only'}
+                >
+                  {description ?? 'Dialog'}
+                </Dialog.Description>
+              </div>
+
+              {dismissible ? (
+                <Dialog.Close
+                  className="-mt-1 -mr-2 shrink-0 rounded-control p-2 text-fg-muted transition-colors hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                  aria-label="Close"
+                >
+                  <Icon name="x-mark" size={5} />
+                </Dialog.Close>
+              ) : null}
+            </div>
+          ) : (
+            <>
+              <Dialog.Title className="sr-only">Dialog</Dialog.Title>
+              <Dialog.Description className="sr-only">Dialog</Dialog.Description>
+            </>
+          )}
+
+          {/*
+           * The BODY scrolls, not the panel: the header keeps naming the
+           * dialog and the footer keeps its actions reachable while long
+           * content moves underneath. A panel that scrolls as one loses both,
+           * at exactly the moment a long modal needs them.
+           *
+           * Top padding only when no header supplies the gap, bottom padding
+           * only when no footer does.
+           */}
+          <div
             className={cn(
-              'relative flex w-full flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden',
-              // `max-h-full`, not a viewport unit: the root is `fixed inset-0
-              // p-4`, so 100% of it is already "the viewport, less the gutter" —
-              // and it stays right when the root is not the viewport, which is
-              // what a transformed ancestor makes it. 100vh would also be wrong
-              // on a phone with a visible URL bar: the footer buttons — the two
-              // the modal exists to offer — would land below the fold.
-              'max-h-full',
-              width,
-              className,
+              'min-h-0 flex-1 overflow-y-auto px-5 text-body text-fg-body',
+              !hasHeader && 'pt-5',
+              !footer && 'pb-5',
             )}
           >
-            {hasHeader ? (
-              <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
-                <div className="min-w-0">
-                  {/*
-                   * The visible heading IS the accessible name — Radix wires
-                   * aria-labelledby to this element. Never an aria-label: that
-                   * is a second copy of the title nobody can see and nobody
-                   * updates when the title changes.
-                   */}
-                  {title ? (
-                    <Dialog.Title className="text-title text-fg">{title}</Dialog.Title>
-                  ) : (
-                    // Radix warns without a Title, and a dialog with no
-                    // accessible name is the thing it is warning about. A
-                    // titleless modal is rare and still needs one.
-                    <Dialog.Title className="sr-only">Dialog</Dialog.Title>
-                  )}
-                  {/*
-                    * Always rendered, hidden when empty. Radix warns about a
-                    * dialog with no description, and the warning is right: the
-                    * alternative is suppressing it with an aria-describedby
-                    * override that would also break the case that HAS one.
-                    */}
-                  <Dialog.Description
-                    className={description ? 'mt-1 text-body text-fg-muted' : 'sr-only'}
-                  >
-                    {description ?? 'Dialog'}
-                  </Dialog.Description>
-                </div>
+            {children}
+          </div>
 
-                {dismissible ? (
-                  <Dialog.Close
-                    className="-mt-1 -mr-2 shrink-0 rounded-control p-2 text-fg-muted transition-colors hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-                    aria-label="Close"
-                  >
-                    <Icon name="x-mark" size={5} />
-                  </Dialog.Close>
-                ) : null}
-              </div>
-            ) : (
-              <>
-                <Dialog.Title className="sr-only">Dialog</Dialog.Title>
-                <Dialog.Description className="sr-only">Dialog</Dialog.Description>
-              </>
-            )}
-
-            {/*
-             * The BODY scrolls, not the panel: the header keeps naming the
-             * dialog and the footer keeps its actions reachable while long
-             * content moves underneath. A panel that scrolls as one loses both,
-             * at exactly the moment a long modal needs them.
-             *
-             * Top padding only when no header supplies the gap, bottom padding
-             * only when no footer does.
-             */}
-            <div
-              className={cn(
-                'min-h-0 flex-1 overflow-y-auto px-5 text-body text-fg-body',
-                !hasHeader && 'pt-5',
-                !footer && 'pb-5',
-              )}
-            >
-              {children}
+          {footer ? (
+            // Actions right-aligned, primary last: the reading order of a
+            // confirmation is the question, then the way out, then the answer.
+            <div className="flex items-center justify-end gap-2 border-t border-divider px-5 py-4">
+              {footer}
             </div>
-
-            {footer ? (
-              // Actions right-aligned, primary last: the reading order of a
-              // confirmation is the question, then the way out, then the answer.
-              <div className="flex items-center justify-end gap-2 border-t border-divider px-5 py-4">
-                {footer}
-              </div>
-            ) : null}
-          </Dialog.Content>
-        </div>
+          ) : null}
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   )

@@ -122,6 +122,10 @@
   --ds-space-gutter: 1rem;
   --ds-space-section: 1.5rem;
   --ds-space-page: 2.5rem;
+  --ds-duration-enter: 200ms;
+  --ds-duration-leave: 150ms;
+  --ds-easing-enter: cubic-bezier(0, 0, 0.2, 1);
+  --ds-easing-leave: cubic-bezier(0.4, 0, 1, 1);
   --ds-font-sans: Inter, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --ds-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --ds-weight-regular: 400;
@@ -234,5 +238,26 @@
     --ds-on-accent-tint: oklch(80.9% 0.105 251.813);
     --ds-neutral-tint: oklch(100% 0 0 / 0.1);
     --ds-on-neutral-tint: oklch(87.1% 0.006 286.286);
+  }
+}
+
+/*
+  Reduced motion, done once at the source rather than per component.
+
+  Every animation in the system reads its length from these two properties, so
+  shortening them here is the whole implementation — a component cannot forget,
+  and a consumer's own animation built on `duration-enter` is covered too.
+
+  1ms rather than 0s, and not `animation: none`, because both of those are
+  ways to lose the `animationend` event. Radix — and any other library that
+  keeps an element mounted until its exit animation finishes — waits for that
+  event; without it a closed dialog stays in the DOM, still trapping focus.
+  "Reduced" is also what the media query asks for: no perceptible movement, not
+  no lifecycle.
+*/
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ds-duration-enter: 1ms;
+    --ds-duration-leave: 1ms;
   }
 }

@@ -143,6 +143,43 @@ the reader assumes the opposite happened.
 With `dismissible="false"` the footer must offer a way out. A modal with no exit
 is a trap, and the component cannot check that for you.
 
+## Motion
+
+The scrim fades; the panel fades and scales from 95%. Entering takes
+`duration.enter` on `easing.enter`, leaving takes `duration.leave` on
+`easing.leave` — the durations and the curves are **tokens**
+(`tokens/motion.json`), not numbers written into the component. Both directions
+must exist: a modal that appears over half a second and vanishes in a single
+frame reads as a crash.
+
+The 95% is deliberate. Large enough to read as "this came forward", small
+enough that the text inside it is never legibly the wrong size mid-flight.
+
+**How the motion is expressed is not the same in every implementation, and the
+difference is not cosmetic.** Blade uses `x-transition`: Alpine keeps the
+element in the DOM and swaps utility classes over two frames, so a *transition*
+is enough. A React implementation over Radix cannot do that — Radix keeps a
+closing dialog mounted, waits for `animationend`, and only then unmounts it. An
+element being removed never completes a transition, so the same utility classes
+would give a working enter and a leave nobody ever sees, with nothing in the
+console. The React port therefore uses **CSS animations** driven by Radix's
+`data-state` attribute, reading the same four tokens.
+
+The port has one more constraint that follows from the same mechanism: the
+panel must be a **direct child of the portal**. Radix wraps each portal child in
+its own presence check, and a wrapper element with no animation of its own
+unmounts the subtree — panel included — before the leave can run. So the React
+panel centres itself (`fixed`, `top-1/2 left-1/2`, translated back by half)
+instead of sitting inside the `fixed inset-0 p-4 flex` root the Blade version
+uses. Same result on screen, and `calc(100% - 2rem)` carries over what the `p-4`
+was doing.
+
+`prefers-reduced-motion: reduce` shortens both durations to 1ms at the token
+layer, so no component implements it. 1ms rather than zero or `animation: none`
+— both of those are ways to lose the `animationend` event, and losing it leaves
+a closed dialog mounted and still trapping focus. Reduced motion means no
+perceptible movement, not no lifecycle.
+
 ## Accessibility
 
 The non-negotiables, all of them implemented rather than documented as intent:

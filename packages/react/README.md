@@ -89,11 +89,22 @@ Driven by the ERP milestones in `/var/www/jalaqua-erp/docs/BUILD_PLAN.md` §4.10
   trigger's `aria-expanded` by querying whatever the slot turned out to contain.
   Radix Tabs and DropdownMenu own both, so the contract is kept by the component
   rather than by every consumer.
-- **Modal has no enter/leave transition.** The spec's is `x-transition`, which
-  has no equivalent here: Radix unmounts on close, so a utility-class transition
-  would never be seen, and doing it properly needs keyframes in the theme — a
-  design-system change rather than a component one. Left undone rather than
-  faked with classes that do nothing.
+- **Overlay motion is animations, not transitions** — and that is why it took a
+  token change. Alpine's `x-transition` keeps the element in the DOM and swaps
+  classes over two frames; Radix keeps a closing dialog mounted, waits for
+  `animationend`, and only then unmounts it. An element being removed never
+  completes a *transition*, so the spec's utility classes would have given a
+  working enter and a leave nobody ever sees, with nothing in the console. The
+  theme now carries four named animations (`overlay-in/out`, `dialog-in/out`)
+  built from `tokens/motion.json`, and Modal drives them off Radix's
+  `data-state`.
+
+  The same mechanism has a second consequence: **the panel has to be a direct
+  child of `Dialog.Portal`.** The portal wraps each of its children in its own
+  Presence, so the `fixed inset-0 flex` wrapper the Blade version centres with
+  unmounts the panel before its leave can run. The panel centres itself
+  instead — `fixed`, `top-1/2 left-1/2`, translated back by half — and
+  `calc(100% - 2rem)` carries over what the wrapper's `p-4` was doing.
 - **Dropdown gains collision detection**, which the Blade version explicitly
   does not have. `placement` becomes a preference rather than a commitment.
 - **jsdom has no Pointer Events API.** Radix's menus call `hasPointerCapture`,

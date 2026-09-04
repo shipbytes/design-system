@@ -1,0 +1,29 @@
+{
+  "$description": "Motion. Two durations and two easings, and nothing else — every enter in this system is the same enter and every leave is the same leave. The values are the ones the Blade components already carry inline as `x-transition ease-out duration-200` / `ease-in duration-150`; naming them is what let the React port stop guessing, because Radix drives its animations from CSS and had no numbers to read.",
+  "duration": {
+    "$description": "Asymmetric on purpose: an entrance is an announcement and wants to be seen, a departure is already decided and only has to not snap. 200/150 is the pair the source dashboard converged on.",
+    "enter": {
+      "$type": "duration",
+      "$value": "200ms",
+      "$description": "Anything arriving — a modal, a dropdown, a toast."
+    },
+    "leave": {
+      "$type": "duration",
+      "$value": "150ms",
+      "$description": "Anything going away. Shorter than the enter."
+    }
+  },
+  "easing": {
+    "$description": "Named for the direction rather than the curve, so a component asks for `ease-enter` and cannot pair an entrance with a decelerating-out curve by accident. NOT named `in`/`out`: Tailwind owns `--ease-in` and `--ease-out` with its own values, and an @theme key overwrites rather than adds.",
+    "enter": {
+      "$type": "cubicBezier",
+      "$value": "cubic-bezier(0, 0, 0.2, 1)",
+      "$description": "Decelerating. Fast at the start, settling at the end — the thing arrives and comes to rest."
+    },
+    "leave": {
+      "$type": "cubicBezier",
+      "$value": "cubic-bezier(0.4, 0, 1, 1)",
+      "$description": "Accelerating. Eases away and then goes, so the tail of the animation is not the part the reader waits through."
+    }
+  }
+}

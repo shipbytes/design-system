@@ -253,6 +253,14 @@ export const tokens = {
     "section": "1.5rem",
     "page": "2.5rem"
   },
+  "duration": {
+    "enter": "200ms",
+    "leave": "150ms"
+  },
+  "easing": {
+    "enter": "cubic-bezier(0, 0, 0.2, 1)",
+    "leave": "cubic-bezier(0.4, 0, 1, 1)"
+  },
   "font": {
     "sans": "Inter, ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
     "mono": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace"

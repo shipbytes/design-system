@@ -148,6 +148,29 @@ ${darkLines.join('\n')}
 ${darkLines.map((l) => `  ${l}`).join('\n')}
   }
 }
+
+/*
+  Reduced motion, done once at the source rather than per component.
+
+  Every animation in the system reads its length from these two properties, so
+  shortening them here is the whole implementation — a component cannot forget,
+  and a consumer's own animation built on \`duration-enter\` is covered too.
+
+  1ms rather than 0s, and not \`animation: none\`, because both of those are
+  ways to lose the \`animationend\` event. Radix — and any other library that
+  keeps an element mounted until its exit animation finishes — waits for that
+  event; without it a closed dialog stays in the DOM, still trapping focus.
+  "Reduced" is also what the media query asks for: no perceptible movement, not
+  no lifecycle.
+*/
+@media (prefers-reduced-motion: reduce) {
+  :root {
+${tokens
+    .filter(({ path }) => path[0] === 'duration')
+    .map(({ path }) => `    ${varName(path)}: 1ms;`)
+    .join('\n')}
+  }
+}
 `;
 
 // --- icon sizes the components ask for -----------------------------
@@ -191,6 +214,79 @@ for (const file of await bladeFiles(VIEWS)) {
 }
 const iconSizeList = [...iconSizes].sort((a, b) => Number(a) - Number(b));
 
+// --- duration utilities --------------------------------------------
+//
+// Tailwind has a `--ease-*` theme namespace and NO `--duration-*` one: its
+// duration utilities take a bare number or an arbitrary value, and nothing else.
+// So `--duration-enter: …` in @theme compiles to nothing at all, and
+// `class="duration-enter"` is a class with no rule behind it — the same silent
+// nothing as size-4.5 and safe-area-bottom before it. Verified by compiling a
+// probe stylesheet, not assumed.
+//
+// A static @utility per duration token is a real rule, and it is generated from
+// the tokens so the set cannot drift from tokens/motion.json.
+const durationUtilities = tokens
+    .filter(({ path }) => path[0] === 'duration')
+    .map(
+        ({ path }) => `@utility duration-${path[1]} {
+  transition-duration: var(${varName(path)});
+}`,
+    )
+    .join('\n\n');
+
+// --- overlay motion ------------------------------------------------
+//
+// The named animations, and the keyframes behind them.
+//
+// Not tokens: a keyframe is a rule, not a value, and the DTCG files hold values.
+// What IS a token is every number in here — both durations and both curves come
+// from tokens/motion.json, so the pair of animations for one direction cannot
+// drift apart from the pair for the other.
+//
+// ANIMATIONS rather than transitions, because of what a React overlay library
+// has to do to run one. Alpine's `x-transition` keeps the element in the DOM and
+// swaps utility classes across two frames; Radix instead keeps the element
+// mounted after `open` goes false, waits for `animationend`, and only then
+// unmounts. A `transition` never fires that event on an element being removed,
+// so the leave is simply never seen — which is why the React modal shipped with
+// no transition at all rather than a faked one.
+//
+// Declared inside @theme so Tailwind emits a keyframe block only for the
+// animations a project actually uses.
+const MOTION = `
+  /*
+    Overlay motion. Two directions, one pair of curves, applied by any component
+    that arrives over the page: the scrim fades, the panel fades and scales.
+
+    The scale is 95%, not 90%: large enough to read as "this came forward",
+    small enough that text inside it is never legibly the wrong size mid-flight.
+  */
+  --animate-overlay-in: ds-overlay-in var(--ds-duration-enter) var(--ds-easing-enter);
+  --animate-overlay-out: ds-overlay-out var(--ds-duration-leave) var(--ds-easing-leave);
+  --animate-dialog-in: ds-dialog-in var(--ds-duration-enter) var(--ds-easing-enter);
+  --animate-dialog-out: ds-dialog-out var(--ds-duration-leave) var(--ds-easing-leave);
+
+  @keyframes ds-overlay-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes ds-overlay-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  @keyframes ds-dialog-in {
+    from { opacity: 0; scale: 0.95; }
+    to { opacity: 1; scale: 1; }
+  }
+
+  @keyframes ds-dialog-out {
+    from { opacity: 1; scale: 1; }
+    to { opacity: 0; scale: 0.95; }
+  }
+`;
+
 // --- theme.css (Tailwind v4) --------------------------------------
 
 const themeLines = [];
@@ -219,6 +315,10 @@ for (const { path, token } of tokens) {
         themeLines.push(`  --spacing-${path[1]}: var(${varName(path)});`);
     } else if (group === 'control') {
         themeLines.push(`  --spacing-control-${path[1]}: var(${varName(path)});`);
+    } else if (group === 'easing') {
+        // `--ease-enter`, not `--ease-in`: Tailwind owns in/out/in-out with its
+        // own curves, and an @theme key overwrites rather than adds.
+        themeLines.push(`  --ease-${path[1]}: var(${varName(path)});`);
     } else if (group === 'text' && token.$type === 'typography') {
         themeLines.push(`  --text-${path[1]}: var(${varName([...path, 'font-size'])});`);
         themeLines.push(
@@ -343,9 +443,11 @@ const themeCss = `${banner('Tailwind CSS v4 theme, mapping the tokens onto utili
   display: none !important;
 }
 
+${durationUtilities}
+
 @theme {
 ${themeLines.join('\n')}
-}
+${MOTION}}
 ${darkRemap}`;
 
 // --- tokens.js / tokens.json --------------------------------------

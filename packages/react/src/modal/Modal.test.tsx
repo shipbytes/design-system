@@ -56,6 +56,39 @@ describe('Modal', () => {
     expect(onOpenChange).not.toHaveBeenCalled()
   })
 
+  it('drives its motion from data-state so Radix can wait for the leave', async () => {
+    /*
+     * The regression this guards is invisible: with a `transition` instead of
+     * an animation, or with the panel wrapped in an unanimated div, the modal
+     * still opens, still closes, and never shows a leave. Nothing throws.
+     *
+     * Two things have to hold. The panel must be a direct child of the portal —
+     * Dialog.Portal wraps EACH child in its own Presence, and an unanimated
+     * wrapper unmounts the subtree before the exit animation can run. And both
+     * parts must carry the closed-state animation class, because that is the
+     * one Radix waits on `animationend` for.
+     */
+    render(
+      <Modal open onOpenChange={() => {}} title="Rename">
+        Body
+      </Modal>,
+    )
+
+    const panel = screen.getByRole('dialog')
+    expect(panel.className).toContain('data-[state=open]:animate-dialog-in')
+    expect(panel.className).toContain('data-[state=closed]:animate-dialog-out')
+    expect(panel).toHaveAttribute('data-state', 'open')
+
+    const overlay = document.querySelector('.bg-scrim')
+    expect(overlay?.className).toContain('data-[state=closed]:animate-overlay-out')
+
+    // Both are portalled straight into the container. Anything between the
+    // portal and the panel is a Presence with no animation of its own, and that
+    // is the arrangement that swallows the leave.
+    expect(panel.parentElement).toBe(document.body)
+    expect(overlay?.parentElement).toBe(document.body)
+  })
+
   it('renders nothing at all when closed', () => {
     render(
       <Modal open={false} onOpenChange={() => {}} title="Rename">
