@@ -8,19 +8,27 @@ import {
   Alert,
   Badge,
   Button,
+  Checkbox,
+  Combobox,
   createIconRegistry,
+  DatePicker,
   Dropdown,
   DropdownItem,
+  EmptyState,
   Icon,
   IconProvider,
   Input,
   Modal,
+  Pagination,
   Panel,
   PanelRow,
   Skeleton,
   Tab,
   TabList,
   TabPanel,
+  Table,
+  TableCell,
+  TableRow,
   Tabs,
   Toast,
   ToastRegion,
@@ -49,6 +57,113 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h2 className="text-section text-fg">{title}</h2>
       <div className="flex flex-wrap items-center gap-3">{children}</div>
     </section>
+  )
+}
+
+/** The M3 batch. Grouped so the table, its pagination and its empty state can
+ *  be looked at together, which is how they are used. */
+function M3Batch() {
+  const [page, setPage] = useState(4)
+  const [unit, setUnit] = useState<string | string[] | null>('2')
+  const [contexts, setContexts] = useState<string | string[] | null>(['1', '3'])
+  const [day, setDay] = useState<string | null>('2026-09-04')
+  const [period, setPeriod] = useState<[string | null, string | null]>(['2026-09-01', '2026-09-30'])
+  const [flag, setFlag] = useState(true)
+
+  const units = [
+    { value: '1', label: 'Kilogram', meta: 'KG' },
+    { value: '2', label: 'Metric tonne', meta: 'MT' },
+    { value: '3', label: 'Litre', meta: 'LTR' },
+    { value: '4', label: 'Pieces', meta: 'PCS' },
+  ]
+
+  return (
+    <>
+      <Section title="Table">
+        <div className="w-full">
+          <Table
+            columns={[
+              'Code',
+              'Name',
+              { label: 'Decimals', align: 'right', width: 'w-24' },
+              { label: '', width: 'w-14', key: 'actions' },
+            ]}
+          >
+            {units.map((u) => (
+              <TableRow key={u.value}>
+                <TableCell nowrap>{u.meta}</TableCell>
+                <TableCell>{u.label}</TableCell>
+                <TableCell align="right" className="tabular-nums">
+                  3
+                </TableCell>
+                <TableCell align="right">
+                  <Button variant="ghost" size="sm">
+                    Edit
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </Table>
+        </div>
+      </Section>
+
+      <Section title="Pagination">
+        <div className="w-full">
+          <Pagination page={page} perPage={15} total={237} onChange={setPage} />
+        </div>
+      </Section>
+
+      <Section title="Empty state">
+        <div className="w-full">
+          <EmptyState
+            title="No reason codes yet"
+            description="Add the first one, or import the standard set."
+            icon="inbox"
+            action={<Button>New reason code</Button>}
+          />
+        </div>
+      </Section>
+
+      <Section title="Checkbox">
+        <div className="flex w-full flex-col gap-3">
+          <Checkbox
+            label="On the presence list"
+            checked={flag}
+            onChange={(event) => setFlag(event.target.checked)}
+            help="Production presence list includes this department."
+          />
+          <Checkbox label="Partly selected" indeterminate />
+          <Checkbox label="Cannot be changed" disabled />
+          <Checkbox label="Current year" error="Another year already is." />
+        </div>
+      </Section>
+
+      <Section title="Combobox">
+        <div className="grid w-full gap-4 sm:grid-cols-2">
+          <Combobox options={units} value={unit} onChange={setUnit} label="Unit of measure" />
+          <Combobox
+            options={units}
+            value={contexts}
+            onChange={setContexts}
+            label="Applies to"
+            multiple
+            help="One code can serve several contexts."
+          />
+        </div>
+      </Section>
+
+      <Section title="Date picker">
+        <div className="grid w-full gap-4 sm:grid-cols-2">
+          <DatePicker value={day} onChange={(v) => setDay(v as string | null)} label="As of" />
+          <DatePicker
+            range
+            value={period}
+            onChange={(v) => setPeriod(v as [string | null, string | null])}
+            label="Period"
+          />
+        </div>
+      </Section>
+    </>
   )
 }
 
@@ -288,6 +403,8 @@ function Gallery() {
           </Toast>
         ))}
       </ToastRegion>
+
+      <M3Batch />
     </div>
   )
 }

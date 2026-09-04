@@ -378,6 +378,12 @@ candidate — see specs/accordion.md.
 - **Server-side filtering for `combobox`.** It filters the list you pass it, in
   the browser. A searchable list too large to send needs a search callback, and
   a callback is a backend contract — the one thing nothing here has.
+
+  Still true of the Blade component. The React one carries the seam, because a
+  React consumer already owns its own fetching and so the prop costs nothing:
+  `filter={false}` turns the component's own filtering off and `onQueryChange`
+  reports the typing. It still fetches nothing itself, and the default behaviour
+  is the spec's.
 - **Upload transport for `file-upload`.** It is a field, not an uploader.
 - **A date-and-time picker.** Two questions; a control that answers both does
   neither well.

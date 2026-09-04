@@ -80,6 +80,10 @@ Driven by the ERP milestones in `/var/www/jalaqua-erp/docs/BUILD_PLAN.md` §4.10
 |---|---|
 | M0 | button, input, panel, alert, icon, skeleton, badge |
 | M1 | tabs, dropdown (+ items), modal, toast + toast-region; the icon registry above |
+| M3 | table (+ row, cell, head cell), checkbox, combobox, date-picker, pagination, empty-state |
+
+`src/index.ts` is the authoritative list; a component missing from it has not
+been ported, and the answer is `specs/<name>.md`, never an approximation.
 
 ### Notes from the M1 batch
 
@@ -111,3 +115,37 @@ Driven by the ERP milestones in `/var/www/jalaqua-erp/docs/BUILD_PLAN.md` §4.10
   and an undefined method there does not throw — the interaction never completes
   and the test times out five seconds later pointing at the `it(...)` line. The
   stubs are in `vitest.setup.ts`.
+
+### Notes from the M3 batch
+
+- **Pagination is a rewrite, not a port.** The Blade side is a *view*, resolved
+  by `$paginator->links()` and handed a Laravel paginator; a React consumer has
+  a page number and a total. Nothing in it could be copied, so every decision
+  came out of `specs/pagination.md` — the current page as a raised card rather
+  than a colour, square `tabular-nums` cells so a three-digit page does not make
+  the row jitter, disabled arrows faded rather than removed, and the position on
+  the mobile row that the framework's own view leaves out. `paginationWindow()`
+  is exported because the arithmetic is the part worth testing without a DOM.
+- **The date picker uses date-fns and still speaks in strings.** `new Date('2026-03-29')`
+  is UTC midnight, and west of Greenwich that is the 28th — a picker built on
+  Date objects selects the day before the one that was clicked, for some users,
+  some of the time. The Blade version's whole discipline is Y-m-d strings
+  compared as strings, and date-fns changes none of it: a `Date` exists inside
+  `monthGrid` and nowhere else, made with `parseISO` (which reads Y-m-d as LOCAL
+  midnight, unlike the constructor) and turned straight back into a string.
+- **The combobox closes by focusing first.** Clicking an option moves focus to
+  the option, so returning focus to the field fires `focus` — whose handler
+  opens the list. Focus, then close: both updates are queued inside one event
+  and the last wins. The other order reopens the list the click just chose from,
+  which looks like the choice not registering.
+- **`filter={false}` is the one addition to the spec.** See known gap 7 in
+  CLAUDE.md: server-side filtering was left out of the Blade component because a
+  search callback is a backend contract. In React the consumer already owns its
+  fetching, so it is a prop and not a contract — and the default is still the
+  spec's client-side filter.
+- **Deliberately not in this batch**, though §4.10 of the ERP plan lists them:
+  `select` (the listbox — `input as="select"` already renders the native one,
+  and the spec itself says prefer that for long or unfamiliar lists), `switch`
+  (nothing in M3 has an instant-effect toggle; forms use checkboxes) and
+  `tooltip` (field guidance renders as help text under the control, which
+  `Input` and `Checkbox` already carry). Each is a screen's demand away.

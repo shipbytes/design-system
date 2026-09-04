@@ -14,6 +14,18 @@ export type { BadgeProps, BadgeTone } from './badge'
 export { Button, buttonRecipe } from './button'
 export type { ButtonLinkProps, ButtonProps } from './button'
 
+export { Checkbox } from './checkbox'
+export type { CheckboxProps } from './checkbox'
+
+export { Combobox } from './combobox'
+export type { ComboboxOption, ComboboxProps } from './combobox'
+
+export { DatePicker, monthGrid } from './date-picker'
+export type { DatePickerProps } from './date-picker'
+
+export { EmptyState } from './empty-state'
+export type { EmptyStateProps, EmptyStateTone } from './empty-state'
+
 export {
   builtInIcons,
   createIconRegistry,
@@ -46,6 +58,9 @@ export type { InputProps, SelectProps, TextareaProps } from './input'
 export { Modal } from './modal'
 export type { ModalProps, ModalSize } from './modal'
 
+export { Pagination, paginationWindow } from './pagination'
+export type { PaginationProps } from './pagination'
+
 export { Panel, PanelRow } from './panel'
 export type { PanelIconTone, PanelProps, PanelRowProps } from './panel'
 
@@ -54,6 +69,16 @@ export type { SkeletonProps, SkeletonSize, SkeletonVariant } from './skeleton'
 
 export { Tab, TabList, TabPanel, Tabs } from './tabs'
 export type { TabListProps, TabPanelProps, TabProps, TabsProps } from './tabs'
+
+export { Table, TableCell, TableHeadCell, TableRow } from './table'
+export type {
+  TableAlign,
+  TableCellProps,
+  TableColumn,
+  TableHeadCellProps,
+  TableProps,
+  TableRowProps,
+} from './table'
 
 export { Toast, ToastRegion } from './toast'
 export type { ToastPosition, ToastProps, ToastRegionProps, ToastTone } from './toast'
