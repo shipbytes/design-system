@@ -41,7 +41,62 @@ If linking ever misbehaves, the fallback is a `tsup` build to `dist/` with
 3. Behaviour with Radix where a primitive exists; `useId()` for ids.
 4. A test per component covering the spec's accessibility section.
 
+## Icons: the registry
+
+`Icon` takes a kebab-case `name` and looks it up at runtime, which used to mean
+importing all four `@heroicons/react` namespaces so that any name could resolve.
+A namespace import is a use of every export, so nothing tree-shook and an
+application drawing nine icons shipped about a megabyte of them.
+
+So the application declares what it uses, and only that reaches the bundle:
+
+```tsx
+import { ArrowRightIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { createIconRegistry, IconProvider } from '@shipbytes/react'
+
+const icons = createIconRegistry({ outline: { ArrowRightIcon, TrashIcon } })
+
+<IconProvider registry={icons}>…</IconProvider>
+```
+
+Object shorthand keys the registry by the heroicons export name, so each icon is
+written twice and never spelled a third way.
+
+The handful of icons **this package's own components** draw — an alert's tone
+icon, an input's error mark, a select's chevron, a dismiss cross — are named
+imports in `src/icon/builtin.ts` and always resolve. They were never the
+application's to declare. The injected registry is checked first, so an
+application can still override one.
+
+A tool or a playground that genuinely wants everything can pass a namespace and
+get the old behaviour back, at the old size — a deliberate choice rather than a
+default.
+
 ## Port order
 
 Driven by the ERP milestones in `/var/www/jalaqua-erp/docs/BUILD_PLAN.md` §4.10.
-M0 (this batch): button, input, panel, alert, icon, skeleton, badge.
+
+| Batch | Components |
+|---|---|
+| M0 | button, input, panel, alert, icon, skeleton, badge |
+| M1 | tabs, dropdown (+ items), modal, toast + toast-region; the icon registry above |
+
+### Notes from the M1 batch
+
+- **Radix keeps promises the Blade version has to delegate.** `specs/tabs.md`
+  hands the host twenty lines of Alpine for the arrow keys and warns that two
+  earlier versions of that example were wrong; `specs/dropdown.md` sets the
+  trigger's `aria-expanded` by querying whatever the slot turned out to contain.
+  Radix Tabs and DropdownMenu own both, so the contract is kept by the component
+  rather than by every consumer.
+- **Modal has no enter/leave transition.** The spec's is `x-transition`, which
+  has no equivalent here: Radix unmounts on close, so a utility-class transition
+  would never be seen, and doing it properly needs keyframes in the theme — a
+  design-system change rather than a component one. Left undone rather than
+  faked with classes that do nothing.
+- **Dropdown gains collision detection**, which the Blade version explicitly
+  does not have. `placement` becomes a preference rather than a commitment.
+- **jsdom has no Pointer Events API.** Radix's menus call `hasPointerCapture`,
+  and an undefined method there does not throw — the interaction never completes
+  and the test times out five seconds later pointing at the `it(...)` line. The
+  stubs are in `vitest.setup.ts`.

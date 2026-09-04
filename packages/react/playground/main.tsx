@@ -1,7 +1,45 @@
 import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { Alert, Badge, Button, Icon, Input, Panel, PanelRow, Skeleton } from '../src'
+import * as Outline24 from '@heroicons/react/24/outline'
+import * as Solid24 from '@heroicons/react/24/solid'
+import * as Mini20 from '@heroicons/react/20/solid'
+import * as Micro16 from '@heroicons/react/16/solid'
+import {
+  Alert,
+  Badge,
+  Button,
+  createIconRegistry,
+  Dropdown,
+  DropdownItem,
+  Icon,
+  IconProvider,
+  Input,
+  Modal,
+  Panel,
+  PanelRow,
+  Skeleton,
+  Tab,
+  TabList,
+  TabPanel,
+  Tabs,
+  Toast,
+  ToastRegion,
+} from '../src'
 import './app.css'
+
+/*
+ * The playground is the one place that legitimately wants every icon: it exists
+ * to look at things, and typing out a named import per glyph would make trying
+ * one a chore. Namespace imports cost about a megabyte and defeat tree-shaking
+ * entirely, which is exactly why applications declare what they use instead —
+ * see createIconRegistry. Nothing here ships.
+ */
+const icons = createIconRegistry({
+  outline: Outline24,
+  solid: Solid24,
+  mini: Mini20,
+  micro: Micro16,
+})
 
 const tones = ['neutral', 'accent', 'success', 'warning', 'danger'] as const
 
@@ -16,6 +54,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Gallery() {
   const [loading, setLoading] = useState(false)
+  const [modal, setModal] = useState<string | null>(null)
+  const [toasts, setToasts] = useState<number[]>([])
 
   return (
     <div className="flex flex-col gap-10 p-8">
@@ -107,6 +147,125 @@ function Gallery() {
         </div>
       </Section>
 
+      <Section title="Tabs">
+        <div className="w-full">
+          <Tabs label="Employee sections" defaultValue="details">
+            <TabList label="Employee sections">
+              <Tab value="details">Details</Tab>
+              <Tab value="roles" count={2}>
+                Roles
+              </Tab>
+              <Tab value="history">Change history</Tab>
+              <Tab value="closed" disabled>
+                Disabled
+              </Tab>
+            </TabList>
+            <TabPanel value="details">
+              <p className="text-body">Arrow keys move between the tabs.</p>
+            </TabPanel>
+            <TabPanel value="roles">
+              <p className="text-body">The unselected panels are not in the tab order at all.</p>
+            </TabPanel>
+            <TabPanel value="history">
+              <p className="text-body">Third panel.</p>
+            </TabPanel>
+            <TabPanel value="closed">
+              <p className="text-body">Unreachable.</p>
+            </TabPanel>
+          </Tabs>
+        </div>
+
+        <div className="w-full">
+          {/* Links, so a nav — not a tablist. specs/tabs.md leads with this. */}
+          <Tabs label="Pages" navigation>
+            <Tab href="#roles" active>
+              Roles
+            </Tab>
+            <Tab href="#employees">Employees</Tab>
+          </Tabs>
+        </div>
+      </Section>
+
+      <Section title="Dropdown">
+        <Dropdown trigger={<Button variant="secondary">Actions</Button>}>
+          <DropdownItem icon="pencil-square" href="#edit">
+            Edit
+          </DropdownItem>
+          <DropdownItem icon="document-duplicate">Duplicate</DropdownItem>
+          <DropdownItem icon="archive-box" disabled>
+            Archive
+          </DropdownItem>
+          <DropdownItem icon="trash" tone="danger">
+            Delete
+          </DropdownItem>
+        </Dropdown>
+
+        <Dropdown placement="bottom-start" trigger={<Button variant="ghost">Opens left-aligned</Button>}>
+          <DropdownItem>One</DropdownItem>
+          <DropdownItem>Two</DropdownItem>
+        </Dropdown>
+      </Section>
+
+      <Section title="Modal">
+        <Button onClick={() => setModal('md')}>Open</Button>
+        <Button variant="danger" onClick={() => setModal('confirm')}>
+          Confirm (not dismissible)
+        </Button>
+
+        <Modal
+          open={modal === 'md'}
+          onOpenChange={(next) => setModal(next ? 'md' : null)}
+          title="Assign a role"
+          description="The assignment takes effect on the date you choose."
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setModal(null)}>
+                Cancel
+              </Button>
+              <Button onClick={() => setModal(null)}>Assign</Button>
+            </>
+          }
+        >
+          <div className="flex flex-col gap-4 py-1">
+            <Input label="Role" as="select">
+              <option>Store In-charge</option>
+              <option>Shift In-charge</option>
+            </Input>
+            <Input label="Effective from" type="date" />
+          </div>
+        </Modal>
+
+        <Modal
+          open={modal === 'confirm'}
+          onOpenChange={(next) => setModal(next ? 'confirm' : null)}
+          size="sm"
+          dismissible={false}
+          title="Deactivate role?"
+          description="This cannot be undone from here."
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setModal(null)}>
+                Cancel
+              </Button>
+              <Button variant="danger" onClick={() => setModal(null)}>
+                Deactivate
+              </Button>
+            </>
+          }
+        >
+          Escape and the backdrop do nothing — the footer is the only way out.
+        </Modal>
+      </Section>
+
+      <Section title="Toast">
+        <Button variant="secondary" onClick={() => setToasts((all) => [...all, Date.now()])}>
+          Raise one
+        </Button>
+        <p className="text-meta text-fg-muted">
+          The region is always rendered, bottom-right. Timers belong to the host.
+        </p>
+      </Section>
+
       <Section title="Skeleton">
         <div className="grid w-full gap-4 sm:grid-cols-3">
           <div aria-busy="true" aria-live="polite">
@@ -116,6 +275,19 @@ function Gallery() {
           <Skeleton variant="circle" size="lg" />
         </div>
       </Section>
+
+      <ToastRegion>
+        {toasts.map((id) => (
+          <Toast
+            key={id}
+            tone="success"
+            title="Saved"
+            onDismiss={() => setToasts((all) => all.filter((t) => t !== id))}
+          >
+            The role was assigned.
+          </Toast>
+        ))}
+      </ToastRegion>
     </div>
   )
 }
@@ -141,6 +313,8 @@ function App() {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <IconProvider registry={icons}>
+      <App />
+    </IconProvider>
   </StrictMode>,
 )

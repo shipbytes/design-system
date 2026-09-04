@@ -14,16 +14,48 @@ export type { BadgeProps, BadgeTone } from './badge'
 export { Button, buttonRecipe } from './button'
 export type { ButtonLinkProps, ButtonProps } from './button'
 
-export { Icon, iconAliases } from './icon'
-export type { IconProps, IconVariant } from './icon'
+export {
+  builtInIcons,
+  createIconRegistry,
+  emptyIconRegistry,
+  Icon,
+  iconAliases,
+  IconProvider,
+  useIconRegistry,
+} from './icon'
+export type {
+  HeroIcon,
+  IconProps,
+  IconProviderProps,
+  IconRegistry,
+  IconSet,
+  IconVariant,
+} from './icon'
+
+export { Dropdown, DropdownItem } from './dropdown'
+export type {
+  DropdownItemProps,
+  DropdownItemTone,
+  DropdownPlacement,
+  DropdownProps,
+} from './dropdown'
 
 export { Input } from './input'
 export type { InputProps, SelectProps, TextareaProps } from './input'
+
+export { Modal } from './modal'
+export type { ModalProps, ModalSize } from './modal'
 
 export { Panel, PanelRow } from './panel'
 export type { PanelIconTone, PanelProps, PanelRowProps } from './panel'
 
 export { Skeleton } from './skeleton'
 export type { SkeletonProps, SkeletonSize, SkeletonVariant } from './skeleton'
+
+export { Tab, TabList, TabPanel, Tabs } from './tabs'
+export type { TabListProps, TabPanelProps, TabProps, TabsProps } from './tabs'
+
+export { Toast, ToastRegion } from './toast'
+export type { ToastPosition, ToastProps, ToastRegionProps, ToastTone } from './toast'
 
 export { cn } from './lib/cn'

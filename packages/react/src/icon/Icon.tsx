@@ -1,12 +1,8 @@
-import type { ComponentType, SVGProps } from 'react'
-import * as Outline24 from '@heroicons/react/24/outline'
-import * as Solid24 from '@heroicons/react/24/solid'
-import * as Mini20 from '@heroicons/react/20/solid'
-import * as Micro16 from '@heroicons/react/16/solid'
+import type { SVGProps } from 'react'
 import { cn } from '../lib/cn'
-import { iconAliases } from './aliases'
-
-export type IconVariant = 'outline' | 'solid' | 'mini' | 'micro'
+import { builtInIcons } from './builtin'
+import { useIconRegistry } from './IconProvider'
+import { resolveIcon, type IconVariant } from './registry'
 
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'ref'> {
   /** Heroicon v2 name, kebab-case. v1 names in the alias map also resolve. */
@@ -31,27 +27,14 @@ export interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'ref'> {
   label?: string
 }
 
-type HeroIcon = ComponentType<SVGProps<SVGSVGElement> & { title?: string }>
-
-const sets: Record<IconVariant, Record<string, HeroIcon>> = {
-  outline: Outline24 as unknown as Record<string, HeroIcon>,
-  solid: Solid24 as unknown as Record<string, HeroIcon>,
-  mini: Mini20 as unknown as Record<string, HeroIcon>,
-  micro: Micro16 as unknown as Record<string, HeroIcon>,
-}
-
-/** `chevron-double-down` → `ChevronDoubleDownIcon`, which is how the package exports them. */
-function componentName(kebab: string): string {
-  const pascal = kebab
-    .split('-')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join('')
-
-  // Heroicons prefixes a digit-leading name with `Icon` instead of suffixing it
-  // (`24/outline` has no such names today, but `1`-leading names exist in v2).
-  return /^\d/.test(pascal) ? `Icon${pascal}` : `${pascal}Icon`
-}
-
+/**
+ * Draws one icon from the registry an {@link IconProvider} put in scope.
+ *
+ * The registry is injected rather than imported because importing all four
+ * heroicons namespaces — which is what a runtime `name` lookup used to need —
+ * defeats tree-shaking completely and costs about a megabyte for the nine icons
+ * a screen actually draws. See `createIconRegistry`.
+ */
 export function Icon({
   name,
   variant = 'outline',
@@ -60,14 +43,23 @@ export function Icon({
   className,
   ...props
 }: IconProps) {
-  const resolved = iconAliases[name] ?? name
-  const Component = sets[variant][componentName(resolved)]
+  const registry = useIconRegistry()
 
-  // A missing icon renders nothing rather than throwing — but it is a defect,
-  // not a feature, so say so where a developer will see it.
+  // The application's registry first, then the handful this package's own
+  // components draw. That order lets an application override a built-in with a
+  // different glyph, and means an <Alert> works before anyone has registered
+  // anything — its tone icon was never the application's to declare.
+  const Component = resolveIcon(registry, variant, name) ?? resolveIcon(builtInIcons, variant, name)
+
+  // A missing icon renders nothing rather than throwing — a broken glyph should
+  // not take a screen down with it — but it is a defect, not a feature, so say
+  // so where a developer will see it.
   if (!Component) {
     if (import.meta.env?.DEV) {
-      console.warn(`[@shipbytes/react] No "${variant}" Heroicon named "${resolved}".`)
+      console.warn(
+        `[@shipbytes/react] No "${variant}" icon named "${name}" in the registry. ` +
+          'Add it to createIconRegistry(), or check that an <IconProvider> is above this tree.',
+      )
     }
     return null
   }
