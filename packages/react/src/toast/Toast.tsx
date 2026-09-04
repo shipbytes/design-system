@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { HTMLAttributes, ReactNode } from 'react'
 import { cn } from '../lib/cn'
 import { Icon } from '../icon/Icon'
 
@@ -27,7 +27,7 @@ const tones = {
 
 export type ToastTone = keyof typeof tones
 
-export interface ToastProps {
+export interface ToastProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title' | 'action'> {
   tone?: ToastTone
   /** Bold first line. Omit for the single-line form. */
   title?: ReactNode
@@ -58,6 +58,7 @@ export function Toast({
   action,
   className,
   children,
+  ...props
 }: ToastProps) {
   const t = tones[tone] ?? tones.neutral
 
@@ -69,6 +70,7 @@ export function Toast({
         className,
       )}
       role="status"
+      {...props}
     >
       <Icon name={icon ?? t.icon} size={5} className={cn('mt-px shrink-0', t.mark)} />
 
@@ -108,7 +110,7 @@ const positions = {
 
 export type ToastPosition = keyof typeof positions
 
-export interface ToastRegionProps {
+export interface ToastRegionProps extends HTMLAttributes<HTMLDivElement> {
   position?: ToastPosition
   /** The region's name in a landmark list. */
   label?: string
@@ -133,6 +135,7 @@ export function ToastRegion({
   label = 'Notifications',
   className,
   children,
+  ...props
 }: ToastRegionProps) {
   const place = positions[position] ?? positions['bottom-right']
 
@@ -150,6 +153,9 @@ export function ToastRegion({
       aria-label={label}
       aria-live="polite"
       aria-relevant="additions"
+      // Pass-through so the host can hang the pause-on-hover/focus handlers the
+      // timing rules need — the timers are the host's, and so are their events.
+      {...props}
     >
       {children}
     </div>
