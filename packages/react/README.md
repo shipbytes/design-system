@@ -143,6 +143,15 @@ been ported, and the answer is `specs/<name>.md`, never an approximation.
   search callback is a backend contract. In React the consumer already owns its
   fetching, so it is a prop and not a contract — and the default is still the
   spec's client-side filter.
+- **The icon floor grew with the batch, and has a test now.** A date picker's
+  calendar, pagination's arrows, the tick beside a chosen option and the micro
+  cross on a combobox chip are all drawn by these components and none of them
+  was ever the application's to register — which is exactly what `builtin.ts` is
+  for. The failure mode is why it is tested: `Icon` renders NOTHING for a name
+  it cannot resolve and warns only in development, so a trigger that has lost
+  its calendar still works, still passes every behavioural test, and looks
+  subtly wrong to whoever opens the screen. `builtin.test.tsx` renders each
+  component and asserts the console stayed quiet.
 - **Deliberately not in this batch**, though §4.10 of the ERP plan lists them:
   `select` (the listbox — `input as="select"` already renders the native one,
   and the spec itself says prefer that for long or unfamiliar lists), `switch`
