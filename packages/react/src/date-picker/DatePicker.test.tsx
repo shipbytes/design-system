@@ -121,3 +121,49 @@ describe('DatePicker', () => {
     expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull()
   })
 })
+
+describe('DatePicker display format', () => {
+  it('shows the Y-m-d it stores unless the application says otherwise', () => {
+    render(<DatePicker value="2026-03-15" onChange={() => {}} />)
+
+    expect(screen.getByRole('button', { name: /2026-03-15/ })).toBeInTheDocument()
+  })
+
+  it('renders the label through the application\'s own formatter', () => {
+    // The package has no locale opinion. The ERP consuming it reads its display
+    // format from a system parameter, and this is the seam that lets it.
+    render(
+      <DatePicker
+        value="2026-03-15"
+        onChange={() => {}}
+        formatValue={(date) => `15-Mar-2026 (${date})`}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: /15-Mar-2026/ })).toBeInTheDocument()
+  })
+
+  it('formats both ends of a period', () => {
+    render(
+      <DatePicker
+        range
+        value={['2026-03-01', '2026-03-31']}
+        onChange={() => {}}
+        formatValue={(date) => date.slice(8)}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: '01 – 31' })).toBeInTheDocument()
+  })
+
+  it('leaves the value it hands out untouched', async () => {
+    const onChange = vi.fn()
+
+    render(<DatePicker value="2026-03-15" onChange={onChange} formatValue={() => 'anything'} />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'anything' }))
+    await userEvent.click(screen.getByRole('button', { name: '20' }))
+
+    expect(onChange).toHaveBeenCalledWith('2026-03-20')
+  })
+})

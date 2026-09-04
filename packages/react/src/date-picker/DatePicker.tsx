@@ -44,6 +44,17 @@ export interface DatePickerProps {
   weekStartsOn?: 0 | 1
   /** Adds a "Clear" control. Off where the field is required. */
   clearable?: boolean
+  /**
+   * How a chosen date reads in the trigger. Default is the Y-m-d it stores.
+   *
+   * The package has no locale opinion and should not acquire one: an
+   * application's display format is its own setting — in the ERP consuming this
+   * it is a row in `system_parameters` — and a component that formatted dates
+   * itself would be a second answer to a question the application has already
+   * answered everywhere else. The value handed out is unaffected; this is the
+   * label only.
+   */
+  formatValue?: (date: string) => string
   id?: string
   className?: string
 }
@@ -80,6 +91,7 @@ export function DatePicker({
   disabled = false,
   weekStartsOn = 1,
   clearable = true,
+  formatValue = (date) => date,
   id,
   className,
 }: DatePickerProps) {
@@ -183,9 +195,11 @@ export function DatePicker({
     ? start == null
       ? null
       : end == null
-        ? `${start} – …`
-        : `${start} – ${end}`
-    : start
+        ? `${formatValue(start)} – …`
+        : `${formatValue(start)} – ${formatValue(end)}`
+    : start == null
+      ? null
+      : formatValue(start)
 
   const onGridKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const steps: Record<string, number> = {

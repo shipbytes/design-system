@@ -143,6 +143,13 @@ been ported, and the answer is `specs/<name>.md`, never an approximation.
   search callback is a backend contract. In React the consumer already owns its
   fetching, so it is a prop and not a contract — and the default is still the
   spec's client-side filter.
+- **`formatValue` on the date picker, and nothing more.** The trigger shows the
+  Y-m-d it stores unless the application supplies a formatter. This package has
+  no locale opinion and should not acquire one: a display format is an
+  application setting — in the ERP consuming this it is a row in
+  `system_parameters` — and a component that formatted dates itself would be a
+  second answer to a question the application has already answered everywhere
+  else. The value handed out is untouched; this is the label only.
 - **The icon floor grew with the batch, and has a test now.** A date picker's
   calendar, pagination's arrows, the tick beside a chosen option and the micro
   cross on a combobox chip are all drawn by these components and none of them
