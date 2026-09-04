@@ -6,15 +6,17 @@ A portable design system for new projects. Ships as two packages from one repo:
 |---|---|---|
 | `shipbytes/blade-ui` | Composer | Laravel + Blade. Ships the compiled CSS, so no npm step. |
 | `@shipbytes/design-tokens` | npm | Anything else — plain HTML, Svelte, a chart palette. |
-| `@shipbytes/react`, `@shipbytes/vue` | npm | Not built yet. See Known gaps. |
+| `@shipbytes/react` | npm (unpublished) | React. Lives at `packages/react/`, ported on demand — see Layout. |
+| `@shipbytes/vue` | npm | Not built yet. See Known gaps. |
 
 **The registries are separate front doors and each renders its own metadata.**
 Packagist shows only the `description` field — no README — so that sentence is
 the whole signpost there. npm renders README.md **from the package's own
 directory**, and includes it automatically even when `files` does not list it:
 the root README is what `@shipbytes/design-tokens` shows, which is why it opens
-with a "which package do I need?" table rather than with Blade install steps. A
-future `packages/react/` needs its own README or its npm page is blank.
+with a "which package do I need?" table rather than with Blade install steps.
+`packages/react/` therefore carries its own README — the root one would never
+reach its npm page.
 
 Published at `github.com/shipbytes/design-system` and on Packagist as
 `shipbytes/blade-ui`, so a consumer needs one `composer require` and no
@@ -46,6 +48,11 @@ icons/            which Heroicons the system uses, and their v2 names
 scripts/          build + test, and gallery.blade.php (dev-only, not shipped)
 tests/            testbench render tests. Specimens.php IS the coverage.
 phpunit.xml       dev-only; neither file ships to consumers
+
+packages/react/   @shipbytes/react — its own package.json, tsconfig, vitest and
+                  README, on branch `react`. Ported from specs/, never from the
+                  Blade markup; src/index.ts is the live inventory of what
+                  exists. Nothing here is shared with Blade but the tokens.
 ```
 
 ## Commands
@@ -334,11 +341,25 @@ Recorded as ADVISORY in `test-tokens.mjs` rather than fixed, because closing it
 means moving `fg-muted` off zinc-500 — the most-used colour in the system. A
 deliberate decision with a wide blast radius, not a quiet fix.
 
-**4. The React implementation has not started.** It is meant to be built against
-the frozen specs — `@shipbytes/design-tokens` for CSS, `cva` for the recipe
-layer, Radix or Headless UI for behaviour, `@heroicons/react` for icons. No
-shared component code with Blade; only tokens, recipes and specs travel. Every
-built component now has a spec, so this is unblocked.
+**4. The React port is partial, by design.** `packages/react/` (branch `react`)
+exists and is built against the frozen specs — `@shipbytes/design-tokens` for
+CSS, `cva` for the recipe layer, Radix for behaviour, `@heroicons/react` for
+icons. No shared component code with Blade; only tokens, recipes and specs
+travel.
+
+Components are ported **on demand**, when a consumer needs one, rather than all
+41 up front — so the gap is not "unstarted" but "not yet complete", and the list
+of what exists is `packages/react/src/index.ts`, not this paragraph. A component
+missing from that barrel has not been ported: reach for `specs/<name>.md` and
+port it, never approximate it.
+
+Two things the port does NOT inherit from Blade. Icons resolve from an injected
+registry (`createIconRegistry` / `IconProvider`) instead of importing the
+heroicons namespaces, because a `name` prop needs a runtime lookup and four
+namespaces do not tree-shake — the package keeps only a small built-in floor for
+icons its own components draw. And motion lives in `tokens/motion.json` as named
+keyframes, because Radix unmounts on close and waits on `animationend`: a
+utility-class transition never fires one and would never be seen.
 
 **5. The gallery cannot show `sheet` or `bottom-nav`.** Both are `lg:hidden`, and
 the gallery is a page a person opens on a desktop, so at that viewport they

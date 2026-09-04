@@ -19,7 +19,7 @@ are building in, not by name:
 | You are building | Install | Where |
 |---|---|---|
 | **Laravel + Blade** (with or without Livewire) | `shipbytes/blade-ui` | Composer |
-| **React** | `@shipbytes/react` | npm |
+| **React** | `@shipbytes/react` | `packages/react/`, branch `react` (not on npm yet) |
 | **Vue** | `@shipbytes/vue` | npm |
 | **Anything else** — plain HTML, Svelte, a chart library | `@shipbytes/design-tokens` | npm |
 
@@ -34,8 +34,11 @@ marketing pages and a React app behind login, take both: they share
 `dist/tokens.css`, so the two buttons are the same button. That case is the
 reason this is token-first rather than component-first.
 
-> `@shipbytes/react` and `@shipbytes/vue` are not built yet. Everything below is
-> the Blade package, which is.
+> `@shipbytes/react` **is built** — it lives at
+> [`packages/react/`](packages/react) on branch `react`, ported from the same
+> specs against the same tokens. It is not on npm yet, so consume it with a
+> `file:` link or a git dependency, and see its own README for what is ported.
+> `@shipbytes/vue` is not built. Everything below is the Blade package.
 
 ## Start here
 
