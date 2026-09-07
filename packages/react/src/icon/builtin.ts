@@ -1,5 +1,7 @@
 import {
+  ArrowUpTrayIcon,
   CheckCircleIcon,
+  DocumentTextIcon,
   ExclamationCircleIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
@@ -33,7 +35,12 @@ import { createIconRegistry, type IconRegistry } from './registry'
  */
 export const builtInIcons: IconRegistry = createIconRegistry({
   outline: {
+    // The file upload's drop-zone mark and the row it draws for a file that is
+    // not an image. Both are drawn by default, so an application could not have
+    // known to register them — which is the test for belonging here.
+    ArrowUpTrayIcon,
     CheckCircleIcon,
+    DocumentTextIcon,
     ExclamationCircleIcon,
     ExclamationTriangleIcon,
     InformationCircleIcon,

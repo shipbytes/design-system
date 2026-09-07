@@ -26,6 +26,9 @@ export type { DatePickerProps } from './date-picker'
 export { EmptyState } from './empty-state'
 export type { EmptyStateProps, EmptyStateTone } from './empty-state'
 
+export { FileUpload } from './file-upload'
+export type { FileUploadProps } from './file-upload'
+
 export {
   builtInIcons,
   createIconRegistry,

@@ -191,3 +191,43 @@ been ported, and the answer is `specs/<name>.md`, never an approximation.
   for a click on the popover's own contents, which reads to a user as the choice
   not registering. Both components ask about the popover as well, and both have
   a test that clicks an option through the portal.
+
+### Notes from the P1-M6 batch
+
+One component, because one screen asked for it.
+
+- **`file-upload`.** The ERP's opening-stock screen loads a cutover spreadsheet,
+  and this is the field that chooses it. The spec's line about where the
+  boundary is turned out to be the whole design: **it does not upload
+  anything.** It owns the field, the drop zone, the chosen-file list and the
+  local thumbnails, and it hands the caller the `File`s. A progress bar needs
+  somewhere to upload TO, and the moment a component knows that it has a backend
+  contract — the one thing nothing else in this package has.
+- **Both of the spec's "easy to get wrong" cases are tested, and jsdom fought
+  both.** Removing a file has to rebuild the input's `FileList` (read-only; a
+  `DataTransfer` is the only way to construct one), or the chip disappears and
+  the file is still submitted — worse than having no remove control, because the
+  reader believes they removed it. jsdom has no `DataTransfer` at all, so
+  `vitest.setup.ts` supplies one, beside the pointer-capture stubs that are there
+  for the same reason: the environment is missing a standard API, and a fallback
+  inside the component would be a second code path that only ever runs in tests.
+  `user-event` also installs `files` as a getter, so the one test that asserts
+  the rebuild makes it writable again first — which every real
+  `HTMLInputElement` is.
+- **Drag state counts, it does not toggle.** Dragging over a child of the zone
+  fires `dragleave` on the parent, so a boolean flickers the highlight off and on
+  as the pointer crosses the label. The test enters twice, leaves once, and
+  asserts the class by `classList.contains` rather than by substring —
+  `hover:border-accent` is on the zone at all times and would have made the
+  assertion pass whatever the counter did.
+- **The icon floor grew by two**, for the reason it grew in M3: `arrow-up-tray`
+  and `document-text` are drawn by this component BY DEFAULT, so an application
+  could not have known to register them, which is the test for belonging in
+  `builtin.ts`.
+- **`select`, `switch` and `tooltip` are still unported**, for a fifth
+  milestone. The item search dialog is the busiest screen in Phase 1 and needed
+  none of them: its selects are two short lists (native, as `specs/select.md`
+  prefers), it has no instant-effect toggle, and its guidance is help text under
+  a control. `accordion` was considered for the item form's eight sections and
+  deliberately not taken — a collapsed section can hide a field a 422 has just
+  landed on, so the sections are headings.
