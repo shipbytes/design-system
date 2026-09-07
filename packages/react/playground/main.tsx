@@ -22,7 +22,10 @@ import {
   Pagination,
   Panel,
   PanelRow,
+  Radio,
+  RadioGroup,
   Skeleton,
+  StatTile,
   Tab,
   TabList,
   TabPanel,
@@ -135,6 +138,42 @@ function M3Batch() {
           <Checkbox label="Partly selected" indeterminate />
           <Checkbox label="Cannot be changed" disabled />
           <Checkbox label="Current year" error="Another year already is." />
+        </div>
+      </Section>
+
+      <Section title="Radio">
+        <div className="grid w-full gap-6 sm:grid-cols-2">
+          <RadioGroup
+            legend="Is this an emergency purchase?"
+            name="emergency"
+            help="An emergency purchase is one where the material has already been bought."
+          >
+            <Radio label="No" value="0" defaultChecked />
+            <Radio label="Yes" value="1" help="A bill has to be attached before it can be submitted." />
+          </RadioGroup>
+
+          <RadioGroup legend="Purpose" name="purpose" error="Choose a purpose.">
+            <Radio label="Breakdown" value="BREAKDOWN" />
+            <Radio label="Preventive maintenance" value="PREVENTIVE" />
+            <Radio label="Warranty replacement" value="WARRANTY" help="Needs a reference document." />
+            <Radio label="Not available" value="X" disabled />
+          </RadioGroup>
+
+          <RadioGroup legend="Quotation" name="quote" inline>
+            <Radio label="Bharat Chemicals" value="1" defaultChecked />
+            <Radio label="Shreeji Packaging" value="2" />
+          </RadioGroup>
+        </div>
+      </Section>
+
+      <Section title="Stat tile">
+        <div className="grid w-full gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatTile label="Pending my approval" value={12} delta={18} caption="vs last week" href="#" />
+          <StatTile label="Overdue deliveries" value={4} delta={-25} caption="vs last week" />
+          {/* No delta: the caption takes the line, and there is no chip at all
+              — a missing comparison is not a zero. */}
+          <StatTile label="Open requisition lines" value={1204} caption="No previous period" />
+          <StatTile label="Fill rate" value="98.4%" caption="Last 30 days" />
         </div>
       </Section>
 

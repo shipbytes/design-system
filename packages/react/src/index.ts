@@ -67,8 +67,14 @@ export type { PaginationProps } from './pagination'
 export { Panel, PanelRow } from './panel'
 export type { PanelIconTone, PanelProps, PanelRowProps } from './panel'
 
+export { Radio, RadioGroup } from './radio'
+export type { RadioGroupProps, RadioProps } from './radio'
+
 export { Skeleton } from './skeleton'
 export type { SkeletonProps, SkeletonSize, SkeletonVariant } from './skeleton'
+
+export { StatTile } from './stat-tile'
+export type { StatTileProps } from './stat-tile'
 
 export { Tab, TabList, TabPanel, Tabs } from './tabs'
 export type { TabListProps, TabPanelProps, TabProps, TabsProps } from './tabs'

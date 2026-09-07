@@ -231,3 +231,47 @@ One component, because one screen asked for it.
   a control. `accordion` was considered for the item form's eight sections and
   deliberately not taken — a collapsed section can hide a field a 422 has just
   landed on, so the sections are headings.
+
+### Notes from the P2-M1 batch
+
+Two components, for the two things a purchase screen asks for that nothing in
+Phase 1 did: a Yes/No block that changes what the rest of a form contains, and a
+dashboard.
+
+- **`radio` and `radio-group`, and the group is the component that matters.**
+  A radio announces its own label and nothing else, so "Monthly" is read out
+  without ever saying what is being chosen — the `<legend>` is the only thing
+  that turns four options into a question. Which is why the group renders a real
+  `<fieldset>`, why the error lives on the group rather than on the first option
+  ("choose a purpose" is about the question; attaching it to the first radio
+  says the first radio is invalid, which it is not), and why the group pushes
+  one `name` down to its children rather than asking every call site to repeat
+  it. A group whose options carried different names would look right and behave
+  as several groups of one — all checkable at once, with no arrow keys.
+- **The radio is the checkbox's construction with a different mark**, and
+  deliberately so: the native input, `appearance-none`, in a grid cell, with
+  `forced-colors:appearance-auto` so the OS palette can take over. What changes
+  is that the mark is a dot and the box is round. The spec is blunt about why —
+  the shape is the only signal a reader gets before they click, and round-and-
+  ticked is the worst of both.
+- **`stat-tile`, and the two bugs it exists to stop repeating.** The original
+  had the count-up written out verbatim five times in one file, and it animated
+  regardless of `prefers-reduced-motion` — the class of bug that survives review
+  indefinitely because it only affects people who are not in the room. And it
+  drew a `0%` chip when there was nothing to compare against, which asserts "no
+  change since last week" when the truth is "no last week". Here a missing
+  `delta` renders no chip at all and the caption takes the line.
+- **The count-up's starting value is decided in the lazy initialiser, not in an
+  effect.** Setting `0` from an effect paints the final figure and then snaps
+  back, which is a flash on every dashboard load; deciding it before the first
+  render means the number climbs from nothing. The same expression is what keeps
+  the spec's other promise — with no `window` (a server, a snapshot) it returns
+  the final number, so a tile is correct if JavaScript never runs.
+- **A tile that goes nowhere is a `<div>` with no hover state.** A hover
+  affordance on something unclickable is a lie, and the test asserts the absence
+  rather than the presence, because the presence is the easy half.
+- **`select`, `switch` and `tooltip` are still unported**, for a sixth
+  milestone. The Phase 2 forms asked for none of them: the Yes/No blocks are now
+  radios (a switch is for an instant effect, and submitting a requisition is
+  not), the selects remain short native lists, and guidance is still help text
+  under a control.
