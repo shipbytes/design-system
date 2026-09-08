@@ -255,7 +255,9 @@ export const tokens = {
   },
   "duration": {
     "enter": "200ms",
-    "leave": "150ms"
+    "leave": "150ms",
+    "drawer-enter": "300ms",
+    "drawer-leave": "200ms"
   },
   "easing": {
     "enter": "cubic-bezier(0, 0, 0.2, 1)",

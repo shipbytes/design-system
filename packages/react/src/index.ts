@@ -73,6 +73,15 @@ export type { RadioGroupProps, RadioProps } from './radio'
 export { Skeleton } from './skeleton'
 export type { SkeletonProps, SkeletonSize, SkeletonVariant } from './skeleton'
 
+export { Drawer } from './drawer'
+export type { DrawerProps, DrawerSide, DrawerSize } from './drawer'
+
+export { NavItem } from './nav-item'
+export type { NavItemProps } from './nav-item'
+
+export { Tooltip } from './tooltip'
+export type { TooltipPlacement, TooltipProps } from './tooltip'
+
 export { StatTile } from './stat-tile'
 export type { StatTileProps } from './stat-tile'
 

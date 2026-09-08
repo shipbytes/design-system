@@ -124,6 +124,8 @@
   --ds-space-page: 2.5rem;
   --ds-duration-enter: 200ms;
   --ds-duration-leave: 150ms;
+  --ds-duration-drawer-enter: 300ms;
+  --ds-duration-drawer-leave: 200ms;
   --ds-easing-enter: cubic-bezier(0, 0, 0.2, 1);
   --ds-easing-leave: cubic-bezier(0.4, 0, 1, 1);
   --ds-font-sans: Inter, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
@@ -259,5 +261,7 @@
   :root {
     --ds-duration-enter: 1ms;
     --ds-duration-leave: 1ms;
+    --ds-duration-drawer-enter: 1ms;
+    --ds-duration-drawer-leave: 1ms;
   }
 }

@@ -81,6 +81,14 @@
   transition-duration: var(--ds-duration-leave);
 }
 
+@utility duration-drawer-enter {
+  transition-duration: var(--ds-duration-drawer-enter);
+}
+
+@utility duration-drawer-leave {
+  transition-duration: var(--ds-duration-drawer-leave);
+}
+
 @theme {
   --color-white: var(--ds-color-white);
   --color-black: var(--ds-color-black);
@@ -253,6 +261,52 @@
   @keyframes ds-dialog-out {
     from { opacity: 1; scale: 1; }
     to { opacity: 0; scale: 0.95; }
+  }
+
+  /*
+    Drawer motion — specs/drawer.md.
+
+    **300ms in, 200ms out, slower than the modal's 200/150.** A panel
+    travelling the full height of the screen at the modal's speed reads as a
+    flinch. Slower out than in is the sheet's rule too: leaving should feel like
+    the thing receding, not vanishing.
+
+    Four animations rather than two, because a drawer slides from the edge it
+    belongs to and the direction is part of the motion. `translate` is its own
+    property in CSS and in Tailwind v4, so these compose with a panel's other
+    transforms instead of overwriting them.
+
+    `translate: 100%` is relative to the element's own width, so one keyframe
+    pair holds at every size the drawer offers — which is what keeps the size
+    map and the motion from needing to agree about pixels.
+
+    Animations and not transitions, for the reason the overlay pair gives: Radix
+    keeps a closing dialog mounted until `animationend`, and an element being
+    removed never completes a transition.
+  */
+  --animate-drawer-in-right: ds-drawer-in-right var(--ds-duration-drawer-enter) var(--ds-easing-enter);
+  --animate-drawer-out-right: ds-drawer-out-right var(--ds-duration-drawer-leave) var(--ds-easing-leave);
+  --animate-drawer-in-left: ds-drawer-in-left var(--ds-duration-drawer-enter) var(--ds-easing-enter);
+  --animate-drawer-out-left: ds-drawer-out-left var(--ds-duration-drawer-leave) var(--ds-easing-leave);
+
+  @keyframes ds-drawer-in-right {
+    from { translate: 100% 0; }
+    to { translate: 0 0; }
+  }
+
+  @keyframes ds-drawer-out-right {
+    from { translate: 0 0; }
+    to { translate: 100% 0; }
+  }
+
+  @keyframes ds-drawer-in-left {
+    from { translate: -100% 0; }
+    to { translate: 0 0; }
+  }
+
+  @keyframes ds-drawer-out-left {
+    from { translate: 0 0; }
+    to { translate: -100% 0; }
   }
 }
 
