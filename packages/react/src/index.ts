@@ -35,7 +35,9 @@ export {
   emptyIconRegistry,
   Icon,
   iconAliases,
+  iconComponentName,
   IconProvider,
+  resolveIcon,
   useIconRegistry,
 } from './icon'
 export type {
