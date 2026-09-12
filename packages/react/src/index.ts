@@ -5,6 +5,9 @@
  * §4.10 of the ERP build plan for the order. A component that is not exported
  * here has not been ported yet — reach for the spec, not an approximation.
  */
+export { Avatar, avatarRecipe, initialsOf } from './avatar'
+export type { AvatarProps, AvatarSize } from './avatar'
+
 export { Alert } from './alert'
 export type { AlertProps, AlertTone } from './alert'
 

@@ -6,6 +6,7 @@ import * as Mini20 from '@heroicons/react/20/solid'
 import * as Micro16 from '@heroicons/react/16/solid'
 import {
   Alert,
+  Avatar,
   Badge,
   Button,
   Checkbox,
@@ -228,6 +229,24 @@ function Gallery() {
           <Icon name="plus" />
         </Button>
         <Button href="#">A link</Button>
+      </Section>
+
+      <Section title="Avatar">
+        <div className="flex flex-wrap items-end gap-3">
+          {(['xs', 'sm', 'md', 'lg'] as const).map((size) => (
+            <Avatar key={size} size={size} name="Ada King Lovelace" />
+          ))}
+          <Avatar size="md" name="Jalaqua Industries" square />
+          <Avatar size="md" name="Émile Zola" />
+          {/* Neither a source nor a name: a mark, never an empty circle. */}
+          <Avatar size="md" />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Avatar name="Sangeeta Jani" decorative />
+          <span className="text-body text-fg-body">
+            Sangeeta Jani — decorative, because the name is written beside it
+          </span>
+        </div>
       </Section>
 
       <Section title="Badge">
