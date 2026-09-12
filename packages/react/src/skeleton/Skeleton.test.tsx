@@ -36,3 +36,22 @@ describe('Skeleton', () => {
     expect(container.querySelectorAll('.h-3')).toHaveLength(1)
   })
 })
+
+describe('the table variant', () => {
+  it('draws a header and the rows asked for', () => {
+    // A grid, because a grid is what is coming: a list that loaded behind
+    // paragraph bars moved everything on the screen when the rows arrived.
+    const { container } = render(<Skeleton variant="table" rows={4} columns={3} />)
+
+    // One header row plus four body rows.
+    expect(container.querySelectorAll('.border-b').length).toBeGreaterThanOrEqual(4)
+    expect(container.firstElementChild).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('keeps a rhythm at any column count', () => {
+    const { container } = render(<Skeleton variant="table" rows={1} columns={9} />)
+
+    // Widths repeat rather than running out, so nine columns still alternate.
+    expect(container.querySelectorAll('.w-24').length).toBeGreaterThan(1)
+  })
+})

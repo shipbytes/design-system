@@ -67,6 +67,15 @@ export interface PaginationProps extends Omit<HTMLAttributes<HTMLElement>, 'onCh
    */
   simple?: boolean
   label?: string
+  /**
+   * Offer a page size. Absent, there is none and the markup is unchanged.
+   *
+   * Only offer sizes the SERVER will honour: a list that asks for 500 and is
+   * quietly clamped to 200 reports a page size it does not have, and the reader
+   * has no way to tell.
+   */
+  perPageOptions?: number[]
+  onPerPageChange?: (perPage: number) => void
 }
 
 export function Pagination({
@@ -76,15 +85,26 @@ export function Pagination({
   onChange,
   simple = false,
   label = 'Pagination',
+  perPageOptions,
+  onPerPageChange,
   className,
   ...props
 }: PaginationProps) {
   const last = Math.max(1, Math.ceil(total / Math.max(1, perPage)))
   const current = Math.min(Math.max(1, page), last)
+  const paged = last > 1
+  const sizes = perPageOptions?.length && onPerPageChange ? perPageOptions : null
 
-  // The view renders nothing at all on a single page; wrapping the call site in
-  // a condition is redundant.
-  if (last <= 1) {
+  /*
+   * Nothing to page and no size to choose: render nothing, so a call site need
+   * not wrap this in a condition.
+   *
+   * A single page with a size control still renders, and that is the case worth
+   * spelling out. Raising the size to 100 can turn two pages into one; if the
+   * whole row vanished with the second page, the control that did it would be
+   * gone too and there would be no way back to 25.
+   */
+  if (!paged && !sizes) {
     return null
   }
 
@@ -121,13 +141,13 @@ export function Pagination({
       {/* Below sm the row carries the POSITION. The stock view is previous/next
           only, which leaves a phone with no way to tell page 2 from page 20. */}
       <div className="flex w-full items-center justify-between gap-2 sm:hidden">
-        {arrow('previous')}
-        {simple ? null : (
+        {paged ? arrow('previous') : <span />}
+        {simple || !paged ? null : (
           <span className="text-body tabular-nums text-fg-muted">
             {current} / {last}
           </span>
         )}
-        {arrow('next')}
+        {paged ? arrow('next') : <span />}
       </div>
 
       <div className="hidden w-full items-center justify-between gap-4 sm:flex">
@@ -142,9 +162,11 @@ export function Pagination({
         )}
 
         <div className="flex items-center gap-1">
-          {arrow('previous')}
+          {sizes ? <PerPage value={perPage} options={sizes} onChange={onPerPageChange!} /> : null}
 
-          {simple
+          {paged ? arrow('previous') : null}
+
+          {simple || !paged
             ? null
             : paginationWindow(current, last).map((entry, index) =>
                 entry === null ? (
@@ -179,9 +201,51 @@ export function Pagination({
                 ),
               )}
 
-          {arrow('next')}
+          {paged ? arrow('next') : null}
         </div>
       </div>
     </nav>
+  )
+}
+
+/**
+ * How many rows a page holds.
+ *
+ * A native `<select>`: it is four numbers, it sits in a row of icon-sized
+ * controls, and a listbox here would be a popover to pick between 25 and 50.
+ * `Input as="select"` carries a labelled field's padding, which is wrong beside
+ * a 32px arrow.
+ */
+function PerPage({
+  value,
+  options,
+  onChange,
+}: {
+  value: number
+  options: number[]
+  onChange: (perPage: number) => void
+}) {
+  return (
+    <label className="mr-2 flex items-center gap-2">
+      <span className="sr-only">Rows per page</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="h-8 rounded-control border border-border bg-surface px-2 text-body text-fg-body hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+      >
+        {/*
+         * The value in force is offered even when it is not one of the options —
+         * a list arriving on the server's default of 50 with options of 25 and
+         * 100 would otherwise show 25 while displaying fifty rows.
+         */}
+        {[...new Set([...options, value])]
+          .sort((a, b) => a - b)
+          .map((option) => (
+            <option key={option} value={option}>
+              {option} per page
+            </option>
+          ))}
+      </select>
+    </label>
   )
 }

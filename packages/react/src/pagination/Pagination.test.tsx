@@ -75,3 +75,72 @@ describe('Pagination', () => {
     expect(screen.getByRole('button', { name: 'Go to page 2' })).toBeInTheDocument()
   })
 })
+
+describe('page size', () => {
+  it('is absent unless both the options and a handler are given', () => {
+    const { container } = render(
+      <Pagination page={1} perPage={50} total={200} onChange={() => {}} />,
+    )
+
+    expect(container.querySelector('select')).not.toBeInTheDocument()
+  })
+
+  it('survives a single page, so the size that caused it can be undone', () => {
+    // Raising the size to 100 can turn two pages into one. If the row vanished
+    // with the second page, the control that did it would go too and there
+    // would be no way back to 25.
+    render(
+      <Pagination
+        page={1}
+        perPage={100}
+        total={30}
+        onChange={() => {}}
+        perPageOptions={[25, 50, 100]}
+        onPerPageChange={() => {}}
+      />,
+    )
+
+    expect(screen.getByRole('combobox', { name: 'Rows per page' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Next page')).not.toBeInTheDocument()
+  })
+
+  it('offers the size in force even when it is not one of the options', () => {
+    // A list arriving on the server's default of 50 with options of 25 and 100
+    // would otherwise show 25 while displaying fifty rows.
+    render(
+      <Pagination
+        page={1}
+        perPage={50}
+        total={500}
+        onChange={() => {}}
+        perPageOptions={[25, 100]}
+        onPerPageChange={() => {}}
+      />,
+    )
+
+    const select = screen.getByRole('combobox', { name: 'Rows per page' })
+
+    expect(select).toHaveValue('50')
+    expect([...select.querySelectorAll('option')].map((o) => o.value)).toEqual(['25', '50', '100'])
+  })
+
+  it('reports the chosen size', async () => {
+    const onPerPageChange = vi.fn()
+    const user = userEvent.setup()
+
+    render(
+      <Pagination
+        page={3}
+        perPage={25}
+        total={500}
+        onChange={() => {}}
+        perPageOptions={[25, 50]}
+        onPerPageChange={onPerPageChange}
+      />,
+    )
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Rows per page' }), '50')
+
+    expect(onPerPageChange).toHaveBeenCalledWith(50)
+  })
+})
