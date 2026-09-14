@@ -114,6 +114,12 @@ describe('Tabs', () => {
     expect(row.className).toContain('overflow-x-auto')
 
     expect(screen.getByRole('tab', { name: 'First' }).className).not.toContain('-mb-px')
+
+    // The ring is drawn INSIDE the tab: overflow-x-auto makes the row clip paint
+    // on both axes, so an outward offset is cut into two vertical bars.
+    const tab = screen.getByRole('tab', { name: 'First' })
+    expect(tab.className).toContain('focus-visible:-outline-offset-2')
+    expect(tab.className).not.toContain('focus-visible:outline-offset-2')
   })
 
   it('renders a count without turning it into a status', () => {

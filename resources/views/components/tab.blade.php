@@ -22,7 +22,11 @@
     $classes = implode(' ', [
         'relative inline-flex shrink-0 items-center gap-2 whitespace-nowrap',
         'border-b-2 px-3 py-2.5 text-body font-medium transition-colors',
-        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring',
+        // The ring is drawn INSIDE the tab (negative offset). overflow-x-auto makes
+        // the row clip paint on BOTH axes, so a ring offset 2px outward was cut off
+        // top and bottom and rendered as two disconnected vertical bars. Padding on
+        // the row cannot buy the room — it would detach the inset rule. See specs.
+        'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring',
         'rounded-t-chip',
         $active
             // The underline is `fg`, not `accent`. A tab row is structure, not a

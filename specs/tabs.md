@@ -90,6 +90,30 @@ Dark mode needs nothing extra: the utility resolves `var(--ds-divider)` **at the
 row**, so it picks up whatever the current theme has set — including under a
 `.dark` applied to a subtree rather than to `<html>`.
 
+#### The focus ring is drawn INSIDE the tab
+
+`overflow-x-auto` does not only make the row scrollable — it makes the row **clip
+paint**, on both axes. So an outline offset *outward* is cut off by the row's
+edges. With `outline-offset-2` and a 2px ring that is 4px outside the tab, and it
+was clipped 4px at the top and 4px at the bottom: the ring rendered as **two
+disconnected vertical bars** rather than a rectangle around the tab.
+
+Measured before and after the rule change — 4px either way. It is not a
+consequence of the inset shadow; it predates it, and both the old markup and the
+new one clip identically. It is the same root cause wearing a different hat.
+
+The tab therefore uses a **negative** offset, `focus-visible:-outline-offset-2`,
+so the ring is painted within the tab's own box and nothing can clip it. It is
+the one place in the system that does this, and this is why.
+
+Padding on the row is **not** the alternative. It would move the row's padding
+box down away from the tabs, and the rule is an inset shadow drawn at that
+padding box's bottom edge — so the rule would detach from the tabs, which is
+exactly the failure `-mb-px` existed to prevent.
+
+`tab-panel` keeps the ordinary outward `outline-offset-2`: it is not inside the
+scrolling row, so nothing clips it.
+
 #### Why an arbitrary value rather than a `shadow.rule` token
 
 A named token would be more in keeping with a repo that names shadows for the
@@ -261,6 +285,8 @@ internally, which is why `select` renders its own tick from PHP.
   has shipped. See "Why the rule is an inset shadow".
 - **Do not "fix" a scrollbar on the row with `overflow-y: hidden`.** It clips the
   overflow rather than removing it, and takes the focus ring with it.
+- **Do not give the tab an outward `outline-offset`.** The row clips paint on both
+  axes, so the ring is cut into two vertical bars. See above.
 - **Do not bind `active`.** `::active` sets an attribute nothing reads. The tab
   will switch its panel and never look selected. See above.
 - **Do not use the string form of `::class`.** It only adds classes, so the

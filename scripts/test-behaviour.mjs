@@ -699,13 +699,46 @@ await check('a focused tab does not reintroduce the overflow', async () => {
     await page.focus('#tab-overview');
     await settle();
 
-    // Not vacuous: `focus-visible:outline-offset-2` draws the ring 2px OUTSIDE
-    // the element, so this only means anything while a tab really has focus.
+    // Not vacuous: the ring only exists while a tab really has focus.
     if ((await active()) !== 'tab-overview') return `focus is on ${await active()}, not a tab`;
 
     const m = await rowMetrics();
     return m.scrollHeight === m.clientHeight
         || `focusing a tab pushed scrollHeight to ${m.scrollHeight} against clientHeight ${m.clientHeight}`;
+});
+
+await check('the focus ring is not clipped by the row', async () => {
+    // `overflow-x-auto` makes the row clip PAINT on both axes, not just scroll on
+    // one. An outline offset outward is therefore cut off top and bottom and
+    // renders as two disconnected vertical bars — measured at 4px each side with
+    // `outline-offset-2`, and it predated the rule change rather than arriving
+    // with it. The ring is drawn inside the tab instead.
+    //
+    // Padding on the row is not the alternative: it would move the row's padding
+    // box away from the tabs and detach the inset rule, which is the exact
+    // failure `-mb-px` existed to prevent.
+    const r = await page.evaluate(() => {
+        const row = document.querySelector('[role="tablist"][aria-label="Report sections"]');
+        const tab = document.getElementById('tab-overview');
+        tab.focus();
+        const s = getComputedStyle(tab);
+        const rb = row.getBoundingClientRect(), tb = tab.getBoundingClientRect();
+        const w = parseFloat(s.outlineWidth), off = parseFloat(s.outlineOffset);
+        return {
+            width: w,
+            style: s.outlineStyle,
+            clipsPaint: getComputedStyle(row).overflowY !== 'visible',
+            below: +((tb.bottom + off + w) - rb.bottom).toFixed(2),
+            above: +(rb.top - (tb.top - off - w)).toFixed(2),
+        };
+    });
+
+    // Vacuity guard: a ring that is not drawn at all would trivially not be clipped.
+    if (!(r.width > 0) || r.style === 'none') return 'the tab draws no focus ring at all';
+    if (r.below > 0 || r.above > 0) {
+        return `the ring falls ${r.above}px above and ${r.below}px below the row, which clips paint`;
+    }
+    return true;
 });
 
 // ---------------------------------------------------------------- x-cloak

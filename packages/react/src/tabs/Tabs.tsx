@@ -40,7 +40,13 @@ const ROW =
 const ITEM = [
   'group relative inline-flex shrink-0 items-center gap-2 whitespace-nowrap',
   'border-b-2 px-3 py-2.5 text-body font-medium transition-colors',
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring',
+  // The ring is drawn INSIDE the tab (negative offset). `overflow-x-auto` makes
+  // the row clip paint on BOTH axes, so a ring offset 2px outward — 4px of it
+  // once the 2px width is counted — was cut off top and bottom and rendered as
+  // two disconnected vertical bars. Measured, and it predates the rule change.
+  // Padding on the row cannot buy the room: it would move the row's padding-box
+  // bottom away from the tabs and detach the inset rule. specs/tabs.md.
+  'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring',
   'rounded-t-chip',
 ].join(' ')
 
