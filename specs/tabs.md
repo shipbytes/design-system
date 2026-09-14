@@ -27,18 +27,87 @@ Links get a `<nav>`, which is what they are.
 ```
  Overview   Open 12   Archived
  ─────────                        ← 2px underline, fg
-─────────────────────────────     ← 1px divider, the row sits on it
+─────────────────────────────     ← 1px rule, an INSET SHADOW on the row
 ```
 
 | Part | Token | Why |
 |---|---|---|
-| Rule | `divider` | The row pulls onto it with `-mb-px`, so the active underline covers the rule instead of drawing a second line under it. |
+| Rule | `divider` | Drawn as an **inset shadow on the row**, not a bottom border — `shadow-[inset_0_-1px_0_var(--ds-divider)]`. A child's border paints over its parent's inset shadow, so the active tab's 2px underline covers the rule without the item hanging below the row. **The item has no negative margin. Do not give it one** — see below. |
 | Active | `border-fg` + `text-fg` | **Not `accent`.** A tab row is structure, not a link — colouring the active tab accent makes the *inactive* ones look like the links. |
 | Inactive | `fg-muted`, `border-strong` on hover | |
 | Count | `neutral-tint`, or inverse when active | `tabular-nums`, so the row does not reflow as counts change width. |
 
 The row scrolls horizontally rather than wrapping. Tabs that wrap to two lines
 stop reading as one row of peers.
+
+### Why the rule is an inset shadow, and not a border
+
+**This is the part a port will otherwise undo.** The obvious markup — a
+`border-b` on the row, and `-mb-px` on the item to pull the row onto it — is what
+this component shipped with, and it drew a **vertical scrollbar on every tab row
+in every consuming app** on platforms with classic scrollbars. macOS overlay
+scrollbars hid it, which is how it survived review.
+
+Two causes, and it needs both:
+
+1. `overflow-x-auto` on the row forces the computed `overflow-y` off `visible`
+   to **`auto`**. CSS has no "scroll one axis only": ask for one and you get the
+   other. So the row was vertically scrollable although nothing declared it.
+2. `-mb-px` on the item left each tab's border box exactly **1px below the row's
+   padding box** — the negative margin was deliberate and did its job, but the
+   overflow it created was now inside a scrollable box.
+
+One pixel of overflow, and classic scrollbars drew 15px of chrome for it, taking
+that width off the row as well.
+
+Measured on the row itself. The **overflow** columns are what
+`npm run test:behaviour` reproduces and now guards; the scrollbar column is what
+a classic-scrollbar platform draws for that overflow, reported from a real
+screen. Headless Chrome cannot show it — it draws zero-width overlay scrollbars
+whatever `--disable-features=OverlayScrollbar` is set to, which is precisely why
+the test asserts the overflow and not the scrollbar.
+
+| | computed `overflow-y` | clientHeight | scrollHeight | scrollbar |
+|---|---|---|---|---|
+| border + `-mb-px` (as shipped) | `auto` | 45 | 46 | **15px** |
+| **inset shadow, no `-mb-px`** | `auto` | 46 | 46 | 0 |
+| `overflow-y: hidden` | `hidden` | 45 | 46 | 0 |
+| `padding-bottom: 1px` | `auto` | 46 | 46 | 0 |
+
+Only the inset shadow **removes** the overflow. The other two hide it:
+
+- **`overflow-y: hidden` keeps the bug and clips it.** `scrollHeight` is still 46
+  against a `clientHeight` of 45 — the overflow is there, merely cropped. It
+  crops the bottom pixel of the active underline, and it would crop the **focus
+  ring** too, which is drawn 2px *outside* the element by
+  `focus-visible:outline-offset-2`. Trading a cosmetic scrollbar for an
+  invisible keyboard focus ring is an accessibility regression.
+- **`padding-bottom: 1px` detaches the underline.** It puts the row's bottom edge
+  1px below the tab's, which is the two-lines problem `-mb-px` existed to
+  prevent, in mirror image.
+
+Dark mode needs nothing extra: the utility resolves `var(--ds-divider)` **at the
+row**, so it picks up whatever the current theme has set — including under a
+`.dark` applied to a subtree rather than to `<html>`.
+
+#### Why an arbitrary value rather than a `shadow.rule` token
+
+A named token would be more in keeping with a repo that names shadows for the
+job (`raised`, `float`, `overlay`). It was tried, and the build cannot carry it:
+
+- A DTCG reference — `"$value": "inset 0 -1px 0 {semantic.divider}"` — is
+  **flattened to the light literal** by `resolve()` in `scripts/build-tokens.mjs`,
+  emitted once at `:root`, with no `.dark` counterpart. Dark mode dies silently.
+  This is the same trap CLAUDE.md records for `var()` inside a custom property.
+- Writing the raw `var(--ds-divider)` into the token value survives the build,
+  but it is no longer portable DTCG — which is the stated reason the token files
+  are the shape they are — and `theme.css` does **not** re-declare shadows inside
+  `.dark`, so it would resolve correctly only by the accident of `.dark` sitting
+  on the same element as `:root`.
+
+The arbitrary value is therefore not merely the smaller change; it is the one
+that themes correctly. Revisit only if `build-tokens.mjs` grows real support for
+a composite token that references a themed colour.
 
 ## `count`
 
@@ -187,6 +256,11 @@ internally, which is why `select` renders its own tick from PHP.
   order are a wizard, and tabs let the reader skip to step three.
 - **Do not exceed what fits.** A scrolling row of eleven tabs hides most of them
   off-screen with no affordance saying so.
+- **Do not draw the rule as a `border-b` on the row, and do not put `-mb-px` back
+  on the item.** That pair is what put a vertical scrollbar on every tab row that
+  has shipped. See "Why the rule is an inset shadow".
+- **Do not "fix" a scrollbar on the row with `overflow-y: hidden`.** It clips the
+  overflow rather than removing it, and takes the focus ring with it.
 - **Do not bind `active`.** `::active` sets an attribute nothing reads. The tab
   will switch its panel and never look selected. See above.
 - **Do not use the string form of `::class`.** It only adds classes, so the

@@ -87,6 +87,35 @@ describe('Tabs', () => {
     expect(screen.queryByRole('button', { name: 'Hidden action' })).toBeNull()
   })
 
+  it('draws the rule as an inset shadow, and hangs no tab below the row', () => {
+    // jsdom has no layout, so the measurement that proves this lives in the
+    // Blade repo's `npm run test:behaviour`. What CAN be held here is the class
+    // contract the measurement depends on, because this is the file a future
+    // port would drift in.
+    //
+    // A `border-b` on the row plus `-mb-px` on the item put every tab's border
+    // box 1px below the row's padding box, and `overflow-x-auto` had already
+    // forced the computed `overflow-y` to `auto` — so that 1px became a
+    // vertical scrollbar on every tab row that shipped. specs/tabs.md.
+    render(
+      <Tabs label="Sections" defaultValue="a">
+        <TabList label="Sections">
+          <Tab value="a">First</Tab>
+        </TabList>
+        <TabPanel value="a">A</TabPanel>
+      </Tabs>,
+    )
+
+    const row = screen.getByRole('tablist')
+    expect(row.className).toContain('shadow-[inset_0_-1px_0_var(--ds-divider)]')
+    expect(row.className).not.toContain('border-b')
+    // Still scrolls sideways — that is what the row is for, and it is also the
+    // reason the vertical overflow was ever visible.
+    expect(row.className).toContain('overflow-x-auto')
+
+    expect(screen.getByRole('tab', { name: 'First' }).className).not.toContain('-mb-px')
+  })
+
   it('renders a count without turning it into a status', () => {
     render(
       <Tabs label="Sections" defaultValue="open">

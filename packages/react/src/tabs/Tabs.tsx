@@ -24,12 +24,21 @@ import { cn } from '../lib/cn'
  * the component rather than by every consumer.
  */
 
-// `-mb-px` pulls the row onto the divider so the active tab's 2px underline
-// covers the 1px rule rather than sitting below it and drawing two lines.
-const ROW = 'flex min-w-0 items-center gap-1 overflow-x-auto border-b border-divider'
+// The rule is an INSET SHADOW and the item has no negative margin.
+//
+// `overflow-x-auto` forces the computed `overflow-y` off `visible` to `auto` —
+// CSS has no "scroll one axis only" — so ANY vertical overflow draws a
+// scrollbar. `-mb-px` left each item's border box exactly 1px below the row's
+// padding box, and classic scrollbars rendered 15px of chrome for it. macOS
+// overlay scrollbars hid it, which is how it shipped.
+//
+// A child's border paints over its parent's inset shadow, so the active tab's
+// 2px underline still covers the rule without hanging below the row.
+const ROW =
+  'flex min-w-0 items-center gap-1 overflow-x-auto shadow-[inset_0_-1px_0_var(--ds-divider)]'
 
 const ITEM = [
-  'group relative -mb-px inline-flex shrink-0 items-center gap-2 whitespace-nowrap',
+  'group relative inline-flex shrink-0 items-center gap-2 whitespace-nowrap',
   'border-b-2 px-3 py-2.5 text-body font-medium transition-colors',
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring',
   'rounded-t-chip',

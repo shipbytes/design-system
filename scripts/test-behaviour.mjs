@@ -572,6 +572,71 @@ const tabState = async (id) => page.evaluate((tabId) => {
     };
 }, id);
 
+/*
+ * The row must not be vertically SCROLLABLE.
+ *
+ * `overflow-x-auto` forces the computed `overflow-y` off `visible` to `auto` —
+ * CSS has no "scroll one axis only" — so any vertical overflow at all becomes a
+ * scrollbar. The row used to draw the rule as a bottom BORDER and pull the items
+ * onto it with `-mb-px`, which left each item's border box exactly 1px below the
+ * row's padding box. One pixel, in a box that had silently been made scrollable:
+ * classic scrollbars rendered 15px of chrome for it and stole that width from the
+ * row. macOS overlay scrollbars hid it, which is how it shipped.
+ *
+ * This measures the OVERFLOW, not the scrollbar, on purpose. `overflow-y: hidden`
+ * removes the scrollbar while leaving scrollHeight past clientHeight — the
+ * overflow is still there, merely clipped, and it clips the bottom of the active
+ * underline and the focus ring with it. That repair has to fail this check.
+ */
+const rowMetrics = () => page.evaluate(() => {
+    const row = document.querySelector('[role="tablist"][aria-label="Report sections"]');
+    const style = getComputedStyle(row);
+    return {
+        clientHeight: row.clientHeight,
+        scrollHeight: row.scrollHeight,
+        clientWidth: row.clientWidth,
+        offsetWidth: row.offsetWidth,
+        overflowY: style.overflowY,
+        overflowX: style.overflowX,
+        boxShadow: style.boxShadow,
+    };
+});
+
+await check('the row is not vertically scrollable', async () => {
+    const m = await rowMetrics();
+    if (m.scrollHeight !== m.clientHeight) {
+        return `scrollHeight ${m.scrollHeight} vs clientHeight ${m.clientHeight}`
+            + ` (overflow-y: ${m.overflowY}) — ${m.offsetWidth - m.clientWidth}px of scrollbar`;
+    }
+    // Not vacuous: the whole problem only exists BECAUSE the row scrolls
+    // sideways. A row that had stopped doing that would pass the line above
+    // while having lost the behaviour the overflow is there for.
+    return m.overflowX === 'auto' || `the row no longer scrolls horizontally (overflow-x: ${m.overflowX})`;
+});
+
+await check('the rule is actually painted', async () => {
+    // Without this, the check above passes just as well when the class does not
+    // COMPILE and no rule is drawn at all — zero overflow and no rule is not a
+    // fix, it is the divider quietly going missing. An arbitrary value is
+    // exactly the kind of class that can exist in the markup and match nothing.
+    const { boxShadow } = await rowMetrics();
+    if (boxShadow === 'none' || !boxShadow) return 'the row has no box-shadow — the rule is not being drawn';
+    return boxShadow.includes('inset') || `the shadow is not inset: "${boxShadow}"`;
+});
+
+await check("the active tab's underline still sits ON the rule", async () => {
+    // The other tempting repair, `padding-bottom: 1px` on the row, also removes
+    // the overflow — by moving the row's bottom edge 1px BELOW the tab's, which
+    // is the two-lines problem `-mb-px` existed to prevent, in mirror image.
+    // Flush is what makes the 2px underline cover the 1px rule.
+    const gap = await page.evaluate(() => {
+        const row = document.querySelector('[role="tablist"][aria-label="Report sections"]');
+        const active = row.querySelector('[aria-selected="true"]');
+        return row.getBoundingClientRect().bottom - active.getBoundingClientRect().bottom;
+    });
+    return gap === 0 || `the active tab's bottom is ${gap}px above the row's — two lines, or a gap`;
+});
+
 await check('renders the right tab selected BEFORE Alpine could have run', async () => {
     // The PHP `:active` half. Bound-only wiring flashes the wrong tab on load
     // and is simply wrong in anything that never runs the JS.
@@ -628,6 +693,19 @@ await check('the arrow keys the spec says the host owns actually move it', async
     // Selection without focus is the half that is easy to miss: the reader
     // presses again and moves from the tab they were on two presses ago.
     return (await active()) === 'tab-overview' || `selection moved but focus is on ${await active()}`;
+});
+
+await check('a focused tab does not reintroduce the overflow', async () => {
+    await page.focus('#tab-overview');
+    await settle();
+
+    // Not vacuous: `focus-visible:outline-offset-2` draws the ring 2px OUTSIDE
+    // the element, so this only means anything while a tab really has focus.
+    if ((await active()) !== 'tab-overview') return `focus is on ${await active()}, not a tab`;
+
+    const m = await rowMetrics();
+    return m.scrollHeight === m.clientHeight
+        || `focusing a tab pushed scrollHeight to ${m.scrollHeight} against clientHeight ${m.clientHeight}`;
 });
 
 // ---------------------------------------------------------------- x-cloak
