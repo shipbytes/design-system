@@ -12,6 +12,20 @@ const iconTones: Record<PanelIconTone, string> = {
   neutral: 'bg-neutral-tint text-on-neutral-tint',
 }
 
+/**
+ * The one horizontal inset every surface in a panel shares.
+ *
+ * Header, body and row all read this, so a title, a toolbar and a row's text
+ * line up on a single left edge. They did not before: a feature header sat at
+ * `px-5 sm:px-6`, a plain header at `px-4`, a padded body at `px-5 sm:px-6` and
+ * a row at `px-4` — four values, so a panel with an icon and a list had its
+ * heading and its rows 8px out of step with each other.
+ *
+ * {@see PanelBleed} negates exactly this, which only works because there is one
+ * value to negate.
+ */
+const PANEL_INSET = 'px-5 sm:px-6'
+
 export interface PanelProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
   /** Panel heading. Omit for a bare bordered container. */
   title?: ReactNode
@@ -25,11 +39,6 @@ export interface PanelProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'
   actionHref?: string
   /** Replaces the whole generated header. */
   header?: ReactNode
-  /**
-   * rows  — children separated by dividers, each managing its own padding
-   * plain — a single padded region, for free-form content
-   */
-  body?: 'rows' | 'plain'
   children?: ReactNode
 }
 
@@ -41,7 +50,6 @@ export function Panel({
   action,
   actionHref,
   header,
-  body = 'rows',
   className,
   children,
   ...props
@@ -70,7 +78,8 @@ export function Panel({
         <div
           className={cn(
             'flex items-center justify-between gap-3',
-            feature ? 'px-5 pt-5 sm:px-6 sm:pt-6' : 'border-b border-border px-4 py-3',
+            PANEL_INSET,
+            feature ? 'pt-5 sm:pt-6' : 'border-b border-border py-3',
           )}
         >
           {header ?? (
@@ -112,15 +121,58 @@ export function Panel({
         </div>
       ) : null}
 
-      <div
-        className={cn(
-          body === 'rows' && 'divide-y divide-divider',
-          body === 'plain' && 'px-5 py-5 sm:px-6 sm:py-6',
-          body === 'plain' && feature && 'pt-4',
-        )}
-      >
-        {children}
-      </div>
+      {/*
+       * The body is ALWAYS inset, and {@see PanelBleed} is the way out.
+       *
+       * This used to be two modes, `plain` (padded) and `rows` (bare, for lists
+       * whose rows pad themselves), with `rows` as the DEFAULT. Across 140 call
+       * sites in the first application to consume this, `rows` was chosen
+       * deliberately **nought** times and its default left 52 panels with their
+       * content flush against the edge — forms, link lists, empty states and
+       * toolbars, none of which is a row. The documentation was not the problem;
+       * it said exactly what the modes did. The default was.
+       *
+       * So the mode is gone rather than reversed. A prop nobody sets on purpose,
+       * whose default is wrong for all but a handful of panels, collects
+       * mistakes instead of offering a choice — and leaving it in, deprecated,
+       * would have kept two ways to reach the edge. There is now one rule and
+       * one number, and `PANEL_INSET` is that number.
+       */}
+      <div className={cn(PANEL_INSET, 'py-5 sm:py-6', feature && 'pt-4')}>{children}</div>
+    </div>
+  )
+}
+
+/**
+ * The way out of the body's inset, for something that must touch the edge.
+ *
+ * A divided list is the case this exists for: a row's hover highlight and the
+ * divider under it stop looking deliberate the moment they stop short of the
+ * panel's border. The rows inside still carry their own padding — {@see PanelRow}
+ * does it, and a hand-written row uses the same `px-5 sm:px-6` — so the text
+ * goes on lining up with the heading above it while the background does not.
+ *
+ * ```tsx
+ * <Panel title="On the bridge" icon="scale">
+ *   <Toolbar />
+ *   <PanelBleed>
+ *     <ul className="divide-y divide-divider">…</ul>
+ *   </PanelBleed>
+ *   <Pagination />
+ * </Panel>
+ * ```
+ *
+ * Negative margins are more fragile than padding that was never applied, which
+ * is the real cost of removing the old `rows` mode. It is worth paying: a panel
+ * holding a list AND a toolbar — 26 of the 33 list panels in the first
+ * application to consume this — needs the inset and the breakout at once, so
+ * the negative margin was unavoidable for the great majority anyway, and a mode
+ * that served the remaining handful bought nothing but a second convention.
+ */
+export function PanelBleed({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div {...props} className={cn('-mx-5 sm:-mx-6', className)}>
+      {children}
     </div>
   )
 }
@@ -139,7 +191,7 @@ export function PanelRow(props: PanelRowProps) {
   // Its own foreground, even though the panel sets one: a row is the
   // sub-component most likely to be used elsewhere, and an inherited text
   // colour is only correct until it is not.
-  const base = 'flex items-center gap-3 px-4 py-3 text-body text-fg-body'
+  const base = cn('flex items-center gap-3 py-3 text-body text-fg-body', PANEL_INSET)
 
   if ('href' in rest && rest.href !== undefined) {
     return (

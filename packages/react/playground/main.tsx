@@ -287,7 +287,7 @@ function Gallery() {
           </PanelRow>
         </Panel>
 
-        <Panel title="Feature panel" subtitle="With a leading tile" icon="chart-bar" body="plain">
+        <Panel title="Feature panel" subtitle="With a leading tile" icon="chart-bar">
           <p className="text-body">Free-form content in a padded body.</p>
         </Panel>
       </div>

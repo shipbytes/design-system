@@ -69,7 +69,7 @@ export type { ModalProps, ModalSize } from './modal'
 export { Pagination, paginationWindow } from './pagination'
 export type { PaginationProps } from './pagination'
 
-export { Panel, PanelRow } from './panel'
+export { Panel, PanelBleed, PanelRow } from './panel'
 export type { PanelIconTone, PanelProps, PanelRowProps } from './panel'
 
 export { Radio, RadioGroup } from './radio'

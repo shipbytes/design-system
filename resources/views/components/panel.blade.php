@@ -10,12 +10,6 @@
     /** Trailing header link, e.g. "View all". */
     'action' => null,
     'actionHref' => null,
-    /**
-     * How the body is laid out.
-     *   rows  — children are separated by dividers and manage their own padding
-     *   plain — a single padded region, for free-form content
-     */
-    'body' => 'rows',
 ])
 
 @php
@@ -53,8 +47,9 @@
     @if ($title || $action || isset($header))
         <div @class([
             'flex items-center justify-between gap-3',
-            'px-5 pt-5 sm:px-6 sm:pt-6' => $feature,
-            'border-b border-border px-4 py-3' => ! $feature,
+            'px-5 sm:px-6',
+            'pt-5 sm:pt-6' => $feature,
+            'border-b border-border py-3' => ! $feature,
         ])>
             @isset($header)
                 {{ $header }}
@@ -98,10 +93,23 @@
         </div>
     @endif
 
+    {{--
+        The body is ALWAYS inset, and `<x-bleed>` is the way out.
+
+        This was two modes, `plain` (padded) and `rows` (bare, for lists whose
+        rows pad themselves), with `rows` as the DEFAULT. Across 140 call sites
+        in the first application to consume this, `rows` was chosen deliberately
+        nought times, and its default left 52 panels with their content flush
+        against the edge — forms, link lists, empty states and toolbars, none of
+        which is a row. The documentation said exactly what the modes did; the
+        default was the problem, so the mode is gone rather than reversed.
+
+        `px-5 sm:px-6` is the one inset. The header above reads it too, so a
+        heading and a row's text share a left edge.
+    --}}
     <div @class([
-        'divide-y divide-divider' => $body === 'rows',
-        'px-5 py-5 sm:px-6 sm:py-6' => $body === 'plain',
-        'pt-4' => $body === 'plain' && $feature,
+        'px-5 py-5 sm:px-6 sm:py-6',
+        'pt-4' => $feature,
     ])>
         {{ $slot }}
     </div>

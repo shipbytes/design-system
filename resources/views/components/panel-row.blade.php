@@ -10,7 +10,7 @@
         // Its own foreground, even though the panel now sets one too: a row is
         // the sub-component most likely to be used somewhere else, and an
         // inherited text colour is only correct until it is not.
-        'flex items-center gap-3 px-4 py-3 text-body text-fg-body',
+        'flex items-center gap-3 px-5 py-3 sm:px-6 text-body text-fg-body',
         $href ? 'transition-colors hover:bg-surface-subtle' : '',
     ]);
 
