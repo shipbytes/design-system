@@ -173,6 +173,21 @@
         "shipbytes.dark": "{color.emerald.300}"
       }
     },
+    "violet-tint": {
+      "$description": "A tint with no status meaning, for a control that needs a THIRD hue where success and accent are already taken \u2014 the gate terminal's three action cards (UI-M13). Deliberately has no `violet` base and no `violet-wash`: it is not a tone, it cannot badge anything, and there is nothing for a filled button or an alert strip to be made of. Same computation as every other tint \u2014 the fixed 100 step in light, 15% of the 400 over the surface in dark.",
+      "$type": "color",
+      "$value": "{color.violet.100}",
+      "$extensions": {
+        "shipbytes.dark": "oklch(70.2% 0.183 293.541 / 0.15)"
+      }
+    },
+    "on-violet-tint": {
+      "$type": "color",
+      "$value": "{color.violet.700}",
+      "$extensions": {
+        "shipbytes.dark": "{color.violet.300}"
+      }
+    },
     "warning": {
       "$type": "color",
       "$value": "{color.amber.600}",

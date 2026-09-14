@@ -114,6 +114,17 @@
   --color-blue-800: var(--ds-color-blue-800);
   --color-blue-900: var(--ds-color-blue-900);
   --color-blue-950: var(--ds-color-blue-950);
+  --color-violet-50: var(--ds-color-violet-50);
+  --color-violet-100: var(--ds-color-violet-100);
+  --color-violet-200: var(--ds-color-violet-200);
+  --color-violet-300: var(--ds-color-violet-300);
+  --color-violet-400: var(--ds-color-violet-400);
+  --color-violet-500: var(--ds-color-violet-500);
+  --color-violet-600: var(--ds-color-violet-600);
+  --color-violet-700: var(--ds-color-violet-700);
+  --color-violet-800: var(--ds-color-violet-800);
+  --color-violet-900: var(--ds-color-violet-900);
+  --color-violet-950: var(--ds-color-violet-950);
   --color-emerald-50: var(--ds-color-emerald-50);
   --color-emerald-100: var(--ds-color-emerald-100);
   --color-emerald-200: var(--ds-color-emerald-200);
@@ -169,6 +180,8 @@
   --color-success-tint: var(--ds-success-tint);
   --color-success-wash: var(--ds-success-wash);
   --color-on-success-tint: var(--ds-on-success-tint);
+  --color-violet-tint: var(--ds-violet-tint);
+  --color-on-violet-tint: var(--ds-on-violet-tint);
   --color-warning: var(--ds-warning);
   --color-warning-tint: var(--ds-warning-tint);
   --color-warning-wash: var(--ds-warning-wash);
@@ -341,6 +354,8 @@
   --color-success-tint: var(--ds-success-tint);
   --color-success-wash: var(--ds-success-wash);
   --color-on-success-tint: var(--ds-on-success-tint);
+  --color-violet-tint: var(--ds-violet-tint);
+  --color-on-violet-tint: var(--ds-on-violet-tint);
   --color-warning: var(--ds-warning);
   --color-warning-tint: var(--ds-warning-tint);
   --color-warning-wash: var(--ds-warning-wash);
@@ -390,6 +405,8 @@
     --color-success-tint: var(--ds-success-tint);
     --color-success-wash: var(--ds-success-wash);
     --color-on-success-tint: var(--ds-on-success-tint);
+    --color-violet-tint: var(--ds-violet-tint);
+    --color-on-violet-tint: var(--ds-on-violet-tint);
     --color-warning: var(--ds-warning);
     --color-warning-tint: var(--ds-warning-tint);
     --color-warning-wash: var(--ds-warning-wash);

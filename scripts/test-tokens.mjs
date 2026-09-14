@@ -198,6 +198,7 @@ const REQUIRED = [
     ['on-danger-tint', 'danger-tint', 4.5, 'danger badge'],
     ['on-accent-tint', 'accent-tint', 4.5, 'accent badge'],
     ['on-neutral-tint', 'neutral-tint', 4.5, 'neutral badge'],
+    ['on-violet-tint', 'violet-tint', 4.5, 'violet tint — the gate terminal\u2019s third action card'],
     ['focus-ring', 'surface', 3.0, 'focus ring on the card'],
     ['focus-ring', 'surface-sunken', 3.0, 'focus ring on the app ground'],
 ];

@@ -19,6 +19,7 @@ work in both themes and a rebrand touch one file.
 | Any hairline | `border` |
 | A card edge that must read as raised | `border-strong` |
 | A badge or alert | `<tone>-tint` + `on-<tone>-tint` |
+| A control that needs a third hue, meaning nothing | `violet-tint` + `on-violet-tint` |
 | A filled destructive button | `danger` + `on-danger` |
 
 Never reach past these into `color.zinc.500` and friends. The palette exists to
@@ -38,6 +39,26 @@ redundant-information exception.
 > **Migration rule:** the source dashboard used `text-zinc-400` for timestamps.
 > Timestamps are not redundant — nobody else on the row says "3 days ago". They
 > move to `fg-muted` (4.83:1). This is a real fix, not a restyle.
+
+## `violet-tint` is the one tint that is not a tone
+
+Every other tint belongs to a tone: `success-tint` means it worked,
+`warning-tint` means look at this, `danger-tint` means it did not. Each comes
+with a base colour, a wash and a place in `Badge`, because each is a *meaning*
+the system can state.
+
+`violet-tint` is not. It was added for the gate terminal's action row, where
+three equally-weighted controls sit side by side and the guard reaches for one
+without reading it — so the hue is a **targeting aid**, the way the colour of a
+lever in a cab is. Success and accent were already the first two; warning and
+danger were unavailable, because both already mean something on that screen and
+a button must not borrow a status word.
+
+So it ships as a pair and nothing else: no `violet` base, no `violet-wash`, and
+no tone on `Badge`. There is no filled violet button and no violet alert strip,
+because there is nothing for either of them to say. If you find yourself
+wanting one, what you actually want is a tone — and the right move is to argue
+for the meaning first, not to reach for the colour.
 
 **Tints are computed differently per theme, on purpose.** Light uses the fixed
 100/700 pair. Dark uses **15% alpha of the base colour over the surface**, so

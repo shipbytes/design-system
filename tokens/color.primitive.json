@@ -34,6 +34,21 @@
       "950": { "$type": "color", "$value": "oklch(28.2% 0.091 267.935)" }
     },
 
+    "violet": {
+      "$description": "The third safe hue for a tint, added in UI-M13 for the gate terminal's action row \u2014 see semantic.violet-tint. Not a status family: nothing in the system means violet, which is exactly why it was available.",
+      "50":  { "$type": "color", "$value": "oklch(96.9% 0.016 293.756)" },
+      "100": { "$type": "color", "$value": "oklch(94.3% 0.029 294.588)" },
+      "200": { "$type": "color", "$value": "oklch(89.4% 0.057 293.283)" },
+      "300": { "$type": "color", "$value": "oklch(81.1% 0.111 293.571)" },
+      "400": { "$type": "color", "$value": "oklch(70.2% 0.183 293.541)" },
+      "500": { "$type": "color", "$value": "oklch(60.6% 0.25 292.717)" },
+      "600": { "$type": "color", "$value": "oklch(54.1% 0.281 293.009)" },
+      "700": { "$type": "color", "$value": "oklch(49.1% 0.27 292.581)" },
+      "800": { "$type": "color", "$value": "oklch(43.2% 0.232 292.759)" },
+      "900": { "$type": "color", "$value": "oklch(38% 0.189 293.745)" },
+      "950": { "$type": "color", "$value": "oklch(28.3% 0.141 291.089)" }
+    },
+
     "emerald": {
       "$description": "Success. Replaces the emerald/green/lime split (372 + 212 + delta chips).",
       "50":  { "$type": "color", "$value": "oklch(97.9% 0.021 166.113)" },
