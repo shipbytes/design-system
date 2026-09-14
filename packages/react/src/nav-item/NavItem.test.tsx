@@ -168,6 +168,32 @@ describe('NavItem', () => {
       expect(screen.getByText('7')).toBeInTheDocument()
     })
 
+    it('anchors the collapsed pip to the item, not to the page', () => {
+      /*
+       * The pip is `absolute`, and `absolute` resolves against the nearest
+       * POSITIONED ancestor — not the nearest sibling. The pip is a sibling of
+       * the glyph (so `aria-hidden` on the glyph does not take the count with
+       * it), so the `relative` has to be on the ITEM. With it on the icon
+       * instead, the pip escaped to the viewport and rendered in the page's
+       * top-right corner, hundreds of pixels from the rail.
+       *
+       * jsdom has no layout, so this cannot assert where it LANDS — it asserts
+       * the structural fact that produces the right answer: the pip's offset
+       * parent is the item. Found in a browser; kept here so it stays fixed.
+       */
+      const { container } = render(
+        <NavItem label="Approvals" href="/a" count={9} collapsed icon={<svg />} />,
+      )
+
+      const item = container.querySelector('a')
+      const pip = screen.getByText('9')
+
+      expect(item?.className).toContain('relative')
+      expect(pip.className).toContain('absolute')
+      // The pip is the item's own child, so the item is what positions it.
+      expect(pip.parentElement).toBe(item)
+    })
+
     it('inverts on the active row, exactly as a tab count does', () => {
       const { rerender } = render(<NavItem label="Approvals" href="/a" count={7} />)
 

@@ -112,7 +112,18 @@ export function NavItem({
       aria-label={collapsed ? label : undefined}
       title={undefined}
       className={cn(
-        'flex items-center rounded-lg border transition-colors',
+        /*
+         * `relative` so a collapsed count can hang off the ITEM's corner.
+         *
+         * It has to be here and not on the icon: the pip is a SIBLING of the
+         * glyph — deliberately, so `aria-hidden` on the glyph does not take the
+         * count with it — and `absolute` resolves against the nearest POSITIONED
+         * ancestor, not the nearest sibling. With the `relative` on the icon
+         * instead, the pip escaped to the viewport and rendered at its top-right
+         * corner, hundreds of pixels from the rail. jsdom has no layout, so the
+         * component tests could not see it; a browser could, immediately.
+         */
+        'relative flex items-center rounded-lg border transition-colors',
         // `section` size at `medium` weight: 14/20, not the body 14/24. A rail
         // is a list of short labels, and the looser leading makes every row
         // four pixels taller for nothing.
@@ -127,9 +138,7 @@ export function NavItem({
       {icon ? (
         <span
           className={cn(
-            // `relative` so a collapsed count can hang off the glyph's corner.
-            // Harmless expanded, where nothing is positioned against it.
-            'relative flex shrink-0 items-center justify-center',
+            'flex shrink-0 items-center justify-center',
             chipped
               ? 'size-6 rounded-md bg-surface-subtle text-fg-subtle'
               : active
