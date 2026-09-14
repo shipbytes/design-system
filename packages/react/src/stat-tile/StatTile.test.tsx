@@ -134,4 +134,39 @@ describe('StatTile', () => {
 
     expect(screen.getByText('0')).toBeInTheDocument()
   })
+
+  it('keeps the whole card a link when there is no footer', () => {
+    // UI-12: additive, with a default equal to today's render. The anchor IS
+    // the card, and adding the slot must not have quietly changed that.
+    const { container } = render(<StatTile label="Vehicles inside" value={34} href="/v" />)
+
+    const anchor = container.querySelector('a')
+
+    expect(anchor).not.toBeNull()
+    expect(anchor?.className).toContain('border-border-strong')
+  })
+
+  it('puts a footer outside the link, not inside it', () => {
+    /*
+     * A second anchor inside the tile's own anchor is invalid HTML, and browsers
+     * recover by closing the outer one early — so the tile silently stops being
+     * clickable past the nesting point. This is the muster link under "People
+     * inside the plant", and the failure would be the count above it quietly
+     * ceasing to open the list it counted.
+     */
+    const { container } = render(
+      <StatTile
+        label="People inside"
+        value={61}
+        href="/people"
+        footer={<a href="/muster">Muster</a>}
+      />,
+    )
+
+    const muster = container.querySelector('a[href="/muster"]')
+
+    expect(muster).not.toBeNull()
+    expect(muster?.closest('a[href="/people"]')).toBeNull()
+    expect(container.querySelector('a[href="/people"]')).not.toBeNull()
+  })
 })

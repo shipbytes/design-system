@@ -44,13 +44,30 @@ export interface StatTileProps {
   caption?: ReactNode
   /** Makes the tile a link, and the only thing that earns it a hover state. */
   href?: string
+  /**
+   * A second action inside the tile, BELOW the value and outside the link.
+   *
+   * For the one case a tile has two destinations: the number opens the list it
+   * counted, and something else on it opens a different thing entirely — the
+   * emergency muster under "People inside the plant", which has to be one click
+   * from the front page and is not the list.
+   *
+   * Outside the link is the whole point, and it is not a style choice: a second
+   * anchor inside `href`'s anchor is invalid HTML, and browsers recover from it
+   * by closing the outer one early — so the tile silently stops being clickable
+   * past the nesting point. The markup here makes that unrepresentable.
+   *
+   * Absent, the tile renders exactly as it always has: the anchor is still the
+   * whole card and nothing wraps it (UI-12).
+   */
+  footer?: ReactNode
   className?: string
 }
 
 /** Counts from zero over 600ms, unless the reader has asked it not to. */
 const DURATION_MS = 600
 
-export function StatTile({ label, value, delta, caption, href, className }: StatTileProps) {
+export function StatTile({ label, value, delta, caption, href, footer, className }: StatTileProps) {
   const shown = useCountUp(value)
 
   const body = (
@@ -98,12 +115,36 @@ export function StatTile({ label, value, delta, caption, href, className }: Stat
     className,
   )
 
-  return href ? (
-    <a href={href} className={shell}>
-      {body}
-    </a>
-  ) : (
-    <div className={shell}>{body}</div>
+  /*
+   * Three renders rather than two, and the first is the reason.
+   *
+   * With no footer this is byte-for-byte what it always was — the anchor IS the
+   * card. A footer cannot live inside that anchor (see the prop), so when there
+   * is one the card becomes a div and the anchor shrinks to the body. Keeping
+   * the old path untouched is what makes this additive rather than a restyle of
+   * every tile in the application.
+   */
+  if (footer === undefined) {
+    return href ? (
+      <a href={href} className={shell}>
+        {body}
+      </a>
+    ) : (
+      <div className={shell}>{body}</div>
+    )
+  }
+
+  return (
+    <div className={shell}>
+      {href ? (
+        <a href={href} className="block">
+          {body}
+        </a>
+      ) : (
+        body
+      )}
+      <div className="mt-2">{footer}</div>
+    </div>
   )
 }
 
