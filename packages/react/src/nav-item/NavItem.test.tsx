@@ -107,4 +107,83 @@ describe('NavItem', () => {
 
     expect(container.querySelector('span')?.className).toBe(inactive)
   })
+
+  describe('count', () => {
+    it('draws nothing at zero, rather than a nought', () => {
+      /*
+       * The whole value of a badge is that it reaches zero and goes away. A rail
+       * permanently showing `0` against four entries teaches people to stop
+       * reading the numbers, after which the one that matters is invisible too.
+       */
+      const { rerender } = render(<NavItem label="Approvals" href="/a" count={0} />)
+
+      expect(screen.queryByText('0')).not.toBeInTheDocument()
+
+      rerender(<NavItem label="Approvals" href="/a" count={3} />)
+
+      expect(screen.getByText('3')).toBeInTheDocument()
+    })
+
+    it('draws nothing for a count that is not a positive number', () => {
+      // A count still loading is an absent pill, never a `NaN`.
+      const { rerender, container } = render(<NavItem label="Approvals" href="/a" />)
+
+      expect(container.textContent).toBe('Approvals')
+
+      rerender(<NavItem label="Approvals" href="/a" count={Number.NaN} />)
+
+      expect(container.textContent).toBe('Approvals')
+    })
+
+    it('caps at 99+ in both states, from one rule', () => {
+      /*
+       * Past a hundred, "a lot" is the information — and four digits do not fit
+       * the collapsed pip. Asserted in BOTH states because a cap living in two
+       * places is exactly how the two come to disagree.
+       */
+      const { rerender } = render(<NavItem label="Approvals" href="/a" count={146} />)
+
+      expect(screen.getByText('99+')).toBeInTheDocument()
+
+      rerender(
+        <NavItem label="Approvals" href="/a" count={146} collapsed icon={<svg data-testid="icon" />} />,
+      )
+
+      expect(screen.getByText('99+')).toBeInTheDocument()
+    })
+
+    it('survives the rail shutting, while the label does not', () => {
+      /*
+       * The spec's "hidden together" rule is about a count sitting INLINE where
+       * a label used to be, which reads as a number belonging to nothing. A pip
+       * anchored to the glyph is the opposite shape — visibly attached to the
+       * thing it counts — and it is the only reason a shut rail can still say
+       * that something needs you.
+       */
+      render(
+        <NavItem label="Approvals" href="/a" count={7} collapsed icon={<svg data-testid="icon" />} />,
+      )
+
+      expect(screen.queryByText('Approvals')).not.toBeInTheDocument()
+      expect(screen.getByText('7')).toBeInTheDocument()
+    })
+
+    it('inverts on the active row, exactly as a tab count does', () => {
+      const { rerender } = render(<NavItem label="Approvals" href="/a" count={7} />)
+
+      expect(screen.getByText('7').className).toContain('bg-neutral-tint')
+
+      rerender(<NavItem label="Approvals" href="/a" count={7} active />)
+
+      expect(screen.getByText('7').className).toContain('bg-surface-inverse')
+    })
+
+    it('leaves `badge` rendering exactly as it did', () => {
+      // UI-12: every design-system change is additive, with a default equal to
+      // today's render. `badge` is a slot and stays one.
+      render(<NavItem label="Approvals" href="/a" badge={<em>soon</em>} />)
+
+      expect(screen.getByText('soon').tagName).toBe('EM')
+    })
+  })
 })

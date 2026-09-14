@@ -1,220 +1,351 @@
 {
-  "$description": "The layer application code should use. Every token names a JOB, not a colour — so the same markup works in both themes and a future rebrand touches only this file. Dark values live alongside light ones under $extensions so the two can never drift apart.",
+  "$description": "The layer application code should use. Every token names a JOB, not a colour \u2014 so the same markup works in both themes and a future rebrand touches only this file. Dark values live alongside light ones under $extensions so the two can never drift apart.",
   "semantic": {
     "surface": {
-      "$description": "The page card — what content sits on.",
+      "$description": "The page card \u2014 what content sits on.",
       "$type": "color",
       "$value": "{color.white}",
-      "$extensions": { "shipbytes.dark": "{color.zinc.900}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.zinc.900}"
+      }
     },
     "surface-sunken": {
       "$description": "The ground behind the card and sidebar.",
       "$type": "color",
       "$value": "{color.zinc.100}",
-      "$extensions": { "shipbytes.dark": "{color.zinc.950}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.zinc.950}"
+      }
     },
     "surface-subtle": {
       "$description": "Table heads and row hover. 259 uses.",
       "$type": "color",
       "$value": "{color.zinc.50}",
-      "$extensions": { "shipbytes.dark": "{color.zinc.800}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.zinc.800}"
+      }
     },
     "surface-inverse": {
-      "$description": "Primary buttons and the mobile FAB. Flips in dark — light-on-dark becomes dark-on-light.",
+      "$description": "Primary buttons and the mobile FAB. Flips in dark \u2014 light-on-dark becomes dark-on-light.",
       "$type": "color",
       "$value": "{color.zinc.950}",
-      "$extensions": { "shipbytes.dark": "{color.zinc.50}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.zinc.50}"
+      }
     },
     "surface-inverse-hover": {
-      "$description": "Primary button hover. Light lifts zinc-950 to zinc-800; dark drops zinc-50 to zinc-200 — both move AWAY from the page, which is what reads as a press-ready state.",
+      "$description": "Primary button hover. Light lifts zinc-950 to zinc-800; dark drops zinc-50 to zinc-200 \u2014 both move AWAY from the page, which is what reads as a press-ready state.",
       "$type": "color",
       "$value": "{color.zinc.800}",
-      "$extensions": { "shipbytes.dark": "{color.zinc.200}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.zinc.200}"
+      }
     },
     "on-inverse": {
       "$description": "Text and icons on surface-inverse.",
       "$type": "color",
       "$value": "{color.white}",
-      "$extensions": { "shipbytes.dark": "{color.zinc.950}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.zinc.950}"
+      }
     },
-
     "scrim": {
-      "$description": "The dimmed layer behind a modal, drawer or sheet. Stays dark in BOTH themes — deriving it from `fg` would make it white in dark, which lights the page up instead of pushing it back.",
+      "$description": "The dimmed layer behind a modal, drawer or sheet. Stays dark in BOTH themes \u2014 deriving it from `fg` would make it white in dark, which lights the page up instead of pushing it back.",
       "$type": "color",
       "$value": "oklch(0% 0 0 / 0.4)",
-      "$extensions": { "shipbytes.dark": "oklch(0% 0 0 / 0.6)" }
+      "$extensions": {
+        "shipbytes.dark": "oklch(0% 0 0 / 0.6)"
+      }
     },
     "border": {
       "$description": "The default hairline. zinc-950 at 10% (white at 10% in dark) rather than a solid step, so it reads correctly over any surface. 212 uses.",
       "$type": "color",
       "$value": "oklch(14.1% 0.005 285.823 / 0.1)",
-      "$extensions": { "shipbytes.dark": "oklch(100% 0 0 / 0.1)" }
+      "$extensions": {
+        "shipbytes.dark": "oklch(100% 0 0 / 0.1)"
+      }
     },
     "divider": {
-      "$description": "A rule BETWEEN items inside a container, as opposed to the container's own edge. Deliberately lighter than `border` (zinc-950 at 5% vs 10%) — a divider that matches the outer border makes a panel read as a table.",
+      "$description": "A rule BETWEEN items inside a container, as opposed to the container's own edge. Deliberately lighter than `border` (zinc-950 at 5% vs 10%) \u2014 a divider that matches the outer border makes a panel read as a table.",
       "$type": "color",
       "$value": "oklch(14.1% 0.005 285.823 / 0.05)",
-      "$extensions": { "shipbytes.dark": "oklch(100% 0 0 / 0.06)" }
+      "$extensions": {
+        "shipbytes.dark": "oklch(100% 0 0 / 0.06)"
+      }
     },
     "border-strong": {
-      "$description": "Cards that must read as raised — stat tiles, the active nav item.",
+      "$description": "Cards that must read as raised \u2014 stat tiles, the active nav item.",
       "$type": "color",
       "$value": "{color.zinc.200}",
-      "$extensions": { "shipbytes.dark": "{color.zinc.700}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.zinc.700}"
+      }
     },
-
     "fg": {
       "$description": "Headings and emphasis. 748 uses.",
       "$type": "color",
       "$value": "{color.zinc.950}",
-      "$extensions": { "shipbytes.dark": "{color.white}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.white}"
+      }
     },
     "fg-body": {
       "$description": "Running copy in rows and cells. 309 uses.",
       "$type": "color",
       "$value": "{color.zinc.700}",
-      "$extensions": { "shipbytes.dark": "{color.zinc.300}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.zinc.300}"
+      }
     },
     "fg-muted": {
-      "$description": "Labels, meta, subtitles. 850 uses — the single most-used class in the app.",
+      "$description": "Labels, meta, subtitles. 850 uses \u2014 the single most-used class in the app.",
       "$type": "color",
       "$value": "{color.zinc.500}",
-      "$extensions": { "shipbytes.dark": "{color.zinc.400}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.zinc.400}"
+      }
     },
     "fg-subtle": {
       "$description": "Resting icon colour and timestamps. 438 uses.",
       "$type": "color",
       "$value": "{color.zinc.400}",
-      "$extensions": { "shipbytes.dark": "{color.zinc.500}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.zinc.500}"
+      }
     },
-
     "accent": {
       "$description": "Links and informational emphasis. Settles the blue-409 vs indigo-438 split.",
       "$type": "color",
       "$value": "{color.blue.600}",
-      "$extensions": { "shipbytes.dark": "{color.blue.400}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.blue.400}"
+      }
     },
     "accent-hover": {
       "$type": "color",
       "$value": "{color.blue.700}",
-      "$extensions": { "shipbytes.dark": "{color.blue.300}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.blue.300}"
+      }
     },
     "on-accent": {
       "$type": "color",
       "$value": "{color.white}",
-      "$extensions": { "shipbytes.dark": "{color.zinc.950}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.zinc.950}"
+      }
     },
     "focus-ring": {
-      "$description": "Kept identical in both themes — it must read against every surface, and blue-500 already was the Catalyst focus colour.",
+      "$description": "Kept identical in both themes \u2014 it must read against every surface, and blue-500 already was the Catalyst focus colour.",
       "$type": "color",
       "$value": "{color.blue.500}",
-      "$extensions": { "shipbytes.dark": "{color.blue.500}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.blue.500}"
+      }
     },
-
     "success": {
       "$type": "color",
       "$value": "{color.emerald.600}",
-      "$extensions": { "shipbytes.dark": "{color.emerald.400}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.emerald.400}"
+      }
     },
     "success-tint": {
       "$description": "Badge and alert background. Light uses the fixed 100 step; dark uses 15% of the base over the surface, so one rule covers both themes without a second hand-tuned ramp.",
       "$type": "color",
       "$value": "{color.emerald.100}",
-      "$extensions": { "shipbytes.dark": "oklch(76.5% 0.177 163.223 / 0.15)" }
+      "$extensions": {
+        "shipbytes.dark": "oklch(76.5% 0.177 163.223 / 0.15)"
+      }
     },
     "success-wash": {
-      "$description": "Large-surface fill for the success tone — alert strips, banners. Deliberately lighter than `success-tint`: the same hue needs more saturation to register in a badge than it does across a whole alert, so a tint used at panel size reads as shouting.",
+      "$description": "Large-surface fill for the success tone \u2014 alert strips, banners. Deliberately lighter than `success-tint`: the same hue needs more saturation to register in a badge than it does across a whole alert, so a tint used at panel size reads as shouting.",
       "$type": "color",
       "$value": "{color.emerald.50}",
-      "$extensions": { "shipbytes.dark": "oklch(76.5% 0.177 163.223 / 0.08)" }
+      "$extensions": {
+        "shipbytes.dark": "oklch(76.5% 0.177 163.223 / 0.08)"
+      }
     },
     "on-success-tint": {
       "$type": "color",
       "$value": "{color.emerald.700}",
-      "$extensions": { "shipbytes.dark": "{color.emerald.300}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.emerald.300}"
+      }
     },
-
     "warning": {
       "$type": "color",
       "$value": "{color.amber.600}",
-      "$extensions": { "shipbytes.dark": "{color.amber.400}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.amber.400}"
+      }
     },
     "warning-tint": {
       "$type": "color",
       "$value": "{color.amber.100}",
-      "$extensions": { "shipbytes.dark": "oklch(82.8% 0.189 84.429 / 0.15)" }
+      "$extensions": {
+        "shipbytes.dark": "oklch(82.8% 0.189 84.429 / 0.15)"
+      }
     },
     "warning-wash": {
-      "$description": "Large-surface fill for the warning tone — alert strips, banners. Deliberately lighter than `warning-tint`: the same hue needs more saturation to register in a badge than it does across a whole alert, so a tint used at panel size reads as shouting.",
+      "$description": "Large-surface fill for the warning tone \u2014 alert strips, banners. Deliberately lighter than `warning-tint`: the same hue needs more saturation to register in a badge than it does across a whole alert, so a tint used at panel size reads as shouting.",
       "$type": "color",
       "$value": "{color.amber.50}",
-      "$extensions": { "shipbytes.dark": "oklch(82.8% 0.189 84.429 / 0.08)" }
+      "$extensions": {
+        "shipbytes.dark": "oklch(82.8% 0.189 84.429 / 0.08)"
+      }
     },
     "on-warning-tint": {
       "$type": "color",
       "$value": "{color.amber.700}",
-      "$extensions": { "shipbytes.dark": "{color.amber.300}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.amber.300}"
+      }
     },
-
     "danger": {
       "$type": "color",
       "$value": "{color.red.600}",
-      "$extensions": { "shipbytes.dark": "{color.red.400}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.red.400}"
+      }
     },
     "danger-hover": {
       "$type": "color",
       "$value": "{color.red.700}",
-      "$extensions": { "shipbytes.dark": "{color.red.300}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.red.300}"
+      }
     },
     "danger-tint": {
       "$type": "color",
       "$value": "{color.red.100}",
-      "$extensions": { "shipbytes.dark": "oklch(70.4% 0.191 22.216 / 0.15)" }
+      "$extensions": {
+        "shipbytes.dark": "oklch(70.4% 0.191 22.216 / 0.15)"
+      }
     },
     "danger-wash": {
-      "$description": "Large-surface fill for the danger tone — alert strips, banners. Deliberately lighter than `danger-tint`: the same hue needs more saturation to register in a badge than it does across a whole alert, so a tint used at panel size reads as shouting.",
+      "$description": "Large-surface fill for the danger tone \u2014 alert strips, banners. Deliberately lighter than `danger-tint`: the same hue needs more saturation to register in a badge than it does across a whole alert, so a tint used at panel size reads as shouting.",
       "$type": "color",
       "$value": "{color.red.50}",
-      "$extensions": { "shipbytes.dark": "oklch(70.4% 0.191 22.216 / 0.08)" }
+      "$extensions": {
+        "shipbytes.dark": "oklch(70.4% 0.191 22.216 / 0.08)"
+      }
     },
     "on-danger-tint": {
       "$type": "color",
       "$value": "{color.red.700}",
-      "$extensions": { "shipbytes.dark": "{color.red.300}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.red.300}"
+      }
     },
     "on-danger": {
-      "$description": "Text on a filled danger surface. Dark flips to a near-black because `danger` lightens to red-400 there — white on red-400 is 2.87:1 and fails AA. Mirrors how on-accent is handled.",
+      "$description": "Text on a filled danger surface. Dark flips to a near-black because `danger` lightens to red-400 there \u2014 white on red-400 is 2.87:1 and fails AA. Mirrors how on-accent is handled.",
       "$type": "color",
       "$value": "{color.white}",
-      "$extensions": { "shipbytes.dark": "{color.zinc.950}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.zinc.950}"
+      }
     },
-
     "accent-tint": {
       "$type": "color",
       "$value": "{color.blue.100}",
-      "$extensions": { "shipbytes.dark": "oklch(70.7% 0.165 254.624 / 0.15)" }
+      "$extensions": {
+        "shipbytes.dark": "oklch(70.7% 0.165 254.624 / 0.15)"
+      }
     },
     "accent-wash": {
-      "$description": "Large-surface fill for the accent tone — alert strips, banners. Deliberately lighter than `accent-tint`: the same hue needs more saturation to register in a badge than it does across a whole alert, so a tint used at panel size reads as shouting.",
+      "$description": "Large-surface fill for the accent tone \u2014 alert strips, banners. Deliberately lighter than `accent-tint`: the same hue needs more saturation to register in a badge than it does across a whole alert, so a tint used at panel size reads as shouting.",
       "$type": "color",
       "$value": "{color.blue.50}",
-      "$extensions": { "shipbytes.dark": "oklch(70.7% 0.165 254.624 / 0.08)" }
+      "$extensions": {
+        "shipbytes.dark": "oklch(70.7% 0.165 254.624 / 0.08)"
+      }
     },
     "on-accent-tint": {
       "$type": "color",
       "$value": "{color.blue.700}",
-      "$extensions": { "shipbytes.dark": "{color.blue.300}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.blue.300}"
+      }
     },
     "neutral-tint": {
       "$description": "The default badge, for states with no semantic charge.",
       "$type": "color",
       "$value": "{color.zinc.200}",
-      "$extensions": { "shipbytes.dark": "oklch(100% 0 0 / 0.1)" }
+      "$extensions": {
+        "shipbytes.dark": "oklch(100% 0 0 / 0.1)"
+      }
     },
     "on-neutral-tint": {
       "$type": "color",
       "$value": "{color.zinc.700}",
-      "$extensions": { "shipbytes.dark": "{color.zinc.300}" }
+      "$extensions": {
+        "shipbytes.dark": "{color.zinc.300}"
+      }
+    },
+    "series-1": {
+      "$description": "Categorical chart series, slot 1 of 8 \u2014 the identity channel of a chart and NOTHING else. Assigned in fixed order and never cycled: a ninth series folds into an Other, or the chart becomes small multiples. Raw hexes rather than {color.*} references, and deliberately: the six semantic hues exist to carry MEANING (accent is a link, danger is a loss), and a chart that drew its third series in `danger` would be saying something about the data that the data does not say. These eight carry no meaning at all, which is the whole job. They are also not Tailwind's ramps \u2014 the ordering is a colour-vision-deficiency safety property measured under Machado-Oliveira-Fernandes protanopia and deuteranopia at severity 1.0, not a palette somebody liked, so re-stepping one slot by eye breaks the set. See specs/chart-series.md.",
+      "$type": "color",
+      "$value": "#2a78d6",
+      "$extensions": {
+        "shipbytes.dark": "#3987e5"
+      }
+    },
+    "series-2": {
+      "$description": "Categorical chart series, slot 2 of 8 (orange).",
+      "$type": "color",
+      "$value": "#eb6834",
+      "$extensions": {
+        "shipbytes.dark": "#d95926"
+      }
+    },
+    "series-3": {
+      "$description": "Categorical chart series, slot 3 of 8 (aqua).",
+      "$type": "color",
+      "$value": "#1baf7a",
+      "$extensions": {
+        "shipbytes.dark": "#199e70"
+      }
+    },
+    "series-4": {
+      "$description": "Categorical chart series, slot 4 of 8 (yellow).",
+      "$type": "color",
+      "$value": "#eda100",
+      "$extensions": {
+        "shipbytes.dark": "#c98500"
+      }
+    },
+    "series-5": {
+      "$description": "Categorical chart series, slot 5 of 8 (magenta).",
+      "$type": "color",
+      "$value": "#e87ba4",
+      "$extensions": {
+        "shipbytes.dark": "#d55181"
+      }
+    },
+    "series-6": {
+      "$description": "Categorical chart series, slot 6 of 8 (green).",
+      "$type": "color",
+      "$value": "#008300",
+      "$extensions": {
+        "shipbytes.dark": "#008300"
+      }
+    },
+    "series-7": {
+      "$description": "Categorical chart series, slot 7 of 8 (violet).",
+      "$type": "color",
+      "$value": "#4a3aa7",
+      "$extensions": {
+        "shipbytes.dark": "#9085e9"
+      }
+    },
+    "series-8": {
+      "$description": "Categorical chart series, slot 8 of 8 (red).",
+      "$type": "color",
+      "$value": "#e34948",
+      "$extensions": {
+        "shipbytes.dark": "#e66767"
+      }
     }
   }
 }

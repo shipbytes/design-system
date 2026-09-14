@@ -184,6 +184,14 @@
   --color-on-accent-tint: var(--ds-on-accent-tint);
   --color-neutral-tint: var(--ds-neutral-tint);
   --color-on-neutral-tint: var(--ds-on-neutral-tint);
+  --color-series-1: var(--ds-series-1);
+  --color-series-2: var(--ds-series-2);
+  --color-series-3: var(--ds-series-3);
+  --color-series-4: var(--ds-series-4);
+  --color-series-5: var(--ds-series-5);
+  --color-series-6: var(--ds-series-6);
+  --color-series-7: var(--ds-series-7);
+  --color-series-8: var(--ds-series-8);
   --radius-chip: var(--ds-radius-chip);
   --radius-control: var(--ds-radius-control);
   --radius-panel: var(--ds-radius-panel);
@@ -348,6 +356,14 @@
   --color-on-accent-tint: var(--ds-on-accent-tint);
   --color-neutral-tint: var(--ds-neutral-tint);
   --color-on-neutral-tint: var(--ds-on-neutral-tint);
+  --color-series-1: var(--ds-series-1);
+  --color-series-2: var(--ds-series-2);
+  --color-series-3: var(--ds-series-3);
+  --color-series-4: var(--ds-series-4);
+  --color-series-5: var(--ds-series-5);
+  --color-series-6: var(--ds-series-6);
+  --color-series-7: var(--ds-series-7);
+  --color-series-8: var(--ds-series-8);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -389,5 +405,13 @@
     --color-on-accent-tint: var(--ds-on-accent-tint);
     --color-neutral-tint: var(--ds-neutral-tint);
     --color-on-neutral-tint: var(--ds-on-neutral-tint);
+    --color-series-1: var(--ds-series-1);
+    --color-series-2: var(--ds-series-2);
+    --color-series-3: var(--ds-series-3);
+    --color-series-4: var(--ds-series-4);
+    --color-series-5: var(--ds-series-5);
+    --color-series-6: var(--ds-series-6);
+    --color-series-7: var(--ds-series-7);
+    --color-series-8: var(--ds-series-8);
   }
 }

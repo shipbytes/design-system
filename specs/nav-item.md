@@ -8,7 +8,7 @@ have not been.
 
 ```
 expanded                      collapsed
-┌──────────────────────────┐  ┌────┐
+┌──────────────────────────┐  ┌────⑫
 │ [icon]  Resumes      12  │  │[ic]│
 └──────────────────────────┘  └────┘
   w-full gap-3 px-2 py-2        size-8 p-2
@@ -50,6 +50,49 @@ locks the rail shut, the other has neither. A presentation component should not
 know which store either of them uses, and hard-coding one would make the
 component unusable in the other place. The label's `x-show` is derived from the
 same expression, so the two can never disagree.
+
+## The count
+
+`count` is a number the **component** draws; `badge` is a slot that renders
+whatever it is handed. Both exist, and the split is the point: a count put
+through the slot is styled by each shell separately, and three sidebars using it
+end up with three different pills.
+
+It is **the same pill a tab count draws** — `neutral-tint` / `on-neutral-tint`,
+inverting to `surface-inverse` / `on-inverse` on the active row, `tabular-nums`
+so the rail does not reflow as the number changes width. A rail count and a tab
+count are the same fact in two places; a reader should not have to learn two
+shapes for it.
+
+**Zero draws nothing at all, never a `0`.** The whole value of a badge is that it
+reaches zero and goes away. A rail permanently showing `0` against four entries
+teaches people to stop reading the numbers, after which the one that matters is
+invisible too. Anything that is not a positive finite number is treated the same
+way, so a count still loading is an absent pill and never a `NaN`.
+
+**Capped, and rendered `99+`.** Past a hundred, "a lot" is the information; the
+exact figure is one click away on the screen the entry opens. Four digits also do
+not fit the collapsed pip.
+
+**Badge only what reaches zero.** A personal queue — what is waiting on you, what
+you are waiting on — earns a number because its absence is meaningful. A plant
+volume that is never nought does not: a count that is always on stops being read,
+and takes the ones beside it with it.
+
+### Collapsed, it becomes a pip
+
+Icon only, with the count as a small pill on the glyph's top-right corner.
+
+This is the **one** thing that survives the rail shutting, and it is a deliberate
+exception to the rule below rather than a hole in it. That rule is about a count
+sitting *inline* where a label used to be, which reads as a number belonging to
+nothing. A pip anchored to the glyph is the opposite shape — visibly attached to
+the thing it counts — and it is the only reason a shut rail can still say that
+something needs you.
+
+The pip is **inverse in both states**. The expanded pill can afford the neutral
+tint because it sits in a wide row; at pip size on a light chip it disappears,
+and a badge that cannot be seen is not a badge.
 
 ## Icon
 
