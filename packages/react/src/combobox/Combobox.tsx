@@ -50,6 +50,13 @@ export interface ComboboxProps {
   placeholder?: string
   /** Pick several. Chosen values render as removable chips in the field. */
   multiple?: boolean
+  /**
+   * Single-select only: this field must hold a value.
+   *
+   * It hides the clear ✕ and refuses backspace-to-clear — clearing a required
+   * field can only produce a state the form rejects — and sets aria-required.
+   */
+  required?: boolean
   help?: ReactNode
   error?: ReactNode
   disabled?: boolean
@@ -70,6 +77,36 @@ export interface ComboboxProps {
 const defaultFilter = (option: ComboboxOption, query: string): boolean =>
   option.label.toLowerCase().includes(query.trim().toLowerCase())
 
+/**
+ * What the user just typed into a field that was showing a label.
+ *
+ * The chosen label lives in the input's `value`, so the browser hands back the
+ * label with the keystroke folded into it — `Main gatex` for one typed `x`. The
+ * common prefix and suffix are the label surviving; what sits between them is
+ * the insertion, wherever the caret happened to be. A deletion inserts nothing
+ * and so returns '', which leaves the field settled and makes clearing the
+ * keydown handler's job rather than this one's.
+ */
+const inserted = (before: string, after: string): string => {
+  let head = 0
+
+  while (head < before.length && head < after.length && before[head] === after[head]) {
+    head++
+  }
+
+  let tail = 0
+
+  while (
+    tail < before.length - head &&
+    tail < after.length - head &&
+    before[before.length - 1 - tail] === after[after.length - 1 - tail]
+  ) {
+    tail++
+  }
+
+  return after.slice(head, after.length - tail)
+}
+
 export function Combobox({
   options,
   value,
@@ -77,6 +114,7 @@ export function Combobox({
   label,
   placeholder = 'Search…',
   multiple = false,
+  required = false,
   help,
   error,
   disabled = false,
@@ -126,6 +164,39 @@ export function Combobox({
     [options],
   )
 
+  /*
+   * The settled single choice, as text — or undefined when the option has not
+   * arrived yet.
+   *
+   * `labelFor` falls back to the raw value, which as a faded placeholder was
+   * merely odd and at full strength is a glaring `4711` sitting where a name
+   * belongs. A consumer that resolves selected labels asynchronously has a
+   * window between the value arriving and its label arriving; through it the
+   * field shows its placeholder, because an id is not a worse label, it is a
+   * wrong one.
+   */
+  const chosenLabel =
+    multiple || selected.length === 0
+      ? undefined
+      : options.find((option) => option.value === selected[0])?.label
+
+  /*
+   * A chosen value is the field's TEXT, not its placeholder — which is what
+   * this component and the Blade component it was copied from both got wrong,
+   * because specs/combobox.md covered only the multi-select case. A settled
+   * field rendered its answer in `placeholder:text-fg-muted`, the styling whose
+   * entire job is to say "this is a hint, not a value", and so drew itself as
+   * an empty focused text box.
+   */
+  const showingLabel = query === '' && chosenLabel !== undefined
+  const clearable = !required && !multiple && selected.length > 0
+
+  const clear = () => {
+    onChange(null)
+    setQuery('')
+    onQueryChange?.('')
+  }
+
   useEffect(() => {
     if (!open) {
       return
@@ -166,9 +237,14 @@ export function Combobox({
   }, [entering, open])
 
   const type = (next: string) => {
-    setQuery(next)
+    // Typing only. Putting the label into the input's `value` must never reach
+    // here: a consumer filtering server-side takes onQueryChange as the record
+    // of what was TYPED, and a label arriving as a query would search for it.
+    const typed = showingLabel ? inserted(chosenLabel!, next) : next
+
+    setQuery(typed)
     setOpen(true)
-    onQueryChange?.(next)
+    onQueryChange?.(typed)
   }
 
   const choose = (option: ComboboxOption) => {
@@ -272,10 +348,19 @@ export function Combobox({
       return
     }
 
-    // Backspace on an empty query removes the last chip. Without it the only
-    // way to undo a selection is to aim at a 12px ✕.
-    if (event.key === 'Backspace' && multiple && query === '' && selected.length > 0) {
-      onChange(selected.slice(0, -1))
+    /*
+     * Backspace on an empty query clears the selection: the last chip when
+     * multiple, the single value otherwise. Without it the only way to undo a
+     * selection is to aim at a 12px ✕ — and a single value could not be undone
+     * at all, because this was gated on `multiple`. A required field keeps the
+     * one-way door on purpose.
+     */
+    if (event.key === 'Backspace' && query === '' && selected.length > 0) {
+      if (multiple) {
+        onChange(selected.slice(0, -1))
+      } else if (!required) {
+        clear()
+      }
     }
   }
 
@@ -344,7 +429,7 @@ export function Combobox({
           ref={search}
           type="text"
           id={fieldId}
-          value={query}
+          value={showingLabel ? chosenLabel : query}
           onChange={(event) => type(event.target.value)}
           onFocus={() => setOpen(true)}
           onKeyDown={onSearchKeyDown}
@@ -355,11 +440,41 @@ export function Combobox({
           aria-controls={`${fieldId}-listbox`}
           aria-labelledby={label ? `${fieldId}-label` : undefined}
           aria-invalid={error ? true : undefined}
+          aria-required={required}
           aria-describedby={describedBy}
           disabled={disabled}
-          placeholder={!multiple && selected.length > 0 ? labelFor(selected[0]!) : placeholder}
-          className="min-w-24 flex-1 border-0 bg-transparent px-1 py-0.5 text-body text-fg outline-hidden placeholder:text-fg-muted disabled:cursor-not-allowed"
+          placeholder={placeholder}
+          className={cn(
+            'min-w-24 flex-1 border-0 bg-transparent px-1 py-0.5 text-body text-fg outline-hidden placeholder:text-fg-muted disabled:cursor-not-allowed',
+            // The caret is what makes a settled field read as an empty one
+            // waiting to be typed into. It goes exactly while the field is
+            // showing a label; the focus ring stays, because it is the only
+            // thing telling a keyboard user where they are.
+            showingLabel && 'caret-transparent',
+          )}
         />
+
+        {/* A single value used to be a one-way door: it could be swapped and
+            never unset. Hidden on a required field, where clearing could only
+            produce a state the form rejects. */}
+        {clearable ? (
+          <button
+            type="button"
+            aria-label={`Clear ${chosenLabel ?? 'selection'}`}
+            className="shrink-0 rounded-chip p-0.5 text-fg-muted opacity-60 transition-opacity hover:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-ring"
+            onClick={(event) => {
+              // The field's own click handler opens the list and takes the
+              // caret; without this, clearing would read as a click on the
+              // field. Focus still returns to the input, because the ✕ it was
+              // on is about to stop existing.
+              event.stopPropagation()
+              clear()
+              search.current?.focus()
+            }}
+          >
+            <Icon name="x-mark" variant="micro" size="3" />
+          </button>
+        ) : null}
 
         <Icon
           name="chevron-down"

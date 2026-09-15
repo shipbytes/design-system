@@ -511,6 +511,13 @@
     @foreach ($themes as $t)
         <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
             <x-ds::combobox
+                name="cbone{{ $loop->index }}"
+                label="Gate"
+                :options="['1' => 'Main gate', '2' => 'Weighbridge gate', '3' => 'Contractor gate']"
+                value="1"
+                class="mb-4"
+            />
+            <x-ds::combobox
                 name="cb{{ $loop->index }}"
                 label="Tags"
                 :options="['a11y' => 'Accessibility', 'billing' => 'Billing', 'compliance' => 'Compliance', 'design' => 'Design', 'infra' => 'Infrastructure']"

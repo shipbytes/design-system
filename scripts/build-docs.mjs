@@ -205,7 +205,9 @@ const OPERATE = {
     tooltip: async (pane) => pane.locator('[data-ds-tooltip]').dispatchEvent('mouseenter'),
     'date-picker': async (pane) =>
         pane.locator('[data-ds-date-trigger]').dispatchEvent('click', { bubbles: false }),
-    combobox: async (pane) => pane.locator('input[type="text"]').dispatchEvent('focus'),
+    // The pane holds two: a settled single-select, photographed exactly as it
+    // rests, and the multi-select whose open list is what the shot is for.
+    combobox: async (pane) => pane.locator('input[type="text"]').last().dispatchEvent('focus'),
     // Real files, set on the real input, so the list and the thumbnail are the
     // component's own doing rather than a pose arranged for the photograph.
     'file-upload': async (pane) =>

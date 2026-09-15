@@ -10,6 +10,13 @@
     'placeholder' => 'Search…',
     /** Pick several. Chosen values render as removable chips in the field. */
     'multiple' => false,
+    /**
+     * Single-select only: this field must hold a value.
+     *
+     * It hides the clear ✕ and refuses backspace-to-clear — clearing a required
+     * field can only produce a state the form rejects — and sets aria-required.
+     */
+    'required' => false,
     'help' => null,
     'error' => null,
     'disabled' => false,
@@ -40,13 +47,73 @@
      * aria-multiselectable are the whole difference. Two components would mean
      * two copies of the arrow-key logic, which is exactly the pair that drifts.
      */
+    /*
+     * Rendered by PHP as well as bound, so a settled field carries its label on
+     * first paint rather than flashing empty until Alpine boots. Null when the
+     * option is not in the list, which is what makes the placeholder show
+     * instead of a raw id.
+     */
+    $chosenLabel = ! $multiple && isset($selected[0])
+        ? (collect($options)->firstWhere('value', $selected[0])['label'] ?? null)
+        : null;
+
     $state = json_encode([
         'open' => false,
         'query' => '',
         'selected' => $selected,
         'multiple' => (bool) $multiple,
+        'required' => (bool) $required,
         'options' => $options,
     ]);
+
+    /*
+     * A chosen value is the field's TEXT, not its placeholder.
+     *
+     * Rendering it as the placeholder — which both this component and its React
+     * port did — draws a settled field as an empty focused text box: faded grey
+     * with a blinking caret, read as "nothing chosen yet" when the choice is
+     * made and constrained. specs/combobox.md now covers the three states these
+     * five methods implement; it covered none of them before, which is how two
+     * implementations came to agree on the same wrong answer.
+     */
+    $methods = <<<'JS'
+        chosenLabel() {
+            if (this.multiple || ! this.selected.length) return null;
+            const option = this.options.find((o) => o.value === this.selected[0]);
+            // An unresolved id is not a worse label, it is a wrong one — a
+            // glaring 4711 where a name belongs. Fall back to the placeholder.
+            return option ? option.label : null;
+        },
+        showingLabel() {
+            return this.query === '' && this.chosenLabel() !== null;
+        },
+        display() {
+            return this.query !== '' ? this.query : (this.chosenLabel() ?? '');
+        },
+        clearable() {
+            return ! this.required && ! this.multiple && this.selected.length > 0;
+        },
+        type(next) {
+            if (! this.showingLabel()) { this.query = next; this.open = true; return }
+            /*
+             * The label is in the input's value, so the browser hands back the
+             * label with the keystroke folded into it — "Main gatex" for one
+             * typed "x". What was INSERTED is the query: the common prefix and
+             * suffix are the label surviving, and what sits between them is what
+             * the user typed. A deletion inserts nothing and so leaves the label
+             * alone, which is what makes backspace-to-clear the keydown
+             * handler's job rather than this one's.
+             */
+            const before = this.chosenLabel();
+            let head = 0;
+            while (head < before.length && head < next.length && before[head] === next[head]) head++;
+            let tail = 0;
+            while (tail < before.length - head && tail < next.length - head
+                && before[before.length - 1 - tail] === next[next.length - 1 - tail]) tail++;
+            this.query = next.slice(head, next.length - tail);
+            this.open = true;
+        },
+    JS;
 
     $field = implode(' ', [
         'flex w-full flex-wrap items-center gap-1.5 rounded-control border bg-surface',
@@ -74,7 +141,7 @@
 @endphp
 
 <div
-    x-data="{{ $state }}"
+    x-data="{{ '{ ...'.$state.', '.$methods.' }' }}"
     {{ $attributes->only('class')->merge(['class' => 'relative block w-full']) }}
 >
     @if ($label)
@@ -128,28 +195,56 @@
             type="text"
             id="{{ $id }}"
             x-ref="search"
-            x-model="query"
+            {{-- NOT x-model. The field shows the query when there is one and the
+                 chosen label otherwise, so what the browser hands back on an
+                 input event is not the query — `type()` works out what was
+                 inserted. The placeholder is the placeholder again. --}}
+            value="{{ $chosenLabel ?? '' }}"
+            :value="display()"
+            @input="type($event.target.value)"
             @focus="open = true"
             @click.stop="open = true"
             @keydown.arrow-down.prevent="open = true; $nextTick(() => $el.closest('[x-data]').querySelector('[role=option]')?.focus())"
             @keydown.escape.stop="open = false"
-            {{-- Backspace on an empty query removes the last chip. Without it the
-                 only way to undo a selection is to aim at a 12px ✕. --}}
-            @keydown.backspace="if (multiple && query === '' && selected.length) selected = selected.slice(0, -1)"
+            {{-- Backspace on an empty query clears the selection: the last chip
+                 when multiple, the single value otherwise. Without it the only
+                 way to undo a selection is to aim at a 12px ✕, and a single
+                 value could not be undone at all. --}}
+            @keydown.backspace="if (query === '' && selected.length) { if (multiple) { selected = selected.slice(0, -1) } else if (! required) { selected = [] } }"
             autocomplete="off"
             role="combobox"
             aria-autocomplete="list"
             :aria-expanded="open"
             aria-controls="{{ $id }}-listbox"
+            aria-required="{{ $required ? 'true' : 'false' }}"
             @if ($label) aria-labelledby="{{ $id }}-label" @endif
             @if ($error) aria-invalid="true" @endif
             @if ($describedBy) aria-describedby="{{ $describedBy }}" @endif
             @disabled($disabled)
-            :placeholder="selected.length && ! multiple
-                ? (options.find((o) => o.value === selected[0])?.label ?? '')
-                : @js($placeholder)"
+            placeholder="{{ $placeholder }}"
+            {{-- The caret is what makes a settled field read as an empty one
+                 waiting to be typed into. It goes exactly while the field is
+                 showing a label; the focus ring stays, because it is the only
+                 thing telling a keyboard user where they are. --}}
+            :class="{ 'caret-transparent': showingLabel() }"
             class="min-w-24 flex-1 border-0 bg-transparent px-1 py-0.5 text-body text-fg outline-hidden placeholder:text-fg-muted disabled:cursor-not-allowed"
         />
+
+        {{-- A single value used to be a one-way door: it could be swapped and
+             never unset. Hidden on a required field, where clearing could only
+             produce a state the form rejects. --}}
+        @unless ($multiple || $required)
+            <button
+                type="button"
+                x-cloak
+                x-show="clearable()"
+                :aria-label="'Clear ' + (chosenLabel() ?? 'selection')"
+                class="shrink-0 rounded-chip p-0.5 text-fg-muted opacity-60 transition-opacity hover:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-ring"
+                @click.stop="selected = []; query = ''; $refs.search.focus()"
+            >
+                <x-ds::icon name="x-mark" variant="micro" size="3" />
+            </button>
+        @endunless
 
         <x-ds::icon
             name="chevron-down"

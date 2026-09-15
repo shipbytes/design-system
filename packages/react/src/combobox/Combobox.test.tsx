@@ -85,10 +85,113 @@ describe('Combobox', () => {
     expect(onChange).toHaveBeenCalledWith(['1'])
   })
 
-  it('shows the chosen label as the placeholder, so the field is never blank', () => {
+  /*
+   * The defect specs/combobox.md was silent about, in both implementations: a
+   * settled single-select rendered its answer as the PLACEHOLDER, in
+   * `text-fg-muted`, and so drew itself as an empty focused text box. These say
+   * the answer is the field's text, that the caret does not lie about being
+   * editable, and that typing still works from there.
+   */
+  it('shows the chosen value as the field text, not as a placeholder', () => {
+    render(<Combobox options={options} value="3" onChange={() => {}} placeholder="Search…" />)
+
+    const field = screen.getByRole('combobox')
+
+    expect(field).toHaveValue('Litre')
+    expect(field).toHaveAttribute('placeholder', 'Search…')
+    // A settled field is not waiting to be typed into, and a caret says it is.
+    expect(field.className).toContain('caret-transparent')
+  })
+
+  it('keeps the label in the field when the list opens', async () => {
     render(<Combobox options={options} value="3" onChange={() => {}} />)
 
-    expect(screen.getByRole('combobox')).toHaveAttribute('placeholder', 'Litre')
+    await userEvent.click(screen.getByRole('combobox'))
+
+    expect(screen.getByRole('combobox')).toHaveValue('Litre')
+    expect(screen.getByRole('option', { name: /Litre/ })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('starts a fresh query on typing rather than editing the label', async () => {
+    const onQueryChange = vi.fn()
+
+    render(
+      <Combobox options={options} value="3" onChange={() => {}} filter={false} onQueryChange={onQueryChange} />,
+    )
+
+    await userEvent.type(screen.getByRole('combobox'), 'ki')
+
+    // The browser hands back "Litreki"; what was INSERTED is the query. A
+    // consumer filtering server-side must never be asked to search for a label
+    // it already resolved.
+    expect(screen.getByRole('combobox')).toHaveValue('ki')
+    expect(onQueryChange).toHaveBeenLastCalledWith('ki')
+  })
+
+  it('brings the label back when the query is deleted', async () => {
+    render(<Combobox options={options} value="3" onChange={() => {}} filter={false} />)
+
+    const field = screen.getByRole('combobox')
+
+    await userEvent.type(field, 'k')
+    expect(field).toHaveValue('k')
+
+    await userEvent.keyboard('{Backspace}')
+
+    // Nothing is lost by typing and changing your mind.
+    expect(field).toHaveValue('Litre')
+    expect(field.className).toContain('caret-transparent')
+  })
+
+  it('shows the placeholder while a chosen label has not resolved yet', () => {
+    // The window a consumer that fetches selected labels by id lives in. At
+    // full strength the old fallback would be a glaring `4711` in the field.
+    render(<Combobox options={options} value="4711" onChange={() => {}} placeholder="Search…" />)
+
+    expect(screen.getByRole('combobox')).toHaveValue('')
+    expect(screen.getByRole('combobox')).toHaveAttribute('placeholder', 'Search…')
+  })
+
+  it('clears a single value with the ✕', async () => {
+    const onChange = vi.fn()
+    render(<Combobox options={options} value="3" onChange={onChange} />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear Litre' }))
+
+    expect(onChange).toHaveBeenCalledWith(null)
+  })
+
+  it('clears a single value with backspace on an empty query', async () => {
+    const onChange = vi.fn()
+    render(<Combobox options={options} value="3" onChange={onChange} />)
+
+    await userEvent.click(screen.getByRole('combobox'))
+    await userEvent.keyboard('{Backspace}')
+
+    // It used to be gated on `multiple`, so a single choice was a one-way door.
+    expect(onChange).toHaveBeenCalledWith(null)
+  })
+
+  it('will not let a required field be cleared, and says it is required', async () => {
+    const onChange = vi.fn()
+    render(<Combobox options={options} value="3" onChange={onChange} required />)
+
+    expect(screen.getByRole('combobox')).toHaveAttribute('aria-required', 'true')
+    expect(screen.queryByRole('button', { name: /^Clear/ })).toBeNull()
+
+    await userEvent.click(screen.getByRole('combobox'))
+    await userEvent.keyboard('{Backspace}')
+
+    // Clearing it could only produce a state the form rejects.
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('leaves multi-select alone: chips, not a value, and no clear ✕', () => {
+    render(<Combobox options={options} value={['1']} onChange={() => {}} multiple />)
+
+    expect(screen.getByRole('combobox')).toHaveValue('')
+    expect(screen.getByRole('button', { name: 'Remove Kilogram' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Clear/ })).toBeNull()
   })
 
   it('announces multi-select on the listbox', async () => {

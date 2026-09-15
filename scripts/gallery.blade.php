@@ -983,6 +983,28 @@
 
     <div class="ds-note">Chips sit <em>inside</em> the field. A list of choices below the control reads as results, and people click them expecting to select rather than to remove.</div>
 
+    <div class="ds-note">A single chosen value is the field&rsquo;s <em>text</em>, at full strength, with no caret and a clear &times;. It used to render as the <code>placeholder</code> &mdash; muted grey with a blinking caret &mdash; which read as an empty field waiting to be typed into.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">One choice, settled <span>&middot; clearable, and required (no &times;)</span></div>
+        <div class="mx-auto max-w-sm space-y-4">
+            <x-ds::combobox
+                name="g-gate"
+                label="Gate"
+                :options="['1' => 'Main gate', '2' => 'Weighbridge gate', '3' => 'Contractor gate']"
+                value="1"
+            />
+            <x-ds::combobox
+                name="g-shift"
+                label="Shift"
+                :options="['a' => 'A &mdash; 06:00', 'b' => 'B &mdash; 14:00', 'c' => 'C &mdash; 22:00']"
+                value="b"
+                :required="true"
+                help="Required, so there is nothing to clear it with."
+            />
+        </div>
+    </div>
+
     <div class="{{ $plate }}">
         <div class="ds-plate-label">Multiple <span>&middot; shown open; the gallery carries no JavaScript</span></div>
         <div class="mx-auto max-w-sm">

@@ -374,6 +374,14 @@ final class Specimens
                     :value="['a', 'c']"
                     :multiple="true"
                 />
+                <x-ds::combobox
+                    name="gate"
+                    label="Gate"
+                    :options="['1' => 'Main gate', '2' => 'Weighbridge gate']"
+                    value="1"
+                    :required="true"
+                    help="No ✕: clearing it could only produce a state the form rejects."
+                />
                 <x-ds::combobox name="bad" label="Owner" :options="['x' => 'X']" error="Pick an owner." />
                 <x-ds::combobox name="off" label="Locked" :options="['x' => 'X']" value="x" :disabled="true" />
                 BLADE,

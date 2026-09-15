@@ -66,6 +66,18 @@
                 :value="['a11y']" :multiple="true" />
         </div>
 
+        {{-- ── combobox, one choice ── --}}
+        <div class="mt-6 max-w-xs">
+            <x-ds::combobox name="gate" id="gate" label="Gate"
+                :options="['main' => 'Main gate', 'weigh' => 'Weighbridge gate']" value="main" />
+        </div>
+
+        {{-- ── combobox, one choice, required ── --}}
+        <div class="mt-6 max-w-xs">
+            <x-ds::combobox name="shift" id="shift" label="Shift"
+                :options="['a' => 'A shift', 'b' => 'B shift']" value="b" :required="true" />
+        </div>
+
         {{-- ── switch ── --}}
         <div class="mt-6 max-w-xs">
             <x-ds::switch name="notify" id="notify" label="Email notifications" />

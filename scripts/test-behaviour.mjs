@@ -404,6 +404,88 @@ await check('no matches says so rather than rendering an empty box', async () =>
 await page.fill('#tags', '');
 await page.keyboard.press('Escape');
 
+/*
+ * One choice, settled.
+ *
+ * The field used to render its answer as the PLACEHOLDER, in text-fg-muted,
+ * with a live caret — so a settled field drew itself as an empty one waiting to
+ * be typed into. specs/combobox.md covered only the multi-select case, which is
+ * how this component and its React port came to agree on the same wrong answer.
+ */
+const transparent = (value) => value === 'transparent' || /,\s*0\)$/.test(value);
+
+await check('a single chosen value is the field text, not its placeholder', async () =>
+    (await page.locator('#gate').inputValue()) === 'Main gate'
+    || `the field reads "${await page.locator('#gate').inputValue()}"`);
+
+await check('no caret while the field is showing a label', async () => {
+    const caret = await page.locator('#gate').evaluate((el) => getComputedStyle(el).caretColor);
+    return transparent(caret) || `caret-color is ${caret}`;
+});
+
+await check('typing starts a fresh query rather than editing the label', async () => {
+    await page.click('#gate');
+    await page.keyboard.type('weigh');
+    await settle(200);
+    // The browser hands back "Main gateweigh"; what was INSERTED is the query.
+    const value = await page.locator('#gate').inputValue();
+    const shown = await page.locator('#gate').evaluate((el) =>
+        [...el.closest('[x-data]').querySelectorAll('[role=option]')].map((o) => o.innerText));
+    return (value === 'weigh' && shown.length === 1 && shown[0].includes('Weighbridge'))
+        || `the field reads "${value}" and the list shows ${JSON.stringify(shown)}`;
+});
+
+await check('the caret comes back while there is a query', async () => {
+    const caret = await page.locator('#gate').evaluate((el) => getComputedStyle(el).caretColor);
+    return !transparent(caret) || 'still transparent while typing';
+});
+
+await check('deleting the query brings the label back', async () => {
+    await page.fill('#gate', '');
+    await settle(200);
+    // Nothing is lost by typing and then changing your mind.
+    return (await page.locator('#gate').inputValue()) === 'Main gate'
+        || `the field reads "${await page.locator('#gate').inputValue()}"`;
+});
+
+await check('the ✕ unsets a single value — it used to be a one-way door', async () => {
+    await page.click('[aria-label="Clear Main gate"]');
+    await settle(200);
+    return JSON.stringify((await posted()).gate) === '[""]'
+        || `posted ${JSON.stringify((await posted()).gate)}`;
+});
+
+await check('backspace on an empty query unsets a single value too', async () => {
+    await page.locator('#gate-listbox [role=option]').first().click();
+    await settle(200);
+    await page.click('#gate');
+    await page.keyboard.press('Backspace');
+    await settle(200);
+    return JSON.stringify((await posted()).gate) === '[""]'
+        || `posted ${JSON.stringify((await posted()).gate)}`;
+});
+
+await page.keyboard.press('Escape');
+
+await check('a required field says so and offers no ✕', async () => {
+    const required = await page.locator('#shift').getAttribute('aria-required');
+    // Not rendered at all, rather than rendered and hidden.
+    const clear = await page.locator('#shift').evaluate((el) =>
+        el.closest('[x-data]').querySelectorAll('[aria-label^="Clear "]').length);
+    return (required === 'true' && clear === 0) || `aria-required=${required}, ${clear} clear buttons`;
+});
+
+await check('a required field refuses backspace-to-clear', async () => {
+    await page.click('#shift');
+    await page.keyboard.press('Backspace');
+    await settle(200);
+    // Clearing it could only produce a state the form rejects.
+    return JSON.stringify((await posted()).shift) === '["b"]'
+        || `posted ${JSON.stringify((await posted()).shift)}`;
+});
+
+await page.keyboard.press('Escape');
+
 // ---------------------------------------------------------------- switch
 
 group('switch');
