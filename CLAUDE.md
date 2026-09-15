@@ -382,12 +382,30 @@ and is the one place in it that is not the real component. The documentation
 screenshots DO show them, because that script drives a 1000px viewport on
 purpose. An `<iframe>` at phone width would fix it.
 
-**6. The accordion cannot be found by find-in-page.** It is the ARIA disclosure
+**6. The date picker still moves real focus into its portalled calendar.**
+`combobox` was moved to `aria-activedescendant` because it had to be: a
+`Combobox` inside a `Modal` or a `Drawer` is a portalled listbox inside a Radix
+focus trap, and the trap pulls any focus landing there straight back to the
+input — so arrow keys did nothing and Enter chose nothing. `date-picker` has the
+same shape (`calendar.current?.querySelector(...)?.focus()` inside a
+`PopoverPortal`) and would fail the same way.
+
+It was left alone because no consumer puts one there yet — the ERP has no
+`DatePicker` inside a `Modal`, `Drawer` or any focus trap, and widening the
+change to a component with no reported defect would have meant rewriting the
+grid's roving focus untested. **The first screen that puts a date picker in a
+dialog closes this**, and the pattern to copy is `combobox/Combobox.tsx`.
+
+The `pointer-events` half is already fixed for both: `useAnchoredPopover`'s
+`interactive` option, which `combobox` and `date-picker` pass and `tooltip`
+deliberately does not.
+
+**7. The accordion cannot be found by find-in-page.** It is the ARIA disclosure
 pattern, so a collapsed section is `visibility: hidden` and the browser's own
 find will not reveal it. `<details>` would give that for free, and was the other
 candidate — see specs/accordion.md.
 
-**7. Components deliberately NOT built**, so nobody adds them by reflex:
+**8. Components deliberately NOT built**, so nobody adds them by reflex:
 
 - **Server-side filtering for `combobox`.** It filters the list you pass it, in
   the browser. A searchable list too large to send needs a search callback, and

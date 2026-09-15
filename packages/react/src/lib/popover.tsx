@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties, type ReactNode, type Ref } from 'react'
+import { Children, cloneElement, isValidElement, useMemo, type CSSProperties, type ReactNode, type Ref } from 'react'
 import { createPortal } from 'react-dom'
 import { autoUpdate, flip, offset, shift, size, useFloating, type Placement } from '@floating-ui/react-dom'
 
@@ -60,6 +60,26 @@ export interface AnchoredPopoverOptions {
   maxHeight?: number
   /** Keep at least this far from the viewport edge. */
   padding?: number
+  /**
+   * The popover is meant to be clicked, so it sets its own `pointer-events`.
+   *
+   * Default `false`, and the default is the whole point. A portalled popover is
+   * a child of `document.body`, and Radix's `DismissableLayer` — under `Modal`
+   * and `Drawer` — sets `document.body { pointer-events: none }` while a modal
+   * layer is open, restoring `auto` on its own content element and on nothing
+   * else. The popover is not that element, so it inherits `none`: the click
+   * passes THROUGH the list and lands on whatever sits behind it. Measured on
+   * the ERP's item picker, where aiming at a category filter selected a
+   * chemical and closed the dialog.
+   *
+   * It is opt-in rather than always-on because `Tooltip` uses this same hook
+   * and carries `pointer-events-none` as a Tailwind class. An inline style beats
+   * a class, so setting this unconditionally would silently make every tooltip
+   * capture the pointer — see the comment at tooltip/Tooltip.tsx, which says why
+   * a tip that takes the hover reads as a broken control. A tooltip is not
+   * interactive and does not want this.
+   */
+  interactive?: boolean
 }
 
 /**
@@ -83,6 +103,7 @@ export function useAnchoredPopover<A extends HTMLElement = HTMLElement, F extend
   matchWidth = false,
   maxHeight,
   padding = 8,
+  interactive = false,
 }: AnchoredPopoverOptions): AnchoredPopover<A, F> {
   const middleware = useMemo(
     () => [
@@ -120,7 +141,17 @@ export function useAnchoredPopover<A extends HTMLElement = HTMLElement, F extend
     middleware,
   })
 
-  return { setAnchor: refs.setReference, setFloating: refs.setFloating, floatingStyles }
+  /*
+   * Memoised rather than spread fresh on every render: `floatingStyles` is
+   * itself a stable object from floating-ui, and a new object here would be a
+   * new `style` prop on every render of every consumer.
+   */
+  const style = useMemo(
+    () => (interactive ? { ...floatingStyles, pointerEvents: 'auto' as const } : floatingStyles),
+    [floatingStyles, interactive],
+  )
+
+  return { setAnchor: refs.setReference, setFloating: refs.setFloating, floatingStyles: style }
 }
 
 /**
@@ -136,7 +167,27 @@ export function PopoverPortal({ children }: { children: ReactNode }) {
     return null
   }
 
-  return createPortal(children, document.body)
+  /*
+   * `data-ds-overlay` is part of the consumer contract — see README.md.
+   *
+   * An overlay leaves the flow, so it is no longer inside whatever opened it.
+   * Every hand-rolled outside-press handler in every consumer therefore reads a
+   * press on this popover as a press OUTSIDE, and dismisses the thing the
+   * popover belongs to before the popover's own click handler runs. That is not
+   * hypothetical: the ERP's filters panel closed on `pointerdown` and so ate
+   * every choice made with a mouse for eight days.
+   *
+   * The two dismiss handlers inside this package name their own nodes and do
+   * not need this. A consumer cannot, so it is marked here — once, on whatever
+   * is portalled — rather than left to each consumer to match on `role` and
+   * guess.
+   */
+  return createPortal(
+    Children.map(children, (child) =>
+      isValidElement(child) ? cloneElement(child, { 'data-ds-overlay': '' } as never) : child,
+    ),
+    document.body,
+  )
 }
 
 /**

@@ -32,6 +32,40 @@ source, or none of the component classes are generated:
 If linking ever misbehaves, the fallback is a `tsup` build to `dist/` with
 `exports` and the `@source` line pointed there.
 
+## Overlays leave the flow: `data-ds-overlay`
+
+`combobox`, `date-picker` and `tooltip` render their popover into
+`document.body` through `PopoverPortal`, so it is **not** inside the component
+that opened it and **not** inside whatever box that component sits in. Every
+element so rendered carries `data-ds-overlay`.
+
+If you write your own outside-press handler — a hand-rolled popover, a panel
+that closes on `pointerdown`, a click-away on a card — it must treat a press
+inside an overlay as INSIDE:
+
+```ts
+const onOutside = (event: PointerEvent) => {
+  const target = event.target
+
+  if (!(target instanceof Element)) return
+  if (panel.current?.contains(target)) return
+  if (target.closest('[data-ds-overlay]')) return   // ← this line
+
+  setOpen(false)
+}
+```
+
+Without it the sequence is: press an option → your handler sees a press outside
+→ your panel unmounts, taking the portalled list with it → the option's own
+`click` never fires, because `pointerdown` precedes `click` and the element is
+gone by then. It looks exactly like the choice not registering, and it is
+mouse-only: the keyboard path still works, which is what makes it survive a
+walk-through.
+
+Match on the attribute and not on `[role="listbox"]`. The marker is the
+contract; a role is a guess that goes stale the moment a fourth overlay is
+ported.
+
 ## Adding a component
 
 1. Read `specs/<name>.md` first. It is the contract, and it records mistakes
@@ -139,7 +173,7 @@ been ported, and the answer is `specs/<name>.md`, never an approximation.
   opens the list. Focus, then close: both updates are queued inside one event
   and the last wins. The other order reopens the list the click just chose from,
   which looks like the choice not registering.
-- **`filter={false}` is the one addition to the spec.** See known gap 7 in
+- **`filter={false}` is the one addition to the spec.** See known gap 8 in
   CLAUDE.md: server-side filtering was left out of the Blade component because a
   search callback is a backend contract. In React the consumer already owns its
   fetching, so it is a prop and not a contract — and the default is still the

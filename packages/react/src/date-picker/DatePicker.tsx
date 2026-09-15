@@ -125,7 +125,8 @@ export function DatePicker({
    * lib/popover.tsx). It keeps its own width — a seven-column grid stretched to
    * a wide field is mostly empty calendar.
    */
-  const popover = useAnchoredPopover({ open })
+  // The calendar is a grid of buttons: it is there to be clicked, so it says so.
+  const popover = useAnchoredPopover({ open, interactive: true })
 
   // Reopening on the month the value is in, not on the month last browsed to.
   useEffect(() => {

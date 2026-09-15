@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { Modal } from '../modal'
 import { Combobox, type ComboboxOption } from './Combobox'
 
 const options: ComboboxOption[] = [
@@ -202,14 +203,99 @@ describe('Combobox', () => {
     expect(screen.getByRole('listbox')).toHaveAttribute('aria-multiselectable', 'true')
   })
 
-  it('walks the filtered list with the arrow keys', async () => {
-    render(<Combobox options={options} value={null} onChange={() => {}} />)
+  /*
+   * These used to assert that ArrowDown moved real DOM focus into the list.
+   * That assertion is now wrong ON PURPOSE: focus never leaves the input, and
+   * the active option is pointed at by `aria-activedescendant`. See the two
+   * dialog tests at the bottom of this file for why — real focus in a portalled
+   * list cannot survive a modal's focus trap, and a combobox in a dialog is the
+   * commonest place this component is used.
+   */
+  it('walks the filtered list with the arrow keys, without leaving the field', async () => {
+    render(<Combobox options={options} value={null} onChange={() => {}} label="Unit" />)
 
     const field = screen.getByRole('combobox')
     await userEvent.click(field)
     await userEvent.keyboard('{ArrowDown}')
 
-    expect(document.activeElement).toHaveAttribute('role', 'option')
+    expect(field).toHaveFocus()
+
+    const first = screen.getByRole('option', { name: /Kilogram/ })
+    expect(field).toHaveAttribute('aria-activedescendant', first.id)
+
+    await userEvent.keyboard('{ArrowDown}')
+
+    expect(field).toHaveAttribute(
+      'aria-activedescendant',
+      screen.getByRole('option', { name: /Metric tonne/ }).id,
+    )
+
+    // End of the list wraps, and Home comes back to the top.
+    await userEvent.keyboard('{End}')
+    expect(field).toHaveAttribute('aria-activedescendant', screen.getByRole('option', { name: /Litre/ }).id)
+
+    await userEvent.keyboard('{Home}')
+    expect(field).toHaveAttribute('aria-activedescendant', first.id)
+  })
+
+  it('leaves the space bar to the filter rather than taking it as a choice', async () => {
+    const onChange = vi.fn()
+
+    render(
+      <Combobox
+        options={[{ value: '1', label: 'Caustic lye' }]}
+        value={null}
+        onChange={onChange}
+        filter={false}
+        />,
+    )
+
+    const field = screen.getByRole('combobox')
+    await userEvent.click(field)
+    await userEvent.keyboard('{ArrowDown}')
+    await userEvent.keyboard('caustic lye')
+
+    // The old handler took `' '` as a choice, which was safe on a focused <li>
+    // and is not on the input the caret is in.
+    expect(field).toHaveValue('caustic lye')
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('forgets the active option when the options are replaced', async () => {
+    const onChange = vi.fn()
+
+    const { rerender } = render(
+      <Combobox options={options} value={null} onChange={onChange} filter={false} />,
+    )
+
+    await userEvent.click(screen.getByRole('combobox'))
+    await userEvent.keyboard('{ArrowDown}')
+
+    // A consumer filtering server-side answers, and the row that was under the
+    // keyboard is gone. Enter must not pick whatever moved into its place.
+    rerender(
+      <Combobox
+        options={[{ value: '9', label: 'Sodium hypochlorite' }]}
+        value={null}
+        onChange={onChange}
+        filter={false}
+      />,
+    )
+
+    await userEvent.keyboard('{Enter}')
+
+    expect(onChange).not.toHaveBeenCalled()
+    expect(screen.getByRole('combobox')).not.toHaveAttribute('aria-activedescendant')
+  })
+
+  it('chooses the active option on Enter', async () => {
+    const onChange = vi.fn()
+    render(<Combobox options={options} value={null} onChange={onChange} />)
+
+    await userEvent.click(screen.getByRole('combobox'))
+    await userEvent.keyboard('{ArrowDown}{ArrowDown}{Enter}')
+
+    expect(onChange).toHaveBeenCalledWith('2')
   })
 
   it('will not choose a disabled option', async () => {
@@ -265,6 +351,60 @@ describe('Combobox', () => {
     await userEvent.click(screen.getByRole('combobox'))
     await userEvent.click(screen.getByRole('option', { name: /Metric tonne/ }))
 
+    expect(onChange).toHaveBeenCalledWith('2')
+  })
+
+  /*
+   * The defect this pair exists for, and the reason the assertions are shaped
+   * the way they are.
+   *
+   * `Modal` and `Drawer` are Radix Dialog, and Radix's `DismissableLayer` sets
+   * `document.body { pointer-events: none }` while a modal layer is open,
+   * restoring `auto` on its own content element and on NOTHING else. The
+   * listbox is portalled to `document.body`, so it inherited `none` — and a
+   * click aimed at an option passed THROUGH it and activated whatever sat
+   * behind. On the ERP's item picker, aiming at a category filter selected a
+   * chemical and closed the dialog.
+   *
+   * **`userEvent`, never `fireEvent`.** `userEvent` is the half that refuses a
+   * click on an element with `pointer-events: none`, which is the entire
+   * defect; `fireEvent` dispatches regardless and would pass against the broken
+   * component. A test here written with `fireEvent` proves nothing at all.
+   */
+  it('chooses an option with the mouse from inside a modal', async () => {
+    const onChange = vi.fn()
+
+    render(
+      <Modal open onOpenChange={() => {}} title="Find an item">
+        <Combobox options={options} value={null} onChange={onChange} label="Unit" />
+      </Modal>,
+    )
+
+    await userEvent.click(screen.getByRole('combobox'))
+    await userEvent.click(screen.getByRole('option', { name: /Metric tonne/ }))
+
+    expect(onChange).toHaveBeenCalledWith('2')
+  })
+
+  it('chooses an option with the keyboard from inside a modal', async () => {
+    const onChange = vi.fn()
+
+    render(
+      <Modal open onOpenChange={() => {}} title="Find an item">
+        <Combobox options={options} value={null} onChange={onChange} label="Unit" />
+      </Modal>,
+    )
+
+    const field = screen.getByRole('combobox')
+
+    await userEvent.click(field)
+    await userEvent.keyboard('{ArrowDown}{ArrowDown}{Enter}')
+
+    // The half that could not be fixed by pointer-events alone: the dialog's
+    // focus trap pulls any focus landing in the portalled list straight back to
+    // the input, so the old implementation's only recorded movement after
+    // ArrowDown was the caret returning to the field.
+    expect(field).toHaveFocus()
     expect(onChange).toHaveBeenCalledWith('2')
   })
 

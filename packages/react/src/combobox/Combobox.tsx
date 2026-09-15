@@ -23,7 +23,7 @@ import { mergeRefs, PopoverPortal, useAnchoredPopover } from '../lib/popover'
  * copies of the arrow-key logic, which is exactly the pair that drifts.
  *
  * **Filtering.** The Blade component filters the list it is given, in the
- * browser, and CLAUDE.md's known gap 7 records that server-side filtering was
+ * browser, and CLAUDE.md's known gap 8 records that server-side filtering was
  * deliberately not built there: "a searchable list too large to send needs a
  * search callback, and a callback is a backend contract — the one thing nothing
  * here has". A React consumer already owns its own fetching, so the seam costs
@@ -134,8 +134,22 @@ export function Combobox({
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
 
-  /** Set when ArrowDown opened the list, so focus lands once it exists. */
-  const [entering, setEntering] = useState(false)
+  /*
+   * The option the keyboard is ON, tracked as a VALUE rather than as an index.
+   *
+   * This is `aria-activedescendant` and not real focus, which is the ARIA 1.2
+   * combobox pattern and the only version that survives a focus trap: inside a
+   * `Modal` or a `Drawer` the listbox is portalled to `document.body` and so
+   * sits outside the dialog, and Radix's trap pulls any focus that lands there
+   * straight back to the input. Measured — with twenty options showing, the only
+   * movement ArrowDown produced was the caret returning to the field.
+   *
+   * A value and not an index because the option list is REPLACED when a
+   * consumer's server answers: an index held across that points at whatever row
+   * happens to have moved into the slot, and Enter then picks something the
+   * reader never arrowed to.
+   */
+  const [activeValue, setActiveValue] = useState<string | null>(null)
 
   const root = useRef<HTMLDivElement>(null)
   const search = useRef<HTMLInputElement>(null)
@@ -147,7 +161,7 @@ export function Combobox({
    * label sits a row too high. See lib/popover.tsx for why it leaves the flow
    * at all — a combobox in a scrollable dialog was being clipped at the footer.
    */
-  const popover = useAnchoredPopover({ open, matchWidth: true, maxHeight: 240 })
+  const popover = useAnchoredPopover({ open, matchWidth: true, maxHeight: 240, interactive: true })
 
   const selected = useMemo(
     () => (multiple ? (Array.isArray(value) ? value : []) : value == null ? [] : [String(value)]),
@@ -224,17 +238,66 @@ export function Combobox({
     return () => document.removeEventListener('mousedown', close)
   }, [open])
 
-  const firstOption = () =>
-    list.current?.querySelector<HTMLElement>('[role="option"]:not([aria-disabled="true"])') ?? null
+  /* Arrow keys walk what is ON SCREEN and choosable — a disabled row is not a
+     stop on the way past, and a filtered-out row is not there at all. */
+  const choosable = useMemo(() => visible.filter((option) => !option.disabled), [visible])
 
+  const optionId = (index: number) => `${fieldId}-option-${index}`
+
+  const activeIndex = activeValue === null ? -1 : visible.findIndex((option) => option.value === activeValue)
+
+  /*
+   * A new `options` array is a new list, so the active row is reset with it.
+   * Without this, Enter after a server answer chooses a stale row — the one
+   * thing tracking a value rather than an index cannot prevent on its own,
+   * because a value that is simply gone would leave the field with nothing
+   * highlighted and Enter doing something invisible.
+   */
   useEffect(() => {
-    if (!entering || !open) {
+    setActiveValue(null)
+  }, [options])
+
+  /* Closing forgets where the keyboard was: reopening starts at the top. */
+  useEffect(() => {
+    if (!open) {
+      setActiveValue(null)
+    }
+  }, [open])
+
+  /*
+   * The list scrolls at 240px, and nothing in it is focused any more — so the
+   * browser will not bring the active row into view by itself, the way it did
+   * when arrowing moved real focus. Optional call: jsdom does not implement it.
+   */
+  useEffect(() => {
+    if (!open || activeIndex < 0) {
       return
     }
 
-    firstOption()?.focus()
-    setEntering(false)
-  }, [entering, open])
+    document.getElementById(optionId(activeIndex))?.scrollIntoView?.({ block: 'nearest' })
+  }, [open, activeIndex])
+
+  const moveActive = (key: string) => {
+    if (choosable.length === 0) {
+      return
+    }
+
+    const at = choosable.findIndex((option) => option.value === activeValue)
+    const to =
+      key === 'Home'
+        ? 0
+        : key === 'End'
+          ? choosable.length - 1
+          : key === 'ArrowUp'
+            ? at <= 0
+              ? choosable.length - 1
+              : at - 1
+            : at === choosable.length - 1
+              ? 0
+              : at + 1
+
+    setActiveValue(choosable[to]!.value)
+  }
 
   const type = (next: string) => {
     // Typing only. Putting the label into the input's `value` must never reach
@@ -279,63 +342,34 @@ export function Combobox({
     setOpen(false)
   }
 
-  /*
-   * Arrow keys walk the FILTERED list, so the handler reads the DOM rather than
-   * the options array — what is on screen is the only correct source once a
-   * filter is applied.
-   */
-  const moveFocus = (event: KeyboardEvent) => {
-    const items = [...(list.current?.querySelectorAll<HTMLElement>('[role="option"]:not([aria-disabled="true"])') ?? [])]
-
-    if (items.length === 0) {
-      return
-    }
-
-    event.preventDefault()
-
-    const at = items.indexOf(document.activeElement as HTMLElement)
-    const to =
-      event.key === 'Home'
-        ? 0
-        : event.key === 'End'
-          ? items.length - 1
-          : event.key === 'ArrowUp'
-            ? at <= 0
-              ? items.length - 1
-              : at - 1
-            : at === items.length - 1
-              ? 0
-              : at + 1
-
-    items[to]?.focus()
-  }
-
-  const onListKeyDown = (event: KeyboardEvent) => {
-    if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
-      moveFocus(event)
-
-      return
-    }
-
-    if (event.key === 'Escape') {
-      event.stopPropagation()
-      setOpen(false)
-      search.current?.focus()
-    }
-  }
-
   const onSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'ArrowDown') {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') {
       event.preventDefault()
 
-      // Already open: the options are in the DOM, so focus can land now. Closed:
-      // there is nothing to focus until React has rendered the list, and the
-      // effect above does it.
-      if (open && firstOption()) {
-        firstOption()?.focus()
-      } else {
-        setOpen(true)
-        setEntering(true)
+      // Nothing waits for a render any more: `choosable` is derived from the
+      // props, so the first press can both open the list and land on a row.
+      setOpen(true)
+      moveActive(event.key)
+
+      return
+    }
+
+    /*
+     * Enter chooses the active row — and Enter ONLY.
+     *
+     * The old handler took `' '` as well, which was safe only because it lived
+     * on a focused `<li>`. On the input it would make the space bar unable to
+     * type a space into the filter, which is half the words in a master.
+     *
+     * With nothing active this falls through rather than swallowing the key, so
+     * Enter still submits the form around the field.
+     */
+    if (event.key === 'Enter') {
+      const option = activeValue === null ? undefined : choosable.find((o) => o.value === activeValue)
+
+      if (option) {
+        event.preventDefault()
+        choose(option)
       }
 
       return
@@ -438,6 +472,8 @@ export function Combobox({
           aria-autocomplete="list"
           aria-expanded={open}
           aria-controls={`${fieldId}-listbox`}
+          // Where the keyboard is, without moving the caret out of the field.
+          aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
           aria-labelledby={label ? `${fieldId}-label` : undefined}
           aria-invalid={error ? true : undefined}
           aria-required={required}
@@ -493,28 +529,26 @@ export function Combobox({
             role="listbox"
             aria-multiselectable={multiple}
             aria-labelledby={label ? `${fieldId}-label` : undefined}
-            onKeyDown={onListKeyDown}
             // Width, position and the height cap all come from floating-ui
             // (lib/popover.tsx); `overflow-y-auto` is what makes the cap scroll
             // the list rather than clip it.
             className="z-50 origin-top overflow-y-auto rounded-control border border-border bg-surface py-1 shadow-float"
           >
-            {visible.map((option) => (
+            {visible.map((option, index) => (
               <li
                 key={option.value}
+                id={optionId(index)}
                 role="option"
-                tabIndex={-1}
                 data-value={option.value}
+                // Nothing here is focusable now, so the `focus-visible:` half of
+                // the old recipe would never match — this is what draws where
+                // the keyboard is, and it has to look like the hover state
+                // because it means the same thing.
+                data-active={option.value === activeValue || undefined}
                 aria-selected={selected.includes(option.value)}
                 aria-disabled={option.disabled || undefined}
                 onClick={() => choose(option)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault()
-                    choose(option)
-                  }
-                }}
-                className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-body text-fg-body transition-colors hover:bg-surface-subtle hover:text-fg focus-visible:bg-surface-subtle focus-visible:text-fg focus-visible:outline-hidden aria-disabled:cursor-not-allowed aria-disabled:text-fg-subtle aria-selected:font-medium aria-selected:text-fg"
+                className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-body text-fg-body transition-colors hover:bg-surface-subtle hover:text-fg data-active:bg-surface-subtle data-active:text-fg aria-disabled:cursor-not-allowed aria-disabled:text-fg-subtle aria-selected:font-medium aria-selected:text-fg"
               >
                 <span className="min-w-0 truncate">
                   {option.label}
