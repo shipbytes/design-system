@@ -32,8 +32,19 @@ describe('NavItem', () => {
     const item = screen.getByRole('link', { name: 'Gate' })
 
     expect(item.className).toContain('shadow-raised')
-    expect(item.className).toContain('border-strong')
+    expect(item.className).toContain('border-border-strong')
     expect(item.className).toContain('bg-surface')
+
+    /*
+     * The bug this replaces, and why the assertion above is not enough on its
+     * own. `border-strong` is the TOKEN's name and generates no utility at all,
+     * so the active item fell back to Tailwind v4's `currentColor` and drew a
+     * near-black ring in light and a near-white one in dark. A `toContain` on
+     * the shorter string passes either way — `'border-border-strong'` contains
+     * `'border-strong'` — so the assertion that was here could never fail and
+     * the defect survived from the day the file was written.
+     */
+    expect(item.className).not.toMatch(/(^|\s)border-strong(\s|$)/)
   })
 
   it('is one element in both states, not two components', () => {

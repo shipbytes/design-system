@@ -17,6 +17,16 @@ import { cn } from '../lib/cn'
  * label for the same signal and survive both themes; a change of ELEVATION
  * reads instantly and means the same thing in dark.
  *
+ * Those are TOKEN names, and the utility that paints the first of them is
+ * `border-border-strong` — the token registers as `--color-border-strong`, so
+ * Tailwind prefixes the property to the token's own name. This file wrote
+ * `border-strong`, which generates nothing, from the day it was written: the
+ * element kept the bare `border` from its base classes with no colour, and
+ * Tailwind v4's default of `currentColor` drew the active ring in `fg-body` —
+ * near-black in light and near-white in dark. Every other component in the
+ * library (Panel, StatTile, Pagination, Radio, Checkbox, EmptyState,
+ * FileUpload, Tabs) already writes the longer spelling.
+ *
  * And it carries `aria-current="page"`. The hand-written version the spec was
  * written from did not, so the only signal that an item was current was visual
  * — a screen reader user had no way to tell where they were.
@@ -130,7 +140,7 @@ export function NavItem({
         'text-section font-medium',
         collapsed ? 'size-8 justify-center p-2' : 'w-full gap-3 px-2 py-2',
         active
-          ? 'border-strong bg-surface text-fg-body shadow-raised'
+          ? 'border-border-strong bg-surface text-fg-body shadow-raised'
           : 'border-transparent text-fg-subtle hover:text-fg-body hover:bg-surface-subtle',
         className,
       )}
