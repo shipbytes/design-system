@@ -33,7 +33,11 @@ describe('NavItem', () => {
 
     expect(item.className).toContain('shadow-raised')
     expect(item.className).toContain('border-border-strong')
-    expect(item.className).toContain('bg-surface')
+    // The exact class: `bg-surface-subtle`, `-sunken` and `-inverse` all
+    // contain the substring, and the INACTIVE state hovers to
+    // `bg-surface-subtle` — so this one is a step from being wrong rather than
+    // merely loose.
+    expect(item.className).toMatch(/(^|\s)bg-surface(\s|$)/)
 
     /*
      * The bug this replaces, and why the assertion above is not enough on its

@@ -38,7 +38,15 @@ describe('Toast', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Saved.')
     // Surface with a border, not the alert's tinted wash: it floats over
     // arbitrary content and has to paint an opaque ground.
-    expect(screen.getByRole('status').className).toContain('bg-surface')
+    /*
+     * The exact class, not any class beginning with it. `bg-surface-subtle`,
+     * `-sunken` and `-inverse` all contain the substring `bg-surface`, so a
+     * `toContain` here would pass on a component that had quietly moved to one
+     * of them. Nothing is wrong behind this today; it is tightened because that
+     * is the shape of assertion UI-D1 hid inside for as long as `NavItem`
+     * existed, and it is four characters to close.
+     */
+    expect(screen.getByRole('status').className).toMatch(/(^|\s)bg-surface(\s|$)/)
     expect(container.querySelector('svg')?.getAttribute('class')).toContain('text-success')
   })
 

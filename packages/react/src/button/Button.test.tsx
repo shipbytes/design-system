@@ -61,11 +61,31 @@ describe('Button', () => {
   })
 
   it('keeps the border on every variant so swapping one does not resize the box', () => {
+    /*
+     * The BASE `border` — the 1px width every variant is padded against
+     * (`calc(step - 1px)`) — and not merely some class that starts with those
+     * six letters.
+     *
+     * This asked `toContain('border')`, which every variant satisfies through
+     * its own `border-transparent` or `border-border` whether the base class is
+     * there or not. Measured: delete `border` from the recipe and all eight
+     * tests still pass, so the one assertion guarding the box's size could
+     * never fail. That is UI-D1's shape exactly — a `toContain` on a
+     * class-name prefix cannot tell a class from a longer class beginning the
+     * same way — found in the commit that fixed UI-D1.
+     *
+     * A word-boundary match is what separates them. The colour class is
+     * asserted beside it, so the test still says what the variant contributes.
+     */
+    const hasBase = (cls: string) => /(^|\s)border(\s|$)/.test(cls)
+
     const { rerender } = render(<Button variant="primary">A</Button>)
-    expect(screen.getByRole('button').className).toContain('border')
+    expect(hasBase(screen.getByRole('button').className)).toBe(true)
+    expect(screen.getByRole('button').className).toContain('border-transparent')
 
     rerender(<Button variant="secondary">A</Button>)
-    expect(screen.getByRole('button').className).toContain('border')
+    expect(hasBase(screen.getByRole('button').className)).toBe(true)
+    expect(screen.getByRole('button').className).toContain('border-border')
   })
 
   it('lets a caller override a recipe class instead of stacking two', () => {
