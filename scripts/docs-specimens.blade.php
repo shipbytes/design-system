@@ -513,7 +513,7 @@
             <x-ds::combobox
                 name="cbone{{ $loop->index }}"
                 label="Gate"
-                :options="['1' => 'Main gate', '2' => 'Weighbridge gate', '3' => 'Contractor gate']"
+                :options="['1' => 'Main gate', '2' => 'Stores gate', '3' => 'Contractor gate']"
                 value="1"
                 class="mb-4"
             />

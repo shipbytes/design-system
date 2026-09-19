@@ -73,13 +73,13 @@ describe('NavItem', () => {
      * an `aria-label` over visible text overrides the text, and the two then
      * drift apart with nobody able to see it.
      */
-    const { rerender } = render(<NavItem label="Weighbridge" href="/wb" collapsed />)
+    const { rerender } = render(<NavItem label="Stores" href="/stores" collapsed />)
 
-    expect(screen.getByRole('link', { name: 'Weighbridge' })).toHaveAttribute('aria-label', 'Weighbridge')
+    expect(screen.getByRole('link', { name: 'Stores' })).toHaveAttribute('aria-label', 'Stores')
 
-    rerender(<NavItem label="Weighbridge" href="/wb" />)
+    rerender(<NavItem label="Stores" href="/stores" />)
 
-    expect(screen.getByRole('link', { name: 'Weighbridge' })).not.toHaveAttribute('aria-label')
+    expect(screen.getByRole('link', { name: 'Stores' })).not.toHaveAttribute('aria-label')
   })
 
   it('hides the label and the count together', () => {

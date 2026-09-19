@@ -69,7 +69,7 @@
         {{-- ── combobox, one choice ── --}}
         <div class="mt-6 max-w-xs">
             <x-ds::combobox name="gate" id="gate" label="Gate"
-                :options="['main' => 'Main gate', 'weigh' => 'Weighbridge gate']" value="main" />
+                :options="['main' => 'Main gate', 'stores' => 'Stores gate']" value="main" />
         </div>
 
         {{-- ── combobox, one choice, required ── --}}

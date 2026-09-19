@@ -377,7 +377,7 @@ final class Specimens
                 <x-ds::combobox
                     name="gate"
                     label="Gate"
-                    :options="['1' => 'Main gate', '2' => 'Weighbridge gate']"
+                    :options="['1' => 'Main gate', '2' => 'Stores gate']"
                     value="1"
                     :required="true"
                     help="No ✕: clearing it could only produce a state the form rejects."

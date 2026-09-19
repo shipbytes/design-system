@@ -12,7 +12,7 @@ a charge. A four-series chart drawn from that set has to borrow from it, and two
 of the five are alarm colours.
 
 That borrow is not a cosmetic compromise. Drawing a series called *Issues* in
-`danger` red tells the reader the line is bad news; drawing *Weighments* in
+`danger` red tells the reader the line is bad news; drawing *Receipts* in
 `success` green tells them it is good. Neither is something the data said. The
 chart ends up asserting a judgement the query never made, and the reader has no
 way to know the colour is arbitrary.

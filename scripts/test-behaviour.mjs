@@ -425,13 +425,13 @@ await check('no caret while the field is showing a label', async () => {
 
 await check('typing starts a fresh query rather than editing the label', async () => {
     await page.click('#gate');
-    await page.keyboard.type('weigh');
+    await page.keyboard.type('stores');
     await settle(200);
-    // The browser hands back "Main gateweigh"; what was INSERTED is the query.
+    // The browser hands back "Main gatestores"; what was INSERTED is the query.
     const value = await page.locator('#gate').inputValue();
     const shown = await page.locator('#gate').evaluate((el) =>
         [...el.closest('[x-data]').querySelectorAll('[role=option]')].map((o) => o.innerText));
-    return (value === 'weigh' && shown.length === 1 && shown[0].includes('Weighbridge'))
+    return (value === 'stores' && shown.length === 1 && shown[0].includes('Stores'))
         || `the field reads "${value}" and the list shows ${JSON.stringify(shown)}`;
 });
 
