@@ -259,30 +259,34 @@
         <div class="ds-plate-label">List <span>&middot; one of several; stays quiet</span></div>
         <div class="grid gap-4 sm:grid-cols-2">
             <x-ds::panel title="Recent activity" action="View all" action-href="#panel">
-                @foreach ([['Stripe — Product Designer', '2 hours ago', 'success', 'Complete'], ['Linear — Design Engineer', 'yesterday', 'warning', 'Draft']] as [$t, $when, $tone, $state])
-                    <x-ds::panel-row href="#panel">
-                        <span class="min-w-0 flex-1">
-                            <span class="block truncate text-body font-medium text-fg">{{ $t }}</span>
-                            <span class="block text-meta text-fg-muted">{{ $when }}</span>
-                        </span>
-                        <x-ds::badge :tone="$tone">{{ $state }}</x-ds::badge>
-                    </x-ds::panel-row>
-                @endforeach
+                <x-ds::bleed class="divide-y divide-divider">
+                    @foreach ([['Stripe — Product Designer', '2 hours ago', 'success', 'Complete'], ['Linear — Design Engineer', 'yesterday', 'warning', 'Draft']] as [$t, $when, $tone, $state])
+                        <x-ds::panel-row href="#panel">
+                            <span class="min-w-0 flex-1">
+                                <span class="block truncate text-body font-medium text-fg">{{ $t }}</span>
+                                <span class="block text-meta text-fg-muted">{{ $when }}</span>
+                            </span>
+                            <x-ds::badge :tone="$tone">{{ $state }}</x-ds::badge>
+                        </x-ds::panel-row>
+                    @endforeach
+                </x-ds::bleed>
             </x-ds::panel>
 
             <x-ds::panel title="Open tickets" action="View all" action-href="#panel">
-                <x-ds::panel-row href="#panel">
-                    <span class="min-w-0 flex-1">
-                        <span class="block truncate text-body font-medium text-fg">Export is missing a page</span>
-                        <span class="block text-meta text-fg-muted">Medium priority</span>
-                    </span>
-                    <x-ds::badge tone="accent">Open</x-ds::badge>
-                </x-ds::panel-row>
-                <x-ds::panel-row>
-                    <span class="min-w-0 flex-1">
-                        <span class="block truncate text-body text-fg-muted">Not clickable &mdash; no hover state</span>
-                    </span>
-                </x-ds::panel-row>
+                <x-ds::bleed class="divide-y divide-divider">
+                    <x-ds::panel-row href="#panel">
+                        <span class="min-w-0 flex-1">
+                            <span class="block truncate text-body font-medium text-fg">Export is missing a page</span>
+                            <span class="block text-meta text-fg-muted">Medium priority</span>
+                        </span>
+                        <x-ds::badge tone="accent">Open</x-ds::badge>
+                    </x-ds::panel-row>
+                    <x-ds::panel-row>
+                        <span class="min-w-0 flex-1">
+                            <span class="block truncate text-body text-fg-muted">Not clickable &mdash; no hover state</span>
+                        </span>
+                    </x-ds::panel-row>
+                </x-ds::bleed>
             </x-ds::panel>
         </div>
     </div>
@@ -309,6 +313,44 @@
                             </span>
                         </span>
                     @endforeach
+                </div>
+            </x-ds::panel>
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Bleed --}}
+<section class="ds-spec" id="bleed">
+    <header class="ds-spec-head">
+        <h2>Bleed</h2>
+        <p>The way out of a panel body&rsquo;s inset, for a list whose dividers and hover must reach the border.</p>
+    </header>
+
+    <div class="ds-note">The body is always inset and rows pad themselves, so a list dropped straight into a panel is inset <em>twice</em> &mdash; its rules stop short of the edge and read as a rendering bug. The bleed negates the inset exactly; the row text still lines up with the heading.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Toolbar and list <span>&middot; the toolbar keeps the inset, the list reaches the border</span></div>
+        <div class="grid gap-4 sm:grid-cols-2">
+            <x-ds::panel title="With bleed" icon="users" subtitle="Rules run edge to edge">
+                <x-ds::input name="gallery-bleed-q" placeholder="Filter by name" />
+                <x-ds::bleed class="mt-4 border-t border-divider">
+                    <ul class="divide-y divide-divider">
+                        @foreach (['Asha Rao', 'Ben Carter', 'Mei Lin'] as $name)
+                            <li><x-ds::panel-row href="#bleed">{{ $name }}</x-ds::panel-row></li>
+                        @endforeach
+                    </ul>
+                </x-ds::bleed>
+            </x-ds::panel>
+
+            {{-- The mistake, drawn on purpose so the difference is visible. --}}
+            <x-ds::panel title="Without" icon="users" iconTone="neutral" subtitle="Inset twice — rules stop short">
+                <x-ds::input name="gallery-bleed-q2" placeholder="Filter by name" />
+                <div class="mt-4 border-t border-divider">
+                    <ul class="divide-y divide-divider">
+                        @foreach (['Asha Rao', 'Ben Carter', 'Mei Lin'] as $name)
+                            <li><x-ds::panel-row href="#bleed">{{ $name }}</x-ds::panel-row></li>
+                        @endforeach
+                    </ul>
                 </div>
             </x-ds::panel>
         </div>

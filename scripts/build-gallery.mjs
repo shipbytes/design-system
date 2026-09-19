@@ -370,6 +370,7 @@ table.ref .samp { color: var(--g-ink); font-family: Inter, ui-sans-serif, system
       <a href="#sheet">Sheet</a>
       <a href="#stat-tile">Stat tile</a>
       <a href="#panel">Panel</a>
+      <a href="#bleed">Bleed</a>
       <a href="#table">Table</a>
       <a href="#nav-item">Nav item</a>
       <a href="#in-situ">Together</a>

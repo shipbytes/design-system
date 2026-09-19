@@ -169,14 +169,43 @@
     @foreach ($themes as $t)
         <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
             <div class="flex flex-col gap-4">
+                {{-- Rows pad themselves, and the body is always inset, so a
+                     list without the bleed is inset twice. --}}
                 <x-ds::panel title="Recent reports" action="View all" actionHref="#">
-                    <x-ds::panel-row>Q3 revenue</x-ds::panel-row>
-                    <x-ds::panel-row>Churn by cohort</x-ds::panel-row>
+                    <x-ds::bleed class="divide-y divide-divider">
+                        <x-ds::panel-row>Q3 revenue</x-ds::panel-row>
+                        <x-ds::panel-row>Churn by cohort</x-ds::panel-row>
+                    </x-ds::bleed>
                 </x-ds::panel>
                 <x-ds::panel title="Billing" subtitle="Card ending 4242" icon="credit-card" iconTone="accent" body="plain">
                     Your next invoice is due on 1 October.
                 </x-ds::panel>
             </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── bleed --}}
+{{-- The shape bleed exists for: a toolbar that keeps the inset, and a divided
+     list under it whose rules run to the border. --}}
+<div data-shot="bleed" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <x-ds::panel title="Team" subtitle="Three people" icon="users">
+                <x-ds::input name="q{{ $loop->index }}" placeholder="Filter by name" />
+                <x-ds::bleed class="mt-4 border-t border-divider">
+                    <ul class="divide-y divide-divider">
+                        @foreach ([['Asha Rao', 'Owner'], ['Ben Carter', 'Editor'], ['Mei Lin', 'Viewer']] as [$name, $role])
+                            <li>
+                                <x-ds::panel-row href="#">
+                                    <span class="min-w-0 flex-1 truncate font-medium text-fg">{{ $name }}</span>
+                                    <span class="shrink-0 text-meta text-fg-muted">{{ $role }}</span>
+                                </x-ds::panel-row>
+                            </li>
+                        @endforeach
+                    </ul>
+                </x-ds::bleed>
+            </x-ds::panel>
         </div>
     @endforeach
 </div>

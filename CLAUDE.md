@@ -272,9 +272,9 @@ A consumer's own import should auto-detect; ours must not.
 
 ## State
 
-**Built — 41 components**, plus `ds::pagination` and `ds::simple-pagination`:
+**Built — 42 components**, plus `ds::pagination` and `ds::simple-pagination`:
 
-accordion, accordion-item, alert, avatar, badge, bottom-nav, bottom-nav-item,
+accordion, accordion-item, alert, avatar, badge, bleed, bottom-nav, bottom-nav-item,
 breadcrumb, breadcrumb-item, button, checkbox, combobox, date-picker, drawer,
 dropdown, dropdown-item, empty-state, file-upload, icon, input, modal, nav-item,
 panel, panel-row, radio, radio-group, select, sheet, sheet-item, skeleton,

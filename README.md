@@ -2,7 +2,7 @@
 
 A portable design system for Blade, React, Vue or plain HTML projects.
 
-**41 Blade components**, a spec and a documentation page for each, design tokens
+**42 Blade components**, a spec and a documentation page for each, design tokens
 with light and dark values, and three test suites — including one that drives
 every interactive component in a real browser.
 
@@ -29,7 +29,7 @@ compiled CSS; the install is one `composer require` and three lines of CSS. Add
 — a chart palette reading `tokens.js` rather than repeating hex literals.
 
 **Laravel with Inertia + React?** Take `@shipbytes/react` and skip `blade-ui` —
-41 Blade components you cannot render are not useful. If you have both, Blade
+42 Blade components you cannot render are not useful. If you have both, Blade
 marketing pages and a React app behind login, take both: they share
 `dist/tokens.css`, so the two buttons are the same button. That case is the
 reason this is token-first rather than component-first.
@@ -137,7 +137,9 @@ setting. Nothing to add for that.
 <x-ds::badge tone="success">Active</x-ds::badge>
 
 <x-ds::panel title="Recent activity">
-    <x-ds::panel-row>Signed in</x-ds::panel-row>
+    <x-ds::bleed>
+        <x-ds::panel-row>Signed in</x-ds::panel-row>
+    </x-ds::bleed>
 </x-ds::panel>
 
 <x-ds::input name="email" label="Email address" />
@@ -156,9 +158,9 @@ source, in both themes.
 
 ### What you get
 
-Forty-one components, plus a pagination view.
+Forty-two components, plus a pagination view.
 
-**Layout & content** — `panel` `panel-row` `table` `table-cell` `table-row`
+**Layout & content** — `panel` `panel-row` `bleed` `table` `table-cell` `table-row`
 `stat-tile` `empty-state` `skeleton` `accordion` `accordion-item`
 **Forms** — `input` `select` `combobox` `checkbox` `radio` `radio-group`
 `switch` `date-picker` `file-upload` `button`

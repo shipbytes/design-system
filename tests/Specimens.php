@@ -107,6 +107,18 @@ final class Specimens
                 <x-ds::panel title="Plain" icon="cog" iconTone="neutral" body="plain">Body</x-ds::panel>
                 BLADE,
 
+            // The case bleed exists for: a toolbar that wants the inset and a
+            // divided list, in the same panel, that must reach the border.
+            'bleed/in-a-panel' => <<<'BLADE'
+                <x-ds::panel title="Team" icon="users">
+                    <x-ds::input name="q" placeholder="Filter" />
+                    <x-ds::bleed>
+                        <x-ds::panel-row href="/a">A row</x-ds::panel-row>
+                        <x-ds::panel-row>Another row</x-ds::panel-row>
+                    </x-ds::bleed>
+                </x-ds::panel>
+                BLADE,
+
             'stat-tile/all' => <<<'BLADE'
                 <x-ds::stat-tile href="/revenue" label="Revenue" value="12400" :delta="12" />
                 <x-ds::stat-tile label="Churn" value="2.1" :delta="-4" caption="vs last month" />

@@ -1,6 +1,6 @@
 # Shipbytes Blade UI — documentation
 
-Forty-one Blade components for Laravel, plus two pagination views. Presentation
+Forty-two Blade components for Laravel, plus two pagination views. Presentation
 only: no state, no framework assumptions beyond Blade itself.
 
 **New here?** Start with [Getting started](getting-started.md) — install, three
@@ -30,6 +30,7 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | | |
 |---|---|
 | [Panel](components/panel.md) | Bordered card, with rows or free-form |
+| [Bleed](components/bleed.md) | Lets a list in a panel reach its border |
 | [Table](components/table.md) | Rows of records, scrolling in its own box |
 | [Stat tile](components/stat-tile.md) | One number, with its change |
 | [Accordion](components/accordion.md) | Sections that expand one at a time — needs Alpine |
