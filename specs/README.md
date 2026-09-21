@@ -31,6 +31,7 @@ independent implementations the same component rather than three lookalikes.
 | [stat-tile.md](stat-tile.md) | Metric tile, delta, caption |
 | [table.md](table.md) | Table, row, cell, alignment and density |
 | [nav-item.md](nav-item.md) | Sidebar item, active state, collapsed state, chip |
+| [sub-nav.md](sub-nav.md) | A nav item that opens, its children, the collapsed pop-out |
 | [sheet.md](sheet.md) | Mobile sheet, rows, the three tones |
 | [modal.md](modal.md) | Modal, sizes, the focus contract |
 | [drawer.md](drawer.md) | Edge panel, and which of the three overlays to reach for |
@@ -60,9 +61,16 @@ Sub-components are covered by their parent: `table-cell` and `table-row` in
 table.md, `panel-row` in panel.md, `sheet-item` in sheet.md, `dropdown-item` in
 dropdown.md, `bottom-nav-item` in bottom-nav.md, `breadcrumb-item` in
 breadcrumb.md, `tab` and `tab-panel` in tabs.md, `radio-group` in radio.md, and
-`toast-region` in toast.md.
+`toast-region` in toast.md, and `sub-nav-item` in sub-nav.md.
 
 **Every built component now has a spec.** Specs are written **alongside** their
 implementation, not before it and not after — a speculative spec for a component
 nobody has built yet is fiction, and a component that shipped without one is a
 component whose reasons are already lost.
+
+`sub-nav.md` is the one exception, deliberately. It is the only component
+[nav-item.md](nav-item.md) named before anything was built — *"that is what the
+sub-nav is for"* — so its contract existed in another spec first, and a spec
+written alongside the implementation would have become a description of whatever
+got built rather than the thing the build had to meet. The component is not
+built yet: `sub-nav` appears in no implementation list above.
