@@ -1,4 +1,4 @@
-import { StrictMode, useState } from 'react'
+import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import * as Outline24 from '@heroicons/react/24/outline'
 import * as Solid24 from '@heroicons/react/24/solid'
@@ -26,7 +26,10 @@ import {
   Radio,
   RadioGroup,
   Skeleton,
+  NavItem,
   StatTile,
+  SubNav,
+  SubNavItem,
   Tab,
   TabList,
   TabPanel,
@@ -462,7 +465,138 @@ function Gallery() {
         ))}
       </ToastRegion>
 
+      <Section title="Nav item and sub-nav">
+        <Rail />
+      </Section>
+
       <M3Batch />
+    </div>
+  )
+}
+
+
+/**
+ * The rail, which is the only way to look at a sub-nav honestly: the whole point
+ * of the component is that exactly ONE raised card is drawn across the rail, and
+ * a specimen showing one row cannot show that.
+ */
+function Rail() {
+  // Open state belongs to the shell — the component has no uncontrolled mode.
+  const [open, setOpen] = useState<Record<string, boolean>>({ gate: true, stores: false })
+  const [collapsed, setCollapsed] = useState(false)
+  const [current, setCurrent] = useState('/gate/roll-calls')
+
+  const toggle = (key: string) => setOpen((was) => ({ ...was, [key]: !was[key] }))
+
+  const go = (href: string) => (event: { preventDefault: () => void }) => {
+    event.preventDefault()
+    setCurrent(href)
+  }
+
+  return (
+    <div className="flex w-full flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button variant="secondary" onClick={() => setCollapsed((v) => !v)}>
+          {collapsed ? 'Expand the rail' : 'Collapse the rail'}
+        </Button>
+        <p className="text-meta text-fg-muted">
+          Currently on <span className="font-medium text-fg">{current}</span>. Lists are not exclusive — open both.
+        </p>
+      </div>
+
+      <nav className={collapsed ? 'w-14' : 'w-64'}>
+        <ul className="flex flex-col gap-0.5 rounded-panel border border-border bg-surface-subtle p-2">
+          <li>
+            <NavItem
+              href="/"
+              label="Dashboard"
+              active={current === '/'}
+              collapsed={collapsed}
+              onClick={() => setCurrent('/')}
+              icon={<Icon name="home" size={5} />}
+            />
+          </li>
+
+          <SubNav
+            label="Gate"
+            href="/gate"
+            ownPageLabel="Gate dashboard"
+            icon={<Icon name="shield-check" size={5} />}
+            count={3}
+            collapsed={collapsed}
+            active={current === '/gate'}
+            open={open.gate ?? false}
+            onOpenChange={() => toggle('gate')}
+            onClick={() => setCurrent('/gate')}
+          >
+            <SubNavItem
+              label="Shift handovers"
+              href="/gate/handovers"
+              active={current === '/gate/handovers'}
+              onClick={() => setCurrent('/gate/handovers')}
+            />
+            <SubNavItem
+              label="Guards on gates"
+              href="/gate/guards"
+              active={current === '/gate/guards'}
+              onClick={() => setCurrent('/gate/guards')}
+            />
+            <SubNavItem
+              label="Roll calls"
+              href="/gate/roll-calls"
+              count={12}
+              active={current === '/gate/roll-calls'}
+              onClick={() => setCurrent('/gate/roll-calls')}
+            />
+            <SubNavItem
+              label="Person in"
+              href="/gate/persons"
+              active={current === '/gate/persons'}
+              onClick={() => setCurrent('/gate/persons')}
+            />
+          </SubNav>
+
+          <SubNav
+            label="Stores"
+            href="/stores"
+            ownPageLabel="Stores dashboard"
+            icon={<Icon name="cube" size={5} />}
+            collapsed={collapsed}
+            active={current === '/stores'}
+            open={open.stores ?? false}
+            onOpenChange={() => toggle('stores')}
+            onClick={() => setCurrent('/stores')}
+          >
+            <SubNavItem
+              label="Goods receipt"
+              href="/stores/grn"
+              active={current === '/stores/grn'}
+              onClick={() => setCurrent('/stores/grn')}
+            />
+            <SubNavItem
+              label="Issues"
+              href="/stores/issues"
+              active={current === '/stores/issues'}
+              onClick={() => setCurrent('/stores/issues')}
+            />
+          </SubNav>
+
+          {/* A parent with no children: a plain row, and no arrow at all. */}
+          <SubNav
+            label="Reports"
+            href="/reports"
+            icon={<Icon name="chart-bar" size={5} />}
+            collapsed={collapsed}
+            active={current === '/reports'}
+            open={false}
+            onOpenChange={() => {}}
+            onClick={() => setCurrent('/reports')}
+          />
+        </ul>
+      </nav>
+
+      {/* `go` exists only so the playground's hrefs do not navigate away. */}
+      <p className="hidden">{String(go)}</p>
     </div>
   )
 }
@@ -470,8 +604,22 @@ function Gallery() {
 function App() {
   const [dark, setDark] = useState(false)
 
+  /*
+   * On `<html>`, not on a wrapper div, because that is the consumer contract —
+   * and because an overlay is PORTALLED to `document.body` and so is outside any
+   * wrapper. With the class on a div, every portalled surface in this package
+   * (dropdown, combobox, date picker, the sub-nav's pop-out) rendered in light
+   * colours over a dark page, and the playground could not be used to check the
+   * one thing it exists for.
+   */
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark)
+
+    return () => document.documentElement.classList.remove('dark')
+  }, [dark])
+
   return (
-    <div className={dark ? 'dark' : ''}>
+    <div>
       <div className="min-h-dvh bg-ground text-fg-body">
         <div className="flex items-center justify-between border-b border-border px-8 py-4">
           <h1 className="text-page text-fg">@shipbytes/react</h1>

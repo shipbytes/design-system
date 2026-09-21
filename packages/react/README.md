@@ -309,3 +309,57 @@ dashboard.
   radios (a switch is for an instant effect, and submitting a requisition is
   not), the selects remain short native lists, and guidance is still help text
   under a control.
+
+### Notes from the sub-nav batch
+
+One component, for a rail with twenty-three entries at one level, four of which
+were pages *inside* a fifth.
+
+- **The parent row is `NavItem`'s recipe, not a second copy of it.**
+  `specs/sub-nav.md` requires this in as many words, and `src/nav-item/row.tsx`
+  is where it now lives: `navRow()` for the classes, `NavRowBody` for the icon,
+  the count in both of its shapes, the label and the slot. `NavItem` renders
+  exactly what it did — its fourteen tests are unchanged and still pass — and
+  the sub-nav asks for the same two. The failure this prevents is the one the
+  Blade rail already had once: twenty-nine nav items across two forked sidebar
+  files, where every fix has to be made twice and several have not been. Two
+  rails that merely resemble each other is that bug at component scale, and it
+  stays invisible until one of them gets the next fix.
+- **A link and a button are siblings, and the container draws the card.** A
+  `<button>` inside an `<a>` is invalid and the browser gives the inner control
+  no reliable keyboard behaviour, so the row is a container holding two targets.
+  That is why `navRow` has a `part`: `whole` for a one-element row, `card` for a
+  container that draws only the card, `press` for a control inside one that
+  carries the padding and its own hover fill. Neither target lights the other —
+  two targets that highlight as one are one target as far as the reader can tell.
+- **The 8px between the two targets is the link's padding, not the row's gap.**
+  A press in the gap therefore lands on the link. Every pixel of doubt goes
+  there, because a mis-press on the link opens a page the reader asked for and a
+  mis-press on the arrow changes the shape of the rail under their hand. The
+  arrow's box grows to 44×44 under `pointer-coarse` and the row grows with it —
+  measured in a browser at 46px tall, with the arrow's left edge exactly on the
+  link's right edge and never inside it.
+- **The pop-out is this component's own panel, not a `Dropdown`.**
+  `specs/dropdown.md` forbids a menu for navigation between pages, `role="menu"`
+  promises arrow-key roving over what are destinations rather than verbs, and a
+  menu item has no notion of a current page. So `Dropdown` and `dropdown.md` are
+  untouched; what the panel takes from that spec — focus into the first row,
+  focus back to the icon, Escape, Tab closes, an outside press that names its own
+  nodes — is cited rather than redesigned. It rides on `lib/popover.tsx`, which
+  has taken `right-start` since known gap 1 was closed.
+- **The indent is on the list, not in the row.** `ps-8` on the `<ul>` plus the
+  row's own `px-2` puts a child's label at 40px — on the parent's label, which is
+  where `px-2` + a 20px icon + `gap-3` puts it. Putting the whole 40px inside the
+  row instead draws the current child's card at full rail width, and the spec
+  draws it "smaller and indented". That one was invisible in the source and
+  obvious in a screenshot, which is the repo's oldest lesson.
+- **`Children.toArray` does not traverse a fragment.** It flattens nested arrays
+  and nothing else, so `<SubNav><>…four rows…</></SubNav>` counted as one child:
+  the arrow was drawn for a list of one and the collapsed dot never appeared,
+  because a fragment has no `active` prop. A `.map()` happens to work, which is
+  exactly what would have kept it hidden. `childRows()` flattens fragments.
+- **The playground's dark toggle moved to `<html>`.** It was a class on a wrapper
+  `<div>`, and a portalled overlay is a child of `document.body` — outside it. So
+  every portalled surface in this package rendered in light colours over a dark
+  page, and the one thing the playground exists for could not be checked. It is
+  also what the consumer contract says.

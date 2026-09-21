@@ -84,6 +84,18 @@ export type { DrawerProps, DrawerSide, DrawerSize } from './drawer'
 export { NavItem } from './nav-item'
 export type { NavItemProps } from './nav-item'
 
+/*
+ * The nav row's look, in one place. `NavItem` and `SubNav`'s parent row both
+ * draw it — specs/sub-nav.md requires that it come from one recipe rather than
+ * a second copy that drifts — and it is exported so a shell building a rail
+ * affordance the package does not have can line up with the rows beside it.
+ */
+export { countLabel, navRow, navRowBase, navRowCard, navRowHover, navRowResting, NavRowBody } from './nav-item'
+export type { NavRowBodyProps, NavRowOptions, NavRowPart } from './nav-item'
+
+export { SubNav, SubNavItem } from './sub-nav'
+export type { SubNavItemProps, SubNavProps } from './sub-nav'
+
 export { Tooltip } from './tooltip'
 export type { TooltipPlacement, TooltipProps } from './tooltip'
 
