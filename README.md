@@ -39,6 +39,8 @@ reason this is token-first rather than component-first.
 
 ## Start here
 
+**Documentation with screenshots, a page per component, the tokens and the specs: [shipbytes.dev/docs/design-system](https://shipbytes.dev/docs/design-system).** The same pages are the Markdown below, rendered.
+
 | | |
 |---|---|
 | **[docs/getting-started.md](docs/getting-started.md)** | Install, three lines of CSS, dark mode, Alpine |
