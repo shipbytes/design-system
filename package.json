@@ -2,6 +2,7 @@
   "name": "@shipbytes/design-tokens",
   "version": "0.1.0",
   "description": "Design tokens for the Shipbytes dashboard system — CSS custom properties, a Tailwind v4 theme, and JS values. Framework-agnostic: Blade, React, Vue and plain HTML all consume the same files.",
+  "homepage": "https://shipbytes.dev/docs/design-system",
   "license": "MIT",
   "type": "module",
   "files": [
