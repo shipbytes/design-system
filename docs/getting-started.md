@@ -46,6 +46,32 @@ If your components render but look like nothing, this line is missing.
 > `theme.css` brings its own `@custom-variant dark`, so you do not need to
 > declare dark mode yourself. Three imports, not four.
 
+### Fonts
+
+The system's one typeface is **Inter** (`--font-sans`), and the package does
+not ship the webfont: load it yourself, at weights 400, 500 and 600. In a
+layout's `head`, for example:
+
+```html
+<link rel="preconnect" href="https://fonts.bunny.net">
+<link href="https://fonts.bunny.net/css?family=inter:400,500,600&display=swap" rel="stylesheet">
+```
+
+**A new Laravel 12 app overrides it.** The skeleton's `resources/css/app.css`
+ends with this block:
+
+```css
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}
+```
+
+Coming after the three lines above, it wins over the system's `--font-sans`,
+and since nothing loads Instrument Sans either, every page silently falls back
+to the system font. **Delete that block** (or move it above the imports if you
+really want Instrument Sans, and load that font yourself).
+
 ## 3. Use a component
 
 ```blade
@@ -257,7 +283,9 @@ Nothing changes. The components hold no state, so they work the same inside a
 Livewire component as in a plain view — `wire:model` on a field, `wire:click` on
 a button, `@entangle` for a modal's open state. Two small courtesies are built
 in: `panel` passes `wire:navigate` through to its header link, and `stat-tile`
-re-runs its count-up after a Livewire page swap.
+re-runs its count-up after a Livewire page swap. For pagination inside a
+component there are Livewire variants of the two views; see
+[pagination](components/pagination.md#with-livewire).
 
 Neither costs anything when Livewire is not installed.
 
@@ -274,6 +302,11 @@ public function boot(): void
     Paginator::defaultSimpleView('ds::simple-pagination');
 }
 ```
+
+Inside a Livewire component that uses `WithPagination`, return
+`ds::pagination-livewire` from its `paginationView()` instead: Livewire replaces
+the default view while it renders, and the plain view's links would reload the
+page. See [pagination](components/pagination.md#with-livewire).
 
 ## Passing your own classes
 

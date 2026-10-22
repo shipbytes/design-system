@@ -44,6 +44,11 @@
                 <x-ds::button :disabled="true">Disabled</x-ds::button>
                 <x-ds::button iconOnly aria-label="Settings"><x-ds::icon name="cog" /></x-ds::button>
             </div>
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+                <x-ds::button variant="secondary" size="sm">Save photo</x-ds::button>
+                <x-ds::button variant="ghost" size="sm" tone="danger">Remove</x-ds::button>
+                <x-ds::button variant="secondary" tone="danger">Revoke access</x-ds::button>
+            </div>
         </div>
     @endforeach
 </div>
@@ -121,7 +126,24 @@
                 <x-ds::input name="a2" label="Search" icon="magnifying-glass" placeholder="Find a report" />
                 <x-ds::input name="a3" label="Email" value="not-an-email" error="That address is not valid." />
                 <x-ds::input name="a4" label="Notes" help="Visible to your team." />
+                <x-ds::input name="a5" label="Email" value="ada@example.com" readonly help="The address this reset link was sent to." />
             </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── pagination --}}
+{{-- Wide: the count and the controls share one row from the sm breakpoint up,
+     and at 500px a side they would collide. --}}
+<div data-shot="pagination" class="shot shot-wide">
+    @php
+        $pages = (new \Illuminate\Pagination\LengthAwarePaginator(range(1, 15), 237, 15, 8, ['path' => '/reports']))->onEachSide(1);
+        $simple = new \Illuminate\Pagination\Paginator(range(1, 16), 15, 2, ['path' => '/reports']);
+    @endphp
+    @foreach ($themes as $t)
+        <div class="pane bg-surface-sunken {{ $t }}">
+            {{ $pages->links('ds::pagination') }}
+            <div class="mt-5">{{ $simple->links('ds::simple-pagination') }}</div>
         </div>
     @endforeach
 </div>

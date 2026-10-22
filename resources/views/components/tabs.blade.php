@@ -10,7 +10,7 @@
      * screen reader that arrow keys move between tabs and that the content
      * changes in place. Put that role on a row of page links and the promise is
      * false in both halves: arrow keys do nothing, and following one navigates
-     * away. Links get a <nav>, which is what they are.
+     * away. Links get a `nav` landmark, which is what they are.
      */
     'navigation' => false,
 ])

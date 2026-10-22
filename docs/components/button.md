@@ -17,6 +17,7 @@ Does something, or goes somewhere.
 | Prop | Type | Default | What it does |
 |---|---|---|---|
 | `variant` | `primary` `secondary` `ghost` `danger` | `primary` | How loud it is. |
+| `tone` | `neutral` `danger` | `neutral` | Red text on a `ghost` or `secondary`. Ignored by `primary` and `danger`. |
 | `size` | `sm` `md` `lg` `fab` | `md` | See sizes below. |
 | `href` | string | — | Renders an `<a>` instead of a `<button>`. |
 | `iconOnly` | bool | `false` | Square, no label. Needs `aria-label`. |
@@ -27,7 +28,7 @@ Does something, or goes somewhere.
 Anything else you pass — `type`, `wire:click`, `@click`, `class` — goes straight
 through to the element.
 
-> **`variant` and `size` resolve to classes on the server.** They are chosen when the view
+> **`variant`, `size` and `tone` resolve to classes on the server.** They are chosen when the view
 > renders, so binding either to Alpine state does nothing — `::variant="…"` sets an
 > attribute nothing reads. To change one in the browser, bind the classes yourself
 > with Alpine's **object** syntax, or re-render server-side. See
@@ -37,6 +38,23 @@ through to the element.
 
 Exactly **one `primary` per view.** If two things are equally important, neither
 is primary. `danger` is for destroying something, not for anything urgent.
+
+## Danger tone
+
+A filled red button is right for the confirm step of something destructive. It
+is wrong for a small destructive control that sits beside an ordinary one, where
+it shouts over the action the form is for. Give a `ghost` or `secondary` the
+danger tone instead: red text, a red wash on hover, and the same box as its
+neutral sibling, so the row stays aligned.
+
+```blade
+<x-ds::button variant="secondary" size="sm" wire:click="savePhoto">Save photo</x-ds::button>
+<x-ds::button variant="ghost" size="sm" tone="danger"
+    wire:click="deletePhoto" wire:confirm="Remove your photo?">Remove</x-ds::button>
+```
+
+`primary` and `danger` ignore `tone`: one is the page's action and the other is
+already red.
 
 ## Sizes
 
@@ -99,6 +117,10 @@ a refusal.
   intercepts its own navigation breaks the browser's affordances.
 - **Don't put two primaries side by side.**
 - **Don't use `danger` for "important".** It means destructive.
+- **Don't put more than one danger-toned control in a group.** Red is the
+  signal; two of them side by side and neither reads as the dangerous one.
+- **Don't paint a ghost red with `class="text-danger"`.** Its hover would still
+  be the neutral grey wash; `tone="danger"` changes both.
 - **Don't omit `aria-label` on `iconOnly`.** It is the entire accessible name.
 
 The reasoning behind the sizes and the padding maths is in

@@ -13,7 +13,7 @@
 @endphp
 
 {{--
-    A fieldset with a legend, and not a <div> with a heading.
+    A fieldset with a legend, and not a `div` with a heading.
 
     A radio on its own announces its own label and nothing else, so "Monthly" is
     read without ever saying what is being chosen. The legend is what a screen

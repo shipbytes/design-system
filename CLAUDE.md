@@ -34,7 +34,8 @@ package.json      @shipbytes/design-tokens   Composer reads composer.json from
 
 src/              the service provider
 config/           blade-ui.php — icon aliases, default icon size
-resources/views/  the Blade components + the two pagination views
+resources/views/  the Blade components + the two pagination views and
+                  their two Livewire variants
                   (everything here SHIPS to consumers — keep it lean)
 
 tokens/           DTCG source. The only files edited by hand.
@@ -73,7 +74,9 @@ collisions. No Blade involved.
 **Render** (`test-render.mjs`) — boots Laravel, renders every component in
 `tests/Specimens.php`, and asserts every class it emits has a rule in CSS
 compiled the way a *consumer* compiles it. Also enforces that every component
-appears in the gallery, in the docs specimens, and has a documentation page.
+appears in the gallery, in the docs specimens, and has a documentation page,
+and renders every specimen a second time inside a Livewire component to catch a
+morph marker landing inside a tag (see Traps).
 
 **Behaviour** (`test-behaviour.mjs`) — drives every interactive component in a
 real browser with real Alpine: focus traps, arrow keys, what the form actually
@@ -181,6 +184,21 @@ and the file stopped making sense — the error was "Undefined variable $compone
 pointing at a compiled file in storage, naming nothing. **Never write a component
 tag in a comment.** Write `ds::tab-panel` without the angle brackets.
 
+**Livewire reads comments too, and a plain HTML tag in one is enough.** Livewire
+4 wraps every `@if` and `@foreach` in `<!--[if BLOCK]>` markers and skips one
+that sits inside an opening tag, deciding that by looking back through the RAW
+template for the nearest `<` that starts a tag. The button's attribute bag
+carried the comment "A bare `<button>` defaults to type=submit"; that literal
+became the nearest `<` before `@if ($disabled || $loading)`, so Livewire judged
+the `@if` to be outside the tag and put a marker INSIDE the real button. Every
+`ds::button` in every consumer running Livewire rendered as "> Save", with the
+`>` in its accessible name, and clicks still worked. A plain-Blade render shows
+nothing, because the markers only exist while Livewire is rendering a component.
+**Never write any tag with angle brackets in a component's comments**, HTML or
+Blade: write "a bare button element", the `nav` landmark. `LivewireMarkersTest`
+renders every specimen inside a Livewire component and fails on a marker inside
+a tag; it is the one test that boots Livewire, which stays a dev dependency.
+
 **A Blade DIRECTIVE inside a component tag's attribute is not compiled at the
 call site.** `<x-ds::icon x-show="v === @js($option['value'])">` inside a
 `@foreach` hands the directive to the CHILD as a literal string, where it is
@@ -235,7 +253,11 @@ A consumer's own import should auto-detect; ours must not.
 - **Presentation only.** No Livewire, no Alpine, no state, no framework
   assumptions beyond Blade. Anything reactive is passed in by the host through
   attributes. This is what keeps the same markup usable from plain Blade, a
-  Livewire component, or a Volt page.
+  Livewire component, or a Volt page. The ONE deliberate exception is the
+  pagination views' opt-in Livewire mode (`ds::pagination-livewire`,
+  `ds::simple-pagination-livewire`), which emits `wire:click`, because
+  Livewire's `WithPagination` replaces the default view and a link would reload
+  the page. Livewire stays a dev dependency, used only by the tests.
 - **A component is not done until SEVEN things exist.** In the same commit
   series, not as follow-up work:
   1. the component in `resources/views/components/`
@@ -265,7 +287,8 @@ A consumer's own import should auto-detect; ours must not.
 
 ## State
 
-**Built — 41 components**, plus `ds::pagination` and `ds::simple-pagination`:
+**Built — 41 components**, plus `ds::pagination` and `ds::simple-pagination`
+(and their `-livewire` variants):
 
 accordion, accordion-item, alert, avatar, badge, bottom-nav, bottom-nav-item,
 breadcrumb, breadcrumb-item, button, checkbox, combobox, date-picker, drawer,
@@ -283,7 +306,7 @@ three lines of CSS, every component rendering styled in light and dark.
 accordion, file-upload, tooltip — always. Plus
 ONE optional prop each on checkbox (`indeterminate`), nav-item (`collapsedWhen`)
 and toast (`dismiss`). Everything else is plain Blade and CSS, and nothing
-anywhere needs Livewire.
+anywhere needs Livewire; the pagination views' Livewire variants are opt-in.
 
 The alert's dismiss used to be Alpine's `@click` and is now a plain `onclick`:
 nothing else in that component needs JavaScript, and with `@click` the ✕

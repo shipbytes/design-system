@@ -44,7 +44,7 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Bottom nav](components/bottom-nav.md) | The phone's primary navigation |
 | [Tabs](components/tabs.md) | One row, several views |
 | [Breadcrumb](components/breadcrumb.md) | Where this page sits |
-| [Pagination](components/pagination.md) | Two Laravel paginator views |
+| [Pagination](components/pagination.md) | Two Laravel paginator views, each with a Livewire variant |
 
 ### Overlays
 
@@ -78,10 +78,11 @@ if one is broken, the gallery is broken too.
 
 **No Livewire, ever.** The package requires `php`, `illuminate/support`,
 `illuminate/view` and `blade-heroicons` — nothing else. Everything works in a
-plain Blade view.
+plain Blade view. The one opt-in exception is the pagination views' Livewire
+variants, which emit `wire:click` for a component that uses `WithPagination`.
 
 [Alpine](https://alpinejs.dev) — a single 15 kB script, not a framework — is
-needed by six components, and by four optional props:
+needed by ten components, and by three optional props:
 
 | | Needs Alpine |
 |---|---|

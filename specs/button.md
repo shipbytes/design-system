@@ -29,6 +29,23 @@ always the same. This is that intent, written once.
 **One primary per view.** The studio header has five actions and exactly one is
 filled. If two things look primary, neither is.
 
+### Tone
+
+`tone` is `neutral` (default) or `danger`, and only `ghost` and `secondary`
+honour it. It is for a quiet destructive control beside an ordinary one, a
+"Remove photo" next to "Save photo", where a filled `danger` would outshout the
+action the form exists for.
+
+| Variant + tone | Fill | Label | Border | Hover |
+|---|---|---|---|---|
+| `ghost` + `danger` | transparent | `danger` | transparent | `danger-wash` fill, label `on-danger-tint` |
+| `secondary` + `danger` | `surface` | `danger` | `border` + `shadow-raised` | `danger-wash` fill, label `on-danger-tint` |
+
+The hovered label darkens because `danger` on `danger-wash` is 4.36:1, under AA;
+`on-danger-tint` on the wash is 5.88:1 (6.59 in dark), the same pairing the
+danger alert uses. Both pairs are in `test-tokens.mjs`. `primary` and `danger`
+ignore the prop.
+
 ## Sizes
 
 | Size | Height | Padding | Type | Use |
@@ -78,5 +95,7 @@ Square: width equals the size's height. Always needs an accessible name —
 
 - Reach for `<x-primary-button>`. It is untouched Breeze — grey, uppercase,
   letter-spaced — and clashes with everything here. It gets deleted.
+- Put two danger-toned controls in one group. The red is the signal that one
+  of them destroys something; two of them and neither says which.
 - Add a shadow to `primary`. Filled buttons on this system are flat; only
   `secondary` carries `shadow-raised`, to lift it off the card.

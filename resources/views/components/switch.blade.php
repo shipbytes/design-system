@@ -78,7 +78,7 @@
         />
 
         {{-- The knob is a sibling rather than a pseudo-element: ::before does not
-             render on an <input> in every browser, and finding that out means
+             render on an `input` in every browser, and finding that out means
              finding it in the one browser that does not. --}}
         <span
             class="pointer-events-none absolute top-1 left-0.5 size-4 rounded-full bg-white shadow-raised transition-transform peer-checked:translate-x-4"

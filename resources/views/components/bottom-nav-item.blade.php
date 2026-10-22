@@ -20,7 +20,7 @@
         'text-fg-muted' => ! $active,
     ]) }}
 >
-    {{-- The fill has to land on the <svg> ITSELF, not this wrapper. `fill` is an
+    {{-- The fill has to land on the `svg` element ITSELF, not this wrapper. `fill` is an
          inherited SVG property, but the icons carry fill="currentColor" as a
          presentation attribute, and that beats inheritance — so a fill set here
          is ignored and the icon silently takes the link's text colour instead.

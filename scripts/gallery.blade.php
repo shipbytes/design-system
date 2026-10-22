@@ -33,6 +33,19 @@
     </div>
 
     <div class="{{ $plate }}">
+        <div class="ds-plate-label">Danger tone <span>&middot; ghost and secondary only &middot; a quiet destructive control beside an ordinary one</span></div>
+        <div class="{{ $row }}">
+            <x-ds::button variant="secondary" size="sm">Save photo</x-ds::button>
+            <x-ds::button variant="ghost" size="sm" tone="danger">Remove</x-ds::button>
+            <x-ds::button variant="secondary" tone="danger">Revoke access</x-ds::button>
+            <x-ds::button variant="ghost" tone="danger">
+                <x-ds::icon name="trash" />
+                Delete draft
+            </x-ds::button>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
         <div class="ds-plate-label">Sizes <span>&middot; sm 32px &middot; md 36px at the sm breakpoint, 44px below it &middot; lg 44px</span></div>
         <div class="{{ $row }}">
             <x-ds::button size="sm">Small</x-ds::button>
@@ -174,6 +187,7 @@
             <x-ds::input label="Project name" name="b" value="Q3 site redesign" />
             <x-ds::input label="Project name" name="c" value="ab" error="Name must be at least 3 characters." />
             <x-ds::input label="Locked while exporting" name="d" value="Senior Product Designer" :disabled="true" />
+            <x-ds::input label="Email (readonly: focusable, copyable, submitted)" name="d2" value="ada@example.com" readonly />
         </div>
     </div>
 
@@ -377,6 +391,34 @@
                 </x-ds::table-row>
             </x-ds::table>
         </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Pagination --}}
+<section class="ds-spec" id="pagination">
+    <header class="ds-spec-head">
+        <h2>Pagination</h2>
+        <p>Two paginator views, rendered here through links() on real paginators. The Livewire variants render the same row with buttons that call the component.</p>
+    </header>
+
+    @php
+        $pages = (new \Illuminate\Pagination\LengthAwarePaginator(range(1, 15), 237, 15, 8, ['path' => '#pagination']))->onEachSide(1);
+        $simple = new \Illuminate\Pagination\Paginator(range(1, 16), 15, 2, ['path' => '#pagination']);
+    @endphp
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">ds::pagination <span>&middot; page 8 of 16 &middot; the current page is elevation, not colour</span></div>
+        {{ $pages->links('ds::pagination') }}
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">ds::pagination-livewire <span>&middot; identical, with buttons calling gotoPage / previousPage / nextPage</span></div>
+        {{ $pages->links('ds::pagination-livewire', ['scrollTo' => false]) }}
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">ds::simple-pagination <span>&middot; no position, because a simple paginator never counts</span></div>
+        {{ $simple->links('ds::simple-pagination') }}
     </div>
 </section>
 

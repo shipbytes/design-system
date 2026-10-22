@@ -27,6 +27,7 @@ A text field, a textarea, or a native select. One component, three shapes.
 | `icon` | string | — | Heroicon inside the control, before the value. |
 | `rows` | int | `3` | Textarea only. |
 | `disabled` | bool | `false` | |
+| `readonly` | attribute | — | Not a prop: pass it like any HTML attribute. The field looks fixed (subtle fill, muted text, no hover) but stays focusable and is submitted. Ignored for `as="select"`, as the browser ignores it there. |
 
 `name`, `value`, `placeholder`, `required`, `wire:model` and anything else pass
 straight through to the control.
@@ -53,6 +54,20 @@ returns `null` when the field is clean, so `help` shows until it doesn't.
 The label needs a `for` and the help text needs an `aria-describedby`, so the
 component generates a stable id per field. Pass your own `id` when something
 outside needs to point at the control.
+
+## Readonly is not disabled
+
+A value the user should see, copy and send but not change, such as the email a
+password-reset link was sent to, is `readonly`:
+
+```blade
+<x-ds::input name="email" label="Email" type="email" :value="$email" readonly />
+```
+
+It looks fixed, with the subtle fill and muted text, and no hover border, so it
+does not invite typing. Unlike `disabled` it stays in the tab order, its text can
+be selected, and it is **submitted with the form**. A disabled field is left out
+of the request entirely, which is how a reset form ends up posting no email.
 
 ## The select here is the native one
 

@@ -1,6 +1,6 @@
 @props([
     /**
-     * The landmark's name. A page usually carries more than one <nav>, and
+     * The landmark's name. A page usually carries more than one `nav` landmark, and
      * unlabelled ones are indistinguishable in a screen reader's landmark list.
      */
     'label' => 'Breadcrumb',

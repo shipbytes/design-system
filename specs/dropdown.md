@@ -31,7 +31,7 @@ component to build a form control produces a control that submits nothing.
 | Corner | `radius-control` | 8px, not `panel`. It is the size of a control and reads as attached to one. |
 | Elevation | `shadow-float` | **Not `overlay`.** The token descriptions carry the distinction: `float` is "things that float over the page on demand — dropdowns, popovers"; `overlay` is "modal panels only — the one surface that blocks the page behind it". A dropdown does not block the page, and the shadow is where the system says so. |
 | Item hover | `surface-subtle` | The same row-hover fill the table and the sheet use. |
-| Danger item | `danger-wash` | A wash, not a tint. At full row width a tint reads as shouting — the same argument [color.md](color.md) makes for the alert. |
+| Danger item | `danger-wash` | A wash, not a tint. At full row width a tint reads as shouting — the same argument [color.md](color.md) makes for the alert. The label darkens to `on-danger-tint` on it: `danger` on the wash is 4.36:1, under AA. |
 
 Minimum width `min-w-52` (208px), no maximum. Item labels truncate rather than
 wrap: a menu that reflows to two lines stops looking like a list of choices.

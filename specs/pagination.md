@@ -14,9 +14,9 @@ hand-written `dark:` classes that assume a palette this system does not use. In
 the source app it was rendering on 19 screens and nobody had noticed, because
 local seed data never fills a second page.
 
-That is also why this is covered by a **test** rather than by the screenshot
-harness: the harness can only photograph what a running page renders, and no
-page in development renders pagination at all.
+That is also why it is covered by **specimens** that build a real paginator
+(`pagination/links`, `pagination/livewire` in `tests/Specimens.php`): no page in
+development renders pagination at all, so nothing else would.
 
 ## Anatomy
 
@@ -61,6 +61,27 @@ fill would have to be redefined against a dark ground.
 paginator never runs a COUNT query — that is the entire point of it — so it
 knows neither the total nor the last page, and there is nothing truthful to
 show.
+
+## Livewire mode
+
+Livewire's `WithPagination` swaps `Paginator::$defaultView` for its own view
+while a component renders, and a plain link would reload the page and drop the
+component's state. So each view takes an optional `$livewire` (default `false`)
+and two thin views, `ds::pagination-livewire` and
+`ds::simple-pagination-livewire`, `@include` the base with it set. A component
+opts in through `paginationView()` / `paginationSimpleView()`.
+
+In that mode every control that was an `a` becomes a `button type="button"`
+with `wire:click` calling `previousPage('<pageName>')`, `nextPage(...)` or
+`gotoPage(N, '<pageName>')`, `wire:loading.attr="disabled"`, and a `wire:key`
+per control. Same classes, same disabled spans, same ARIA, so the two modes
+look identical. It also honours Livewire's `scrollTo` view data (default
+`body`, `false` to disable), because a host moving from Livewire's own views
+would otherwise lose the scroll-to-top without noticing.
+
+This is the one place the package emits `wire:` directives. It is opt-in and
+the attributes are inert without Livewire, so the package still depends on
+nothing but Blade.
 
 ## Do not
 

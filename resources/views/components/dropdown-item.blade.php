@@ -1,7 +1,7 @@
 @props([
     /** Heroicon name for the leading mark. Optional — a menu of plain verbs is fine. */
     'icon' => null,
-    /** Navigates. Anything that goes somewhere should be an <a>, not a button. */
+    /** Navigates. Anything that goes somewhere should be an `a` element, not a button. */
     'href' => null,
     /**
      * neutral | danger
@@ -19,12 +19,13 @@
 @php
     $tones = [
         'neutral' => 'text-fg-body hover:bg-surface-subtle hover:text-fg',
-        'danger' => 'text-danger hover:bg-danger-wash',
+        // The label darkens on the wash: `danger` on it is 4.36:1, under AA.
+        'danger' => 'text-danger hover:bg-danger-wash hover:text-on-danger-tint',
     ];
 
     $tone = array_key_exists($tone, $tones) ? $tone : 'neutral';
 
-    // A disabled item is a <div>: a disabled <a> is still focusable and still
+    // A disabled item is a `div`: a disabled `a` is still focusable and still
     // followable by keyboard, so the only reliable way to stop it going
     // anywhere is for it not to be a link at all.
     $tag = $as ?? (($href && ! $disabled) ? 'a' : 'button');
@@ -37,7 +38,7 @@
         'focus-visible:outline-hidden',
         $disabled
             ? 'cursor-not-allowed text-fg-subtle'
-            : $tones[$tone].' '.($tone === 'danger' ? 'focus-visible:bg-danger-wash' : 'focus-visible:bg-surface-subtle'),
+            : $tones[$tone].' '.($tone === 'danger' ? 'focus-visible:bg-danger-wash focus-visible:text-on-danger-tint' : 'focus-visible:bg-surface-subtle'),
     ]);
 @endphp
 

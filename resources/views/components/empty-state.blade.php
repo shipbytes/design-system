@@ -20,7 +20,7 @@
      * so passing buttons there is the reasonable guess — and an anonymous
      * component simply drops content it never renders. No error, no button,
      * HTTP 200, an empty state with the one control that would fix the emptiness
-     * silently missing. That is the same shape as the <x-slot:head> a table
+     * silently missing. That is the same shape as the `x-slot:head` a table
      * never rendered.
      *
      * So it is refused rather than ignored. `bare` is the only thing here that

@@ -82,7 +82,7 @@
     @endif
 
     {{-- The value posts through hidden inputs, so this submits in a plain form
-         exactly like a <select>.
+         exactly like a native `select`.
 
          The single case is ONE static input, rendered by PHP and bound for
          Alpine, so the field still posts the current value in a host where the

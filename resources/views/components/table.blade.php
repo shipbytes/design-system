@@ -5,7 +5,7 @@
      * An empty label renders a header cell with no text — for an actions column
      * that still needs its width reserved.
      *
-     * Omit entirely and supply your own <thead> in the slot.
+     * Omit entirely and supply your own `thead` in the slot.
      */
     'columns' => null,
 ])

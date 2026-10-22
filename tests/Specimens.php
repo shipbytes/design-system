@@ -23,6 +23,13 @@ final class Specimens
                 <x-ds::button variant="ghost">Dismiss</x-ds::button>
                 <x-ds::button variant="danger">Delete</x-ds::button>
                 BLADE,
+            'button/tones' => <<<'BLADE'
+                <x-ds::button variant="ghost" tone="danger">Remove</x-ds::button>
+                <x-ds::button variant="secondary" tone="danger">Revoke</x-ds::button>
+                <x-ds::button variant="ghost" size="sm" tone="danger">Remove</x-ds::button>
+                <x-ds::button variant="primary" tone="danger">Ignored on primary</x-ds::button>
+                <x-ds::button variant="ghost" tone="neutral">Neutral</x-ds::button>
+                BLADE,
             'button/sizes' => <<<'BLADE'
                 <x-ds::button size="sm">Small</x-ds::button>
                 <x-ds::button size="md">Medium</x-ds::button>
@@ -39,6 +46,31 @@ final class Specimens
                 <x-ds::button iconOnly aria-label="Settings">
                     <x-ds::icon name="cog" />
                 </x-ds::button>
+                BLADE,
+
+            /*
+             * Pagination is a pair of views, not components, so these render
+             * them the way Laravel does: through links() on a real paginator.
+             * Page 4 of 16 gives every control at once, both arrows, the
+             * ellipsis and numbered pages. The Livewire views are here so the
+             * marker check covers them like everything else.
+             */
+            'pagination/links' => <<<'BLADE'
+                @php
+                    $paginator = new \Illuminate\Pagination\LengthAwarePaginator(range(1, 15), 237, 15, 4, ['path' => '/reports']);
+                    $simple = new \Illuminate\Pagination\Paginator(range(1, 16), 15, 2, ['path' => '/reports']);
+                @endphp
+                {{ $paginator->links('ds::pagination') }}
+                {{ $simple->links('ds::simple-pagination') }}
+                BLADE,
+            'pagination/livewire' => <<<'BLADE'
+                @php
+                    $paginator = new \Illuminate\Pagination\LengthAwarePaginator(range(1, 15), 237, 15, 4, ['path' => '/reports', 'pageName' => 'reports']);
+                    $simple = new \Illuminate\Pagination\Paginator(range(1, 16), 15, 2, ['path' => '/reports']);
+                @endphp
+                {{ $paginator->links('ds::pagination-livewire') }}
+                {{ $paginator->links('ds::pagination-livewire', ['scrollTo' => false]) }}
+                {{ $simple->links('ds::simple-pagination-livewire') }}
                 BLADE,
 
             'icon/sizes' => <<<'BLADE'
@@ -89,6 +121,9 @@ final class Specimens
                 <x-ds::input label="Email" name="email" error="That address is not valid." />
                 <x-ds::input label="Search" name="q" icon="magnifying-glass" />
                 <x-ds::input label="Locked" name="locked" :disabled="true" />
+                <x-ds::input label="Email" name="email" value="ada@example.com" readonly />
+                <x-ds::input as="textarea" label="Reference" name="ref" readonly>REF-0042</x-ds::input>
+                <x-ds::input label="Readonly, invalid" name="ro" readonly error="Still wrong." />
                 <x-ds::input as="textarea" label="Notes" name="notes" :rows="4" />
                 <x-ds::input as="select" label="Plan" name="plan"><option>Free</option></x-ds::input>
                 BLADE,
