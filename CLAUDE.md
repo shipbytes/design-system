@@ -34,7 +34,8 @@ package.json      @shipbytes/design-tokens   Composer reads composer.json from
 
 src/              the service provider
 config/           blade-ui.php — icon aliases, default icon size
-resources/views/  the Blade components + the two pagination views
+resources/views/  the Blade components + the two pagination views and
+                  their two Livewire variants
                   (everything here SHIPS to consumers — keep it lean)
 
 tokens/           DTCG source. The only files edited by hand.
@@ -252,7 +253,11 @@ A consumer's own import should auto-detect; ours must not.
 - **Presentation only.** No Livewire, no Alpine, no state, no framework
   assumptions beyond Blade. Anything reactive is passed in by the host through
   attributes. This is what keeps the same markup usable from plain Blade, a
-  Livewire component, or a Volt page.
+  Livewire component, or a Volt page. The ONE deliberate exception is the
+  pagination views' opt-in Livewire mode (`ds::pagination-livewire`,
+  `ds::simple-pagination-livewire`), which emits `wire:click`, because
+  Livewire's `WithPagination` replaces the default view and a link would reload
+  the page. Livewire stays a dev dependency, used only by the tests.
 - **A component is not done until SEVEN things exist.** In the same commit
   series, not as follow-up work:
   1. the component in `resources/views/components/`
@@ -282,7 +287,8 @@ A consumer's own import should auto-detect; ours must not.
 
 ## State
 
-**Built — 41 components**, plus `ds::pagination` and `ds::simple-pagination`:
+**Built — 41 components**, plus `ds::pagination` and `ds::simple-pagination`
+(and their `-livewire` variants):
 
 accordion, accordion-item, alert, avatar, badge, bottom-nav, bottom-nav-item,
 breadcrumb, breadcrumb-item, button, checkbox, combobox, date-picker, drawer,
@@ -300,7 +306,7 @@ three lines of CSS, every component rendering styled in light and dark.
 accordion, file-upload, tooltip — always. Plus
 ONE optional prop each on checkbox (`indeterminate`), nav-item (`collapsedWhen`)
 and toast (`dismiss`). Everything else is plain Blade and CSS, and nothing
-anywhere needs Livewire.
+anywhere needs Livewire; the pagination views' Livewire variants are opt-in.
 
 The alert's dismiss used to be Alpine's `@click` and is now a plain `onclick`:
 nothing else in that component needs JavaScript, and with `@click` the ✕

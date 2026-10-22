@@ -394,6 +394,34 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Pagination --}}
+<section class="ds-spec" id="pagination">
+    <header class="ds-spec-head">
+        <h2>Pagination</h2>
+        <p>Two paginator views, rendered here through links() on real paginators. The Livewire variants render the same row with buttons that call the component.</p>
+    </header>
+
+    @php
+        $pages = (new \Illuminate\Pagination\LengthAwarePaginator(range(1, 15), 237, 15, 8, ['path' => '#pagination']))->onEachSide(1);
+        $simple = new \Illuminate\Pagination\Paginator(range(1, 16), 15, 2, ['path' => '#pagination']);
+    @endphp
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">ds::pagination <span>&middot; page 8 of 16 &middot; the current page is elevation, not colour</span></div>
+        {{ $pages->links('ds::pagination') }}
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">ds::pagination-livewire <span>&middot; identical, with buttons calling gotoPage / previousPage / nextPage</span></div>
+        {{ $pages->links('ds::pagination-livewire', ['scrollTo' => false]) }}
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">ds::simple-pagination <span>&middot; no position, because a simple paginator never counts</span></div>
+        {{ $simple->links('ds::simple-pagination') }}
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Nav item --}}
 <section class="ds-spec" id="nav-item">
     <header class="ds-spec-head">

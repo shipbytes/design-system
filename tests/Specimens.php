@@ -48,6 +48,31 @@ final class Specimens
                 </x-ds::button>
                 BLADE,
 
+            /*
+             * Pagination is a pair of views, not components, so these render
+             * them the way Laravel does: through links() on a real paginator.
+             * Page 4 of 16 gives every control at once, both arrows, the
+             * ellipsis and numbered pages. The Livewire views are here so the
+             * marker check covers them like everything else.
+             */
+            'pagination/links' => <<<'BLADE'
+                @php
+                    $paginator = new \Illuminate\Pagination\LengthAwarePaginator(range(1, 15), 237, 15, 4, ['path' => '/reports']);
+                    $simple = new \Illuminate\Pagination\Paginator(range(1, 16), 15, 2, ['path' => '/reports']);
+                @endphp
+                {{ $paginator->links('ds::pagination') }}
+                {{ $simple->links('ds::simple-pagination') }}
+                BLADE,
+            'pagination/livewire' => <<<'BLADE'
+                @php
+                    $paginator = new \Illuminate\Pagination\LengthAwarePaginator(range(1, 15), 237, 15, 4, ['path' => '/reports', 'pageName' => 'reports']);
+                    $simple = new \Illuminate\Pagination\Paginator(range(1, 16), 15, 2, ['path' => '/reports']);
+                @endphp
+                {{ $paginator->links('ds::pagination-livewire') }}
+                {{ $paginator->links('ds::pagination-livewire', ['scrollTo' => false]) }}
+                {{ $simple->links('ds::simple-pagination-livewire') }}
+                BLADE,
+
             'icon/sizes' => <<<'BLADE'
                 <x-ds::icon name="check" size="3" />
                 <x-ds::icon name="check" size="4" />

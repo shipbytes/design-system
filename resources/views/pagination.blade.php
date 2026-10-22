@@ -10,8 +10,37 @@
     `blue-300` focus borders — a second neutral ramp and an off-system accent —
     and carries its own hand-written `dark:` classes that assume a palette this
     system does not use.
+
+    `$livewire` (default false) switches every link to a button that calls the
+    Livewire component's previousPage / nextPage / gotoPage, through the two
+    thin `-livewire` views. A link would reload the page and lose the
+    component's state, such as a live search. These are the only `wire:`
+    directives in the package, and they are inert anywhere else.
 --}}
 @php
+    $livewire ??= false;
+    $tag = $livewire ? 'button' : 'a';
+
+    // Livewire's own views scroll back up on a page change, and a host swapping
+    // to these would otherwise lose that without noticing. Same variable, same
+    // default, same opt-out: links(data: ['scrollTo' => false]).
+    $scrollTo ??= 'body';
+
+    // One control, two transports: a link in a plain page, a button that calls
+    // the component in Livewire mode. Same classes either way.
+    $go = function (string $method, ?string $url, string $key, array $args = [], ?string $rel = null) use ($livewire, $paginator, $scrollTo) {
+        $pageName = $paginator->getPageName();
+
+        return new \Illuminate\View\ComponentAttributeBag(array_filter($livewire ? [
+            'type' => 'button',
+            'wire:click' => $method.'('.implode(', ', [...$args, "'{$pageName}'"]).')',
+            'wire:loading.attr' => 'disabled',
+            'wire:key' => "ds-paginator-{$pageName}-{$key}",
+            'x-on:click' => $scrollTo === false ? null
+                : "(\$el.closest('{$scrollTo}') || document.querySelector('{$scrollTo}')).scrollIntoView()",
+        ] : ['href' => $url, 'rel' => $rel], fn ($v) => $v !== null));
+    };
+
     // The current page is marked the way the current nav item is: a raised
     // card, never a colour. "You are here" means the same thing in both places,
     // and elevation survives dark mode where a fill would have to be redefined.
@@ -38,8 +67,8 @@
             @if ($paginator->onFirstPage())
                 <span aria-disabled="true" class="{{ $cell }} {{ $off }} h-control-lg px-4">{!! __('pagination.previous') !!}</span>
             @else
-                <a href="{{ $paginator->previousPageUrl() }}" rel="prev"
-                   class="{{ $cell }} border-border bg-surface text-fg shadow-raised hover:bg-surface-subtle h-control-lg px-4">{!! __('pagination.previous') !!}</a>
+                <{{ $tag }} {{ $go('previousPage', $paginator->previousPageUrl(), 'previous-compact', rel: 'prev') }}
+                   class="{{ $cell }} border-border bg-surface text-fg shadow-raised hover:bg-surface-subtle h-control-lg px-4">{!! __('pagination.previous') !!}</{{ $tag }}>
             @endif
 
             <span class="text-meta text-fg-muted tabular-nums">
@@ -47,8 +76,8 @@
             </span>
 
             @if ($paginator->hasMorePages())
-                <a href="{{ $paginator->nextPageUrl() }}" rel="next"
-                   class="{{ $cell }} border-border bg-surface text-fg shadow-raised hover:bg-surface-subtle h-control-lg px-4">{!! __('pagination.next') !!}</a>
+                <{{ $tag }} {{ $go('nextPage', $paginator->nextPageUrl(), 'next-compact', rel: 'next') }}
+                   class="{{ $cell }} border-border bg-surface text-fg shadow-raised hover:bg-surface-subtle h-control-lg px-4">{!! __('pagination.next') !!}</{{ $tag }}>
             @else
                 <span aria-disabled="true" class="{{ $cell }} {{ $off }} h-control-lg px-4">{!! __('pagination.next') !!}</span>
             @endif
@@ -75,10 +104,10 @@
                     <x-ds::icon name="chevron-left" size="4" />
                 </span>
             @else
-                <a href="{{ $paginator->previousPageUrl() }}" rel="prev" aria-label="{{ __('pagination.previous') }}"
+                <{{ $tag }} {{ $go('previousPage', $paginator->previousPageUrl(), 'previous', rel: 'prev') }} aria-label="{{ __('pagination.previous') }}"
                    class="{{ $arrow }} {{ $link }}">
                     <x-ds::icon name="chevron-left" size="4" />
-                </a>
+                </{{ $tag }}>
             @endif
 
             @foreach ($elements as $element)
@@ -92,18 +121,18 @@
                         @if ($pageNumber == $paginator->currentPage())
                             <span aria-current="page" class="{{ $page }} {{ $current }}">{{ $pageNumber }}</span>
                         @else
-                            <a href="{{ $url }}" aria-label="{{ __('Go to page :page', ['page' => $pageNumber]) }}"
-                               class="{{ $page }} {{ $link }}">{{ $pageNumber }}</a>
+                            <{{ $tag }} {{ $go('gotoPage', $url, "page-{$pageNumber}", [$pageNumber]) }} aria-label="{{ __('Go to page :page', ['page' => $pageNumber]) }}"
+                               class="{{ $page }} {{ $link }}">{{ $pageNumber }}</{{ $tag }}>
                         @endif
                     @endforeach
                 @endif
             @endforeach
 
             @if ($paginator->hasMorePages())
-                <a href="{{ $paginator->nextPageUrl() }}" rel="next" aria-label="{{ __('pagination.next') }}"
+                <{{ $tag }} {{ $go('nextPage', $paginator->nextPageUrl(), 'next', rel: 'next') }} aria-label="{{ __('pagination.next') }}"
                    class="{{ $arrow }} {{ $link }}">
                     <x-ds::icon name="chevron-right" size="4" />
-                </a>
+                </{{ $tag }}>
             @else
                 <span aria-disabled="true" aria-label="{{ __('pagination.next') }}" class="{{ $arrow }} {{ $off }}">
                     <x-ds::icon name="chevron-right" size="4" />

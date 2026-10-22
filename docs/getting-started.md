@@ -257,7 +257,9 @@ Nothing changes. The components hold no state, so they work the same inside a
 Livewire component as in a plain view — `wire:model` on a field, `wire:click` on
 a button, `@entangle` for a modal's open state. Two small courtesies are built
 in: `panel` passes `wire:navigate` through to its header link, and `stat-tile`
-re-runs its count-up after a Livewire page swap.
+re-runs its count-up after a Livewire page swap. For pagination inside a
+component there are Livewire variants of the two views; see
+[pagination](components/pagination.md#with-livewire).
 
 Neither costs anything when Livewire is not installed.
 
@@ -274,6 +276,11 @@ public function boot(): void
     Paginator::defaultSimpleView('ds::simple-pagination');
 }
 ```
+
+Inside a Livewire component that uses `WithPagination`, return
+`ds::pagination-livewire` from its `paginationView()` instead: Livewire replaces
+the default view while it renders, and the plain view's links would reload the
+page. See [pagination](components/pagination.md#with-livewire).
 
 ## Passing your own classes
 

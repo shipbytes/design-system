@@ -174,6 +174,11 @@ Paginator::defaultView('ds::pagination');
 Paginator::defaultSimpleView('ds::simple-pagination');
 ```
 
+Inside a Livewire component with `WithPagination`, return
+`'ds::pagination-livewire'` from `paginationView()` (and
+`'ds::simple-pagination-livewire'` from `paginationSimpleView()`), so page
+changes call the component instead of reloading the page.
+
 **No Livewire required** — the package depends on `illuminate/support`,
 `illuminate/view` and `blade-heroicons`, and nothing else. It works the same in a
 plain Blade view or inside a Livewire component.
