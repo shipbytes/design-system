@@ -46,6 +46,32 @@ If your components render but look like nothing, this line is missing.
 > `theme.css` brings its own `@custom-variant dark`, so you do not need to
 > declare dark mode yourself. Three imports, not four.
 
+### Fonts
+
+The system's one typeface is **Inter** (`--font-sans`), and the package does
+not ship the webfont: load it yourself, at weights 400, 500 and 600. In a
+layout's `head`, for example:
+
+```html
+<link rel="preconnect" href="https://fonts.bunny.net">
+<link href="https://fonts.bunny.net/css?family=inter:400,500,600&display=swap" rel="stylesheet">
+```
+
+**A new Laravel 12 app overrides it.** The skeleton's `resources/css/app.css`
+ends with this block:
+
+```css
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}
+```
+
+Coming after the three lines above, it wins over the system's `--font-sans`,
+and since nothing loads Instrument Sans either, every page silently falls back
+to the system font. **Delete that block** (or move it above the imports if you
+really want Instrument Sans, and load that font yourself).
+
 ## 3. Use a component
 
 ```blade
