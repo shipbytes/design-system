@@ -96,6 +96,9 @@ final class Specimens
                 <x-ds::input label="Email" name="email" error="That address is not valid." />
                 <x-ds::input label="Search" name="q" icon="magnifying-glass" />
                 <x-ds::input label="Locked" name="locked" :disabled="true" />
+                <x-ds::input label="Email" name="email" value="ada@example.com" readonly />
+                <x-ds::input as="textarea" label="Reference" name="ref" readonly>REF-0042</x-ds::input>
+                <x-ds::input label="Readonly, invalid" name="ro" readonly error="Still wrong." />
                 <x-ds::input as="textarea" label="Notes" name="notes" :rows="4" />
                 <x-ds::input as="select" label="Plan" name="plan"><option>Free</option></x-ds::input>
                 BLADE,

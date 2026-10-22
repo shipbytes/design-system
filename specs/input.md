@@ -39,6 +39,15 @@ guidance under one field is one line too many.
 | filled | identical to default — a filled field is not a state |
 | error | border `danger`, message below in `danger` with a leading icon |
 | disabled | `surface-subtle` fill, `fg-subtle` text, no shadow |
+| readonly | `surface-subtle` fill, `fg-muted` text, no shadow, no hover border; focus ring kept |
+
+**Readonly reads from the attribute**, not a prop, so it still reaches the
+element: it stays focusable, selectable and submitted, which is the whole
+difference from disabled. Its text is `fg-muted` rather than disabled's
+`fg-subtle` because the value is there to be read; `fg-muted` on
+`surface-subtle` is a checked AA pair. A native select ignores `readonly`, so
+`as="select"` does not get the look either: it would claim a lock the browser
+does not honour.
 
 Dark drops the shadow entirely — the border carries the edge instead.
 

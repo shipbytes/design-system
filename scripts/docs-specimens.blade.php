@@ -126,6 +126,7 @@
                 <x-ds::input name="a2" label="Search" icon="magnifying-glass" placeholder="Find a report" />
                 <x-ds::input name="a3" label="Email" value="not-an-email" error="That address is not valid." />
                 <x-ds::input name="a4" label="Notes" help="Visible to your team." />
+                <x-ds::input name="a5" label="Email" value="ada@example.com" readonly help="The address this reset link was sent to." />
             </div>
         </div>
     @endforeach

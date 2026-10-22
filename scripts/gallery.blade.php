@@ -187,6 +187,7 @@
             <x-ds::input label="Project name" name="b" value="Q3 site redesign" />
             <x-ds::input label="Project name" name="c" value="ab" error="Name must be at least 3 characters." />
             <x-ds::input label="Locked while exporting" name="d" value="Senior Product Designer" :disabled="true" />
+            <x-ds::input label="Email (readonly: focusable, copyable, submitted)" name="d2" value="ada@example.com" readonly />
         </div>
     </div>
 

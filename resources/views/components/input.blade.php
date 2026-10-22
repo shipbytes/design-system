@@ -19,6 +19,15 @@
     $id = $attributes->get('id') ?: 'ds-' . substr(md5($attributes->get('name', '') . $label . uniqid()), 0, 8);
     $describedBy = $error ? "{$id}-error" : ($help ? "{$id}-help" : null);
 
+    // `readonly` stays an attribute, not a prop, so it reaches the element and
+    // the browser keeps the field focusable and submitted; it is read here only
+    // to look the part. Without this a readonly field looks editable and does
+    // nothing when typed into. A native select ignores the attribute, so it
+    // does not get the look either.
+    $readonly = $as !== 'select'
+        && $attributes->has('readonly')
+        && ! in_array($attributes->get('readonly'), [false, null], true);
+
     /*
      * The Catalyst two-layer construction, kept exactly.
      *
@@ -37,7 +46,7 @@
         'after:pointer-events-none after:absolute after:inset-0 after:rounded-control',
         'after:ring-transparent after:ring-inset',
         'sm:focus-within:after:ring-2 sm:focus-within:after:ring-focus-ring',
-        $disabled ? 'before:bg-surface-subtle before:shadow-none' : '',
+        $disabled || $readonly ? 'before:bg-surface-subtle before:shadow-none' : '',
     ]);
 
     $control = implode(' ', [
@@ -48,8 +57,14 @@
         'sm:px-[calc(--spacing(3)-1px)] sm:py-[calc(--spacing(1.5)-1px)]',
         'text-body-touch text-fg placeholder:text-fg-muted sm:text-body',
         'border focus:outline-hidden',
-        $error ? 'border-danger hover:border-danger' : 'border-border hover:border-fg/20',
-        $disabled ? 'text-fg-subtle' : '',
+        match (true) {
+            (bool) $error => 'border-danger hover:border-danger',
+            $readonly => 'border-border',
+            default => 'border-border hover:border-fg/20',
+        },
+        // Readonly is muted, not faded like disabled: the value is still there
+        // to be read and copied, and fg-muted holds AA on surface-subtle.
+        $disabled ? 'text-fg-subtle' : ($readonly ? 'text-fg-muted' : ''),
         $icon ? 'pl-9 sm:pl-9' : '',
         $as === 'select' ? 'pr-9 sm:pr-8' : '',
     ]);
