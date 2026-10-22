@@ -193,6 +193,10 @@ const REQUIRED = [
     ['on-accent', 'accent', 4.5, 'text on a filled accent'],
     ['on-danger', 'danger', 4.5, 'destructive button label'],
     ['accent', 'surface', 4.5, 'links'],
+    ['danger', 'surface', 4.5, 'danger-toned control'],
+    // NOT `danger` on the wash: that is 4.36:1 in light and 4.37:1 in dark.
+    // A hovered danger control darkens its label, the way the alert does.
+    ['on-danger-tint', 'danger-wash', 4.5, 'danger-toned control, hovered'],
     ['on-success-tint', 'success-tint', 4.5, 'success badge'],
     ['on-warning-tint', 'warning-tint', 4.5, 'warning badge'],
     ['on-danger-tint', 'danger-tint', 4.5, 'danger badge'],

@@ -44,6 +44,11 @@
                 <x-ds::button :disabled="true">Disabled</x-ds::button>
                 <x-ds::button iconOnly aria-label="Settings"><x-ds::icon name="cog" /></x-ds::button>
             </div>
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+                <x-ds::button variant="secondary" size="sm">Save photo</x-ds::button>
+                <x-ds::button variant="ghost" size="sm" tone="danger">Remove</x-ds::button>
+                <x-ds::button variant="secondary" tone="danger">Revoke access</x-ds::button>
+            </div>
         </div>
     @endforeach
 </div>

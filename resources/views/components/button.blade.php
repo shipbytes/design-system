@@ -17,6 +17,15 @@
     'disabled' => false,
     /** Pill shape. The mobile FAB is this component, not a separate one. */
     'pill' => false,
+    /**
+     * neutral | danger — for `ghost` and `secondary` only.
+     *
+     * A quiet destructive control that sits beside an ordinary one ("Remove
+     * photo" next to "Save photo"), where a filled red button would shout over
+     * the action the form is for. `primary` and `danger` ignore it: one is
+     * the page's action and the other is already red.
+     */
+    'tone' => 'neutral',
 ])
 
 @php
@@ -52,6 +61,19 @@
         'danger' => 'border-transparent bg-danger text-on-danger hover:bg-danger-hover',
     ];
 
+    // The hovered label darkens to on-danger-tint, as the alert's does:
+    // `danger` on the wash is 4.36:1, under AA in both themes.
+    $dangerTones = [
+        'secondary' => 'border-border bg-surface text-danger shadow-raised '
+            .'hover:bg-danger-wash hover:text-on-danger-tint',
+        'ghost' => 'border-transparent bg-transparent text-danger '
+            .'hover:bg-danger-wash hover:text-on-danger-tint',
+    ];
+
+    $variantClasses = $tone === 'danger' && isset($dangerTones[$variant])
+        ? $dangerTones[$variant]
+        : ($variants[$variant] ?? $variants['primary']);
+
     $classes = implode(' ', [
         // `isolate` keeps the focus ring from being clipped by a parent stacking
         // context, which is why it is on the base and not the focus state.
@@ -65,7 +87,7 @@
         // submits, so the disabled: styles would otherwise fade it too.
         $loading ? 'cursor-wait' : 'disabled:opacity-50 disabled:cursor-not-allowed',
         $sizes[$size] ?? $sizes['md'],
-        $variants[$variant] ?? $variants['primary'],
+        $variantClasses,
     ]);
 
     $tag = $href ? 'a' : 'button';

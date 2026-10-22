@@ -33,6 +33,19 @@
     </div>
 
     <div class="{{ $plate }}">
+        <div class="ds-plate-label">Danger tone <span>&middot; ghost and secondary only &middot; a quiet destructive control beside an ordinary one</span></div>
+        <div class="{{ $row }}">
+            <x-ds::button variant="secondary" size="sm">Save photo</x-ds::button>
+            <x-ds::button variant="ghost" size="sm" tone="danger">Remove</x-ds::button>
+            <x-ds::button variant="secondary" tone="danger">Revoke access</x-ds::button>
+            <x-ds::button variant="ghost" tone="danger">
+                <x-ds::icon name="trash" />
+                Delete draft
+            </x-ds::button>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
         <div class="ds-plate-label">Sizes <span>&middot; sm 32px &middot; md 36px at the sm breakpoint, 44px below it &middot; lg 44px</span></div>
         <div class="{{ $row }}">
             <x-ds::button size="sm">Small</x-ds::button>

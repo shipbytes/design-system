@@ -19,7 +19,8 @@
 @php
     $tones = [
         'neutral' => 'text-fg-body hover:bg-surface-subtle hover:text-fg',
-        'danger' => 'text-danger hover:bg-danger-wash',
+        // The label darkens on the wash: `danger` on it is 4.36:1, under AA.
+        'danger' => 'text-danger hover:bg-danger-wash hover:text-on-danger-tint',
     ];
 
     $tone = array_key_exists($tone, $tones) ? $tone : 'neutral';
@@ -37,7 +38,7 @@
         'focus-visible:outline-hidden',
         $disabled
             ? 'cursor-not-allowed text-fg-subtle'
-            : $tones[$tone].' '.($tone === 'danger' ? 'focus-visible:bg-danger-wash' : 'focus-visible:bg-surface-subtle'),
+            : $tones[$tone].' '.($tone === 'danger' ? 'focus-visible:bg-danger-wash focus-visible:text-on-danger-tint' : 'focus-visible:bg-surface-subtle'),
     ]);
 @endphp
 

@@ -23,6 +23,13 @@ final class Specimens
                 <x-ds::button variant="ghost">Dismiss</x-ds::button>
                 <x-ds::button variant="danger">Delete</x-ds::button>
                 BLADE,
+            'button/tones' => <<<'BLADE'
+                <x-ds::button variant="ghost" tone="danger">Remove</x-ds::button>
+                <x-ds::button variant="secondary" tone="danger">Revoke</x-ds::button>
+                <x-ds::button variant="ghost" size="sm" tone="danger">Remove</x-ds::button>
+                <x-ds::button variant="primary" tone="danger">Ignored on primary</x-ds::button>
+                <x-ds::button variant="ghost" tone="neutral">Neutral</x-ds::button>
+                BLADE,
             'button/sizes' => <<<'BLADE'
                 <x-ds::button size="sm">Small</x-ds::button>
                 <x-ds::button size="md">Medium</x-ds::button>
