@@ -362,6 +362,50 @@ candidate — see specs/accordion.md.
   neither well.
 - **Segmented control, rating, colour picker, rich text.** None have come up.
 
+## The docs site (shipbytes.dev)
+
+**https://shipbytes.dev/docs/design-system is generated from this repo**, by the site's
+`scripts/sync-packages.mjs` at every site build. It clones **master** and reads:
+
+| In this repo | On the site |
+|---|---|
+| `docs/getting-started.md` | `/docs/design-system` (the landing page) |
+| `docs/README.md` | `/docs/design-system/components` **and the sidebar**: a component whose page is not in this table is missing from the navigation, and the site build warns |
+| `docs/components/<slug>.md` | `/docs/design-system/components/<slug>` |
+| `specs/README.md`, `specs/<slug>.md` | `/docs/design-system/specs`, `/specs/<slug>` |
+| `docs/images/<slug>.png` | the screenshot on that component's page |
+| git tags | `/docs/design-system/changelog` (there is no CHANGELOG.md here, so the GitHub release notes are the changelog people read: write them) |
+
+Nothing on the site is written by the site. It converts these files, so the "seven
+things" above are what the public documentation is made of, and a stale number here
+(getting-started said "six" Alpine components for two releases while the code had ten)
+is published as-is. **Counts and lists exist in four places:** README.md,
+`docs/getting-started.md`, `docs/README.md` and the State section of this file. Adding a
+component updates all four.
+
+Rules the conversion imposes on the Markdown:
+
+- Plain GFM. The first paragraph after the H1 becomes the page's meta description and
+  social card text; H2s become sidebar sections and anchors. No raw HTML.
+- Links resolve through the mapping above: `components/x.md`, `../getting-started.md#alpine`
+  and `../../specs/x.md` work; anything else 404s on the site.
+- Images as `![Alt](../images/<slug>.png)`, one light-and-dark image per component,
+  from `npm run build:docs`.
+- A callout `> **Needs Alpine.** See [getting started](../getting-started.md#alpine).`
+  on every page of the ten Alpine components, and "— needs Alpine" in that
+  component's row in `docs/README.md`.
+
+**Merging to master rebuilds the site automatically** (GitHub push webhook → the
+rebuild Worker → the site's deploy workflow, ~2 minutes; branches and tags are
+ignored). So do not merge a half-finished component to master: work on a branch until
+the page, the table row and the screenshot exist. After merging, open
+`https://shipbytes.dev/docs/design-system/components/<slug>/` and check the page, the
+image and the sidebar entry.
+
+The site repo is `shipbytes/shipbytes.dev` (local: `/var/www/shipbytes.dev`). The
+converter lives there; if a Markdown construct renders wrongly on the site, the fix is
+usually in `scripts/sync-packages.mjs`, not in rewriting the docs around it.
+
 ## Releasing
 
 Tag `vX.Y.Z` and push tags — that is what `composer require ^1.0` resolves. A
