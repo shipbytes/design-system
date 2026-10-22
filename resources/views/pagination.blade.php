@@ -111,9 +111,11 @@
             @endif
 
             @foreach ($elements as $element)
-                {{-- A string element is the "…" separator. --}}
+                {{-- A string element is the "…" separator. fg-muted, not fg-subtle:
+                     hidden from screen readers, but a sighted reader still needs
+                     it to see that pages are missing, and fg-subtle is 2.4:1. --}}
                 @if (is_string($element))
-                    <span aria-hidden="true" class="px-1 text-section text-fg-subtle">{{ $element }}</span>
+                    <span aria-hidden="true" class="px-1 text-section text-fg-muted">{{ $element }}</span>
                 @endif
 
                 @if (is_array($element))
