@@ -4,6 +4,8 @@ A styled file field with drag-and-drop and local image previews.
 
 ![File upload](../images/file-upload.png)
 
+> **Needs Alpine.** See [getting started](../getting-started.md#alpine).
+
 > **It does not upload anything.** It's a real `<input type="file">`, so a plain
 > form POST and `wire:model` both work unchanged. See [where the line
 > is](#what-it-does-not-do).

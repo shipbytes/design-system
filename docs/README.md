@@ -21,7 +21,7 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Combobox](components/combobox.md) | Filtering select, single or multiple — needs Alpine |
 | [Switch](components/switch.md) | A setting that takes effect |
 | [Date picker](components/date-picker.md) | A calendar, one date or a range — needs Alpine |
-| [File upload](components/file-upload.md) | Drop zone with local previews |
+| [File upload](components/file-upload.md) | Drop zone with local previews — needs Alpine |
 | [Checkbox](components/checkbox.md) | One independent yes/no |
 | [Radio](components/radio.md) | One of a set, plus the group |
 

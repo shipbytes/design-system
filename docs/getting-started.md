@@ -75,10 +75,11 @@ How you decide to put it there is yours: a user setting, a cookie, or
 `illuminate/view` and `blade-heroicons`, and nothing else. Every component works
 in a plain Blade view.
 
-Six need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
-framework: **modal, drawer, sheet, dropdown, select, tooltip**.
+Ten need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
+framework: **modal, drawer, sheet, dropdown, select, combobox, date-picker,
+accordion, file-upload, tooltip**.
 
-Four more use it for **one optional prop** each, and work without it otherwise:
+Three more use it for **one optional prop** each, and work without it otherwise:
 `checkbox`'s `indeterminate`, `nav-item`'s `collapsedWhen`, and `toast`'s
 `dismiss`. Skip those props and you need no JavaScript at all.
 
