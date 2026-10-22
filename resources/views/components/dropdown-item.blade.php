@@ -1,7 +1,7 @@
 @props([
     /** Heroicon name for the leading mark. Optional — a menu of plain verbs is fine. */
     'icon' => null,
-    /** Navigates. Anything that goes somewhere should be an <a>, not a button. */
+    /** Navigates. Anything that goes somewhere should be an `a` element, not a button. */
     'href' => null,
     /**
      * neutral | danger
@@ -24,7 +24,7 @@
 
     $tone = array_key_exists($tone, $tones) ? $tone : 'neutral';
 
-    // A disabled item is a <div>: a disabled <a> is still focusable and still
+    // A disabled item is a `div`: a disabled `a` is still focusable and still
     // followable by keyboard, so the only reliable way to stop it going
     // anywhere is for it not to be a link at all.
     $tag = $as ?? (($href && ! $disabled) ? 'a' : 'button');

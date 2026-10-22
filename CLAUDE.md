@@ -73,7 +73,9 @@ collisions. No Blade involved.
 **Render** (`test-render.mjs`) — boots Laravel, renders every component in
 `tests/Specimens.php`, and asserts every class it emits has a rule in CSS
 compiled the way a *consumer* compiles it. Also enforces that every component
-appears in the gallery, in the docs specimens, and has a documentation page.
+appears in the gallery, in the docs specimens, and has a documentation page,
+and renders every specimen a second time inside a Livewire component to catch a
+morph marker landing inside a tag (see Traps).
 
 **Behaviour** (`test-behaviour.mjs`) — drives every interactive component in a
 real browser with real Alpine: focus traps, arrow keys, what the form actually
@@ -180,6 +182,21 @@ was compiled into a real component invocation, in the middle of the props array,
 and the file stopped making sense — the error was "Undefined variable $component"
 pointing at a compiled file in storage, naming nothing. **Never write a component
 tag in a comment.** Write `ds::tab-panel` without the angle brackets.
+
+**Livewire reads comments too, and a plain HTML tag in one is enough.** Livewire
+4 wraps every `@if` and `@foreach` in `<!--[if BLOCK]>` markers and skips one
+that sits inside an opening tag, deciding that by looking back through the RAW
+template for the nearest `<` that starts a tag. The button's attribute bag
+carried the comment "A bare `<button>` defaults to type=submit"; that literal
+became the nearest `<` before `@if ($disabled || $loading)`, so Livewire judged
+the `@if` to be outside the tag and put a marker INSIDE the real button. Every
+`ds::button` in every consumer running Livewire rendered as "> Save", with the
+`>` in its accessible name, and clicks still worked. A plain-Blade render shows
+nothing, because the markers only exist while Livewire is rendering a component.
+**Never write any tag with angle brackets in a component's comments**, HTML or
+Blade: write "a bare button element", the `nav` landmark. `LivewireMarkersTest`
+renders every specimen inside a Livewire component and fails on a marker inside
+a tag; it is the one test that boots Livewire, which stays a dev dependency.
 
 **A Blade DIRECTIVE inside a component tag's attribute is not compiled at the
 call site.** `<x-ds::icon x-show="v === @js($option['value'])">` inside a

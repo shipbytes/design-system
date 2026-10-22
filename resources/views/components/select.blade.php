@@ -33,7 +33,7 @@
      * This is the one component that holds anything, and it is worth being
      * precise about what: the FORM value belongs to the host and arrives as
      * `value`, and leaves through the hidden input below exactly as a native
-     * <select> would. What Alpine holds is the mirror the trigger reads and the
+     * `select` would. What Alpine holds is the mirror the trigger reads and the
      * open/closed flag — UI state, not application state. A host using Livewire
      * binds the hidden input and never touches any of this.
      */
@@ -96,7 +96,7 @@
     @endif
 
     {{-- The value posts through a hidden input, so this submits in a plain form
-         exactly like a <select> and needs no JavaScript on the receiving end. --}}
+         exactly like a native `select` and needs no JavaScript on the receiving end. --}}
     <input type="hidden" name="{{ $name }}" :value="value" @if ($selected) value="{{ $selected['value'] }}" @endif />
 
     <button

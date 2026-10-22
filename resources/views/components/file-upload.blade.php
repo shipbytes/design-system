@@ -46,7 +46,7 @@
     ])->filter()->implode(' · ');
 
     /*
-     * This is a REAL <input type="file">, styled — not a button that opens a
+     * This is a REAL file input, styled — not a button that opens a
      * hidden one. It stays in the layout, keeps its own focus behaviour, and
      * posts in a plain form; `wire:model` works on it unchanged.
      *

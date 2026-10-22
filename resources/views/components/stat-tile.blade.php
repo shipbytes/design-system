@@ -7,7 +7,7 @@
     'delta' => null,
     /** Replaces the delta line when there is no meaningful comparison. */
     'caption' => null,
-    /** Makes the whole tile a link. A tile that drills down should be an <a>. */
+    /** Makes the whole tile a link. A tile that drills down should be an `a` element. */
     'href' => null,
     /**
      * Count up from zero on first paint. Skipped automatically when the reader

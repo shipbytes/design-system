@@ -16,7 +16,7 @@
     $describedBy = $error ? "{$id}-error" : ($help ? "{$id}-help" : null);
 
     /*
-     * The native input, styled — not a hidden input beside a decorated <span>.
+     * The native input, styled — not a hidden input beside a decorated `span`.
      *
      * A visually-hidden checkbox with a fake box next to it loses the Windows
      * high-contrast rendering, the browser's own focus behaviour and forced-colors
@@ -88,7 +88,7 @@
     </div>
 
     <div class="min-w-0">
-        {{-- The label is a real <label for>, so its whole width is a click target.
+        {{-- The label is a real `label` with `for`, so its whole width is a click target.
              That is most of the touch target on a phone. --}}
         <label
             for="{{ $id }}"

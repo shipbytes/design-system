@@ -1,5 +1,5 @@
 @props([
-    /** Makes the row navigate. A row that goes somewhere should be an <a>. */
+    /** Makes the row navigate. A row that goes somewhere should be an `a` element. */
     'href' => null,
 ])
 

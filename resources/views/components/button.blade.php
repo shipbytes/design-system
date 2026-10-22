@@ -3,7 +3,7 @@
     'variant' => 'primary',
     /** sm | md | lg | fab — md is responsive: lg below the sm breakpoint, md above it */
     'size' => 'md',
-    /** Render as a link. Anything that navigates should be an <a>, not a button. */
+    /** Render as a link. Anything that navigates should be an `a` element, not a button. */
     'href' => null,
     /** Square, no label. Requires an accessible name via aria-label or title. */
     'iconOnly' => false,
@@ -74,7 +74,7 @@
 <{{ $tag }}
     {{ $attributes->merge([
         'class' => $classes,
-        // A bare <button> defaults to type=submit, which is how a "Cancel"
+        // A bare `button` element defaults to type=submit, which is how a "Cancel"
         // button ends up saving the form it sits in.
         'type' => $href ? null : 'button',
         'href' => $href,
