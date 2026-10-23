@@ -16,7 +16,8 @@
 ])
 
 @php
-    $id = $attributes->get('id') ?: 'ds-' . substr(md5($attributes->get('name', '') . $label . uniqid()), 0, 8);
+    // Stable under wire:model, random otherwise: see Support\ControlId.
+    $id = \Shipbytes\BladeUi\Support\ControlId::for($attributes, $label);
     $describedBy = $error ? "{$id}-error" : ($help ? "{$id}-help" : null);
 
     // `readonly` stays an attribute, not a prop, so it reaches the element and

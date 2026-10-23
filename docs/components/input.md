@@ -52,8 +52,20 @@ returns `null` when the field is clean, so `help` shows until it doesn't.
 ## An `id` is generated if you don't give one
 
 The label needs a `for` and the help text needs an `aria-describedby`, so the
-component generates a stable id per field. Pass your own `id` when something
-outside needs to point at the control.
+component generates an id per field. Pass your own `id` when something outside
+needs to point at the control.
+
+**Under `wire:model` the generated id is the same on every render**, a hash of
+the binding, name, value and label. Livewire's morph matches elements by id, and
+until v1.2.2 a fresh random id on each render made it *replace* a bound field
+rather than update it: the field lost focus, and a live search kept the first
+burst of typing and dropped the rest. A field with no binding still gets a
+random id, so two look-alike fields on one plain page do not collide. The same
+holds for checkbox, radio, switch, select, combobox, date-picker and
+file-upload.
+
+Two bound fields that agree on binding, name, value and label are the same field
+twice. Give one an `id`.
 
 ## Readonly is not disabled
 

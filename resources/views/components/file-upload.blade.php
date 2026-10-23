@@ -21,7 +21,8 @@
 ])
 
 @php
-    $id = $attributes->get('id') ?: 'ds-'.substr(md5($name.$label.uniqid()), 0, 8);
+    // Stable under wire:model, random otherwise: see Support\ControlId.
+    $id = \Shipbytes\BladeUi\Support\ControlId::for($attributes, $label, $name);
     $describedBy = $error ? "{$id}-error" : ($help ? "{$id}-help" : null);
 
     // "image/*,.pdf" is a machine string. The reader gets "images, PDF" —

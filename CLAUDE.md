@@ -214,6 +214,17 @@ component renders is simply dropped, which is how the table specimen, the docs
 and the documentation screenshot were all wrong together. `npm test` now checks
 both directions.
 
+**A random id is a new element to Livewire.** Every form control generated its
+default id from `uniqid()`. Livewire's morph keys elements by id, so each
+response REPLACED every bound field instead of patching it, and a replaced field
+loses focus and caret: in a live search the first burst of typing landed and
+everything after the first response went to the page body. Validation looked
+fine, tests were green, and the kit's admin search only showed it when a person
+paused mid-word. `Support\ControlId` now hashes the binding, name, value and
+label for a control with `wire:model`, and keeps the random id for one without,
+so two look-alike plain-Blade fields still get two ids. `ControlIdTest` holds
+both halves.
+
 **A prop that resolves to classes in PHP cannot be driven from Alpine.** Every
 `tone`, `variant`, `size` and `active` is a lookup of literal class strings, done
 once at render time — which is the only reason Tailwind's scanner can see them.
