@@ -219,6 +219,36 @@ final class Specimens
                 </x-ds::bottom-nav>
                 BLADE,
 
+            // The count is capped by the component, so the specimens pass raw
+            // numbers: 3 draws "3", 12 draws "9+", and 0, null and '' draw
+            // nothing at all. A numeric string is a count; any other string is
+            // drawn as given.
+            'bottom-nav/badges' => <<<'BLADE'
+                <x-ds::bottom-nav>
+                    <x-ds::bottom-nav-item href="/inbox" label="Inbox" :badge="3" :active="true">
+                        <x-slot:icon><x-ds::icon name="inbox" size="6" /></x-slot:icon>
+                    </x-ds::bottom-nav-item>
+                    <x-ds::bottom-nav-item href="/support" label="Support" :badge="12">
+                        <x-slot:icon><x-ds::icon name="lifebuoy" size="6" /></x-slot:icon>
+                    </x-ds::bottom-nav-item>
+                    <x-ds::bottom-nav-item href="/orders" label="Orders" badge="7">
+                        <x-slot:icon><x-ds::icon name="shopping-bag" size="6" /></x-slot:icon>
+                    </x-ds::bottom-nav-item>
+                    <x-ds::bottom-nav-item href="/changes" label="Changes" badge="new">
+                        <x-slot:icon><x-ds::icon name="sparkles" size="6" /></x-slot:icon>
+                    </x-ds::bottom-nav-item>
+                    <x-ds::bottom-nav-item href="/zero" label="Zero" :badge="0">
+                        <x-slot:icon><x-ds::icon name="home" size="6" /></x-slot:icon>
+                    </x-ds::bottom-nav-item>
+                    <x-ds::bottom-nav-item href="/none" label="None" :badge="null">
+                        <x-slot:icon><x-ds::icon name="home" size="6" /></x-slot:icon>
+                    </x-ds::bottom-nav-item>
+                    <x-ds::bottom-nav-item label="Empty" badge="">
+                        <x-slot:icon><x-ds::icon name="home" size="6" /></x-slot:icon>
+                    </x-ds::bottom-nav-item>
+                </x-ds::bottom-nav>
+                BLADE,
+
             'modal/all' => <<<'BLADE'
                 <x-ds::modal open="a" title="Small" description="With a description" size="sm">
                     Body

@@ -190,7 +190,7 @@ const REQUIRED = [
     ['fg-muted', 'surface-subtle', 4.5, 'table column headers'],
     ['fg-body', 'surface-sunken', 4.5, 'body copy on the app ground'],
     ['on-inverse', 'surface-inverse', 4.5, 'primary button label'],
-    ['on-accent', 'accent', 4.5, 'text on a filled accent'],
+    ['on-accent', 'accent', 4.5, 'filled accent; bottom-nav count'],
     ['on-danger', 'danger', 4.5, 'destructive button label'],
     ['accent', 'surface', 4.5, 'links'],
     ['danger', 'surface', 4.5, 'danger-toned control'],

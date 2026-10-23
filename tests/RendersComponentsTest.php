@@ -68,8 +68,12 @@ final class RendersComponentsTest extends TestCase
          *
          * The gallery's sheet section is hand-drawn markup for the same reason,
          * and is the one place in it that is not the real component.
+         *
+         * `bottom-nav-item` is NOT exempt: the media query is on the bar, not
+         * the item, so the gallery shows real items in a bar drawn to match.
+         * It has to, since 1.2.3 gave the item a count pill worth looking at.
          */
-        $exempt = ['the gallery' => ['sheet', 'bottom-nav', 'bottom-nav-item']];
+        $exempt = ['the gallery' => ['sheet', 'bottom-nav']];
 
         $surfaces = [
             'the gallery' => __DIR__.'/../scripts/gallery.blade.php',
