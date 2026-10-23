@@ -71,6 +71,16 @@
             <x-ds::switch name="notify" id="notify" label="Email notifications" />
         </div>
 
+        {{-- ── checkbox, hidden label ── --}}
+        <div class="mt-6 max-w-xs">
+            <x-ds::table>
+                <x-ds::table-row>
+                    <x-ds::table-cell><x-ds::checkbox name="pick[]" value="42" id="pick" label="Select Invoice 42" :hideLabel="true" /></x-ds::table-cell>
+                    <x-ds::table-cell>Invoice 42</x-ds::table-cell>
+                </x-ds::table-row>
+            </x-ds::table>
+        </div>
+
         {{-- ── accordion ── --}}
         <div class="mt-6 max-w-md">
             <x-ds::accordion open="billing">

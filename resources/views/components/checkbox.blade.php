@@ -7,6 +7,14 @@
     'error' => null,
     /** Neither checked nor unchecked — a parent whose children disagree. */
     'indeterminate' => false,
+    /**
+     * Keep the label as the accessible name but do not show it. Only for a
+     * checkbox whose row already names the thing, such as a select column in a
+     * table: a visible "Select Invoice 42" beside "Invoice 42" says it twice.
+     * The hidden label still takes clicks, as a 44px square centred on the box,
+     * because the 18px box alone is well under the touch minimum.
+     */
+    'hideLabel' => false,
     'checked' => false,
     'disabled' => false,
 ])
@@ -43,7 +51,16 @@
     {{-- The input and its mark are stacked in ONE grid cell rather than the mark
          being absolutely positioned. Absolute positioning against a label that
          wraps to two lines drifts; a grid cell cannot. --}}
-    <div class="grid shrink-0 grid-cols-1 grid-rows-1 place-items-center pt-0.5">
+    <div @class([
+        'grid shrink-0 grid-cols-1 grid-rows-1 place-items-center',
+        // The top padding lines the box up with the first line of a visible
+        // label. With the label hidden there is no line to meet, and the cell
+        // must be exactly the box so the hit area below centres on it.
+        'pt-0.5' => ! $hideLabel,
+        // isolate: the hidden label's -z-10 must sink below the box, not below
+        // the table cell or panel the checkbox sits in.
+        'relative isolate' => $hideLabel,
+    ])>
         <input
             type="checkbox"
             id="{{ $id }}"
@@ -85,24 +102,41 @@
         >
             <path d="M2.5 6h7" />
         </svg>
-    </div>
 
-    <div class="min-w-0">
-        {{-- The label is a real `label` with `for`, so its whole width is a click target.
-             That is most of the touch target on a phone. --}}
-        <label
-            for="{{ $id }}"
-            @class([
-                'block text-body text-fg',
+        @if ($hideLabel)
+            {{-- A transparent 44px square (18 + 13 + 13) centred on the box. It
+                 paints BELOW the box, so a press on the box itself still lands
+                 on the input and its hover state, and a press on the margin
+                 lands here and toggles it through `for`. The text is sr-only,
+                 so it remains the control's accessible name. --}}
+            <label for="{{ $id }}" @class([
+                'absolute -inset-[13px] -z-10 text-fg',
                 'cursor-pointer' => ! $disabled,
-                'cursor-not-allowed text-fg-muted' => $disabled,
-            ])
-        >{{ $label }}</label>
-
-        @if ($error)
-            <p id="{{ $id }}-error" class="mt-0.5 text-meta text-danger">{{ $error }}</p>
-        @elseif ($help)
-            <p id="{{ $id }}-help" class="mt-0.5 text-meta text-fg-muted">{{ $help }}</p>
+                'cursor-not-allowed' => $disabled,
+            ])><span class="sr-only">{{ $label }}</span></label>
         @endif
     </div>
+
+    @if (! $hideLabel || $error || $help)
+        <div class="min-w-0">
+            {{-- The label is a real `label` with `for`, so its whole width is a click target.
+                 That is most of the touch target on a phone. --}}
+            @unless ($hideLabel)
+                <label
+                    for="{{ $id }}"
+                    @class([
+                        'block text-body text-fg',
+                        'cursor-pointer' => ! $disabled,
+                        'cursor-not-allowed text-fg-muted' => $disabled,
+                    ])
+                >{{ $label }}</label>
+            @endunless
+
+            @if ($error)
+                <p id="{{ $id }}-error" class="mt-0.5 text-meta text-danger">{{ $error }}</p>
+            @elseif ($help)
+                <p id="{{ $id }}-help" class="mt-0.5 text-meta text-fg-muted">{{ $help }}</p>
+            @endif
+        </div>
+    @endif
 </div>

@@ -773,6 +773,28 @@
     </div>
 
     <div class="{{ $plate }}">
+        <div class="ds-plate-label">Checkbox, <code>hideLabel</code> <span>&middot; a select column: the row names the thing, the label stays the accessible name, and a 44px square around the box takes the press</span></div>
+        <div class="px-4">
+            <x-ds::table>
+                <thead class="bg-surface-subtle">
+                    <tr>
+                        <th scope="col" class="w-12 px-4 py-3"><x-ds::checkbox name="gs" label="Select all" :hideLabel="true" :indeterminate="true" /></th>
+                        <th scope="col" class="px-4 py-3 text-left text-overline uppercase text-fg-muted">Report</th>
+                    </tr>
+                </thead>
+                <x-ds::table-row>
+                    <x-ds::table-cell><x-ds::checkbox name="gs1" label="Select Q3 revenue" :hideLabel="true" :checked="true" /></x-ds::table-cell>
+                    <x-ds::table-cell>Q3 revenue</x-ds::table-cell>
+                </x-ds::table-row>
+                <x-ds::table-row>
+                    <x-ds::table-cell><x-ds::checkbox name="gs2" label="Select Churn by cohort" :hideLabel="true" /></x-ds::table-cell>
+                    <x-ds::table-cell>Churn by cohort</x-ds::table-cell>
+                </x-ds::table-row>
+            </x-ds::table>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
         <div class="ds-plate-label">Radio <span>&middot; a dot, not a tick &mdash; the shape is the difference between &ldquo;one of these&rdquo; and &ldquo;any of these&rdquo;</span></div>
         <div class="px-4">
             <x-ds::radio-group label="Billing period" help="You can change this later.">

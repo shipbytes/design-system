@@ -422,6 +422,42 @@ await check('posts 1 when on', async () => {
         || `posted ${JSON.stringify((await posted()).notify)}`;
 });
 
+// ---------------------------------------------------------------- checkbox, hidden label
+
+group('checkbox, hidden label');
+
+await check('the hidden label is still the accessible name', async () => {
+    const name = await page.locator('#pick').evaluate((el) => el.labels?.[0]?.textContent.trim());
+    return name === 'Select Invoice 42' || `named "${name}"`;
+});
+
+await check('and it is not visible', async () => {
+    const box = await page.locator('label[for=pick] span').boundingBox();
+    return (box && box.width <= 1 && box.height <= 1) || `the label text renders at ${JSON.stringify(box)}`;
+});
+
+await check('a press BESIDE the box toggles it — the 44px target', async () => {
+    const box = await page.locator('#pick').boundingBox();
+    // 10px left of the box: outside the 18px control, inside the 44px square.
+    await page.mouse.click(box.x - 10, box.y + box.height / 2);
+    await settle(100);
+    return (await page.locator('#pick').isChecked()) || 'unchanged — the margin is not a target';
+});
+
+await check('a press ON the box still reaches the input itself', async () => {
+    const box = await page.locator('#pick').boundingBox();
+    const hit = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.id, [box.x + box.width / 2, box.y + box.height / 2]);
+    await page.locator('#pick').click();
+    await settle(100);
+    return (hit === 'pick' && !(await page.locator('#pick').isChecked()))
+        || `the topmost element at the box is #${hit}, so the box's hover state never fires`;
+});
+
+await check('the target is 44px, not the whole cell', async () => {
+    const t = await page.locator('label[for=pick]').boundingBox();
+    return (Math.round(t.width) === 44 && Math.round(t.height) === 44) || `${t.width}x${t.height}`;
+});
+
 // ---------------------------------------------------------------- accordion
 
 group('accordion');
