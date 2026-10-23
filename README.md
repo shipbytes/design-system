@@ -1,3 +1,12 @@
+<p>
+  <a href="https://shipbytes.dev">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/images/shipbytes-dark.svg">
+      <img src="docs/images/shipbytes-light.svg" alt="Shipbytes" width="184" height="36">
+    </picture>
+  </a>
+</p>
+
 # Shipbytes Design System
 
 A portable design system for Blade, React, Vue or plain HTML projects.
