@@ -60,6 +60,29 @@ difference.
 `help` is replaced by `error`, never stacked with it. Two lines of guidance under
 one control is one too many; the same rule as [input.md](input.md).
 
+## Hidden label
+
+`hideLabel` keeps the `<label for>` as the accessible name and hides its text
+(`sr-only`). It exists for a select column in a table, where the row already
+names the thing and a visible "Select Invoice 42" would repeat it.
+
+Hiding the text must not shrink the target to the 18px box. The label element
+stays, transparent, as a **44px square centred on the box** (`-inset-[13px]`
+around 18px), painted *behind* it with `-z-10` inside an `isolate` cell. Paint
+order is hit-test order, so:
+
+- a press on the box lands on the input, and its hover state still fires;
+- a press on the margin lands on the label and toggles the input through `for`;
+- `isolate` keeps the negative z-index inside the cell, so the square never
+  sinks behind the row it sits in.
+
+The cell loses its `pt-0.5` in this mode: that padding aligns the box with the
+first line of a visible label, and with no line to meet it would push the box
+off the centre of its own target.
+
+`help` and `error` still render visibly when given. A hidden label is not a
+hidden message.
+
 ## Accessibility
 
 - `aria-describedby` wires help *or* error to the input.
@@ -76,6 +99,8 @@ one control is one too many; the same rule as [input.md](input.md).
   is submitted. If it takes effect on click, it needs `role="switch"` and a
   different component.
 - **Do not omit the label** and rely on a table column header. The header is not
-  programmatically associated, and the touch target collapses to 18px.
+  programmatically associated, and the touch target collapses to 18px. Use
+  `hideLabel` with a per-row label instead.
+- **Do not use `hideLabel` outside a table row** that already names the thing.
 - **Do not put the error on the box** in a group of checkboxes — it belongs to
   the group. See [radio.md](radio.md#the-group-is-a-fieldset).

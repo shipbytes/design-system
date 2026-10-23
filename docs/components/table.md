@@ -11,8 +11,10 @@ Headers come from the **`columns` prop**, not from a slot:
 ```blade
 <x-ds::table :columns="['Report', 'Status', ['label' => 'Total', 'align' => 'right']]">
     @foreach ($reports as $report)
-        <x-ds::table-row :href="route('reports.show', $report)">
-            <x-ds::table-cell>{{ $report->name }}</x-ds::table-cell>
+        <x-ds::table-row>
+            <x-ds::table-cell>
+                <a href="{{ route('reports.show', $report) }}" class="font-medium text-fg hover:underline">{{ $report->name }}</a>
+            </x-ds::table-cell>
             <x-ds::table-cell :nowrap="true">
                 <x-ds::badge :tone="$report->tone">{{ $report->status }}</x-ds::badge>
             </x-ds::table-cell>
@@ -46,13 +48,33 @@ Omit `columns` entirely and supply your own `<thead>` in the slot.
 
 | Component | Prop | Default | What it does |
 |---|---|---|---|
-| `table-row` | `href` | — | Makes the whole row a link. |
 | `table-row` | `hover` | `true` | Row hover fill. |
 | `table-cell` | `align` | `left` | `left` `center` `right`. |
 | `table-cell` | `nowrap` | `false` | Stops the cell wrapping. |
 
 **`nowrap` is right for dates, counts and badges; wrong for prose** — a
 non-wrapping sentence forces the whole table sideways.
+
+## Linking a row
+
+**`table-row` has no `href`.** A `<tr>` cannot be a link, and wrapping one in an
+`<a>` is invalid HTML. Until v1.2.1 this page documented an `href` prop that the
+component never had: it rendered `<tr href="…">`, which the browser ignores, and
+the row looked clickable and went nowhere.
+
+Link from a cell instead, either the first cell's text or a trailing action:
+
+```blade
+<x-ds::table-row>
+    <x-ds::table-cell>{{ $report->name }}</x-ds::table-cell>
+    <x-ds::table-cell align="right">
+        <x-ds::button variant="ghost" size="sm" :href="route('reports.show', $report)">View</x-ds::button>
+    </x-ds::table-cell>
+</x-ds::table-row>
+```
+
+Both are real links: they take focus, open in a new tab, and carry anything
+else you put on them, such as Livewire's `wire:navigate`.
 
 ## It scrolls inside its own box
 
@@ -79,9 +101,7 @@ reader needs to know *what* is empty:
 
 ## Don't
 
-- **Don't put an interactive control inside a linked row.** A button inside an
-  `<a>` is invalid and the click target becomes ambiguous. Give the row no
-  `href` and link the first cell instead.
+- **Don't make the row itself the link.** See above: link a cell.
 - **Don't build `width` dynamically.** See above.
 - **Don't use a table for layout.**
 

@@ -336,9 +336,13 @@ Kept here so nobody has to rediscover them. Roughly in the order worth closing.
 **1. No overlay knows where the viewport edge is.** `dropdown`, `select`,
 `combobox`, `date-picker` and `tooltip` each take a placement and trust it.
 `npm run test:behaviour` now MEASURES the cost at the bottom of its run rather
-than describing it — at the time of writing the date picker runs **32px below the
-fold** when its trigger sits at the bottom of the window, while the dropdown and
-the select still fit. A calendar is ~340px tall, so it is the one that bites.
+than describing it. **Read the number as a floor, not the overflow.** It scrolls
+each trigger to the bottom of the window only as far as the specimen page can
+scroll, so it grows with the page: the date picker read 32px until v1.2.1 added a
+specimen above it, and 106px after, with nothing about the picker changed. A
+calendar is ~340px tall, so the real figure is larger, and the dropdown and the
+select "fitting" may say as much about the page as about them. Pad the page
+before trading on it.
 
 Fixing it properly means floating-ui, which would be this package's first real JS
 dependency. The number is there so that trade can be made on evidence.
@@ -375,7 +379,14 @@ pattern, so a collapsed section is `visibility: hidden` and the browser's own
 find will not reveal it. `<details>` would give that for free, and was the other
 candidate — see specs/accordion.md.
 
-**7. Components deliberately NOT built**, so nobody adds them by reflex:
+**7. A table row cannot be a link.** `table-row` never had the `href` its docs
+described until v1.2.1; it rendered `<tr href>`, which nothing reads. The docs now
+say to link a cell. A real whole-row target would need a stretched link from one
+cell (an `after:absolute after:inset-0` on a `relative` row), which fights the
+"no control inside a linked row" rule as soon as a row holds a checkbox. Not built
+until a screen needs it more than a trailing View button.
+
+**8. Components deliberately NOT built**, so nobody adds them by reflex:
 
 - **Server-side filtering for `combobox`.** It filters the list you pass it, in
   the browser. A searchable list too large to send needs a search callback, and

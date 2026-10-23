@@ -169,6 +169,20 @@
                 <x-ds::checkbox name="c3" label="Required" error="You must agree to continue." />
                 <x-ds::checkbox name="c4" label="Not available on this plan" :disabled="true" />
             </div>
+            {{-- hideLabel: the row already names the thing, so the label is the
+                 accessible name only. --}}
+            <x-ds::table class="mt-5">
+                <thead class="bg-surface-subtle">
+                    <tr>
+                        <th scope="col" class="w-12 px-4 py-3"><x-ds::checkbox name="c5{{ $t }}" label="Select all" :hideLabel="true" /></th>
+                        <th scope="col" class="px-4 py-3 text-left text-overline uppercase text-fg-muted">Report</th>
+                    </tr>
+                </thead>
+                <x-ds::table-row>
+                    <x-ds::table-cell><x-ds::checkbox name="c6{{ $t }}" label="Select Q3 revenue" :hideLabel="true" :checked="true" /></x-ds::table-cell>
+                    <x-ds::table-cell>Q3 revenue</x-ds::table-cell>
+                </x-ds::table-row>
+            </x-ds::table>
         </div>
     @endforeach
 </div>

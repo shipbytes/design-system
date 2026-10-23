@@ -163,7 +163,7 @@ final class Specimens
                     ['label' => 'Status'],
                     ['label' => 'Total', 'align' => 'right'],
                 ]">
-                    <x-ds::table-row href="/row">
+                    <x-ds::table-row>
                         <x-ds::table-cell>Q3 revenue</x-ds::table-cell>
                         <x-ds::table-cell :nowrap="true"><x-ds::badge tone="success">Ready</x-ds::badge></x-ds::table-cell>
                         <x-ds::table-cell align="right">£1,200</x-ds::table-cell>
@@ -286,6 +286,29 @@ final class Specimens
                 <x-ds::checkbox name="bad" label="Required" error="You must agree to continue." />
                 <x-ds::checkbox name="off" label="Not available" :disabled="true" />
                 <x-ds::checkbox name="offon" label="Locked on" :disabled="true" :checked="true" />
+                BLADE,
+
+            // Hidden label: the select column of a table, header and rows.
+            'checkbox/hidden-label' => <<<'BLADE'
+                <x-ds::table>
+                    <thead>
+                        <tr>
+                            <th scope="col" class="px-4 py-3">
+                                <x-ds::checkbox name="all" label="Select all" :hideLabel="true" :indeterminate="true" />
+                            </th>
+                            <th scope="col" class="px-4 py-3 text-left">Report</th>
+                        </tr>
+                    </thead>
+                    <x-ds::table-row>
+                        <x-ds::table-cell><x-ds::checkbox name="ids[]" value="1" label="Select Q3 revenue" :hideLabel="true" :checked="true" /></x-ds::table-cell>
+                        <x-ds::table-cell>Q3 revenue</x-ds::table-cell>
+                    </x-ds::table-row>
+                    <x-ds::table-row>
+                        <x-ds::table-cell><x-ds::checkbox name="ids[]" value="2" label="Select Churn" :hideLabel="true" :disabled="true" /></x-ds::table-cell>
+                        <x-ds::table-cell>Churn</x-ds::table-cell>
+                    </x-ds::table-row>
+                </x-ds::table>
+                <x-ds::checkbox name="x" label="Hidden, with an error" :hideLabel="true" error="Pick at least one." />
                 BLADE,
 
             'radio/all' => <<<'BLADE'
