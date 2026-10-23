@@ -19,7 +19,8 @@
 ])
 
 @php
-    $id = $attributes->get('id') ?: 'ds-'.substr(md5($name.$label.uniqid()), 0, 8);
+    // Stable under wire:model, random otherwise: see Support\ControlId.
+    $id = \Shipbytes\BladeUi\Support\ControlId::for($attributes, $label, $name);
     $describedBy = $help ? "{$id}-help" : null;
 
     /*

@@ -8,7 +8,8 @@
 ])
 
 @php
-    $id = $attributes->get('id') ?: 'ds-'.substr(md5($attributes->get('name', '').$label.uniqid()), 0, 8);
+    // Stable under wire:model, random otherwise: see Support\ControlId.
+    $id = \Shipbytes\BladeUi\Support\ControlId::for($attributes, $label);
     $describedBy = $help ? "{$id}-help" : null;
 
     // Same construction as the checkbox — the native input, styled, rather than
