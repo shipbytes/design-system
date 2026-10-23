@@ -22,6 +22,10 @@ final class BladeUiServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/blade-ui.php', 'blade-ui');
+
+        // Scoped, not a singleton: Octane and queue workers flush scoped
+        // instances between requests, so "once per request" stays true there.
+        $this->app->scoped('blade-ui.missing-icons', fn () => new \ArrayObject());
     }
 
     public function boot(): void

@@ -11,26 +11,26 @@
      * the icon is the ONLY thing carrying the meaning (an icon-only button).
      */
     'label' => null,
+    /**
+     * An icon to render when `name` does not exist, instead of throwing. Off by
+     * default: a wrong name typed into a template is a developer error and
+     * should fail loud. Pass it only where the name comes from data or config,
+     * where one bad entry would otherwise take down every page that shows it.
+     */
+    'fallback' => null,
 ])
 
 @php
-    // The source app was built against Heroicons v1 and picked up v2 icons
-    // later, so both generations of name appear in it. v2 renamed 33 of the
-    // names in use; the alias map means an old one resolves instead of
-    // rendering nothing at all. See icons/icons.json for the full mapping.
-    $resolved = config('blade-ui.icon_aliases', [])[$name] ?? $name;
     $size ??= config('blade-ui.icon_size', 4);
 
-    // blade-heroicons prefixes: o- outline (24), s- solid (24),
-    // m- mini (20), c- micro (16).
-    $prefix = match ($variant) {
-        'solid' => 's',
-        'mini' => 'm',
-        'micro' => 'c',
-        default => 'o',
-    };
+    // Aliases and the variant prefix resolve in Support\Icons, shared with
+    // Icons::exists(), so the check and the render cannot disagree.
+    $component = \Shipbytes\BladeUi\Support\Icons::component($name, $variant);
 
-    $component = "heroicon-{$prefix}-{$resolved}";
+    if ($fallback !== null && ! \Shipbytes\BladeUi\Support\Icons::exists($name, $variant)) {
+        \Shipbytes\BladeUi\Support\Icons::reportMissing($name, $fallback);
+        $component = \Shipbytes\BladeUi\Support\Icons::component($fallback, $variant);
+    }
 
     // Built here rather than inline on the tag: Blade's component-tag parser
     // gives up on a tag containing a multi-line attribute-bag expression and
