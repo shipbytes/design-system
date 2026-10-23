@@ -53,6 +53,7 @@ phpunit.xml       dev-only; neither file ships to consumers
 
 ```bash
 npm run build        # tokens/ -> dist/   (run after ANY token change)
+npm run build:icons -- <path-to-app>   # manual: re-derive icons/icons.json from an app
 npm test             # tokens, then render, then behaviour
 npm run test:tokens      # structure, WCAG contrast, theme collisions
 npm run test:render      # renders every component through testbench
@@ -60,6 +61,11 @@ npm run test:behaviour   # drives every interactive one in a real browser
 npm run build:gallery    # dist/gallery.html
 npm run build:docs       # docs/images/ — re-run whenever a component's look changes
 ```
+
+`build` is tokens only. Until v1.3.0 it chained `build-icons.mjs`, which needs the
+path of an app to read and exits 1 without one, so `npm run build` failed on every
+clean clone after writing `dist/` correctly. `icons/icons.json` is checked in;
+`build:icons` is the deliberate, rare step of re-deriving it.
 
 **None of these need a host application.** `scripts/render.php` boots Laravel
 through testbench, so the gallery, the screenshots and the behaviour tests all
@@ -224,6 +230,17 @@ paused mid-word. `Support\ControlId` now hashes the binding, name, value and
 label for a control with `wire:model`, and keeps the random id for one without,
 so two look-alike plain-Blade fields still get two ids. `ControlIdTest` holds
 both halves.
+
+**`ds::icon`'s `fallback` is opt-in, and must stay so.** An unknown name throws
+`Unable to locate a class or view for component [heroicon-o-…]`, because in a
+template a wrong name is a developer error. A consumer fed names from config into
+the icon, one entry was a v1 name with no alias, and every page showing that nav
+was a 500, including the one where it could be fixed. `fallback="…"` renders a
+stand-in and logs one warning per request per name; pass it only where the name
+is data. The existence check and the render both resolve through
+`Support\Icons::component()`: give them separate copies of the alias or variant
+logic and the check passes names the page then throws on. `IconFallbackTest`
+holds both halves and the alias case.
 
 **A prop that resolves to classes in PHP cannot be driven from Alpine.** Every
 `tone`, `variant`, `size` and `active` is a lookup of literal class strings, done

@@ -18,7 +18,7 @@
     "./icons.json": "./icons/icons.json"
   },
   "scripts": {
-    "build": "node scripts/build-tokens.mjs && node scripts/build-icons.mjs",
+    "build": "node scripts/build-tokens.mjs",
     "build:tokens": "node scripts/build-tokens.mjs",
     "build:icons": "node scripts/build-icons.mjs",
     "test": "node scripts/test-tokens.mjs && node scripts/test-render.mjs && node scripts/test-behaviour.mjs",

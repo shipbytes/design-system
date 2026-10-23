@@ -88,6 +88,10 @@ final class Specimens
                 <x-ds::icon name="check-circle" variant="micro" />
                 <x-ds::icon name="x" label="Close" />
                 BLADE,
+            'icon/fallback' => <<<'BLADE'
+                <x-ds::icon name="not-a-heroicon" fallback="question-mark-circle" />
+                <x-ds::icon name="search" fallback="question-mark-circle" />
+                BLADE,
 
             'badge/tones' => <<<'BLADE'
                 <x-ds::badge tone="neutral">Neutral</x-ds::badge>

@@ -34,6 +34,7 @@ the same thing*, which is what sets the default below.
 | `variant` | `outline` \| `solid` \| `mini` \| `micro` | `outline` |
 | `size` | any Tailwind size step | `config('blade-ui.icon_size')`, 4 |
 | `label` | a string | none — see below |
+| `fallback` | a Heroicon v2 name | none: an unknown `name` throws |
 
 `variant` maps onto blade-heroicons' prefixes: `o-` (24 outline), `s-` (24 solid),
 `m-` (20 mini), `c-` (16 micro). The names `mini` and `micro` are Heroicons' own,
@@ -70,13 +71,33 @@ Default is `4` (16px), which matched the dashboard's dominant `size-4`.
 
 The source app was built against Heroicons v1 and picked up v2 icons later, so it
 runs a mix. **v2 renamed 33 of the names in use.** A renamed name resolves to no
-component at all and renders nothing — silently.
+component at all, and the page throws `Unable to locate a class or view for
+component [heroicon-o-…]`.
 
 `config('blade-ui.icon_aliases')` maps the names most likely to be typed from
 memory (`x`, `search`, `mail`, `cog`, `menu`, `logout`, …) onto their v2
 spellings. `icons/icons.json` carries the full mapping.
 
 The aliases are a **migration aid, not an API**. New code writes v2 names.
+
+## Unknown names: loud by default, `fallback` for data
+
+Without `fallback`, an unknown name throws. That is the system failing loud on
+a developer error, which is what a wrong name typed into a template is.
+
+A name read from config or a database is different: it is data, and one bad
+entry in an admin nav took down every admin page, including the one where it
+could be fixed. `fallback` is for that case and only that case. With it, the
+component asks `Support\Icons::exists()` before rendering; a missing name
+renders the fallback in the same variant and logs one warning per request per
+name, `blade-ui: icon "grid" not found, rendered "question-mark-circle"`. The
+once-per-request memo is a scoped binding, so Octane and queue workers reset it.
+
+`exists()` resolves aliases and the variant prefix through the same
+`Support\Icons::component()` the renderer uses, and asks blade-icons' factory
+rather than the svg directory. It also refuses an svg the factory substituted
+through blade-icons' own `fallback` config, because the component path has no
+such substitution and would still throw.
 
 ## Accessibility
 
@@ -115,6 +136,8 @@ build when it sees that in rendered output, because it is the signature.
 - **Do not label a decorative icon.** Every redundant label is one more thing
   read aloud before the reader reaches the thing they wanted.
 - **Do not use a v1 name in new code.** The alias map is for what already exists.
+- **Do not pass `fallback` on a name written in a template.** It hides a typo
+  that would otherwise fail on first load.
 - **Do not set a colour on a wrapper and expect the SVG to take it** when the icon
   carries `fill="currentColor"` as a presentation attribute — that beats
   inheritance. `bottom-nav-item` reaches past it with `[&_svg]:fill-*`; see
