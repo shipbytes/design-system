@@ -381,7 +381,9 @@ built component now has a spec, so this is unblocked.
 **5. The gallery cannot show `sheet` or `bottom-nav`.** Both are `lg:hidden`, and
 the gallery is a page a person opens on a desktop, so at that viewport they
 render nothing. The gallery's sheet section is hand-drawn markup for this reason
-and is the one place in it that is not the real component. The documentation
+and is the one place in it that is not the real component. `bottom-nav-item` is
+not affected: the media query is on the bar, so the gallery shows real items in a
+bar drawn to match, and `RendersComponentsTest` requires it there. The documentation
 screenshots DO show them, because that script drives a 1000px viewport on
 purpose. An `<iframe>` at phone width would fix it.
 

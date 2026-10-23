@@ -469,6 +469,43 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Bottom nav item --}}
+<section class="ds-spec" id="bottom-nav-item">
+    <header class="ds-spec-head">
+        <h2>Bottom nav item</h2>
+        <p>The phone's tabs. The bar around them is <code>lg:hidden</code>, so on this page it would render nothing; the items are the real component, in a bar drawn to match.</p>
+    </header>
+
+    <div class="ds-note">The count is the component's to cap: pass the raw number and anything over 9 is drawn as &ldquo;9+&rdquo;, while a screen reader hears the real figure as part of the label.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">With counts <span>&middot; 3, then 12 drawn as 9+; 0 and null draw nothing</span></div>
+        {{-- Wrapped: the plate pads its direct child, which would make the bar
+             twice its real height. --}}
+        <div>
+        <div class="mx-auto max-w-sm overflow-hidden rounded-panel border border-border-strong bg-surface">
+            <div class="flex h-16 items-center justify-around px-2">
+                <x-ds::bottom-nav-item href="#bottom-nav-item" label="Home" :active="true">
+                    <x-slot:icon><x-ds::icon name="home" size="6" /></x-slot:icon>
+                </x-ds::bottom-nav-item>
+                <x-ds::bottom-nav-item href="#bottom-nav-item" label="Inbox" :badge="3">
+                    <x-slot:icon><x-ds::icon name="inbox" size="6" /></x-slot:icon>
+                </x-ds::bottom-nav-item>
+                <x-ds::bottom-nav-item href="#bottom-nav-item" label="Support" :badge="12">
+                    <x-slot:icon><x-ds::icon name="lifebuoy" size="6" /></x-slot:icon>
+                </x-ds::bottom-nav-item>
+                <x-ds::bottom-nav-item href="#bottom-nav-item" label="Reports" :badge="0">
+                    <x-slot:icon><x-ds::icon name="chart-bar" size="6" /></x-slot:icon>
+                </x-ds::bottom-nav-item>
+                <x-ds::bottom-nav-item label="More">
+                    <x-slot:icon><x-ds::icon name="menu" size="6" /></x-slot:icon>
+                </x-ds::bottom-nav-item>
+            </div>
+        </div>
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Sheet --}}
 <section class="ds-spec" id="sheet">
     <header class="ds-spec-head">

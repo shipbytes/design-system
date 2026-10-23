@@ -500,11 +500,14 @@
                 <x-ds::bottom-nav-item href="#" label="Home" :active="true">
                     <x-slot:icon><x-ds::icon name="home" size="6" /></x-slot:icon>
                 </x-ds::bottom-nav-item>
+                <x-ds::bottom-nav-item href="#" label="Inbox" :badge="3">
+                    <x-slot:icon><x-ds::icon name="inbox" size="6" /></x-slot:icon>
+                </x-ds::bottom-nav-item>
+                <x-ds::bottom-nav-item href="#" label="Support" :badge="12">
+                    <x-slot:icon><x-ds::icon name="lifebuoy" size="6" /></x-slot:icon>
+                </x-ds::bottom-nav-item>
                 <x-ds::bottom-nav-item href="#" label="Reports">
                     <x-slot:icon><x-ds::icon name="chart-bar" size="6" /></x-slot:icon>
-                </x-ds::bottom-nav-item>
-                <x-ds::bottom-nav-item href="#" label="Team">
-                    <x-slot:icon><x-ds::icon name="users" size="6" /></x-slot:icon>
                 </x-ds::bottom-nav-item>
                 <x-ds::bottom-nav-item label="More">
                     <x-slot:icon><x-ds::icon name="menu" size="6" /></x-slot:icon>

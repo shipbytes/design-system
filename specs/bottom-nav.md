@@ -24,6 +24,7 @@ Covers `bottom-nav` and `bottom-nav-item`.
 | Active | `fg` + `[&_svg]:fill-fg` | Full strength. |
 | Inactive label | `fg-muted` | Readable — 4.5:1. |
 | Inactive icon | `fg-subtle` | Allowed: the label beside it says the same word. |
+| Count pill | `accent` fill, `on-accent` text, `ring-2 ring-surface` | Informational, not an error, so `accent` rather than `danger`. The pair is the one `test:tokens` already holds at 4.5:1 in both themes (white on blue-600, zinc-950 on blue-400). The ring is the bar's own colour and cuts the pill out of the glyph it overlaps. |
 
 **The label and the icon take different inactive weights on purpose.** The icon
 carries recognition and can afford to be lighter; the label carries the meaning
@@ -50,6 +51,39 @@ place. Two bars stacked at the bottom of a phone is a screen with no content.
 
 It renders as `display: none`, not as an unmounted component, so the surrounding
 layout does not shift when a screen toggles it.
+
+## The count
+
+`badge` puts a count on the icon, for the tab whose screen has something waiting:
+unread tickets, new messages.
+
+```
+     ▢⁽³⁾        ▢⁽⁹⁺⁾
+    Inbox       Support
+```
+
+| Part | Value | Why |
+|---|---|---|
+| Anchor | the icon wrapper, which is `relative` | Against the whole item the pill would sit in the corner of a tab a fifth of the screen wide, attached to nothing. |
+| Position | `-top-1.5`, `start-full -ms-2.5` | Its start edge sits 10px inside the icon's end edge, so it overlaps the corner and a wider "9+" grows *outward*, away from the glyph. Logical, so it mirrors in RTL. |
+| Size | `h-4 min-w-4 px-1`, `text-meta` semibold, `tabular-nums` | A 16px circle for one digit, a short capsule for "9+". `meta` is the smallest type in the system; nothing smaller is legible at a glance on a phone. |
+
+**The cap is the component's job.** Pass the raw count. 1–9 draw as themselves;
+anything over 9 draws as **"9+"**. The pill has room for two characters, and the
+difference between 14 and 140 unread is not something a tab bar can usefully
+say: it means "go and look", which "9+" says.
+
+**Nothing to count draws nothing.** `null`, `0`, `'0'`, a negative number and
+`''` render no pill and no spoken text, so `:badge="$count"` needs no guard. An
+empty pill, or a "0", is a tab that says "look here" and has nothing there.
+
+**A non-numeric string is drawn as given**, uncapped, and spoken as given:
+`badge="new"` draws "new". Keep it to one short word: the pill grows outward, and
+a phrase runs into the next tab. A numeric string (`"3"`) counts as a number.
+
+The pill is not `ds::badge`. That component is an inline annotation in a row of
+text; this is a positioned overlay with its own cap and its own spoken text, and
+building it from the badge would mean overriding every one of its classes.
 
 ## The fill trap
 
@@ -81,6 +115,16 @@ Same family as the icon-size bug: correct-looking markup, no error, wrong pixels
 - Each item is at least 44×44 — `flex-1` plus `py-2` inside a 64px bar.
 - Labels are always present. There is **no icon-only variant**: five unlabelled
   glyphs is a memory test.
+- **The count is spoken as part of the label.** The visible pill is
+  `aria-hidden="true"`, and the label carries an `sr-only` suffix, so the item's
+  accessible name is **"Support, 3 new"**. The spoken count is the REAL one:
+  "Support, 12 new" where the pill shows "9+", because "nine plus" is not a
+  number anyone should have to hear. A word badge is spoken as given:
+  "Changes, new". The suffix sits inside the label's own span, not beside it, so
+  the name reads as one phrase rather than "Support , 3 new".
+- The pill is `accent` on `on-accent`, the pair `test:tokens` holds at 4.5:1 in
+  both themes, and its fill is 4.5:1 against the bar's `surface` (the same pair
+  as a link). It never carries the meaning alone: the spoken name carries it too.
 
 ## Do not
 
@@ -90,6 +134,12 @@ Same family as the icon-size bug: correct-looking markup, no error, wrong pixels
 - **Do not exceed five items.** Below five the targets are comfortable; above
   five they are not, and the fifth should be a "More" sheet — which is exactly
   what [sheet.md](sheet.md) is for.
+- **Do not cap the count yourself.** Pass `$count`, not `min($count, 9)` or
+  `'9+'`. The component draws "9+" and speaks the real number; a pre-capped
+  value makes a screen reader say "nine" for 140, and `'9+'` is drawn as a word
+  and spoken as "9+".
+- **Do not use the count for status.** "Offline" or "Error" is not something
+  waiting to be read; that belongs on the screen, in an `alert`.
 - **Do not put an action in it.** It is navigation. A destructive or creative
   action belongs in the FAB (`button` at `size="fab"`), which overlaps the bar
   rather than sitting in it.
