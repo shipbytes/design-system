@@ -1,0 +1,69 @@
+{
+  "$description": "Durations and easings. Every value is one the components already used before it was a token: the eight durations are the enter/leave pairs written into their x-transition attributes, grouped by what moves. Named for the job, like radius, so a new overlay picks the pair for its kind of surface rather than a number. Leave is always quicker than enter: the reader asked for the thing to go, and is already looking at what is next.",
+  "motion": {
+    "duration": {
+      "$description": "Larger surfaces travel further and get longer. Every one of these is a ceiling for something the reader is waiting on, so none goes past 300ms.",
+      "hint": {
+        "enter": {
+          "$type": "duration",
+          "$value": "100ms",
+          "$description": "A tooltip. Fast enough that hovering along a toolbar does not feel like it lags behind the pointer."
+        },
+        "leave": {
+          "$type": "duration",
+          "$value": "75ms",
+          "$description": "A tooltip going away."
+        }
+      },
+      "popover": {
+        "enter": {
+          "$type": "duration",
+          "$value": "150ms",
+          "$description": "Dropdown, select, combobox and date picker panels: small, and anchored to the control that opened them."
+        },
+        "leave": {
+          "$type": "duration",
+          "$value": "100ms",
+          "$description": "A popover closing."
+        }
+      },
+      "dialog": {
+        "enter": {
+          "$type": "duration",
+          "$value": "200ms",
+          "$description": "The modal and its backdrop, and the accordion's expand: a surface that changes what the page is about."
+        },
+        "leave": {
+          "$type": "duration",
+          "$value": "150ms",
+          "$description": "A dialog closing."
+        }
+      },
+      "slide": {
+        "enter": {
+          "$type": "duration",
+          "$value": "300ms",
+          "$description": "Drawer and sheet: a full-height or full-width panel travelling in from an edge, the furthest anything moves."
+        },
+        "leave": {
+          "$type": "duration",
+          "$value": "200ms",
+          "$description": "A drawer or sheet leaving."
+        }
+      }
+    },
+    "ease": {
+      "$description": "Two curves, one per direction, and both are the values of Tailwind's own ease-out and ease-in, which is what every component used. Named enter/leave rather than reusing out/in: an @theme key overwrites Tailwind's, and the job is the thing a component author needs to pick by.",
+      "enter": {
+        "$type": "cubicBezier",
+        "$value": [0, 0, 0.2, 1],
+        "$description": "Decelerates: arrives quickly and settles, so the surface is readable early."
+      },
+      "leave": {
+        "$type": "cubicBezier",
+        "$value": [0.4, 0, 1, 1],
+        "$description": "Accelerates away: the start of the movement is the part the reader sees."
+      }
+    }
+  }
+}

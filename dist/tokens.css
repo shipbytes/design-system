@@ -122,6 +122,16 @@
   --ds-space-gutter: 1rem;
   --ds-space-section: 1.5rem;
   --ds-space-page: 2.5rem;
+  --ds-motion-duration-hint-enter: 100ms;
+  --ds-motion-duration-hint-leave: 75ms;
+  --ds-motion-duration-popover-enter: 150ms;
+  --ds-motion-duration-popover-leave: 100ms;
+  --ds-motion-duration-dialog-enter: 200ms;
+  --ds-motion-duration-dialog-leave: 150ms;
+  --ds-motion-duration-slide-enter: 300ms;
+  --ds-motion-duration-slide-leave: 200ms;
+  --ds-motion-ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --ds-motion-ease-leave: cubic-bezier(0.4, 0, 1, 1);
   --ds-font-sans: Inter, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --ds-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --ds-weight-regular: 400;
