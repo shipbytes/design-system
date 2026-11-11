@@ -5,6 +5,10 @@
 # vendor/shipbytes/blade-ui/dist/tokens.css. The npm package is for JS and
 # non-PHP consumers, not a prerequisite.
 /scripts            export-ignore
+# The script's SOURCE. Consumers load dist/blade-ui.js or dist/blade-ui.global.js,
+# which are built from it and ship above; the modules on their own are not a
+# supported entry point.
+/resources/js       export-ignore
 /tests              export-ignore
 # 1 MB of screenshots nobody reads out of vendor/. The docs live on GitHub.
 /docs               export-ignore

@@ -18,12 +18,14 @@
     "./icons.json": "./icons/icons.json"
   },
   "scripts": {
-    "build": "node scripts/build-tokens.mjs",
+    "build": "node scripts/build-tokens.mjs && node scripts/build-js.mjs",
     "build:tokens": "node scripts/build-tokens.mjs",
+    "build:js": "node scripts/build-js.mjs",
     "build:icons": "node scripts/build-icons.mjs",
-    "test": "node scripts/test-tokens.mjs && node scripts/test-render.mjs && node scripts/test-behaviour.mjs",
+    "test": "node scripts/test-tokens.mjs && node scripts/test-js.mjs && node scripts/test-render.mjs && node scripts/test-behaviour.mjs",
     "build:gallery": "node scripts/build-gallery.mjs",
     "test:tokens": "node scripts/test-tokens.mjs",
+    "test:js": "node scripts/test-js.mjs",
     "test:render": "node scripts/test-render.mjs",
     "build:docs": "node scripts/build-docs.mjs",
     "test:behaviour": "node scripts/test-behaviour.mjs"
