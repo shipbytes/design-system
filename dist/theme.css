@@ -184,6 +184,16 @@
   --spacing-gutter: var(--ds-space-gutter);
   --spacing-section: var(--ds-space-section);
   --spacing-page: var(--ds-space-page);
+  --transition-duration-hint-enter: var(--ds-motion-duration-hint-enter);
+  --transition-duration-hint-leave: var(--ds-motion-duration-hint-leave);
+  --transition-duration-popover-enter: var(--ds-motion-duration-popover-enter);
+  --transition-duration-popover-leave: var(--ds-motion-duration-popover-leave);
+  --transition-duration-dialog-enter: var(--ds-motion-duration-dialog-enter);
+  --transition-duration-dialog-leave: var(--ds-motion-duration-dialog-leave);
+  --transition-duration-slide-enter: var(--ds-motion-duration-slide-enter);
+  --transition-duration-slide-leave: var(--ds-motion-duration-slide-leave);
+  --ease-enter: var(--ds-motion-ease-enter);
+  --ease-leave: var(--ds-motion-ease-leave);
   --font-sans: var(--ds-font-sans);
   --font-mono: var(--ds-font-mono);
   --text-display: var(--ds-text-display-font-size);

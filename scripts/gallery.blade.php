@@ -13,6 +13,12 @@
     $row = 'flex flex-wrap items-center gap-3';
 @endphp
 
+{{-- The package's script, as a host's layout includes it. The gallery loads no
+     Alpine on purpose (see the select section), so here it registers nothing;
+     it is included so the page carries what a consumer's does, and so a
+     gallery that ever does load Alpine gets the behaviours with it. --}}
+<x-ds::scripts />
+
 {{-- ─────────────────────────────────────────── Button --}}
 <section class="ds-spec" id="button">
     <header class="ds-spec-head">
@@ -644,7 +650,7 @@
 
     <div class="ds-note">Elevation is <em>float, not overlay</em>. The shadow scale is where the system says whether a surface hovers over the page or blocks it, and this one hovers.</div>
 
-    <div class="ds-note">The gallery carries <em>no JavaScript</em>, so every menu here renders open. That is the state worth reviewing anyway &mdash; the closed state is just the trigger.</div>
+    <div class="ds-note">The gallery loads <em>no Alpine</em>, so every menu here renders open. That is the state worth reviewing anyway &mdash; the closed state is just the trigger.</div>
 
     <div class="{{ $plate }}">
         <div class="ds-plate-label">bottom-end <span>&middot; the default, because a trigger on the right runs off the page any other way</span></div>
@@ -886,7 +892,7 @@
         <p>A listbox, for where the native popup&rsquo;s unstyleable chrome is the problem. The native one is still right on anything phone-first &mdash; it gets typeahead and the platform&rsquo;s own scrolling for free.</p>
     </header>
 
-    <div class="ds-note">The gallery carries <em>no JavaScript</em>, so every list renders open &mdash; and the ticks and the trigger label are still right, because the component renders its selected state in PHP rather than waiting for Alpine.</div>
+    <div class="ds-note">The gallery loads <em>no Alpine</em>, so every list renders open &mdash; and the ticks and the trigger label are still right, because the component renders its selected state in PHP rather than waiting for Alpine.</div>
 
     <div class="{{ $plate }}">
         <div class="ds-plate-label">Open <span>&middot; the selected option carries a tick AND the weight change &mdash; weight alone is not reliable when comparing two rows</span></div>
@@ -1085,7 +1091,7 @@
     <div class="ds-note">Chips sit <em>inside</em> the field. A list of choices below the control reads as results, and people click them expecting to select rather than to remove.</div>
 
     <div class="{{ $plate }}">
-        <div class="ds-plate-label">Multiple <span>&middot; shown open; the gallery carries no JavaScript</span></div>
+        <div class="ds-plate-label">Multiple <span>&middot; shown open; the gallery loads no Alpine</span></div>
         <div class="mx-auto max-w-sm">
             <x-ds::combobox
                 name="g-tags"

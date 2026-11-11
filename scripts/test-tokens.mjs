@@ -381,6 +381,96 @@ function normalizeCss(v) {
         .trim();
 }
 
+// ------------------------------------------------------------ motion
+
+head('motion');
+
+{
+    const durations = flat.filter((t) => t.path[0] === 'motion' && t.path[1] === 'duration');
+    const eases = flat.filter((t) => t.path[0] === 'motion' && t.path[1] === 'ease');
+    const ms = (t) => Number(String(t.token.$value).match(/^(\d+)ms$/)?.[1] ?? NaN);
+
+    const malformed = durations.filter((t) => t.token.$type !== 'duration' || Number.isNaN(ms(t)));
+    expect(!malformed.length && durations.length, `all ${durations.length} durations are whole milliseconds`,
+        `durations not written as "<n>ms": ${malformed.map((t) => t.path.join('.')).join(', ') || 'there are none'}`);
+
+    // Every job is a pair, and the pair is ordered: leave is quicker than enter.
+    const jobs = [...new Set(durations.map((t) => t.path[2]))];
+    const broken = jobs.filter((job) => {
+        const enter = durations.find((t) => t.path[2] === job && t.path[3] === 'enter');
+        const leave = durations.find((t) => t.path[2] === job && t.path[3] === 'leave');
+        return !enter || !leave || durations.filter((t) => t.path[2] === job).length !== 2 || ms(leave) >= ms(enter);
+    });
+    expect(!broken.length, `${jobs.join(', ')}: each an enter/leave pair, leave quicker than enter`,
+        `not an enter/leave pair with leave < enter: ${broken.join(', ')}`);
+
+    const badCurves = eases.filter((t) => {
+        const v = t.token.$value;
+        return t.token.$type !== 'cubicBezier' || !Array.isArray(v) || v.length !== 4
+            || !v.every((n) => typeof n === 'number') || v[0] < 0 || v[0] > 1 || v[2] < 0 || v[2] > 1;
+    });
+    expect(!badCurves.length && eases.length === 2, 'ease.enter and ease.leave are valid cubic-bezier curves',
+        `bad curves: ${badCurves.map((t) => t.path.join('.')).join(', ') || `expected 2, found ${eases.length}`}`);
+
+    // Usable means usable as UTILITIES. Compile them the way a consumer's
+    // Tailwind would, and look for the rules, including under motion-safe.
+    const utilities = [
+        ...jobs.flatMap((job) => [`duration-${job}-enter`, `duration-${job}-leave`]),
+        'ease-enter',
+        'ease-leave',
+    ];
+    const probe = twTheme ? await compileProbe([...utilities, 'motion-safe:duration-popover-enter']) : null;
+
+    if (!twTheme) {
+        console.log('  \x1b[33m!\x1b[0m tailwindcss not installed — motion utility check skipped');
+    } else if (probe instanceof Error) {
+        fail(`could not compile the motion utilities: ${String(probe.stderr || probe.message).slice(0, 400)}`);
+    } else {
+        const missing = utilities.filter((u) => {
+            const name = u.startsWith('ease-') ? `--ease-${u.slice(5)}` : `--transition-duration-${u.slice(9)}`;
+            const rule = probe.match(new RegExp(`\\.${u}\\s*\\{[^}]*\\}`))?.[0] ?? '';
+            return !rule.includes(`var(${name})`) || !probe.includes(`${name}: var(--ds-motion-`);
+        });
+        expect(!missing.length, `${utilities.length} motion utilities compile against the tokens (duration-popover-enter, ease-enter, …)`,
+            `no rule, or no token behind the rule, for: ${missing.join(', ')}`);
+
+        expect(/prefers-reduced-motion:\s*no-preference[\s\S]*motion-safe\\:duration-popover-enter/.test(probe),
+            'and compose with motion-safe:',
+            'motion-safe:duration-popover-enter compiled to nothing');
+    }
+}
+
+async function compileProbe(classes) {
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { mkdir, writeFile, rm } = await import('node:fs/promises');
+
+    // Inside the repo, because `@import "tailwindcss"` resolves from the input
+    // file's directory and node_modules is here.
+    const dir = join(ROOT, '.tokens-tmp');
+    await mkdir(dir, { recursive: true });
+    try {
+        await writeFile(join(dir, 'in.css'), `@import "tailwindcss" source(none);
+@import "${join(ROOT, 'dist/tokens.css')}";
+@import "${join(ROOT, 'dist/theme.css')}";
+@source inline("${classes.join(' ')}");
+`);
+        await promisify(execFile)('npx', ['@tailwindcss/cli', '-i', join(dir, 'in.css'), '-o', join(dir, 'out.css')], {
+            cwd: ROOT,
+            maxBuffer: 32 * 1024 * 1024,
+        });
+        return await readFile(join(dir, 'out.css'), 'utf8');
+    } catch (error) {
+        return error;
+    } finally {
+        await rm(dir, { recursive: true, force: true });
+    }
+}
+
+function expect(ok, yes, no) {
+    ok ? pass(yes) : fail(no);
+}
+
 // ------------------------------------------------------------ 4. output
 
 head('build output');

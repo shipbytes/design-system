@@ -28,6 +28,11 @@
     $themes = ['', 'dark'];
 @endphp
 
+{{-- The package's script, where a host's layout puts it: before Alpine, which
+     build-docs.mjs appends after everything here. --}}
+<x-ds::scripts />
+
+
 {{-- ─────────────────────────── button --}}
 <div data-shot="button" class="shot">
     @foreach ($themes as $t)

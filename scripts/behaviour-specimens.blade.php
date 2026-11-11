@@ -176,4 +176,16 @@
             <x-ds::file-upload name="files[]" id="files" label="Files" :multiple="true" />
         </div>
     </form>
+
+    {{-- ── dsClipboard, from the shared script ──
+         No component uses it yet, so this is the markup a component would
+         emit, through the same helper. --}}
+    @php
+        $clipboard = \Shipbytes\BladeUi\Support\Behaviour::data('dsClipboard', ['text' => 'sk_live_42']);
+    @endphp
+    <div class="mt-6" id="clip" x-data="{{ $clipboard }}">
+        <button type="button" id="clip-copy" @click="copy()">Copy key</button>
+        <button type="button" id="clip-other" @click="copy('other value')">Copy other</button>
+        <span id="clip-state" x-text="copied ? 'copied' : 'idle'">idle</span>
+    </div>
 </div>

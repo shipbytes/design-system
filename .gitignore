@@ -4,6 +4,8 @@ scripts/_smoke/out.css
 vendor/
 .render-tmp/
 .interactive-tmp/
+.tokens-tmp/
+.behaviour-tmp/
 .phpunit.result.cache
 
 # A library does not pin its own dependencies — consumers resolve their own.

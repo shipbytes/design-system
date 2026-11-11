@@ -102,6 +102,21 @@ function varName(path) {
     return `--ds-${p.join('-')}`;
 }
 
+/**
+ * A token's value as CSS. Only a cubicBezier needs it: DTCG writes the curve as
+ * four numbers, and an array interpolated into a string becomes "0,0,0.2,1",
+ * which no property accepts and nothing reports.
+ */
+function cssValue(token) {
+    if (token.$type === 'cubicBezier' && Array.isArray(token.$value)) {
+        if (token.$value.length !== 4 || !token.$value.every((n) => typeof n === 'number')) {
+            throw new Error(`a cubicBezier needs four numbers, got ${JSON.stringify(token.$value)}`);
+        }
+        return `cubic-bezier(${token.$value.join(', ')})`;
+    }
+    return resolve(token.$value);
+}
+
 // ---------------------------------------------------------------- emit
 
 const banner = (what) =>
@@ -122,7 +137,7 @@ for (const { path, token } of tokens) {
         continue;
     }
 
-    lightLines.push(`  ${varName(path)}: ${resolve(token.$value)};`);
+    lightLines.push(`  ${varName(path)}: ${cssValue(token)};`);
 
     const dark = token.$extensions?.[DARK_KEY];
     if (dark !== undefined) darkLines.push(`  ${varName(path)}: ${resolve(dark)};`);
@@ -219,6 +234,14 @@ for (const { path, token } of tokens) {
         themeLines.push(`  --spacing-${path[1]}: var(${varName(path)});`);
     } else if (group === 'control') {
         themeLines.push(`  --spacing-control-${path[1]}: var(${varName(path)});`);
+    } else if (group === 'motion' && path[1] === 'duration') {
+        // Tailwind's `duration-*` reads the --transition-duration namespace, so
+        // `motion.duration.popover.enter` becomes `duration-popover-enter`.
+        themeLines.push(`  --transition-duration-${path.slice(2).join('-')}: var(${varName(path)});`);
+    } else if (group === 'motion' && path[1] === 'ease') {
+        // `ease-enter` / `ease-leave`. Not `ease-out` / `ease-in`: those keys
+        // are Tailwind's, and an @theme entry overwrites rather than adds.
+        themeLines.push(`  --ease-${path.slice(2).join('-')}: var(${varName(path)});`);
     } else if (group === 'text' && token.$type === 'typography') {
         themeLines.push(`  --text-${path[1]}: var(${varName([...path, 'font-size'])});`);
         themeLines.push(
@@ -360,7 +383,7 @@ for (const { path, token } of tokens) {
             ? Object.fromEntries(
                   Object.entries(token.$value).map(([k, v]) => [k, resolve(v)]),
               )
-            : resolve(token.$value);
+            : cssValue(token);
 
     const dark = token.$extensions?.[DARK_KEY];
     node[leaf] = dark !== undefined ? { light: value, dark: resolve(dark) } : value;

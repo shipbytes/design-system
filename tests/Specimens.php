@@ -507,6 +507,14 @@ final class Specimens
                     <x-ds::dropdown-item href="/a">A</x-ds::dropdown-item>
                 </x-ds::dropdown>
                 BLADE,
+
+            // Not a visual component, but it renders inside a host's layout and
+            // so inside a Livewire render too; this puts it through the markers
+            // test with everything else.
+            'scripts/include' => <<<'BLADE'
+                <x-ds::scripts />
+                <x-ds::scripts nonce="abc123" />
+                BLADE,
         ];
     }
 }
