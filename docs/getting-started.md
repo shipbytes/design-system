@@ -1,9 +1,12 @@
 # Getting started
 
-Install the package, add three lines of CSS, and every component works.
+Install the package, add three lines of CSS and one script include, and every
+component works.
 
-> **This page is the Blade package.** If you are building in React or Vue, you
-> want `@shipbytes/react` / `@shipbytes/vue` from npm instead — see
+> **This page is the Blade package**, and the Blade package is the system. If you
+> are not building in Blade, take `@shipbytes/design-tokens` from npm for the
+> CSS and the values: `@shipbytes/react` is no longer maintained and
+> `@shipbytes/vue` will not be built. See
 > [which package do I need?](../README.md#which-package-do-i-need). A Blade
 > project needs nothing from npm at all.
 
@@ -72,7 +75,101 @@ and since nothing loads Instrument Sans either, every page silently falls back
 to the system font. **Delete that block** (or move it above the imports if you
 really want Instrument Sans, and load that font yourself).
 
-## 3. Use a component
+## 3. Add the script
+
+In your layout's `head`, **above** Alpine's script tag:
+
+```blade
+<head>
+    …
+    <x-ds::scripts />
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+</head>
+```
+
+The package ships one small script of its own: the behaviours that several
+components share, registered with Alpine under a `ds` prefix. `ds::scripts`
+writes it into the page inline, about 3 kB, so there is nothing to publish, no
+route, no build step, and no copy in `public/` to go stale after a
+`composer update`. A component that needs it says so at the top of its page;
+put the include in the layout once and it is there for all of them.
+
+**Above Alpine, not below it.** The script registers when Alpine announces it
+is starting (`alpine:init`), which Alpine does once, before it sets up a single
+element. Included after Alpine has started, it registers too late for anything
+already on the page.
+
+**Loading it twice is harmless** — two layouts that both include it, or the
+include plus the Vite import below. The second copy sees the first and does
+nothing.
+
+### With Livewire
+
+Livewire 3 and 4 bring their own Alpine, so you do not load Alpine yourself.
+Put `<x-ds::scripts />` in the `head` and nothing else changes: Livewire's
+script starts Alpine once the page has loaded, and the behaviours are registered
+by then.
+
+### If you bundle Alpine yourself
+
+When Alpine comes from your own JavaScript rather than a script tag, register
+the behaviours as a plugin, before `Alpine.start()`:
+
+```js
+// resources/js/app.js
+import Alpine from 'alpinejs';
+import bladeUi from '../../vendor/shipbytes/blade-ui/dist/blade-ui.js';
+
+Alpine.plugin(bladeUi);
+Alpine.start();
+```
+
+The same goes for Livewire bundled through Vite with `@livewireScriptConfig`:
+
+```js
+import { Livewire, Alpine } from '../../vendor/livewire/livewire/dist/livewire.esm';
+import bladeUi from '../../vendor/shipbytes/blade-ui/dist/blade-ui.js';
+
+Alpine.plugin(bladeUi);
+Livewire.start();
+```
+
+Then `<x-ds::scripts />` is not needed, and harmless if it stays.
+
+### With a Content Security Policy
+
+The include is an inline script, so a CSP that forbids inline scripts needs a
+nonce on it:
+
+```blade
+<x-ds::scripts :nonce="$cspNonce" />
+```
+
+If you already give Laravel's Vite helper a nonce (`Vite::useCspNonce()`), the
+include takes that one and you pass nothing.
+
+### What it registers
+
+You can use these in your own markup as well as through the components.
+
+| Name | What it does |
+|---|---|
+| `dsClipboard` | `x-data="dsClipboard({ text: '…' })"`. `copy()` copies `text`, or `copy(value)` copies `value`, and resolves to `true` or `false`. `copied` is `true` for 1.5 s after a copy. No UI of its own. Falls back to the older copy command where the async clipboard API is missing, as on a plain-`http` page. |
+
+### When it is missing
+
+The browser console says so, by name:
+
+```
+dsClipboard is not registered: add <x-ds::scripts /> above the Alpine script,
+or call Alpine.plugin(bladeUi) where Alpine is bundled.
+```
+
+The component renders, because the server rendered it, and does nothing when
+pressed. In your own `x-data` the same cause reads as Alpine's
+`dsClipboard is not defined`.
+
+## 4. Use a component
 
 ```blade
 <x-ds::button>Save changes</x-ds::button>
@@ -109,9 +206,16 @@ Three more use it for **one optional prop** each, and work without it otherwise:
 `checkbox`'s `indeterminate`, `nav-item`'s `collapsedWhen`, and `toast`'s
 `dismiss`. Skip those props and you need no JavaScript at all.
 
+The pagination views' Livewire variants also use Alpine, for the scroll back to
+the top on a page change, and get it from Livewire.
+
 ```html
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
 ```
+
+None of the ten needs the package's own script today. Components that do, need
+Alpine **and** [`<x-ds::scripts />`](#3-add-the-script) above it, and say so on
+their page.
 
 **You do not need to add an `[x-cloak]` rule.** Nine components hide themselves
 with `x-cloak` until Alpine boots, and Alpine does not ship the CSS rule that
@@ -340,6 +444,8 @@ composer update shipbytes/blade-ui
 | A `tone` or `variant` never changes when your Alpine state does | Expected — those resolve to classes on the server. Same section. |
 | An empty state renders without its button | The button went in the default slot. It belongs in `<x-slot:action>`. |
 | A modal or dropdown does nothing | Alpine is not loaded, or there is no `x-data` scope above it. |
+| The console says `dsSomething is not registered` | `<x-ds::scripts />` is missing from the layout, or sits below Alpine's script. See [Add the script](#3-add-the-script). |
+| The console says `dsSomething is not defined` | The same, reached from your own `x-data`. |
 | An icon renders enormous | You passed a `size` outside the generated range — see [icon.md](components/icon.md). |
 | Dark mode does nothing | The `dark` class is on `<body>` rather than `<html>`, or `theme.css` is imported before `tailwindcss`. |
 | `rounded-lg` changed size in your app | Not us — this system deliberately never redefines a Tailwind default. Check your own theme. |

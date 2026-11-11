@@ -4,7 +4,7 @@ Forty-one Blade components for Laravel, plus two pagination views. Presentation
 only: no state, no framework assumptions beyond Blade itself.
 
 **New here?** Start with [Getting started](getting-started.md) — install, three
-lines of CSS, and the one line that everything depends on.
+lines of CSS, the one line that everything depends on, and the script include.
 
 ## Components
 
@@ -90,7 +90,13 @@ needed by ten components, and by three optional props:
 | `checkbox` | Only for `indeterminate`. Without it the box renders unchecked — which is what a screen reader announces, so the feature is absent rather than lying. |
 | `nav-item` | Only for `collapsedWhen`. Omit it for a permanently expanded rail. |
 | `toast` | Only for `dismiss`, which takes an expression that removes the toast. |
+| `pagination-livewire` `simple-pagination-livewire` | For the scroll back to the top on a page change. Livewire brings its own Alpine, so there is nothing to add. |
 | Everything else | **Never.** |
+
+The package also ships a small script of its own, the behaviours several
+components share, which goes in the layout as `<x-ds::scripts />` above Alpine.
+None of the components above needs it yet; one that does says so at the top of
+its page. See [Add the script](getting-started.md#3-add-the-script).
 
 `stat-tile` pushes its own count-up script to a `scripts` stack — plain
 JavaScript, no framework. Without `@stack('scripts')` in your layout the tile

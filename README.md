@@ -9,7 +9,8 @@
 
 # Shipbytes Design System
 
-A portable design system for Blade, React, Vue or plain HTML projects.
+A design system for Laravel and Blade, with design tokens any other stack can
+use from plain CSS or JavaScript.
 
 **41 Blade components**, a spec and a documentation page for each, design tokens
 with light and dark values, and three test suites — including one that drives
@@ -28,8 +29,8 @@ are building in, not by name:
 | You are building | Install | Where |
 |---|---|---|
 | **Laravel + Blade** (with or without Livewire) | `shipbytes/blade-ui` | Composer |
-| **React** | `@shipbytes/react` | npm |
-| **Vue** | `@shipbytes/vue` | npm |
+| **React** | `@shipbytes/react` is **no longer maintained**. Use `@shipbytes/design-tokens` | npm |
+| **Vue** | `@shipbytes/vue` **will not be built**. Use `@shipbytes/design-tokens` | npm |
 | **Anything else** — plain HTML, Svelte, a chart library | `@shipbytes/design-tokens` | npm |
 
 **A Blade project needs nothing from npm.** The Composer package ships the
@@ -37,14 +38,15 @@ compiled CSS; the install is one `composer require` and three lines of CSS. Add
 `@shipbytes/design-tokens` only if your own JavaScript needs the token *values*
 — a chart palette reading `tokens.js` rather than repeating hex literals.
 
-**Laravel with Inertia + React?** Take `@shipbytes/react` and skip `blade-ui` —
-41 Blade components you cannot render are not useful. If you have both, Blade
-marketing pages and a React app behind login, take both: they share
-`dist/tokens.css`, so the two buttons are the same button. That case is the
-reason this is token-first rather than component-first.
+**Laravel with Inertia + React?** Skip `blade-ui` — 41 Blade components you
+cannot render are not useful — and take `@shipbytes/design-tokens`: the same
+`tokens.css` and `theme.css`, so your own React components draw from the same
+values. If you have both, Blade marketing pages and a React app behind login,
+take both, and the two share one set of tokens.
 
-> `@shipbytes/react` and `@shipbytes/vue` are not built yet. Everything below is
-> the Blade package, which is.
+> **The system is the Blade package.** `@shipbytes/react` is no longer
+> maintained and `@shipbytes/vue` will not be built. Everything below is the
+> Blade package.
 
 ## Start here
 
@@ -86,9 +88,10 @@ One repository ships two packages: the composer package
 composer.json     shipbytes/blade-ui  — lives at the ROOT, because that is
 package.json      @shipbytes/design-tokens   where Composer looks for it
 
-src/              the service provider
+src/              the service provider, and the ds::scripts include
 config/           blade-ui.php (icon aliases, default icon size)
 resources/views/  the Blade components, and the pagination views
+resources/js/     the source of the package's script (built into dist/)
 
 tokens/           DTCG source — the only files you edit by hand
 dist/             generated; do not edit
@@ -103,7 +106,8 @@ Every step below was run against a fresh `laravel/laravel` (Laravel 12, which
 already ships Tailwind v4) and verified in a browser, light and dark.
 
 **You do not need npm for a Blade project.** The composer package ships the
-compiled CSS. The npm package exists for React, Vue and plain-JS consumers.
+compiled CSS and the script. The npm package exists for consumers that are not
+Blade.
 
 ### 1. Install
 
@@ -137,7 +141,20 @@ This is the single most likely thing to go wrong.
 class rather than the OS preference and a theme toggle can override the system
 setting. Nothing to add for that.
 
-### 3. Use the components
+### 3. One line in your layout's `head`, above Alpine
+
+```blade
+<x-ds::scripts />
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+```
+
+The package's own script: the behaviours several components share, registered
+with Alpine. It is inlined, about 3 kB, so there is nothing to publish and no
+build step. With Livewire, which brings its own Alpine, the include alone. If
+you bundle Alpine yourself, `Alpine.plugin()` the ES module instead; see
+[getting started](docs/getting-started.md#3-add-the-script).
+
+### 4. Use the components
 
 ```blade
 <x-ds::button>Save</x-ds::button>
@@ -194,7 +211,9 @@ plain Blade view or inside a Livewire component.
 
 Ten need [Alpine](https://alpinejs.dev) — `modal`, `drawer`, `sheet`, `dropdown`,
 `select`, `combobox`, `date-picker`, `accordion`, `file-upload` and `tooltip` —
-plus one optional prop each on `checkbox`, `nav-item` and `toast`. Everything else is plain Blade and CSS.
+plus one optional prop each on `checkbox`, `nav-item` and `toast`, and the
+pagination views' Livewire variants, which get it from Livewire. Everything else
+is plain Blade and CSS. None of them needs the package's own script yet.
 
 They hold no state of their own — the host declares it and the component reads
 it, which is what keeps the same markup usable from plain Blade, Livewire or
@@ -238,6 +257,17 @@ Radius and shadow are deliberately `control`/`panel`/`chip` and
 keys would not add names — it would **overwrite** them, silently resizing every
 `rounded-*` already in the host app.
 
+Motion is named the same way: an enter/leave duration for each kind of surface,
+and one curve per direction.
+
+```html
+<div class="motion-safe:transition duration-popover-enter ease-enter">…</div>
+```
+
+`duration-{hint,popover,dialog,slide}-{enter,leave}` and `ease-enter` /
+`ease-leave`. `ease-enter` is not `ease-out` renamed by accident: `ease-out` is
+Tailwind's, and taking that key back would change it for the whole app.
+
 ## Other consumers
 
 ### Without Tailwind
@@ -275,8 +305,8 @@ exactly how six separate admin chart palettes drifted apart in the first place.
 ```bash
 npm install          # dev dependencies (Tailwind CLI, heroicons, Playwright)
 composer install     # dev dependencies (testbench)
-npm run build        # tokens/ -> dist/
-npm test             # tokens, then render, then behaviour
+npm run build        # tokens/ and resources/js/ -> dist/
+npm test             # tokens, script, render, then behaviour
 npm run build:docs   # regenerate docs/images/
 ```
 
@@ -284,9 +314,14 @@ npm run build:docs   # regenerate docs/images/
 testbench, so the gallery, the documentation screenshots and the behaviour tests
 all render from a clean clone.
 
-`npm test` is three suites:
+`npm test` is four suites:
 
-**Tokens** — structure, WCAG contrast in both themes, theme collisions.
+**Tokens** — structure, WCAG contrast in both themes, theme collisions, and the
+motion utilities.
+
+**Script** — `dist/` is current with `resources/js/`, the script registers only
+`ds`-prefixed names, once however many times it loads, and every behaviour a
+component asks for is one the script registers.
 
 **Render** — boots Laravel through testbench, renders every component, and
 asserts that **every class a component emits has a rule** in CSS compiled the way
@@ -295,11 +330,13 @@ class composed at runtime never appears in the source, so it gets no rule, and
 the element renders unstyled with nothing reporting it.
 
 **Behaviour** — drives every interactive component in a real browser with real
-Alpine: focus traps, arrow keys, and what the form actually posts. It skips with
+Alpine: focus traps, arrow keys, and what the form actually posts. It loads the
+package's script all three ways a host can: Alpine from a CDN, Alpine bundled
+with `Alpine.plugin()`, and Livewire's own Alpine. It skips with
 a warning if there is no Chromium (`npx playwright install chromium`), so a clean
 clone still goes green — read the warning.
 
-`tokens/` is the only thing edited by hand; `dist/` is generated.
+`tokens/` and `resources/js/` are edited by hand; `dist/` is generated.
 
 ## Dark mode
 
