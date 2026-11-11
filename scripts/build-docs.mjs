@@ -125,7 +125,31 @@ const css = await readFile(join(TMP, 'out.css'), 'utf8');
 */
 const alpine = await readFile(join(ROOT, 'node_modules/alpinejs/dist/cdn.min.js'), 'utf8');
 
+/*
+  The font is carried INTO the page, from a dev dependency, as `Inter` — the
+  first entry of tokens/typography.json's sans stack and the face the system is
+  drawn in. Left to the host, the stack fell through to whatever sans the
+  machine had: the images committed before 2.0 were part DejaVu Sans and part
+  Noto Sans, depending on which machine last regenerated them, so every rebuild
+  rewrote images whose components had not changed. Embedded as data URIs rather
+  than linked, so nothing depends on how Chromium resolves file:// fonts, and
+  never fetched from a CDN, so the build stays offline and pinned by the lock.
+*/
+const fontDir = join(ROOT, 'node_modules/@fontsource-variable/inter');
+if (!existsSync(join(fontDir, 'index.css'))) {
+    console.error('\n@fontsource-variable/inter is not installed — run `npm install`.\n');
+    process.exit(1);
+}
+let fontCss = (await readFile(join(fontDir, 'index.css'), 'utf8')).replaceAll("'Inter Variable'", 'Inter');
+for (const [ref, file] of [...fontCss.matchAll(/url\(\.\/files\/([^)]+)\)/g)].map((m) => [m[0], m[1]])) {
+    const data = (await readFile(join(fontDir, 'files', file))).toString('base64');
+    fontCss = fontCss.replace(ref, `url(data:font/woff2;base64,${data})`);
+}
+
 const page = `<style>
+${fontCss}
+</style>
+<style>
 ${css}
 </style>
 <style>
@@ -176,6 +200,21 @@ tab.on('pageerror', (e) => problems.push(String(e)));
 
 await tab.goto('file://' + join(TMP, 'page.html'), { waitUntil: 'networkidle' });
 await tab.waitForTimeout(600);
+
+// A face is only fetched once text asks for it, and `swap` paints the fallback
+// meanwhile — so wait for every weight the scale uses, and refuse to shoot if
+// any of them did not arrive rather than photograph the host's fallback again.
+const missingWeights = await tab.evaluate(async () => {
+    const weights = [400, 500, 600, 700];
+    await Promise.all(weights.map((w) => document.fonts.load(`${w} 14px Inter`)));
+    await document.fonts.ready;
+    const loaded = [...document.fonts].some((f) => f.family.replace(/"/g, '') === 'Inter' && f.status === 'loaded');
+    return weights.filter((w) => !loaded || !document.fonts.check(`${w} 14px Inter`));
+});
+if (missingWeights.length) {
+    console.error(`Inter did not load (weights ${missingWeights.join(', ')}) — the images would use a host font.`);
+    process.exit(1);
+}
 
 const names = await tab.$$eval('[data-shot]', (nodes) => nodes.map((n) => n.dataset.shot));
 
@@ -229,10 +268,28 @@ let total = 0;
 for (const name of order) {
     const target = tab.locator(`[data-shot="${name}"]`);
 
+    /*
+      Each shot is photographed ALONE at the top of the page. Text rasterises a
+      hair differently depending on where on the page it lands, so with every
+      shot stacked, adding one specimen shifted everything below it and
+      rewrote images whose components had not changed. Alone, an image depends
+      on its own specimen and nothing else.
+    */
+    await tab.evaluate((shot) => {
+        for (const el of document.querySelectorAll('[data-shot]')) {
+            el.style.display = el.dataset.shot === shot ? '' : 'none';
+        }
+        window.scrollTo(0, 0);
+    }, name);
+
     if (OPERATE[name]) {
         const panes = target.locator('.pane');
         for (let i = 0; i < (await panes.count()); i++) {
             await OPERATE[name](panes.nth(i));
+            // Settled one pane at a time: an opened listbox takes focus on the
+            // next tick, and with both opened at once whichever pane won that
+            // race drew the highlighted option, so the image flipped between runs.
+            await tab.waitForTimeout(150);
         }
         await tab.waitForTimeout(400);
     }
@@ -266,6 +323,11 @@ for (const name of order) {
   translucent in dark, and comparing against the undiluted colour reports failures
   that are not there.
 */
+// Every shot back on the page for the contrast pass, which reads them all.
+await tab.evaluate(() => {
+    for (const el of document.querySelectorAll('[data-shot]')) el.style.display = '';
+});
+
 console.log('\nchecking what the text actually resolves to…');
 
 const lowContrast = await tab.evaluate(() => {

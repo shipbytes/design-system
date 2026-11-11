@@ -128,6 +128,15 @@ npm run build:docs      # regenerates docs/images/ — light and dark, side by s
 npm run build:gallery   # dist/gallery.html — every component on one page
 ```
 
+The screenshots are drawn in Inter, embedded into the page from the
+`@fontsource-variable/inter` dev dependency, never from the host's fonts or a
+CDN. Before 2.0 they used whatever sans the machine had, so a rebuild on
+another machine rewrote every image. Each shot is also photographed alone at
+the top of the page, because text rasterises slightly differently by position
+and a new specimen used to shift and rewrite every image below it. An image now
+changes only when its component does, and the build refuses to shoot if Inter
+did not load.
+
 **Look at the rendered output, in a browser, in both themes.** Every serious bug
 in this repo's history was invisible in the source and obvious in a picture: the
 panel inheriting the browser's default black at 1.4:1, the modal overflowing its
