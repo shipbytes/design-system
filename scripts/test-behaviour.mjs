@@ -51,14 +51,23 @@ try {
 await rm(TMP, { recursive: true, force: true });
 await mkdir(TMP, { recursive: true });
 
+const render = async (file) => {
+    const { stdout } = await run('php', [join(ROOT, 'scripts/render.php'), file], {
+        cwd: ROOT,
+        maxBuffer: 32 * 1024 * 1024,
+    });
+    return stdout.replace('<!--ds-canary [...ok]-->', '');
+};
+
 let specimens;
+let include;
 try {
-    const { stdout } = await run(
-        'php',
-        [join(ROOT, 'scripts/render.php'), join(ROOT, 'scripts/behaviour-specimens.blade.php')],
-        { cwd: ROOT, maxBuffer: 32 * 1024 * 1024 },
-    );
-    specimens = stdout.replace('<!--ds-canary [...ok]-->', '');
+    specimens = await render(join(ROOT, 'scripts/behaviour-specimens.blade.php'));
+    // The include, rendered through the component a consumer writes in their
+    // layout rather than read from dist/, so the page gets exactly what a host
+    // gets.
+    await writeFile(join(TMP, 'include.blade.php'), '<x-ds::scripts />');
+    include = await render(join(TMP, 'include.blade.php'));
 } catch (err) {
     console.error('\nrender failed — run `composer install`?\n');
     console.error(String(err.stderr || err).slice(0, 800));
@@ -82,7 +91,18 @@ await run('npx', ['@tailwindcss/cli', '-i', join(TMP, 'in.css'), '-o', join(TMP,
 });
 
 const css = await readFile(join(TMP, 'out.css'), 'utf8');
-const alpine = await readFile(join(ROOT, 'node_modules/alpinejs/dist/cdn.min.js'), 'utf8');
+
+/*
+  Alpine as a file with `defer`, exactly as the CDN snippet in getting-started
+  loads it, and ds::scripts above it in the head: host setup (a).
+
+  This used to inline Alpine into the head, where `defer` does nothing — an
+  inline classic script runs at once and starts Alpine before the body exists.
+  That was harmless while nothing had to register before Alpine started. The
+  shared script does, and an inlined Alpine would have fired alpine:init before
+  any include below it could listen for it.
+*/
+await writeFile(join(TMP, 'alpine.js'), await readFile(join(ROOT, 'node_modules/alpinejs/dist/cdn.min.js')));
 
 await writeFile(
     join(TMP, 'page.html'),
@@ -91,14 +111,19 @@ await writeFile(
 <!-- No hand-written [x-cloak] rule here on purpose. It ships in dist/theme.css,
     which is imported above, so this page proves the SHIPPED one works — an
     injected copy would hide a regression in the thing consumers actually get. -->
-<script defer>${alpine}</script>
+${include}
+<script defer src="alpine.js"></script>
 </head><body>${specimens}</body></html>`,
 );
 
 // ------------------------------------------------------------ 2. drive it
 
 const browser = await chromium.launch({ executablePath: CHROME });
-const page = await browser.newPage({ viewport: { width: 1200, height: 1000 } });
+const context = await browser.newContext({
+    viewport: { width: 1200, height: 1000 },
+    permissions: ['clipboard-read', 'clipboard-write'],
+});
+const page = await context.newPage();
 
 const jsErrors = [];
 page.on('pageerror', (e) => jsErrors.push('uncaught: ' + e.message));
@@ -666,6 +691,82 @@ await check('the arrow keys the spec says the host owns actually move it', async
     return (await active()) === 'tab-overview' || `selection moved but focus is on ${await active()}`;
 });
 
+// ---------------------------------------------------------------- dsClipboard
+
+/*
+ * The one registration the shared script ships with, driven on the main page,
+ * which loads Alpine the CDN way: host setup (a). Setups (b) and (c) get pages
+ * of their own at the bottom.
+ */
+group('dsClipboard (the shared script, host setup a: Alpine from a CDN with defer)');
+
+const clipState = () => page.locator('#clip-state').innerText();
+const clipboardText = () => page.evaluate(() => navigator.clipboard.readText());
+
+await check('registered before Alpine initialised the element', async () => {
+    // The PHP-rendered "idle" would read the same with the script missing, so
+    // ask Alpine for the scope rather than reading the text.
+    const kind = await page.evaluate(() => typeof Alpine.$data(document.getElementById('clip')).copy);
+    return kind === 'function' || `the scope has no copy() — got ${kind}`;
+});
+
+await check('copy() writes the default text to the clipboard', async () => {
+    await page.click('#clip-copy');
+    await settle(100);
+    const text = await clipboardText();
+    return text === 'sk_live_42' || `the clipboard holds ${JSON.stringify(text)}`;
+});
+
+await check('and `copied` goes up', async () => (await clipState()) === 'copied' || `reads ${await clipState()}`);
+
+await check('copy(value) copies the value it was given', async () => {
+    await page.waitForTimeout(1000);
+    await page.click('#clip-other');
+    await settle(100);
+    const text = await clipboardText();
+    return text === 'other value' || `the clipboard holds ${JSON.stringify(text)}`;
+});
+
+await check('a second copy restarts the 1.5 s rather than inheriting what was left', async () => {
+    // 1.1 s after the second copy and 2.1 s after the first: up if restarted,
+    // already down if the first timer was still the one running.
+    await page.waitForTimeout(1000);
+    return (await clipState()) === 'copied' || 'fell back on the FIRST copy\'s timer';
+});
+
+await check('`copied` falls back on its own', async () => {
+    await page.waitForTimeout(700);
+    return (await clipState()) === 'idle' || `still reads ${await clipState()} 1.8 s after the last copy`;
+});
+
+await check('without the async clipboard API it falls back, copies, and gives focus back', async () => {
+    // A plain-http page has no navigator.clipboard at all. The copy event is
+    // what execCommand('copy') fires, and its target holds the selection.
+    await page.evaluate(() => {
+        window.dsCopyEvent = null;
+        document.addEventListener('copy', (event) => {
+            const area = event.target;
+            window.dsCopyEvent = area.value?.slice(area.selectionStart, area.selectionEnd) ?? '(not a field)';
+        }, { once: true });
+        Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+    });
+
+    await page.click('#clip-copy');
+    await settle(100);
+
+    const result = await page.evaluate(() => ({
+        copied: window.dsCopyEvent,
+        leftover: document.querySelectorAll('textarea[readonly]').length,
+        focus: document.activeElement?.id,
+    }));
+    await page.evaluate(() => delete navigator.clipboard);
+
+    if (result.copied !== 'sk_live_42') return `the fallback copied ${JSON.stringify(result.copied)}`;
+    if ((await clipState()) !== 'copied') return 'copied, but `copied` never went up';
+    if (result.leftover) return 'left its textarea in the page';
+    return result.focus === 'clip-copy' || `focus ended on ${result.focus}, not the button that was pressed`;
+});
+
 // ---------------------------------------------------------------- x-cloak
 
 /*
@@ -744,6 +845,136 @@ for (const [name, triggerSelector, popoverSelector] of overlays) {
     } else {
         console.log(`  \x1b[32m✓\x1b[0m ${name.padEnd(12)} fits (${-overflow}px to spare)`);
     }
+}
+
+// ---------------------------------------------------------------- the other two host setups
+
+/*
+ * Every page above loads Alpine the CDN way. These load it the other two ways a
+ * host can, each on a page of its own, served from a fake localhost origin —
+ * module imports are refused from file://, and localhost is a secure context,
+ * so the async clipboard API exists there.
+ *
+ *   (b) Alpine bundled by the host: Alpine.plugin() on dist/blade-ui.js. The
+ *       include is on the page as well, so loading the script twice is
+ *       exercised in its worst form — two different builds, one Alpine.
+ *   (c) Livewire's own script, which bundles Alpine and starts it on
+ *       DOMContentLoaded. The include is in the head TWICE.
+ *
+ * And the failure a host without the script gets, which must name the fix.
+ */
+const ORIGIN = 'http://localhost:7357';
+const SERVED = {
+    '/alpine.js': join(ROOT, 'node_modules/alpinejs/dist/cdn.min.js'),
+    '/alpine.esm.js': join(ROOT, 'node_modules/alpinejs/dist/module.esm.js'),
+    '/blade-ui.js': join(ROOT, 'dist/blade-ui.js'),
+    '/livewire.js': join(ROOT, 'vendor/livewire/livewire/dist/livewire.js'),
+};
+
+await context.route(`${ORIGIN}/**`, async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    const file = SERVED[path] ?? join(TMP, path);
+    try {
+        await route.fulfill({
+            body: await readFile(file),
+            contentType: path.endsWith('.html') ? 'text/html' : 'text/javascript',
+        });
+    } catch {
+        await route.fulfill({ status: 404, body: '' });
+    }
+});
+
+const clipMarkup = specimens.match(/<div class="mt-6" id="clip"[\s\S]*?<\/span>\s*<\/div>/)?.[0];
+
+const hostPages = {
+    'setup-b.html': `<!doctype html><html><head><meta charset="utf-8">
+${include}
+<script type="module">
+    import Alpine from './alpine.esm.js';
+    import bladeUi from './blade-ui.js';
+
+    window.dsRegistered = [];
+    const data = Alpine.data;
+    Alpine.data = (name, callback) => (window.dsRegistered.push(name), data(name, callback));
+
+    Alpine.plugin(bladeUi);
+    Alpine.plugin(bladeUi);
+    window.Alpine = Alpine;
+    Alpine.start();
+</script>
+</head><body>${clipMarkup}</body></html>`,
+
+    'setup-c.html': `<!doctype html><html><head><meta charset="utf-8">
+${include}
+${include}
+</head><body>${clipMarkup}
+<script src="livewire.js"></script>
+</body></html>`,
+
+    'missing.html': `<!doctype html><html><head><meta charset="utf-8">
+<script defer src="alpine.js"></script>
+</head><body>${clipMarkup}</body></html>`,
+};
+
+for (const [name, html] of Object.entries(hostPages)) await writeFile(join(TMP, name), html);
+
+/** Open a host page with its own error log, so its errors are judged on their own. */
+async function openHost(name) {
+    const tab = await context.newPage();
+    const errors = [];
+    const uncaught = [];
+    tab.on('pageerror', (e) => (errors.push(e.message), uncaught.push(e.message)));
+    tab.on('console', (m) => ['error', 'warning'].includes(m.type()) && errors.push(m.text()));
+    await tab.goto(`${ORIGIN}/${name}`, { waitUntil: 'networkidle' });
+    await tab.waitForTimeout(300);
+    return { tab, errors, uncaught };
+}
+
+const copiesOn = async (tab) => {
+    await tab.click('#clip-copy');
+    await tab.waitForTimeout(100);
+    const text = await tab.evaluate(() => navigator.clipboard.readText());
+    const state = await tab.locator('#clip-state').innerText();
+    return (text === 'sk_live_42' && state === 'copied') || `clipboard ${JSON.stringify(text)}, state ${state}`;
+};
+
+group('host setup (b): Alpine bundled by the host, Alpine.plugin(bladeUi)');
+{
+    const { tab, errors } = await openHost('setup-b.html');
+
+    await check('the plugin works', () => copiesOn(tab));
+    await check('plugin twice plus the include: each name registered exactly once', async () => {
+        const names = await tab.evaluate(() => window.dsRegistered);
+        return JSON.stringify(names) === '["dsClipboard"]' || `registered ${JSON.stringify(names)}`;
+    });
+    await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+
+group('host setup (c): Livewire\'s bundled Alpine, include loaded twice');
+{
+    const { tab, errors } = await openHost('setup-c.html');
+
+    await check('Livewire started the Alpine it bundles', async () =>
+        (await tab.evaluate(() => Boolean(window.Livewire && window.Alpine?.version))) || 'no Livewire or no Alpine on the page');
+    await check('the behaviour registered on it and works', () => copiesOn(tab));
+    await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+
+group('a host WITHOUT the script');
+{
+    const { tab, errors, uncaught } = await openHost('missing.html');
+
+    await check('the console names the missing include, not just the missing name', async () => {
+        const said = errors.find((e) => e.includes('dsClipboard is not registered'));
+        if (!said) return `nothing said why — the page logged: ${errors.join(' | ') || 'nothing'}`;
+        return said.includes('<x-ds::scripts />') || `the error does not name the include: ${said}`;
+    });
+    await check('as an uncaught error too, so an error tracker sees it', async () =>
+        uncaught.some((e) => e.includes('dsClipboard is not registered'))
+        || `uncaught: ${uncaught.join(' | ') || 'nothing'}`);
+    await tab.close();
 }
 
 // ---------------------------------------------------------------- summary
