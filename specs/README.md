@@ -53,6 +53,10 @@ independent implementations the same component rather than three lookalikes.
 | [skeleton.md](skeleton.md) | Loading placeholder, and who announces it |
 | [progress.md](progress.md) | Bar and ring, indeterminate, the one custom property |
 | [usage-meter.md](usage-meter.md) | Allowance, thresholds, segments, meter vs progressbar |
+| [counter.md](counter.md) | The digit roll, its two routes, the hidden text, and how it relates to stat-tile |
+| [sparkline.md](sparkline.md) | One viewBox stretched, non-scaling strokes, gaps, the generated summary |
+| [gauge.md](gauge.md) | Arcs by dash, bands and their words, meter values past the range |
+| [activity-heatmap.md](activity-heatmap.md) | Weeks as rows turned by CSS, the scroll that starts at the end, the one-hue ramp |
 | [stepper.md](stepper.md) | Steps, statuses, the narrow-width collapse |
 | [avatar-group.md](avatar-group.md) | Overlapping avatars, the ground ring, the spoken sentence |
 | [alert.md](alert.md) | Alert, tones, wash-not-tint, the live-region rule |

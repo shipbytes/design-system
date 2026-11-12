@@ -12,7 +12,7 @@
 A design system for Laravel and Blade, with design tokens any other stack can
 use from plain CSS or JavaScript.
 
-**73 Blade components**, a spec and a documentation page for each, design tokens
+**77 Blade components**, a spec and a documentation page for each, design tokens
 with light and dark values, and three test suites — including one that drives
 every interactive component in a real browser.
 
@@ -38,7 +38,7 @@ compiled CSS; the install is one `composer require` and three lines of CSS. Add
 `@shipbytes/design-tokens` only if your own JavaScript needs the token *values*
 — a chart palette reading `tokens.js` rather than repeating hex literals.
 
-**Laravel with Inertia + React?** Skip `blade-ui` — 73 Blade components you
+**Laravel with Inertia + React?** Skip `blade-ui` — 77 Blade components you
 cannot render are not useful — and take `@shipbytes/design-tokens`: the same
 `tokens.css` and `theme.css`, so your own React components draw from the same
 values. If you have both, Blade marketing pages and a React app behind login,
@@ -182,7 +182,7 @@ source, in both themes.
 
 ### What you get
 
-Seventy-three Blade components, plus the pagination views.
+Seventy-seven Blade components, plus the pagination views.
 
 **Layout & content** — `panel` `panel-row` `table` `table-cell` `table-row`
 `stat-tile` `empty-state` `skeleton` `progress` `usage-meter` `accordion`
@@ -198,6 +198,7 @@ Seventy-three Blade components, plus the pagination views.
 **Overlays** — `modal` `drawer` `sheet` `sheet-item` `dropdown` `dropdown-item`
 `popover` `confirm-popover` `hover-card` `context-menu` `tooltip` `toast`
 `toast-region`
+**Data** — `counter` `sparkline` `gauge` `activity-heatmap`
 **Marks** — `icon` `avatar` `avatar-group` `badge` `alert` `announcement-bar`
 
 Wire pagination up in a service provider:

@@ -76,6 +76,8 @@
 <section data-focus="confirm-popover"><x-ds::confirm-popover title="Delete?" type="button"><x-slot:trigger><x-ds::button id="f-cp" size="sm" variant="danger">Delete</x-ds::button></x-slot:trigger></x-ds::confirm-popover></section>
 <section data-focus="modal"><x-ds::button id="f-modal-open" @click="modalOpen = true">Open modal</x-ds::button><x-ds::modal open="modalOpen" title="Confirm" size="sm">Body<x-slot:footer><x-ds::button size="sm" @click="modalOpen = false">OK</x-ds::button></x-slot:footer></x-ds::modal></section>
 <section data-focus="drawer"><x-ds::button id="f-drawer-open" @click="drawerOpen = true">Open drawer</x-ds::button><x-ds::drawer open="drawerOpen" title="Filters">Body<x-slot:footer><x-ds::button size="sm" @click="drawerOpen = false">Apply</x-ds::button></x-slot:footer></x-ds::drawer></section>
+{{-- Two weeks, two linked days: the scroll region and its links are stops. --}}
+<section data-focus="activity-heatmap"><x-ds::activity-heatmap label="Commits" to="2026-03-08" :weeks="2" :data="['2026-03-03' => 4, '2026-03-05' => 1]" href="#day-{date}" /></section>
 {{-- The walk stops here. A plain button, so it is not checked. --}}
 <p><button id="f-end" type="button">end</button></p>
 </div>

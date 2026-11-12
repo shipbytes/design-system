@@ -1,6 +1,6 @@
 # Shipbytes Blade UI — documentation
 
-Seventy-three Blade components for Laravel, plus two pagination views. Presentation
+Seventy-seven Blade components for Laravel, plus two pagination views. Presentation
 only: no state, no framework assumptions beyond Blade itself.
 
 **New here?** Start with [Getting started](getting-started.md) — install, three
@@ -52,6 +52,15 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Skeleton](components/skeleton.md) | A picture of content that is still loading |
 | [Progress](components/progress.md) | How far along a task is, as a bar or a ring |
 | [Usage meter](components/usage-meter.md) | An allowance and what fills it |
+
+### Data
+
+| | |
+|---|---|
+| [Counter](components/counter.md) | A number that rolls its digits when it changes — the roll needs Alpine and the script |
+| [Sparkline](components/sparkline.md) | A small trend with no axes: line, area or bars |
+| [Gauge](components/gauge.md) | One reading against a range, as an arc, with thresholds |
+| [Activity heatmap](components/activity-heatmap.md) | A count for every day, as a grid of shades |
 
 ### Navigation
 
@@ -116,6 +125,7 @@ needed by twenty-five components, and by five optional props:
 | `popover` `hover-card` `context-menu` | **Always, and the package's script too.** Without them the panel never opens. |
 | `confirm-button` `hold-button` `confirm-popover` | **Always, and the package's script too.** Without them each renders its first face and does nothing, so no single press ever carries out the action. |
 | `sub-nav` | **Only to open and close.** Without it the section holding the current page is open and the rest are closed, as the server rendered them. |
+| `counter` | **Never**, unless its `value` is bound to Alpine state. With Alpine and the package's script its digits roll; without them it shows the number the server rendered, and a re-render changes it. Bound with `::value`, it needs both. |
 | `segmented-control` | **Never.** With Alpine and the package's script, its highlight slides; without them, the chosen segment draws its own face, and nothing throws. |
 | `input` | Only for `reveal`, which also needs the package's script. |
 | `checkbox` | Only for `indeterminate`. Without it the box renders unchecked — which is what a screen reader announces, so the feature is absent rather than lying. |

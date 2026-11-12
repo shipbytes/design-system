@@ -682,17 +682,17 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 73 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 77 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
-accordion, accordion-item, alert, announcement-bar, avatar, avatar-group, badge, bottom-nav,
+accordion, accordion-item, activity-heatmap, alert, announcement-bar, avatar, avatar-group, badge, bottom-nav,
 bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, chip,
-button-group, chip-group, combobox, confirm-button, confirm-popover, copy-button, date-picker, drawer, dropdown,
-context-menu, dropdown-item, empty-state, file-upload, hold-button, hover-card, icon,
+button-group, chip-group, combobox, confirm-button, confirm-popover, copy-button, counter, date-picker, drawer, dropdown,
+context-menu, dropdown-item, empty-state, file-upload, gauge, hold-button, hover-card, icon,
 input, modal,
 nav-item, number-field, otp-input, panel, panel-row, password-strength,
 popover, progress, radio, radio-card, radio-cards, radio-group, rating,
-segment, segmented-control, select, sheet, sheet-item, skeleton, stat-tile,
+segment, segmented-control, select, sheet, sheet-item, skeleton, sparkline, stat-tile,
 step, stepper, sub-nav, switch, tab,
 tab-panel, table, table-cell, table-row, tabs, tag-input, theme-switcher,
 toast, toast-region,
@@ -712,7 +712,8 @@ confirm-button, hold-button, confirm-popover, sub-nav —
 always (sub-nav only to toggle: its open state is rendered from PHP). Plus ONE optional prop each on
 checkbox (`indeterminate`), nav-item (`collapsedWhen`), toast (`dismiss`),
 input (`reveal`) and announcement-bar (`dismissible`, and `dismissKey`, which
-implies it), and the pagination views' Livewire variants, whose scroll to
+implies it), counter when its `value` is bound to Alpine state (`::value`; its
+roll is otherwise an enhancement), and the pagination views' Livewire variants, whose scroll to
 the top is an `x-on:click` that Livewire's bundled Alpine runs. Everything else
 is plain Blade and CSS (stat-tile's count-up is a plain script it pushes to a
 `scripts` stack), and nothing anywhere needs Livewire; the pagination views'
@@ -728,11 +729,14 @@ toolbar (`dsToolbar`, `x-ds-glide.hover`), toggle-group (`dsToggleGroup`,
 with its `at` box), theme-switcher (`dsTheme`), confirm-button (`dsConfirm`),
 hold-button (`dsHold`), confirm-popover (`dsConfirmDialog`, on `dsPopover` and
 `x-ds-anchor`), announcement-bar's dismissal (`dsDismiss`), and input's
-`reveal` (`dsPassword`). `<x-ds::theme-script />` is a class component like
+`reveal` (`dsPassword`), and counter when bound to Alpine state (`dsRoll`).
+`<x-ds::theme-script />` is a class component like
 `ds::scripts`, plain inline JavaScript with no Alpine and no script. segmented-control
 uses `x-ds-glide` as an enhancement only, and dropdown, select, combobox,
 date-picker and tooltip use `x-ds-anchor` as an enhancement only: each works
-without the script exactly as in 1.x, and with it stays on screen. See the
+without the script exactly as in 1.x, and with it stays on screen. counter
+uses `x-ds-roll` as an enhancement only: without it the server's number is
+shown and a morph changes it, with it the digits roll. See the
 shared script section.
 
 **Plain Blade and CSS, no script, by design:** rating, chip-group (with chip)
@@ -743,7 +747,11 @@ write the host's `wire:model` / `x-model` onto every child input through a
 `data-ds-*-input` hook; see specs/chip-group.md. segmented-control (with
 segment) is built the same way, and slides a highlight when the script is
 there. button-group is plain Blade too: joins by custom properties its
-buttons' corners read.
+buttons' corners read. sparkline, gauge and activity-heatmap are plain Blade
+too, SVG and a table drawn by `Support\Chart`, whose geometry, ticks, number
+formatting and generated summaries are unit-tested with exact strings in
+tests/ChartTest.php; their classes are looked up from the recipe in
+resources/views/partials/chart.php.
 
 **How those behaviours are written** (batch 02 set the pattern): the Blade view
 renders the whole correct state, value and disabled flags included, and marks
