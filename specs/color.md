@@ -20,6 +20,7 @@ work in both themes and a rebrand touch one file.
 | A card edge that must read as raised | `border-strong` |
 | A badge or alert | `<tone>-tint` + `on-<tone>-tint` |
 | A filled destructive button | `danger` + `on-danger` |
+| Which series a chart mark belongs to | `series-1` … `series-8`, in order: see [chart-series.md](chart-series.md) |
 
 Never reach past these into `color.zinc.500` and friends. The palette exists to
 feed the semantic layer; using it directly is how the app ended up with two

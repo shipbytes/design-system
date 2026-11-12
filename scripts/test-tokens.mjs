@@ -243,6 +243,13 @@ const ADVISORY = [
     // decision.
     ['fg-muted', 'surface-sunken', 4.5, 'muted text on the app ground'],
     ['danger', 'surface-sunken', 4.5, 'error text on the app ground'],
+    // The chart series are a validated CATEGORICAL set: their order is a
+    // colour-vision separation property, measured, and slots 3, 4 and 5 sit
+    // under 3:1 on a light surface by choice (the spec names 3 and 4; 5 is
+    // 2.69). A chart never carries identity by colour alone, which is the
+    // relief. Reported so the numbers stay visible; changing one slot means
+    // re-measuring all eight.
+    ...[1, 2, 3, 4, 5, 6, 7, 8].map((n) => [`series-${n}`, 'surface', 3.0, `chart series ${n} (see chart-series.md)`]),
 ];
 
 for (const theme of ['light', 'dark']) {

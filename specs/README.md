@@ -25,6 +25,7 @@ independent implementations the same component rather than three lookalikes.
 | Spec | Covers |
 |---|---|
 | [color.md](color.md) | Token selection and the accessibility rules |
+| [chart-series.md](chart-series.md) | The eight series colours, why they mean nothing, and the order that is the safety property |
 | [button.md](button.md) | Button, icon button, the FAB |
 | [input.md](input.md) | Input, select, textarea, the two-layer construction, and `reveal` |
 | [panel.md](panel.md) | Bordered card, header, action, divided rows |
