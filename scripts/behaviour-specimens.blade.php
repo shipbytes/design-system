@@ -541,6 +541,14 @@
         </div>
     </div>
 
+    <div class="mt-6 flex h-10 justify-end overflow-hidden border border-border">
+        <div class="w-64">
+            {{-- A month no other picker on the page shows, so the date picker group's
+                 day selectors stay unique. --}}
+            <x-ds::date-picker name="dp-edge" id="dp-edge" aria-label="Edge date" value="2027-03-10" />
+        </div>
+    </div>
+
     {{-- A combobox in a modal whose body scrolls: the body is overflow-y
          auto, which clipped the list before the anchor. The spacer makes the
          body taller than the window, so it really scrolls. --}}

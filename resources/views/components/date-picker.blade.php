@@ -256,9 +256,14 @@
         <x-ds::icon name="calendar" variant="mini" size="5" class="shrink-0 text-fg-muted sm:size-4" />
     </button>
 
+    {{-- x-ds-anchor is an enhancement, as on ds::select: with the script the
+         calendar flips above the field when there is no room below, shifts
+         to stay on screen and escapes a clipping ancestor; without it, the
+         absolute classes below place it, as in 1.x. --}}
     <div
         x-show="open"
         x-cloak
+        x-ds-anchor="{ open: open, reference: $el.previousElementSibling, placement: 'bottom-start', offset: 4 }"
         @click.outside="open = false"
         @keydown.escape.stop="open = false; $el.closest('[x-data]').querySelector('[data-ds-date-trigger]').focus()"
         x-transition:enter="transition ease-out duration-150"
@@ -267,7 +272,7 @@
         role="dialog"
         aria-modal="false"
         @if ($label) aria-labelledby="{{ $id }}-label" @endif
-        class="absolute z-50 mt-1 w-max origin-top rounded-control border border-border bg-surface p-3 shadow-float"
+        class="absolute z-50 mt-1 w-max origin-top data-[side=top]:origin-bottom rounded-control border border-border bg-surface p-3 shadow-float"
     >
         <div class="mb-2 flex items-center justify-between gap-2">
             <button

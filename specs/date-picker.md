@@ -48,6 +48,15 @@ Reporting period
 | In range | `accent-wash` | A wash, not a tint: it covers up to five weeks of cells. |
 | Today | `fg` + semibold | Weight, not colour — colour would compete with the selection. |
 
+The calendar opens below the trigger, 4px off it, start-aligned. It is about
+340px tall, which is why it was the overlay that ran furthest off the page:
+`x-ds-anchor` (the package's script) places it with `position: fixed`, flips it
+above when there is no room below, shifts it along the edge to stay 8px inside
+the viewport, and caps its height with a scroll when neither side fits. With
+room it lands where `absolute mt-1` puts it; the behaviour suite measures both.
+The anchor is an **enhancement**: the absolute classes are the no-script
+placement, as in 1.x.
+
 ## What posts
 
 `Y-m-d`, through hidden inputs, which is what a database column and

@@ -97,8 +97,11 @@ default is right everywhere.
 - **Don't use it for a date of birth.** A hundred-year calendar is thirteen hundred
   presses of "previous month" — that wants three selects or a text field.
 - **Don't add a time to it.** A date and a time are two questions.
-- **Don't put it at the bottom of a page** without checking it fits. No popover in
-  this system does collision detection.
+- **Don't put it at the bottom of a page without the package's
+  [script](../getting-started.md#3-add-the-script).** With it, the calendar
+  flips above the field when there is no room below and shifts to stay on
+  screen; without it, the calendar opens below at its full ~340 px, as before
+  2.0, and runs off the page.
 
 More in [specs/date-picker.md](../../specs/date-picker.md), including why every
 value here is a string rather than a `Date`.

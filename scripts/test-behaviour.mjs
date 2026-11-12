@@ -97,6 +97,9 @@ await writeFile(join(TMP, 'fallback.blade.php'), `<div class="p-8">
     <x-ds::select name="fb-select" id="fb-select" label="Plan" :options="['free' => 'Free', 'pro' => 'Pro']" value="pro" />
 </div>
 <div class="mt-6 max-w-xs">
+    <x-ds::date-picker name="fb-date" id="fb-date" label="Due" value="2026-09-10" />
+</div>
+<div class="mt-6 max-w-xs">
     <x-ds::combobox name="fb-combobox" id="fb-combobox" label="Tags" :options="['a11y' => 'Accessibility', 'billing' => 'Billing']" />
 </div>
 </div>`);
@@ -600,8 +603,8 @@ await page.click('#period');
 await settle();
 
 await check('the grid opens on the month of the value', async () =>
-    (await page.locator('[role=dialog] [aria-live=polite]').innerText()).includes('September 2026')
-    || `shows ${await page.locator('[role=dialog] [aria-live=polite]').innerText()}`);
+    (await page.locator('[x-data]:has(> #period) [aria-live=polite]').innerText()).includes('September 2026')
+    || `shows ${await page.locator('[x-data]:has(> #period) [aria-live=polite]').innerText()}`);
 
 await check('picking a later day completes the range', async () => {
     await page.click('[data-day="2026-09-17"]');
@@ -2699,63 +2702,19 @@ await check('the shipped stylesheet hides a cloaked element', async () => {
 // ---------------------------------------------------------------- overlay edges
 
 /*
-  How to check whether an overlay collides with the viewport.
-  
-  No popover in this system does collision detection: each takes a `placement`
-  and trusts it. This measures the consequence rather than asserting anything
-  about it — each trigger is scrolled to the bottom of the window, opened, and
-  the popover's box is compared against the viewport.
-  
-  It REPORTS and does not fail, because the behaviour is known and recorded as a
-  gap. It exists so the cost is a number somebody can look at before deciding
-  whether floating-ui is worth taking on.
-*/
-group('overlay edges (reported, not enforced — the overlays not yet on x-ds-anchor)');
-
-const overlays = [
-    ['date-picker', '#period', '[role=dialog][aria-modal="false"]'],
-];
-
-for (const [name, triggerSelector, popoverSelector] of overlays) {
-    const overflow = await (async () => {
-        await page.evaluate((selector) => {
-            document.querySelector(selector).scrollIntoView({ block: 'end' });
-        }, triggerSelector);
-        await settle(200);
-
-        await page.locator(triggerSelector).click();
-        await settle(350);
-
-        const box = await page.locator(popoverSelector).first().boundingBox();
-        const height = page.viewportSize().height;
-
-        await page.keyboard.press('Escape');
-        await settle(200);
-
-        if (!box) return null;
-        return Math.round(box.y + box.height - height);
-    })();
-
-    if (overflow === null) {
-        console.log(`  \x1b[33m?\x1b[0m ${name.padEnd(12)} could not be measured`);
-    } else if (overflow > 0) {
-        console.log(`  \x1b[33m!\x1b[0m ${name.padEnd(12)} runs \x1b[33m${overflow}px\x1b[0m below the fold at the bottom of the window`);
-    } else {
-        console.log(`  \x1b[32m✓\x1b[0m ${name.padEnd(12)} fits (${-overflow}px to spare)`);
-    }
-}
-
-/*
-  The same measurement, ENFORCED, for the overlays placed by x-ds-anchor. Each
-  is opened at the bottom right of the window, inside a box with overflow
-  hidden, and must come back wholly on screen (less the anchor's 8px margin),
-  flipped above its trigger, and painted rather than clipped.
+  Whether an overlay collides with the viewport, ENFORCED for every overlay,
+  all of them placed by x-ds-anchor. Until batch 06 the five that predate it
+  were only REPORTED here, as "runs N px below the fold", because each took
+  a placement and trusted it. Each is now opened at the bottom right of the
+  window, inside a box with overflow hidden, and must come back wholly on
+  screen (less the anchor's 8px margin), flipped away from the edge, and
+  painted rather than clipped.
 
   Run from a bottom-of-the-window start, not the floor this page happens to
   have: the trigger is scrolled to the bottom edge, which any element deep in
   the page can reach.
 */
-group('overlay edges, enforced (the overlays on x-ds-anchor)');
+group('overlay edges, enforced (every overlay, on x-ds-anchor)');
 
 const pressEscape = async () => {
     await page.keyboard.press('Escape');
@@ -2791,6 +2750,10 @@ const anchored = [
         name: 'combobox', trigger: '#cb-edge', panel: '#cb-edge-listbox',
         open: () => page.click('#cb-edge'), close: pressEscape,
     },
+    {
+        name: 'date picker', trigger: '#dp-edge', panel: '[x-data]:has(> #dp-edge) [role=dialog]',
+        open: () => page.click('#dp-edge'), close: pressEscape,
+    },
 ];
 
 /*
@@ -2804,6 +2767,7 @@ const roomy = [
     { name: 'dropdown', trigger: '#menu-trigger', panel: '[data-ds-dropdown]:has(#menu-trigger) [role=menu]' },
     { name: 'select', trigger: '#plan', panel: '#plan-listbox' },
     { name: 'combobox', trigger: '#tags', panel: '#tags-listbox' },
+    { name: 'date picker', trigger: '#period', panel: '[x-data]:has(> #period) [role=dialog]' },
 ];
 
 const PLACED = ['position', 'left', 'top', 'right', 'bottom', 'margin', 'translate', 'width', 'maxHeight', 'overflowY'];
@@ -3245,6 +3209,7 @@ group('the overlays that predate x-ds-anchor, in a host WITHOUT the script (the 
     const fallbacks = [
         { name: 'dropdown', trigger: '#fb-dropdown-trigger', panel: '#fb-dropdown [role=menu]', side: 'bottom', gap: 8 },
         { name: 'select', trigger: '#fb-select', panel: '#fb-select-listbox', side: 'bottom', gap: 4 },
+        { name: 'date picker', trigger: '#fb-date', panel: '[x-data]:has(> #fb-date) [role=dialog]', side: 'bottom', gap: 4 },
         // Measured from the field the list hangs from, the text box's parent.
         { name: 'combobox', trigger: '#fb-combobox', panel: '#fb-combobox-listbox', side: 'bottom', gap: 4, from: 'parent' },
     ];
