@@ -111,34 +111,9 @@ final class RendersComponentsTest extends TestCase
             $component = basename($path, '.blade.php');
             $page = __DIR__."/../docs/components/{$component}.md";
 
-            /*
-             * Sub-components are covered by their parent's page, the same way
-             * they are covered by their parent's spec. Written out rather than
-             * derived from the name: `tab` belongs to `tabs` and `radio-group`
-             * belongs to `radio`, neither of which any suffix rule gets right.
-             * A new sub-component with no entry here fails, which is the point.
-             */
-            $parents = [
-                'accordion-item' => 'accordion',
-                'bottom-nav-item' => 'bottom-nav',
-                'breadcrumb-item' => 'breadcrumb',
-                'chip' => 'chip-group',
-                'dropdown-item' => 'dropdown',
-                'panel-row' => 'panel',
-                'radio-card' => 'radio-cards',
-                'radio-group' => 'radio',
-                'segment' => 'segmented-control',
-                'sheet-item' => 'sheet',
-                'step' => 'stepper',
-                'tab' => 'tabs',
-                'tab-panel' => 'tabs',
-                'table-cell' => 'table',
-                'table-row' => 'table',
-                'toast-region' => 'toast',
-                'toggle' => 'toggle-group',
-                'toolbar-button' => 'toolbar',
-                'toolbar-separator' => 'toolbar',
-            ];
+            // Sub-components are covered by their parent's page, the same way
+            // they are covered by their parent's spec: see Components::PARENTS.
+            $parents = Components::PARENTS;
 
             if (isset($parents[$component])) {
                 $this->assertFileExists(

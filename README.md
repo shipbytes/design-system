@@ -182,7 +182,7 @@ source, in both themes.
 
 ### What you get
 
-Seventy-three components, plus a pagination view.
+Seventy-three Blade components, plus the pagination views.
 
 **Layout & content** — `panel` `panel-row` `table` `table-cell` `table-row`
 `stat-tile` `empty-state` `skeleton` `progress` `usage-meter` `accordion`

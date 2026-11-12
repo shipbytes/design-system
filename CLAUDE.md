@@ -149,8 +149,10 @@ every name registered is used by a view or documented in getting-started.
 `tests/Specimens.php`, and asserts every class it emits has a rule in CSS
 compiled the way a *consumer* compiles it. Also enforces that every component
 appears in the gallery, in the docs specimens, and has a documentation page,
-and renders every specimen a second time inside a Livewire component to catch a
-morph marker landing inside a tag (see Traps).
+a row in both indexes and a name in both lists, that every stated component
+count is the real one (`ComponentListsTest`), and renders every specimen a
+second time inside a Livewire component to catch a morph marker landing inside
+a tag (see Traps).
 
 **Behaviour** (`test-behaviour.mjs`) — drives every interactive component in a
 real browser with real Alpine: focus traps, arrow keys, what the form actually
@@ -863,6 +865,16 @@ things" above are what the public documentation is made of, and a stale number h
 is published as-is. **Counts and lists exist in four places:** README.md,
 `docs/getting-started.md`, `docs/README.md` and the State section of this file. Adding a
 component updates all four.
+
+`tests/ComponentListsTest.php` holds the lists and the total to the views, the one
+source (`tests/Components.php`, which also owns the sub-component → parent map the
+render test uses): every view needs a row in `docs/README.md` and in `specs/README.md`
+(a sub-component through its parent's row), a name in README's "What you get" and in
+the State list here, and every stated total must equal the number of views. A total
+is written **"N Blade components"** or "N accessible components" (digits or words),
+or "Built — N components" here; that phrase is how the test finds one, so write a
+total no other way, and never use it for a smaller count. Several batches
+corrected a stale list by hand; that is now a red `npm test`.
 
 Rules the conversion imposes on the Markdown:
 

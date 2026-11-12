@@ -75,8 +75,14 @@ independent implementations the same component rather than three lookalikes.
 | [confirm-button.md](confirm-button.md) | Asking in place, the fail-safe confirm control, the width it grows by |
 | [hold-button.md](hold-button.md) | Hold to confirm, the two-press path for keyboard and assistive technology |
 | [confirm-popover.md](confirm-popover.md) | Anchored confirmation, type-to-confirm, why alertdialog |
+| [popover.md](popover.md) | Anchored panel for anything interactive, placement, the focus contract |
+| [hover-card.md](hover-card.md) | Preview on hover or focus, the open and close delays, never on touch |
+| [context-menu.md](context-menu.md) | The dropdown's menu at the pointer, Shift+F10, the long press |
+| [sub-nav.md](sub-nav.md) | A rail section holding its pages, the indent, the collapsed rail |
+| [theme-switcher.md](theme-switcher.md) | Light, dark or system, the pre-paint script, the view transition |
 
-Sub-components are covered by their parent: `table-cell` and `table-row` in
+Sub-components are covered by their parent: `accordion-item` in accordion.md,
+`table-cell` and `table-row` in
 table.md, `panel-row` in panel.md, `sheet-item` in sheet.md, `dropdown-item` in
 dropdown.md, `bottom-nav-item` in bottom-nav.md, `breadcrumb-item` in
 breadcrumb.md, `tab` and `tab-panel` in tabs.md, `step` in stepper.md, `radio-group` in radio.md,
