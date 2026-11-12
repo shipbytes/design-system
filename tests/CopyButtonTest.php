@@ -43,8 +43,17 @@ final class CopyButtonTest extends TestCase
 
         $faces = $x->query('//button/span[contains(@class, "grid text-start")]/span');
         $this->assertSame(['Copy', 'Copied'], array_map(fn ($n) => trim($n->textContent), iterator_to_array($faces)));
-        $this->assertStringNotContainsString('invisible', $faces->item(0)->getAttribute('class'));
-        $this->assertStringContainsString('invisible', $faces->item(1)->getAttribute('class'));
+        // The swap recipe's faces: the one at rest is hidden only under
+        // data-ds-swapped, the copied one is hidden outright, and out of the
+        // accessibility tree and the tab order until the script swaps them.
+        $classes = fn (int $i) => preg_split('/\s+/', $faces->item($i)->getAttribute('class'));
+        $this->assertNotContains('invisible', $classes(0));
+        $this->assertContains('group-data-ds-swapped/swap:invisible', $classes(0));
+        $this->assertContains('invisible', $classes(1));
+        $this->assertSame('true', $faces->item(1)->getAttribute('aria-hidden'));
+        $this->assertTrue($faces->item(1)->hasAttribute('inert'));
+        $this->assertFalse($faces->item(0)->hasAttribute('aria-hidden'));
+        $this->assertStringContainsString('group/swap', $x->query('//button')->item(0)->getAttribute('class'));
 
         $this->assertSame('polite', $x->query('//span[@aria-live]')->item(0)->getAttribute('aria-live'));
         $this->assertNull($x->query('//button//*[@aria-live]')->item(0), 'the live region is inside the button, so it joins its name');

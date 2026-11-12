@@ -46,7 +46,9 @@ button.
   `copiedLabel`, for 1.5 s. A second press restarts the 1.5 s.
 - **The width does not move.** Both labels are laid out in the same place
   from the first paint, so the button is as wide as the longer one and the row
-  around it never shifts.
+  around it never shifts. They crossfade, with motion allowed. For a
+  confirmation of anything other than a copy, see [swap button](swap-button.md),
+  which works the same way.
 - **A screen reader hears it**: `copiedLabel` is said through a polite live
   region beside the button.
 - **On a plain-`http` page**, where browsers withhold the clipboard API, it
