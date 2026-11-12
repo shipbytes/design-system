@@ -258,6 +258,10 @@ const OPERATE = {
         }
         await pane.locator('button[aria-pressed]').first().dispatchEvent('click', { bubbles: false });
     },
+    // Pressed for real: the image shows the copied face the reader sees, for
+    // the 1.5 s it lasts, beside a button at rest.
+    'copy-button': async (pane) =>
+        pane.locator('[data-shot-press]').dispatchEvent('click', { bubbles: false }),
     // Real files, set on the real input, so the list and the thumbnail are the
     // component's own doing rather than a pose arranged for the photograph.
     'file-upload': async (pane) =>

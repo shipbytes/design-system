@@ -839,6 +839,90 @@ await check('without the async clipboard API it falls back, copies, and gives fo
     return result.focus === 'clip-copy' || `focus ended on ${result.focus}, not the button that was pressed`;
 });
 
+// ---------------------------------------------------------------- copy button
+
+group('copy button (on dsClipboard)');
+
+const copyLook = (id) => page.evaluate((buttonId) => {
+    const button = document.getElementById(buttonId);
+    const shown = (el) => el && getComputedStyle(el).visibility !== 'hidden';
+    const [copyIcon, checkIcon] = button.querySelectorAll('[aria-hidden] > span');
+    const faces = [...button.querySelectorAll('.grid:not([aria-hidden]) > span')];
+    return {
+        width: button.getBoundingClientRect().width,
+        label: faces.find(shown)?.textContent.trim() ?? null,
+        icon: shown(checkIcon) ? 'check' : shown(copyIcon) ? 'clipboard' : 'none',
+        live: button.parentElement.querySelector('[aria-live]').textContent,
+        name: button.getAttribute('aria-label'),
+    };
+}, id);
+
+await check('copies its value; label and icon swap, and the change is announced', async () => {
+    const before = await copyLook('copy-value');
+    await page.click('#copy-value');
+    await settle(100);
+    const after = await copyLook('copy-value');
+    if ((await clipboardText()) !== 'sk_live_42') return `the clipboard holds ${JSON.stringify(await clipboardText())}`;
+    if (before.label !== 'Copy' || after.label !== 'Copied') return `label ${before.label} → ${after.label}`;
+    if (before.icon !== 'clipboard' || after.icon !== 'check') return `icon ${before.icon} → ${after.icon}`;
+    if (before.live !== '' || after.live !== 'Copied') return `live region ${JSON.stringify(before.live)} → ${JSON.stringify(after.live)}`;
+    return before.width === after.width || `the button jumped from ${before.width}px to ${after.width}px`;
+});
+
+await check('and goes back on its own, with the live region emptied', async () => {
+    await page.waitForTimeout(1700);
+    const look = await copyLook('copy-value');
+    return (look.label === 'Copy' && look.icon === 'clipboard' && look.live === '') || JSON.stringify(look);
+});
+
+await check('target by id copies the element\'s text, trimmed', async () => {
+    await page.click('#copy-text');
+    await settle(100);
+    return (await clipboardText()) === 'sk_live_77' || `the clipboard holds ${JSON.stringify(await clipboardText())}`;
+});
+
+await check('target by selector copies a field\'s value as it is now, not as rendered', async () => {
+    await page.fill('#key-field', 'edited since');
+    await page.click('#copy-field');
+    await settle(100);
+    return (await clipboardText()) === 'edited since' || `the clipboard holds ${JSON.stringify(await clipboardText())}`;
+});
+
+await check('icon-only keeps its name; the live region carries the news', async () => {
+    const look = await copyLook('copy-field');
+    return (look.name === 'Copy field' && look.icon === 'check' && look.live === 'Copied') || JSON.stringify(look);
+});
+
+await check('a target not on the page: no false "Copied", and copy-failed reaches the tag and the window', async () => {
+    await page.evaluate(() => { window.copyFailedHere = 0; window.copyFailedWindow = 0; });
+    await page.click('#copy-missing');
+    await settle(100);
+    const look = await copyLook('copy-missing');
+    const heard = await page.evaluate(() => [window.copyFailedHere, window.copyFailedWindow]);
+    if (look.label !== 'Copy' || look.live !== '') return `it claims success: ${JSON.stringify(look)}`;
+    return JSON.stringify(heard) === '[1,1]' || `heard on the tag ${heard[0]}, on the window ${heard[1]} times`;
+});
+
+await check('a clipboard that refuses: no false "Copied", and copy-failed is dispatched', async () => {
+    await page.evaluate(() => {
+        window.copyFailedWindow = 0;
+        window.dsRealWrite = navigator.clipboard.writeText;
+        navigator.clipboard.writeText = () => Promise.reject(new DOMException('denied', 'NotAllowedError'));
+        window.dsRealExec = document.execCommand;
+        document.execCommand = () => false;
+    });
+    await page.click('#copy-value');
+    await settle(100);
+    const look = await copyLook('copy-value');
+    const heard = await page.evaluate(() => window.copyFailedWindow);
+    await page.evaluate(() => {
+        navigator.clipboard.writeText = window.dsRealWrite;
+        document.execCommand = window.dsRealExec;
+    });
+    if (look.label !== 'Copy' || look.icon !== 'clipboard') return `it claims success: ${JSON.stringify(look)}`;
+    return heard === 1 || `copy-failed reached the window ${heard} times`;
+});
+
 // ---------------------------------------------------------------- progress
 
 /*

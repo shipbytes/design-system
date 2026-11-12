@@ -10,12 +10,14 @@ const COPIED_FOR = 1500;
 function clipboard(Alpine) {
 Alpine.data('dsClipboard', (options = {}) => {
 const fallback = options.text ?? '';
+const target = options.target ?? null;
 const showFor = options.for ?? COPIED_FOR;
 let timer = null;
 return {
 copied: false,
-async copy(value = fallback) {
-const ok = await write(String(value ?? ''));
+async copy(value) {
+const text = value !== undefined ? String(value ?? '') : target !== null ? read(target) : fallback;
+const ok = text !== null && (await write(text));
 if (!ok) {
 clearTimeout(timer);
 this.copied = false;
@@ -33,6 +35,19 @@ clearTimeout(timer);
 },
 };
 });
+}
+function read(target) {
+let el = document.getElementById(target);
+if (!el) {
+try {
+el = document.querySelector(target);
+} catch {
+el = null;
+}
+}
+if (!el) return null;
+const field = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement;
+return field ? el.value : el.textContent.trim();
 }
 async function write(text) {
 if (window.isSecureContext && navigator.clipboard?.writeText) {

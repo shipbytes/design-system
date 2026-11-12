@@ -227,6 +227,22 @@
         <span id="clip-state" x-text="copied ? 'copied' : 'idle'">idle</span>
     </div>
 
+    {{-- ── copy button, on dsClipboard ──
+         A value, an element's text, a field's current value, and a target that
+         is not on the page, which must fail rather than copy nothing. The
+         window listener is the toast a host would hang off copy-failed. --}}
+    <div class="mt-6 flex flex-wrap items-center gap-3" x-on:copy-failed.window="window.copyFailedWindow = (window.copyFailedWindow ?? 0) + 1">
+        <code id="key-text">
+            sk_live_77
+        </code>
+        <x-ds::copy-button id="copy-value" value="sk_live_42" />
+        <x-ds::copy-button id="copy-text" target="key-text" label="Copy key" />
+        <input id="key-field" value="as rendered" />
+        <x-ds::copy-button id="copy-field" target="#key-field" :iconOnly="true" label="Copy field" variant="ghost" />
+        <x-ds::copy-button id="copy-missing" target="#not-on-the-page"
+            @copy-failed="window.copyFailedHere = (window.copyFailedHere ?? 0) + 1" />
+    </div>
+
     {{-- ── progress, driven by the host ──
          The example in docs/components/progress.md, verbatim. The component
          holds no state: the host binds --ds-progress and aria-valuenow on the

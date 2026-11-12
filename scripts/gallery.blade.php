@@ -248,6 +248,36 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Copy button --}}
+<section class="ds-spec" id="copy-button">
+    <header class="ds-spec-head">
+        <h2>Copy button</h2>
+        <p>A ds::button that copies a value and confirms in place. Both labels sit in one cell from the first paint, so the button is as wide as &ldquo;Copied&rdquo; before anything is pressed and never jumps.</p>
+    </header>
+
+    <div class="ds-note">Copying needs the package&rsquo;s script; the gallery loads none, so these are the server&rsquo;s render, at rest. A refused clipboard changes nothing on the button and dispatches <code>copy-failed</code> instead.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Variants and sizes <span>&middot; <code>secondary</code> by default</span></div>
+        <div class="{{ $row }} px-4">
+            <x-ds::copy-button value="sk_live_42" />
+            <x-ds::copy-button value="sk_live_42" variant="primary" label="Copy invite link" />
+            <x-ds::copy-button value="sk_live_42" variant="ghost" label="Copy key" />
+            <x-ds::copy-button value="sk_live_42" size="sm" />
+            <x-ds::copy-button value="sk_live_42" size="lg" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Icon only, and beside what it copies <span>&middot; <code>target</code> reads the element at the moment of the press</span></div>
+        <div class="{{ $row }} px-4">
+            <code id="g-copy-key" class="rounded-control border border-border bg-surface px-3 py-2 font-mono text-meta text-fg-body">sk_live_51HxQ2c4f9A</code>
+            <x-ds::copy-button target="g-copy-key" :iconOnly="true" label="Copy key" />
+            <x-ds::copy-button target="g-copy-key" :iconOnly="true" variant="ghost" size="sm" label="Copy key" />
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Tag input --}}
 <section class="ds-spec" id="tag-input">
     <header class="ds-spec-head">

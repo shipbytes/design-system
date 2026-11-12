@@ -2,7 +2,14 @@
  * dsClipboard: copy a string, and say so for a moment.
  *
  *   x-data="dsClipboard({ text: 'sk_live_42' })"   then   @click="copy()"
+ *   x-data="dsClipboard({ target: 'api-key' })"    then   @click="copy()"
  *   x-data="dsClipboard"                           then   @click="copy($refs.key.value)"
+ *
+ * `target` is an element id, or a CSS selector, read at the moment of the
+ * press: a field's value, or any other element's text with the whitespace
+ * around it trimmed. So a field the reader has edited copies what it holds
+ * now, not what the page was rendered with. A target that is not on the page
+ * is a failed copy, never an empty one.
  *
  * No UI. `copied` is true for COPIED_FOR ms after a successful copy, and the
  * component that uses this decides what that looks like. `copy()` resolves to
@@ -21,14 +28,16 @@ const COPIED_FOR = 1500;
 export function clipboard(Alpine) {
     Alpine.data('dsClipboard', (options = {}) => {
         const fallback = options.text ?? '';
+        const target = options.target ?? null;
         const showFor = options.for ?? COPIED_FOR;
         let timer = null;
 
         return {
             copied: false,
 
-            async copy(value = fallback) {
-                const ok = await write(String(value ?? ''));
+            async copy(value) {
+                const text = value !== undefined ? String(value ?? '') : target !== null ? read(target) : fallback;
+                const ok = text !== null && (await write(text));
 
                 if (!ok) {
                     clearTimeout(timer);
@@ -53,6 +62,22 @@ export function clipboard(Alpine) {
             },
         };
     });
+}
+
+function read(target) {
+    let el = document.getElementById(target);
+    if (!el) {
+        try {
+            el = document.querySelector(target);
+        } catch {
+            // Not a valid selector either: no such element.
+            el = null;
+        }
+    }
+    if (!el) return null;
+
+    const field = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement;
+    return field ? el.value : el.textContent.trim();
 }
 
 async function write(text) {

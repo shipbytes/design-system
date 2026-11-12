@@ -193,6 +193,29 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── copy-button
+     The second button is pressed by build-docs.mjs, so the picture shows the
+     copied face beside the resting one, at the same width. --}}
+<div data-shot="copy-button" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-4">
+                <div class="flex items-center gap-2">
+                    <code id="docs-key-{{ $loop->index }}" class="rounded-control border border-border bg-surface px-3 py-2 font-mono text-meta text-fg-body">sk_live_51HxQ2c4f9A</code>
+                    <x-ds::copy-button target="docs-key-{{ $loop->index }}" />
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <x-ds::copy-button value="https://example.com/invite/7f3a" label="Copy link" />
+                    <x-ds::copy-button value="https://example.com/invite/7f3a" label="Copy link" data-shot-press />
+                    <x-ds::copy-button value="https://example.com/invite/7f3a" variant="primary" label="Copy invite link" />
+                    <x-ds::copy-button value="https://example.com/hooks/42" :iconOnly="true" variant="ghost" label="Copy webhook URL" />
+                    <x-ds::copy-button value="42" size="sm" />
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── number-field --}}
 <div data-shot="number-field" class="shot">
     @foreach ($themes as $t)

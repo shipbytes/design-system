@@ -162,6 +162,13 @@ final class Specimens
                 <x-ds::tag-input name="tags" label="Locked" :value="['billing', 'security']" :disabled="true" />
                 BLADE,
 
+            'copy-button/all' => <<<'BLADE'
+                <x-ds::copy-button value="sk_live_42" />
+                <x-ds::copy-button target="api-key" label="Copy key" copiedLabel="Copied to clipboard" variant="primary" />
+                <x-ds::copy-button target="#webhook-url" :iconOnly="true" label="Copy webhook URL" variant="ghost" size="sm" />
+                <x-ds::copy-button value="x" size="lg" @copy-failed="$dispatch('notify', 'Could not copy')" />
+                BLADE,
+
             'number-field/all' => <<<'BLADE'
                 <x-ds::number-field name="seats" label="Seats" :value="3" :min="1" :max="10" help="Up to ten on this plan." />
                 <x-ds::number-field name="seats" label="Seats" :value="1" :min="1" :max="10" />
