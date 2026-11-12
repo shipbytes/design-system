@@ -19,7 +19,7 @@ there is not.
 
 ## Sizes
 
-`xs` (24px) | `sm` (32px) | `md` (40px) | `lg` (48px)
+`xs` (24px) | `sm` (32px) | `md` (40px) | `lg` (48px) | `xl` (64px, added in 2.0 for a profile page and avatar-upload)
 
 A closed set of literal classes, not `size-{$size}` — see [icon.md](icon.md#size-and-the-bug-that-shipped).
 

@@ -8,7 +8,7 @@
      * goes by "AC", a person known by one initial. Shown as given, upper-cased.
      */
     'initials' => null,
-    /** xs | sm | md | lg */
+    /** xs | sm | md | lg | xl (64px, for a profile page and ds::avatar-upload) */
     'size' => 'md',
     /**
      * Square instead of round. For a company or a project — a circle reads as a
@@ -30,6 +30,7 @@
         'sm' => 'size-8 text-meta',
         'md' => 'size-10 text-body',
         'lg' => 'size-12 text-section',
+        'xl' => 'size-16 text-title',
     ];
 
     $box = $sizes[$size] ?? $sizes['md'];
