@@ -221,8 +221,9 @@ Twenty need [Alpine](https://alpinejs.dev) — `modal`, `drawer`, `sheet`,
 `hover-card`, the last nine with the package's own script as well — plus one optional prop each on `checkbox`, `nav-item`,
 `toast` and `input`, and the pagination views' Livewire variants, which get it
 from Livewire. `segmented-control` slides its highlight when Alpine and the
-script are there and works the same without them. Everything else is plain
-Blade and CSS.
+script are there and works the same without them, and the dropdown, select,
+combobox, date picker and tooltip use the script to stay on screen, opening at
+their placement without it. Everything else is plain Blade and CSS.
 
 They hold no state of their own — the host declares it and the component reads
 it, which is what keeps the same markup usable from plain Blade, Livewire or

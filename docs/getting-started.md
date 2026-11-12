@@ -196,7 +196,7 @@ use the component.
 | `x-ds-glide` | A directive, behind `ds::segmented-control`, `ds::toolbar` and `ds::toggle-group`: the highlight that slides to the chosen item, or with `.hover` follows the pointer and keyboard focus. |
 | `dsPopover` | Behind `ds::popover`. Opens and closes it from its trigger, keeps the trigger's `aria-expanded` in step, moves focus in on open and back on Escape, and closes on Escape, a press outside, or focus leaving. Binds the host's `open` both ways through `dsOpen`. |
 | `dsHoverCard` | Behind `ds::hover-card`. Opens the card after the pointer or keyboard focus rests on the trigger for 500 ms, keeps it open while the pointer crosses into it, closes it 300 ms after both are left or at once on Escape, and never opens it on touch. |
-| `x-ds-anchor` | A directive, behind `ds::popover` and `ds::hover-card`, and yours for an overlay of your own: `x-ds-anchor="{ open: …, reference: …, placement: 'bottom-start' }"`. Places the panel beside its reference with `position: fixed`, so an ancestor's `overflow: hidden` cannot clip it; flips to the other side when the preferred one lacks room, shifts to stay 8 px inside the viewport, and caps the height with a scroll when neither side fits. Follows scrolling and resizing while `open` is true. Writes the side it took as `data-side`. |
+| `x-ds-anchor` | A directive, behind `ds::popover`, `ds::hover-card`, `ds::dropdown`, `ds::select`, `ds::combobox`, `ds::date-picker` and `ds::tooltip`, and yours for an overlay of your own: `x-ds-anchor="{ open: …, reference: …, placement: 'bottom-start' }"`. Places the panel beside its reference with `position: fixed`, so an ancestor's `overflow: hidden` cannot clip it; flips to the other side when the preferred one lacks room, shifts to stay 8 px inside the viewport, and caps the height with a scroll when neither side fits. Follows scrolling and resizing while `open` is true. Writes the side it took as `data-side`. |
 
 ### When it is missing
 
@@ -211,10 +211,15 @@ The component renders, because the server rendered it, and does nothing when
 pressed. In your own `x-data` the same cause reads as Alpine's
 `dsClipboard is not defined`.
 
-`x-ds-glide` is the one registration that is silent when missing, on purpose.
-It only adds the sliding highlight, and `ds::segmented-control`, which uses it
-without any `ds…` behaviour, works and posts the same without it: Alpine skips
-a directive it does not know, and the chosen segment keeps the face CSS draws.
+`x-ds-glide` and `x-ds-anchor` are the two registrations that are silent when
+missing, on purpose. `x-ds-glide` only adds the sliding highlight, and
+`ds::segmented-control`, which uses it without any `ds…` behaviour, works and
+posts the same without it: Alpine skips a directive it does not know, and the
+chosen segment keeps the face CSS draws. `x-ds-anchor` keeps an overlay on
+screen, and the dropdown, select, combobox, date picker and tooltip open at
+their `placement` without it, as they did before 2.0: near the bottom of the
+window or inside a box with `overflow: hidden` they run off the page or are
+cut off, and nothing reports it.
 
 ## 4. Use a component
 
@@ -259,6 +264,11 @@ Four more use it for **one optional prop** each, and work without it otherwise:
 `segmented-control` uses Alpine and the package's script only to slide its
 highlight. Without them it is a plain radio group with the chosen segment
 drawn by CSS.
+
+`dropdown`, `select`, `combobox`, `date-picker` and `tooltip` need Alpine, and
+use the package's script to stay on screen: with it they flip away from the
+window's edge and escape a box with `overflow: hidden`; without it they open
+at their `placement`, as before 2.0.
 
 The pagination views' Livewire variants also use Alpine, for the scroll back to
 the top on a page change, and get it from Livewire.

@@ -357,9 +357,11 @@ uncaught. A DIRECTIVE has no such hook: Alpine skips an `x-ds-*` it has no
 handler for, in silence, the same way it skips `x-trap` without the focus
 plugin. So a component never relies on a directive alone; `test-js.mjs` fails a
 view that uses `x-ds-*` without a `Behaviour::data()` scope, and one that writes
-a bare `x-data="ds…"`. The one exemption is a directive that is only an
+a bare `x-data="ds…"`. The exemption is a directive that is only an
 enhancement, listed in `ENHANCEMENTS` there: `x-ds-glide`, whose absence leaves
-a segmented control exactly as correct, with the face CSS draws. Silence is the
+a segmented control exactly as correct, with the face CSS draws, and
+`x-ds-anchor`, whose absence leaves the five overlays that predate it opening
+at their placement as in 1.x. Silence is the
 right failure for decoration and the wrong one for behaviour, so a directive
 joins that list only if the component works and looks right without it, and
 the behaviour suite renders it in a host with no script to prove so.
@@ -516,14 +518,27 @@ subtracted (cached until resize), though its own `overflow` still clips.
 
 It runs AFTER `x-show` on the same element (a directive's effect is registered
 later), so the panel is placed in the frame it appears in and never flashes at
-its fallback position. Everything it sets is inline style over the absolute
-placement classes in `partials/popover.php`, which is the design for batch 06:
-dropdown, select, combobox, date-picker and tooltip keep their absolute
-classes as the no-script fallback and gain `x-ds-anchor` over them. Only then
-can it join `ENHANCEMENTS`, with a no-script proof in the behaviour suite; for
-now popover and hover-card get it inside their `Behaviour::data()` scope. The
-behaviour suite's "overlay edges, enforced" group measures every overlay on it
-(the `anchored` list) at the viewport's edges; add each one batch 06 moves.
+its fallback position. Everything it sets is inline style over the panel's
+absolute placement classes, which are its no-script fallback.
+
+**Where it is an enhancement and where it is a requirement.** Since batch 06,
+dropdown, select, combobox, date-picker and tooltip carry `x-ds-anchor` over
+the absolute classes they had in 1.x, with their inline Alpine unchanged: in a
+host without the script Alpine skips the directive and each opens at its
+placement exactly as before, so `ds-anchor` is in `ENHANCEMENTS`, and the
+behaviour suite opens all five on a page with Alpine and no include. popover
+and hover-card need the script anyway (`dsPopover`, `dsHoverCard`), so for
+them it sits inside a `Behaviour::data()` scope. A new overlay with a sound
+absolute fallback takes the first route; one without takes the second.
+
+The behaviour suite holds every overlay on it to two checks: "overlay edges,
+enforced" (the `anchored` list) opens each at the bottom right of the window
+inside an overflow-hidden box and fails if it leaves the viewport, does not
+flip, or is clipped; and the `roomy` list fails any of the five that, with
+room, lands more than half a pixel from where its fallback classes put it.
+Add a new overlay to both. The docs images of the five were re-rasterised by
+the move (a fixed layer anti-aliases glyph edges a hair differently) with
+their geometry unchanged.
 
 **What a behaviour's scope exposes is API.** Everything an `Alpine.data` object
 returns is visible to the markup inside it and shadows the host's variables of
@@ -659,7 +674,10 @@ copy-button (`dsClipboard`, which is also documented for direct use),
 toolbar (`dsToolbar`, `x-ds-glide.hover`), toggle-group (`dsToggleGroup`,
 `x-ds-glide.hover`), popover (`dsPopover`, `x-ds-anchor`), hover-card
 (`dsHoverCard`, `x-ds-anchor`), and input's `reveal` (`dsPassword`). segmented-control
-uses `x-ds-glide` as an enhancement only; see the shared script section.
+uses `x-ds-glide` as an enhancement only, and dropdown, select, combobox,
+date-picker and tooltip use `x-ds-anchor` as an enhancement only: each works
+without the script exactly as in 1.x, and with it stays on screen. See the
+shared script section.
 
 **Plain Blade and CSS, no script, by design:** rating, chip-group (with chip)
 and radio-cards (with radio-card) are native radios or checkboxes styled by
@@ -708,20 +726,28 @@ that never runs the JS. Bind for what moves; render what does not.
 
 Kept here so nobody has to rediscover them. Roughly in the order worth closing.
 
-**1. The older overlays do not know where the viewport edge is.** `dropdown`,
-`select`, `combobox`, `date-picker` and `tooltip` each take a placement and
-trust it. `npm run test:behaviour` MEASURES the cost at the bottom of its run
-rather than describing it. **Read the number as a floor, not the overflow.** It
-scrolls each trigger to the bottom of the window only as far as the specimen
-page can scroll, so it grows with the page: the date picker read 32px until
-v1.2.1 added a specimen above it, and 106px after, with nothing about the picker
-changed. A calendar is ~340px tall, so the real figure is larger.
+**1. Closed in batch 06: the older overlays now know where the viewport edge
+is.** `dropdown`, `select`, `combobox`, `date-picker` and `tooltip` each took a
+placement and trusted it, and the behaviour suite only REPORTED the cost ("runs
+N px below the fold", a floor that grew with the specimen page: the date picker
+read 106px). All five are on `x-ds-anchor` now (see the shared script section),
+and the suite's "overlay edges, enforced" group fails any that leaves the
+viewport at the bottom or right edge, does not flip, or is clipped by an
+`overflow: hidden` box; a combobox at the foot of a modal body, which is
+`overflow-y-auto`, has a group of its own. What remains:
 
-Batch 05 built the fix without floating-ui: `x-ds-anchor` (see the shared
-script section). `popover` and `hover-card` use it, and the "overlay edges,
-enforced" group FAILS if either leaves the viewport at any edge or is clipped
-by an `overflow: hidden` ancestor. Moving the five above onto it, and into that
-group, is batch 06.
+- **Without the script** the five behave as in 1.x: the anchor is an
+  enhancement on them, so a host that skips `ds::scripts` gets the old
+  placement, clipping and all, and no error.
+- **A transformed, filtered or contained ancestor still clips.** The anchor
+  finds such an ancestor (it becomes the containing block of anything fixed)
+  and lands beside the trigger anyway, but that ancestor's own `overflow` and
+  its scale are not undone. The ancestor is looked for once per open and on
+  resize, so one that gains or loses a transform while a panel is open (a
+  combobox opened during a modal's 200 ms scale-in) is not noticed until the
+  next resize or reopen.
+- **Below `margin`** (8px from the window edge) nothing is drawn: a panel taller
+  than both sides is capped at the larger with a scroll inside.
 
 **2. The npm package is unpublished.** `@shipbytes/design-tokens` does not exist
 on the registry, so the `import { tokens } from '@shipbytes/design-tokens'` path
