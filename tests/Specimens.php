@@ -948,6 +948,60 @@ final class Specimens
                 </x-ds::confirm-popover>
                 BLADE,
 
+            'counter/all' => <<<'BLADE'
+                <x-ds::counter :value="2847" />
+                <x-ds::counter :value="1234.5" :format="['prefix' => '$', 'decimals' => 2]" size="xl" duration="dialog" />
+                <x-ds::counter :value="18400" :format="['compact' => true, 'suffix' => ' views']" size="lg" :animateIn="true" />
+                <x-ds::counter :value="-3.25" :format="['decimals' => 1, 'grouping' => false, 'locale' => 'de']" size="sm" duration="hint" />
+                <x-ds::counter :value="12" ::value="count" aria-live="polite" />
+                <x-ds::counter value="7" x-bind:value="$wire.total" :animateIn="true" size="md" duration="popover" />
+                <x-ds::counter value="n/a" size="huge" duration="forever" />
+                BLADE,
+
+            'sparkline/all' => <<<'BLADE'
+                <x-ds::sparkline :values="[3, 5, 4, 8, 6, 9]" />
+                <x-ds::sparkline :values="[3, 5, null, 8, 6, 9]" variant="area" tone="success" width="lg" height="lg" :showLast="true" label="Signups" />
+                <x-ds::sparkline :values="['Mon' => 3, 'Tue' => -2, 'Wed' => null, 'Thu' => 4]" variant="bar" series="3" width="sm" height="sm" :table="true" :format="['suffix' => '%']" />
+                <x-ds::sparkline :values="[5, 5, 5]" tone="danger" width="full" :min="0" :max="10" summary="Steady at five." />
+                <x-ds::sparkline :values="[7]" variant="area" tone="warning" />
+                <x-ds::sparkline :values="[]" variant="bar" />
+                <x-ds::sparkline :values="[-4, -1, -6]" variant="bar" tone="accent" />
+                <x-ds::sparkline :values="[1, 2]" variant="nonsense" tone="nonsense" series="12" width="huge" height="huge" />
+                BLADE,
+
+            'sparkline/in-a-stat-tile' => <<<'BLADE'
+                <x-ds::stat-tile label="Signups" value="1284" :delta="12">
+                    <x-slot:caption><x-ds::sparkline :values="[3, 5, 4, 8, 6, 9]" tone="success" width="sm" height="sm" :showLast="true" /></x-slot:caption>
+                </x-ds::stat-tile>
+                <x-ds::stat-tile label="Revenue" value="$12.4K">
+                    <x-slot:caption><x-ds::sparkline :values="[9, 7, 8, 11, 12]" variant="area" width="full" label="Revenue, last five weeks" /></x-slot:caption>
+                </x-ds::stat-tile>
+                BLADE,
+
+            'gauge/all' => <<<'BLADE'
+                <x-ds::gauge label="CPU" :value="72" :format="['suffix' => '%']" :thresholds="[
+                    ['at' => 0, 'tone' => 'success'],
+                    ['at' => 70, 'tone' => 'warning'],
+                    ['at' => 90, 'tone' => 'danger', 'label' => 'Overloaded'],
+                ]" />
+                <x-ds::gauge label="Memory" :value="3.2" :max="8" :format="['suffix' => ' GB', 'decimals' => 1]" variant="ring" size="lg" tone="accent" />
+                <x-ds::gauge label="Queue" :value="130" variant="ring" size="sm" :hideLabel="true" />
+                <x-ds::gauge label="Battery" :value="-5" :min="0" :max="100" :showValue="false" tone="success" size="sm" />
+                <x-ds::gauge aria-labelledby="g-heading" :value="null" />
+                <x-ds::gauge label="Odd" :value="5" :min="10" :max="0" variant="nonsense" size="huge" tone="nonsense" :thresholds="[['at' => 'x'], ['at' => 2, 'tone' => 'nonsense']]" :format="'nonsense'" />
+                BLADE,
+
+            'activity-heatmap/all' => <<<'BLADE'
+                <x-ds::activity-heatmap label="Contributions" from="2026-01-05" to="2026-03-11"
+                    :data="['2026-03-03' => 12, '2026-03-04' => 1, '2026-02-27' => 4, '2026-03-10' => 7, '2026-01-01' => 50, 'not a date' => 3]" />
+                <x-ds::activity-heatmap label="Deploys" to="2026-03-11" :weeks="4" :weekStartsOn="0" tone="success" :levels="3"
+                    :data="['2026-03-02' => 2, '2026-03-05' => 9]" href="/deploys/{date}" unit="deploy" />
+                <x-ds::activity-heatmap label="Runs" to="2026-03-11" :weeks="2" series="7" :levels="[1, 5, 10]" :unit="['run', 'runs']"
+                    :showMonthLabels="false" :showWeekdayLabels="false" summary="Two weeks of runs." :data="['2026-03-09' => 11]" />
+                <x-ds::activity-heatmap label="Empty" to="2026-03-11" :weeks="1" :showWeekdayLabels="false" tone="nonsense" />
+                <x-ds::activity-heatmap label="Reversed" from="2026-03-11" to="2026-03-01" :showMonthLabels="false" :levels="9" />
+                BLADE,
+
             // Not a visual component, but it renders inside a host's layout and
             // so inside a Livewire render too; this puts it through the markers
             // test with everything else.

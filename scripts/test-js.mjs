@@ -189,8 +189,14 @@ async function bladeFiles(dir) {
   test-behaviour.mjs opens each on a page with no include. popover and
   hover-card use it too, inside a Behaviour::data() scope, so a host without
   the script still hears about them.
+
+  `ds-roll` turns a counter's digits to a new value. ds::counter renders the
+  formatted number from PHP, and a server re-render (a Livewire morph)
+  changes it, so skipping the directive costs the roll and nothing else:
+  test-behaviour.mjs morphs one on a page with no include. A counter bound to
+  Alpine state is a different route, dsRoll, through Behaviour::data().
 */
-const ENHANCEMENTS = new Set(['ds-glide', 'ds-anchor']);
+const ENHANCEMENTS = new Set(['ds-glide', 'ds-anchor', 'ds-roll']);
 
 const used = new Map(); // "data:dsX" -> [files]
 const rawData = [];

@@ -160,6 +160,19 @@ const announceMarkup = await render(join(TMP, 'announce.blade.php'));
 await writeFile(join(TMP, 'announce-nonce.blade.php'), '<x-ds::announcement-bar id="pre-ab" dismissKey="pre-ab" nonce="t3st">Remembered.</x-ds::announcement-bar>');
 const announceNonceMarkup = await render(join(TMP, 'announce-nonce.blade.php'));
 
+/*
+  Counters for host pages of their own: one below the fold for animateIn, and
+  a server counter at two values, the second for Alpine.morph to turn the
+  first into, exactly as a Livewire re-render would.
+*/
+await writeFile(join(TMP, 'roll-in.blade.php'), '<div class="p-8"><div style="height: 2400px"></div><x-ds::counter id="ct-in" :value="742" :animateIn="true" size="xl" /></div>');
+const rollInMarkup = await render(join(TMP, 'roll-in.blade.php'));
+await writeFile(join(TMP, 'roll-a.blade.php'), '<x-ds::counter id="ct-morph" :value="998" />');
+const rollBefore = await render(join(TMP, 'roll-a.blade.php'));
+await writeFile(join(TMP, 'roll-b.blade.php'), '<x-ds::counter id="ct-morph" :value="1003" />');
+const rollAfter = await render(join(TMP, 'roll-b.blade.php'));
+await writeFile(join(TMP, 'roll.html'), rollInMarkup + rollBefore + rollAfter);
+
 await writeFile(
     join(TMP, 'in.css'),
     `@import "tailwindcss";
@@ -170,6 +183,7 @@ await writeFile(
 @source "${join(TMP, 'focus.html')}";
 @source "${join(TMP, 'theme.html')}";
 @source "${join(TMP, 'guards.html')}";
+@source "${join(TMP, 'roll.html')}";
 `,
 );
 
@@ -3834,6 +3848,136 @@ group('context menu (dsContextMenu, x-ds-anchor at a point)');
     await closeAll();
 }
 
+// ---------------------------------------------------------------- counter
+
+/** What a counter shows, what it says, and whether it is rolling. */
+const counterState = (tab, id) => tab.evaluate((id) => {
+    const el = document.getElementById(id);
+    const face = el.querySelector('[data-ds-counter-face]');
+    return {
+        text: el.querySelector('[data-ds-counter-text]').textContent,
+        face: face.textContent,
+        hidden: face.getAttribute('aria-hidden'),
+        columns: face.querySelectorAll('[data-ds-counter-strip]').length,
+        digits: [...face.querySelectorAll('[data-ds-counter-strip]')].map((s) => s.style.getPropertyValue('--ds-digit')),
+        width: el.getBoundingClientRect().width,
+        value: el.dataset.dsValue,
+    };
+}, id);
+
+/** Records, from now on, whether a counter ever showed rolling columns. */
+const watchRoll = (tab, id) => tab.evaluate((id) => {
+    const el = document.getElementById(id);
+    window.rolled = false;
+    new MutationObserver(() => {
+        if (el.querySelector('[data-ds-counter-face] [data-ds-counter-strip]')) window.rolled = true;
+    }).observe(el, { childList: true, subtree: true });
+}, id);
+
+group('counter (x-ds-roll from the server, dsRoll from Alpine state)');
+{
+    await check('the server\'s number is plain text: read once from the hidden span, the face aria-hidden', async () => {
+        const s = await counterState(page, 'ct-server');
+        return (s.text === '998' && s.face === '998' && s.hidden === 'true' && s.columns === 0) || JSON.stringify(s);
+    });
+    await check('bound to Alpine: the first reading is put in place, formatted as PHP formats it, not rolled', async () => {
+        const s = await counterState(page, 'ct-bound');
+        return (s.text === '$40.00' && s.face === '$40.00' && s.columns === 0) || JSON.stringify(s);
+    });
+
+    let rolling;
+    await check('a change rolls: a column per digit, and the hidden text already says the destination', async () => {
+        await page.click('#ct-add');
+        await page.waitForTimeout(60);
+        rolling = await counterState(page, 'ct-bound');
+        return (rolling.columns === 6 && rolling.text === '$1,274.50' && rolling.value === '1274.5') || JSON.stringify(rolling);
+    });
+    await check('each strip slides to its new digit', async () => {
+        const want = '127450'.split('').map((d) => `${-Number(d) * 10}%`);
+        return JSON.stringify(rolling?.digits) === JSON.stringify(want) || `${JSON.stringify(rolling?.digits)}, wanted ${JSON.stringify(want)}`;
+    });
+    await check('then settles to plain text, exactly as wide as it was mid-roll (no jitter)', async () => {
+        await page.waitForTimeout(600);
+        const s = await counterState(page, 'ct-bound');
+        const drift = Math.abs(s.width - (rolling?.width ?? 0));
+        return (s.columns === 0 && s.face === '$1,274.50' && drift < 0.5) || `${JSON.stringify(s)}, drift ${drift}px`;
+    });
+    await check('a negative reads with a real minus, before the prefix', async () => {
+        await page.click('#ct-negative');
+        await page.waitForTimeout(600);
+        const s = await counterState(page, 'ct-bound');
+        return (s.face === '−$5.00' && s.text === '−$5.00') || JSON.stringify(s);
+    });
+    await check('under reduced motion the new number replaces the old at once', async () => {
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await watchRoll(page, 'ct-bound');
+        await page.click('#ct-add');
+        await page.waitForTimeout(30);
+        const s = await counterState(page, 'ct-bound');
+        const rolled = await page.evaluate(() => window.rolled);
+        await page.emulateMedia({ reducedMotion: 'no-preference' });
+        return (!rolled && s.columns === 0 && s.face === '$1,229.50' && s.text === '$1,229.50') || `${JSON.stringify(s)}, rolled ${rolled}`;
+    });
+}
+
+// ---------------------------------------------------------------- activity heatmap
+
+group('activity heatmap (a table, scrolling in its own box)');
+{
+    const heat = (fn) => page.evaluate(fn);
+
+    await check('a year in a narrow box opens on the most recent weeks, with no script', async () => {
+        const r = await heat(() => {
+            const region = document.querySelector('#hm-narrow [role="region"]');
+            const cell = (text) => [...region.querySelectorAll('td')].find((td) => td.textContent.includes(text));
+            const box = region.getBoundingClientRect();
+            const last = cell('8 March 2026').getBoundingClientRect();
+            const first = cell('3 March 2025').getBoundingClientRect();
+            return {
+                scrolls: region.scrollWidth > region.clientWidth,
+                lastIn: last.left >= box.left && last.right <= box.right,
+                firstOut: first.right <= box.left,
+            };
+        });
+        return (r.scrolls && r.lastIn && r.firstOut) || JSON.stringify(r);
+    });
+    await check('a day says its count in words, as text and as its native tooltip', async () => {
+        const r = await heat(() => {
+            const link = document.querySelector('#hm-narrow a[href="/day/2026-03-03"]');
+            const quiet = [...document.querySelectorAll('#hm-narrow td')].find((td) => td.textContent.includes('5 March 2026'));
+            return { link: link?.textContent.trim(), title: link?.title, one: document.querySelector('#hm-narrow a[href="/day/2026-03-04"]')?.textContent.trim(), quiet: quiet?.textContent.trim(), quietTitle: quiet?.title };
+        });
+        return (r.link === '12 commits on 3 March 2026' && r.title === r.link && r.one === '1 commit on 4 March 2026'
+            && r.quiet === 'No commits on 5 March 2026' && r.quietTitle === r.quiet) || JSON.stringify(r);
+    });
+    await check('only the days with a count are links', async () => {
+        const n = await heat(() => document.querySelectorAll('#hm-narrow a').length);
+        return n === 3 || `${n} links`;
+    });
+    await check('a table to assistive technology: roles kept under the grid, a weekday header per column, weeks in time order', async () => {
+        const r = await page.evaluate(() => {
+            const table = document.querySelector('#hm-narrow table');
+            const rows = [...table.querySelectorAll('tbody [role="row"]')];
+            const firstDay = (row) => [...row.querySelectorAll('td')].find((td) => td.textContent.trim())?.textContent.trim();
+            return {
+                role: table.getAttribute('role'),
+                headers: table.querySelectorAll('thead [role="columnheader"]').length,
+                first: firstDay(rows[0]),
+                last: [...rows.at(-1).querySelectorAll('td')].map((td) => td.textContent.trim()).filter(Boolean).at(-1),
+            };
+        });
+        return (r.role === 'table' && r.headers === 8 && r.first === 'No commits on 3 March 2025' && r.last === 'No commits on 8 March 2026') || JSON.stringify(r);
+    });
+    await check('the scroll box is a focusable region named by the caption', async () => {
+        const r = await heat(() => {
+            const region = document.querySelector('#hm-narrow [role="region"]');
+            const caption = document.getElementById(region.getAttribute('aria-labelledby'));
+            return { tab: region.tabIndex, caption: caption?.tagName, text: caption?.textContent.trim().slice(0, 30) };
+        });
+        return (r.tab === 0 && r.caption === 'CAPTION' && r.text.startsWith('Commits. 15 commits from 3 Mar')) || JSON.stringify(r);
+    });
+}
+
 // ---------------------------------------------------------------- focus indicators
 
 /*
@@ -4173,6 +4317,31 @@ ${includeWithNonce}
 </head><body>${announceMarkup}
 <script nonce="t3st">window.atParse = { hidden: document.getElementById('pre-ab').hidden };</script></body></html>`,
 
+    // A counter below the fold, for animateIn.
+    'roll-in.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+${include}
+<script defer src="alpine.js"></script>
+</head><body>${rollInMarkup}</body></html>`,
+
+    // A server counter under Livewire's Alpine, which carries Alpine.morph,
+    // with the include, and without it: the roll is an enhancement, so the
+    // morphed number must arrive either way.
+    'roll-morph.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+${include}
+</head><body>${rollBefore}
+<script>window.rollNext = ${JSON.stringify(rollAfter)};</script>
+<script src="livewire.js"></script>
+</body></html>`,
+
+    'roll-morph-missing.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+</head><body>${rollBefore}
+<script>window.rollNext = ${JSON.stringify(rollAfter)};</script>
+<script src="livewire.js"></script>
+</body></html>`,
+
     // Served under the policy the CSP pages use: only a script with the
     // nonce runs.
     'csp-theme.html': `<!doctype html><html><head><meta charset="utf-8">
@@ -4220,7 +4389,7 @@ group('host setup (b): Alpine bundled by the host, Alpine.plugin(bladeUi)');
     await check('the plugin works', () => copiesOn(tab));
     await check('plugin twice plus the include: each name registered exactly once', async () => {
         const names = await tab.evaluate(() => window.dsRegistered);
-        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme', 'dsDismiss', 'dsConfirm', 'dsHold', 'dsConfirmDialog'];
+        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme', 'dsDismiss', 'dsConfirm', 'dsHold', 'dsConfirmDialog', 'dsRoll'];
         return JSON.stringify(names) === JSON.stringify(expected) || `registered ${JSON.stringify(names)}`;
     });
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
@@ -4773,6 +4942,61 @@ group('theme switcher (dsTheme): light, dark, system');
 }
 
 await themeContext.close();
+
+group('counter animateIn (x-ds-roll.in), below the fold');
+{
+    const { tab, errors } = await openHost('roll-in.html');
+
+    await check('unseen, the face shows zeros of the same shape and the hidden text the number', async () => {
+        const s = await counterState(tab, 'ct-in');
+        return (s.face === '000' && s.text === '742') || JSON.stringify(s);
+    });
+    await check('scrolled into view, it rolls up to the number and settles', async () => {
+        await watchRoll(tab, 'ct-in');
+        await tab.locator('#ct-in').scrollIntoViewIfNeeded();
+        await tab.waitForTimeout(700);
+        const s = await counterState(tab, 'ct-in');
+        const rolled = await tab.evaluate(() => window.rolled);
+        return (rolled && s.face === '742' && s.columns === 0) || `${JSON.stringify(s)}, rolled ${rolled}`;
+    });
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+
+group('counter re-rendered by a morph (Livewire\'s Alpine.morph), with the script');
+{
+    const { tab, errors } = await openHost('roll-morph.html');
+
+    await check('Livewire started its Alpine, which carries morph', async () =>
+        (await tab.evaluate(() => typeof window.Alpine?.morph === 'function')) || 'no Alpine.morph on the page');
+    await check('the morph rolls the digits and settles on the new number', async () => {
+        await watchRoll(tab, 'ct-morph');
+        await tab.evaluate(() => window.Alpine.morph(document.getElementById('ct-morph'), window.rollNext));
+        await tab.waitForTimeout(700);
+        const s = await counterState(tab, 'ct-morph');
+        const rolled = await tab.evaluate(() => window.rolled);
+        return (rolled && s.face === '1,003' && s.text === '1,003' && s.value === '1003' && s.columns === 0) || `${JSON.stringify(s)}, rolled ${rolled}`;
+    });
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+
+group('counter re-rendered by a morph in a host WITHOUT the script (the roll is an enhancement)');
+{
+    const { tab, errors } = await openHost('roll-morph-missing.html');
+
+    await check('the morphed number arrives, face and hidden text, with no roll', async () => {
+        if (!(await tab.evaluate(() => typeof window.Alpine?.morph === 'function'))) return 'no Alpine.morph on the page';
+        await watchRoll(tab, 'ct-morph');
+        await tab.evaluate(() => window.Alpine.morph(document.getElementById('ct-morph'), window.rollNext));
+        await tab.waitForTimeout(200);
+        const s = await counterState(tab, 'ct-morph');
+        const rolled = await tab.evaluate(() => window.rolled);
+        return (!rolled && s.face === '1,003' && s.text === '1,003') || `${JSON.stringify(s)}, rolled ${rolled}`;
+    });
+    await check('nothing in the console: a skipped roll is not an error', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
 
 group('a host WITHOUT the script');
 {

@@ -25,6 +25,7 @@ independent implementations the same component rather than three lookalikes.
 | Spec | Covers |
 |---|---|
 | [color.md](color.md) | Token selection and the accessibility rules |
+| [chart-series.md](chart-series.md) | The eight series colours, why they mean nothing, and the order that is the safety property |
 | [button.md](button.md) | Button, icon button, the FAB |
 | [input.md](input.md) | Input, select, textarea, the two-layer construction, and `reveal` |
 | [panel.md](panel.md) | Bordered card, header, action, divided rows |
@@ -52,6 +53,10 @@ independent implementations the same component rather than three lookalikes.
 | [skeleton.md](skeleton.md) | Loading placeholder, and who announces it |
 | [progress.md](progress.md) | Bar and ring, indeterminate, the one custom property |
 | [usage-meter.md](usage-meter.md) | Allowance, thresholds, segments, meter vs progressbar |
+| [counter.md](counter.md) | The digit roll, its two routes, the hidden text, and how it relates to stat-tile |
+| [sparkline.md](sparkline.md) | One viewBox stretched, non-scaling strokes, gaps, the generated summary |
+| [gauge.md](gauge.md) | Arcs by dash, bands and their words, meter values past the range |
+| [activity-heatmap.md](activity-heatmap.md) | Weeks as rows turned by CSS, the scroll that starts at the end, the one-hue ramp |
 | [stepper.md](stepper.md) | Steps, statuses, the narrow-width collapse |
 | [avatar-group.md](avatar-group.md) | Overlapping avatars, the ground ring, the spoken sentence |
 | [alert.md](alert.md) | Alert, tones, wash-not-tint, the live-region rule |
@@ -75,8 +80,14 @@ independent implementations the same component rather than three lookalikes.
 | [confirm-button.md](confirm-button.md) | Asking in place, the fail-safe confirm control, the width it grows by |
 | [hold-button.md](hold-button.md) | Hold to confirm, the two-press path for keyboard and assistive technology |
 | [confirm-popover.md](confirm-popover.md) | Anchored confirmation, type-to-confirm, why alertdialog |
+| [popover.md](popover.md) | Anchored panel for anything interactive, placement, the focus contract |
+| [hover-card.md](hover-card.md) | Preview on hover or focus, the open and close delays, never on touch |
+| [context-menu.md](context-menu.md) | The dropdown's menu at the pointer, Shift+F10, the long press |
+| [sub-nav.md](sub-nav.md) | A rail section holding its pages, the indent, the collapsed rail |
+| [theme-switcher.md](theme-switcher.md) | Light, dark or system, the pre-paint script, the view transition |
 
-Sub-components are covered by their parent: `table-cell` and `table-row` in
+Sub-components are covered by their parent: `accordion-item` in accordion.md,
+`table-cell` and `table-row` in
 table.md, `panel-row` in panel.md, `sheet-item` in sheet.md, `dropdown-item` in
 dropdown.md, `bottom-nav-item` in bottom-nav.md, `breadcrumb-item` in
 breadcrumb.md, `tab` and `tab-panel` in tabs.md, `step` in stepper.md, `radio-group` in radio.md,

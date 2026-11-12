@@ -1559,6 +1559,137 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Gauge --}}
+@php
+    $gaugeBands = [
+        ['at' => 0, 'tone' => 'success'],
+        ['at' => 70, 'tone' => 'warning'],
+        ['at' => 90, 'tone' => 'danger', 'label' => 'Overloaded'],
+    ];
+@endphp
+<section class="ds-spec" id="gauge">
+    <header class="ds-spec-head">
+        <h2>Gauge</h2>
+        <p>One reading in a range, as an arc. A <code>meter</code>, like the usage meter, but for a level that rises and falls. Bands colour it and give the colour a word, on screen and in <code>aria-valuetext</code>.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Semi <span>&middot; sm, md, lg, with bands at 70 and 90</span></div>
+        <div class="flex flex-wrap items-end justify-around gap-6 px-4 pb-4">
+            <x-ds::gauge label="CPU" :value="42" :format="['suffix' => '%']" :thresholds="$gaugeBands" size="sm" />
+            <x-ds::gauge label="Memory" :value="76" :format="['suffix' => '%']" :thresholds="$gaugeBands" />
+            <x-ds::gauge label="Disk" :value="96" :format="['suffix' => '%']" :thresholds="$gaugeBands" size="lg" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Ring <span>&middot; a tone, a value past the range, and no reading</span></div>
+        <div class="flex flex-wrap items-end justify-around gap-6 px-4 pb-4">
+            <x-ds::gauge label="Score" :value="8.4" :max="10" :format="['decimals' => 1]" tone="accent" variant="ring" size="sm" />
+            <x-ds::gauge label="Quota" :value="120" :format="['suffix' => '%']" :thresholds="$gaugeBands" variant="ring" />
+            <x-ds::gauge label="Latency" variant="ring" size="lg" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Counter --}}
+<section class="ds-spec" id="counter">
+    <header class="ds-spec-head">
+        <h2>Counter</h2>
+        <p>A number that rolls its digits when it changes, from a Livewire re-render or Alpine state. At rest it is plain text from the server, as here: the gallery has no script, and the roll is an enhancement. Instant under reduced motion.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Sizes <span>&middot; sm, md, lg, xl; or the surrounding text's</span></div>
+        <div class="flex flex-wrap items-baseline gap-6 px-4 pb-4 text-fg">
+            <x-ds::counter :value="1284" size="sm" />
+            <x-ds::counter :value="1284" size="md" />
+            <x-ds::counter :value="1284" size="lg" />
+            <x-ds::counter :value="1284" size="xl" class="font-semibold" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Formats <span>&middot; prefix and decimals, compact, a negative with a suffix</span></div>
+        <div class="flex flex-wrap items-baseline gap-8 px-4 pb-4 text-title text-fg">
+            <x-ds::counter :value="12480.5" :format="['prefix' => '$', 'decimals' => 2]" />
+            <x-ds::counter :value="1840000" :format="['compact' => true]" />
+            <x-ds::counter :value="-3.5" :format="['decimals' => 1, 'suffix' => '%']" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Sparkline --}}
+<section class="ds-spec" id="sparkline">
+    <header class="ds-spec-head">
+        <h2>Sparkline</h2>
+        <p>The shape of a series, word-sized, with no axes. One viewBox stretched to any box, with strokes that keep their width. A <code>role="img"</code> named by a summary written from the data.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Variants <span>&middot; line, area, bars with negatives</span></div>
+        <div class="flex flex-wrap items-center gap-8 px-4 pb-4">
+            <x-ds::sparkline :values="[220, 240, 210, 260, 300, 280, 250, 230]" :showLast="true" width="lg" />
+            <x-ds::sparkline :values="[4, 6, 5, 8, 7, 9, 8, 11]" variant="area" tone="accent" width="lg" />
+            <x-ds::sparkline :values="[3, 5, -2, 4, -4, 6, 2, 5]" variant="bar" tone="accent" width="lg" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Edges <span>&middot; empty, one value, all equal, a gap</span></div>
+        <div class="flex flex-wrap items-center gap-8 px-4 pb-4">
+            <x-ds::sparkline :values="[]" />
+            <x-ds::sparkline :values="[5]" />
+            <x-ds::sparkline :values="[7, 7, 7, 7]" />
+            <x-ds::sparkline :values="[4, 6, null, null, 3, 7, 6]" tone="danger" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">In a stat tile <span>&middot; through its <code>caption</code> slot</span></div>
+        <div class="grid grid-cols-2 gap-3 px-4 pb-4">
+            <x-ds::stat-tile label="Signups" value="1284" :delta="12">
+                <x-slot:caption><x-ds::sparkline :values="[3, 5, 4, 8, 6, 9, 8, 12]" tone="success" width="lg" :showLast="true" label="Signups, last eight weeks" /></x-slot:caption>
+            </x-ds::stat-tile>
+            <x-ds::stat-tile label="Series" value="3">
+                <x-slot:caption>
+                    <span class="flex gap-2">
+                        <x-ds::sparkline :values="[2, 4, 3, 5, 6]" series="1" width="sm" />
+                        <x-ds::sparkline :values="[5, 3, 4, 2, 3]" series="2" width="sm" />
+                        <x-ds::sparkline :values="[1, 2, 4, 3, 5]" series="3" width="sm" />
+                    </span>
+                </x-slot:caption>
+            </x-ds::stat-tile>
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Activity heatmap --}}
+@php
+    $heat = [];
+    $heatDay = \Illuminate\Support\Carbon::parse('2025-11-17');
+    for ($i = 0; $i < 112; $i++, $heatDay->addDay()) {
+        $n = ($i * 37 + intdiv($i, 7) * 11) % 13;
+        $c = $heatDay->isWeekend() ? ($n > 9 ? $n - 9 : 0) : ($n < 3 ? 0 : $n - 2);
+        if ($c) $heat[$heatDay->format('Y-m-d')] = $c;
+    }
+@endphp
+<section class="ds-spec" id="activity-heatmap">
+    <header class="ds-spec-head">
+        <h2>Activity heatmap</h2>
+        <p>A count per day, shaded from one hue. A real table, week by week in reading order, turned by CSS; it scrolls inside itself and starts at the latest week. Every day says its count in words.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Sixteen weeks <span>&middot; accent, five levels; series 3 with three; danger, weeks from Sunday</span></div>
+        <div class="flex flex-wrap items-start gap-8 px-4 pb-4">
+            <x-ds::activity-heatmap label="Contributions" to="2026-03-08" :weeks="16" :data="$heat" href="#activity-heatmap" />
+            <x-ds::activity-heatmap label="Deploys" to="2026-03-08" :weeks="16" series="3" :levels="3" unit="deploy" :data="$heat" />
+            <x-ds::activity-heatmap label="Incidents" to="2026-03-08" :weeks="16" tone="danger" :weekStartsOn="0" unit="incident" :data="$heat" />
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Stepper --}}
 <section class="ds-spec" id="stepper">
     <header class="ds-spec-head">

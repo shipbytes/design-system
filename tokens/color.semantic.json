@@ -215,6 +215,55 @@
       "$type": "color",
       "$value": "{color.zinc.700}",
       "$extensions": { "shipbytes.dark": "{color.zinc.300}" }
+    },
+
+    "series-1": {
+      "$description": "Categorical chart series, slot 1 of 8 — the identity channel of a chart and NOTHING else. Assigned in fixed order and never cycled: a ninth series folds into an Other, or the chart becomes small multiples. Raw hexes rather than {color.*} references, and deliberately: the six semantic hues exist to carry MEANING (accent is a link, danger is a loss), and a chart that drew its third series in `danger` would be saying something about the data that the data does not say. These eight carry no meaning at all, which is the whole job. They are also not Tailwind's ramps — the ordering is a colour-vision-deficiency safety property measured under Machado-Oliveira-Fernandes protanopia and deuteranopia at severity 1.0, not a palette somebody liked, so re-stepping one slot by eye breaks the set. See specs/chart-series.md.",
+      "$type": "color",
+      "$value": "#2a78d6",
+      "$extensions": { "shipbytes.dark": "#3987e5" }
+    },
+    "series-2": {
+      "$description": "Categorical chart series, slot 2 of 8 (orange).",
+      "$type": "color",
+      "$value": "#eb6834",
+      "$extensions": { "shipbytes.dark": "#d95926" }
+    },
+    "series-3": {
+      "$description": "Categorical chart series, slot 3 of 8 (aqua).",
+      "$type": "color",
+      "$value": "#1baf7a",
+      "$extensions": { "shipbytes.dark": "#199e70" }
+    },
+    "series-4": {
+      "$description": "Categorical chart series, slot 4 of 8 (yellow).",
+      "$type": "color",
+      "$value": "#eda100",
+      "$extensions": { "shipbytes.dark": "#c98500" }
+    },
+    "series-5": {
+      "$description": "Categorical chart series, slot 5 of 8 (magenta).",
+      "$type": "color",
+      "$value": "#e87ba4",
+      "$extensions": { "shipbytes.dark": "#d55181" }
+    },
+    "series-6": {
+      "$description": "Categorical chart series, slot 6 of 8 (green).",
+      "$type": "color",
+      "$value": "#008300",
+      "$extensions": { "shipbytes.dark": "#008300" }
+    },
+    "series-7": {
+      "$description": "Categorical chart series, slot 7 of 8 (violet).",
+      "$type": "color",
+      "$value": "#4a3aa7",
+      "$extensions": { "shipbytes.dark": "#9085e9" }
+    },
+    "series-8": {
+      "$description": "Categorical chart series, slot 8 of 8 (red).",
+      "$type": "color",
+      "$value": "#e34948",
+      "$extensions": { "shipbytes.dark": "#e66767" }
     }
   }
 }

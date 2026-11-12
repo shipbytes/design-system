@@ -29,7 +29,7 @@
   <x-ds::alert> uses, so every alert rendered a checkmark the height of the
   panel in any app that did not already use size-4.5 for something else.
 */
-@source inline("size-{1.5,2,3,3.5,4,4.5,5,5.5,6,7,8,9,10,11,12,14,16}");
+@source inline("size-{1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,7,8,9,10,11,12,14,16,24,32}");
 
 /*
   The notch padding the bottom nav depends on.
@@ -70,6 +70,32 @@
 @keyframes ds-progress-indeterminate {
   from { translate: -100% 0; }
   to { translate: 250% 0; }
+}
+
+/*
+  The activity heatmap's five steps, from ONE hue the heatmap sets as
+  --ds-heat (its tone or series slot): heat-0 is a day with nothing, heat-4
+  the busiest. GENERATED from tokens/chart.json, whose description says why
+  the recipe is what it is; test-tokens.mjs measures it for every hue.
+*/
+@utility heat-0 {
+  background-color: color-mix(in oklab, var(--color-fg) 6%, var(--color-surface));
+}
+
+@utility heat-1 {
+  background-color: color-mix(in oklab, var(--ds-heat, var(--color-accent)) 45%, var(--color-surface));
+}
+
+@utility heat-2 {
+  background-color: color-mix(in oklab, var(--ds-heat, var(--color-accent)) 75%, var(--color-surface));
+}
+
+@utility heat-3 {
+  background-color: color-mix(in oklab, var(--ds-heat, var(--color-accent)) 100%, var(--color-surface));
+}
+
+@utility heat-4 {
+  background-color: color-mix(in oklab, var(--ds-heat, var(--color-accent)) 65%, var(--color-fg));
 }
 
 /*
@@ -212,6 +238,14 @@
   --color-on-accent-tint: var(--ds-on-accent-tint);
   --color-neutral-tint: var(--ds-neutral-tint);
   --color-on-neutral-tint: var(--ds-on-neutral-tint);
+  --color-series-1: var(--ds-series-1);
+  --color-series-2: var(--ds-series-2);
+  --color-series-3: var(--ds-series-3);
+  --color-series-4: var(--ds-series-4);
+  --color-series-5: var(--ds-series-5);
+  --color-series-6: var(--ds-series-6);
+  --color-series-7: var(--ds-series-7);
+  --color-series-8: var(--ds-series-8);
   --radius-chip: var(--ds-radius-chip);
   --radius-control: var(--ds-radius-control);
   --radius-panel: var(--ds-radius-panel);
@@ -306,6 +340,14 @@
   --color-on-accent-tint: var(--ds-on-accent-tint);
   --color-neutral-tint: var(--ds-neutral-tint);
   --color-on-neutral-tint: var(--ds-on-neutral-tint);
+  --color-series-1: var(--ds-series-1);
+  --color-series-2: var(--ds-series-2);
+  --color-series-3: var(--ds-series-3);
+  --color-series-4: var(--ds-series-4);
+  --color-series-5: var(--ds-series-5);
+  --color-series-6: var(--ds-series-6);
+  --color-series-7: var(--ds-series-7);
+  --color-series-8: var(--ds-series-8);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -347,5 +389,13 @@
     --color-on-accent-tint: var(--ds-on-accent-tint);
     --color-neutral-tint: var(--ds-neutral-tint);
     --color-on-neutral-tint: var(--ds-on-neutral-tint);
+    --color-series-1: var(--ds-series-1);
+    --color-series-2: var(--ds-series-2);
+    --color-series-3: var(--ds-series-3);
+    --color-series-4: var(--ds-series-4);
+    --color-series-5: var(--ds-series-5);
+    --color-series-6: var(--ds-series-6);
+    --color-series-7: var(--ds-series-7);
+    --color-series-8: var(--ds-series-8);
   }
 }

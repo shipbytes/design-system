@@ -110,6 +110,17 @@ foreach ($rows as $i => $row) {
 }
 ```
 
+## When to use which
+
+| | Use it for | Example |
+|---|---|---|
+| **Progress** | A task moving towards done | Uploading, 64% |
+| [Usage meter](usage-meter.md) | An allowance being used up, in its units | 42 of 50 credits |
+| [Gauge](gauge.md) | A reading that goes up and down within a range | CPU at 42% |
+
+A progress bar is for something that **finishes**: it only moves one way, and
+at 100% the task is done.
+
 ## Accessibility
 
 - `role="progressbar"` with `aria-valuemin`, `aria-valuemax` and

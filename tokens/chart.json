@@ -1,0 +1,28 @@
+{
+  "$description": "Chart recipes that are numbers rather than colours. The colours themselves are the semantic tones and the series slots in color.semantic.json; these say how a chart derives steps from them.",
+  "chart": {
+    "heat": {
+      "$description": "The five steps of an activity heatmap, all derived from ONE hue (the tone or series slot the heatmap is given) by mixing it in OKLab with `fg` and the `surface`. Each step is a share of the hue and a share of fg; the rest is the surface. 0 is a day with nothing (no hue at all, a faint neutral cell, so empty and low are different). 1 to 3 climb to the full hue; 4 goes past it, deepening it with fg, which is what gives a light hue such as series-4 room for a fifth step. The same recipe reads in both themes because fg and surface swap: in dark, 4 is brighter rather than darker, and More is still further from the ground. Measured by test-tokens.mjs for every hue a heatmap accepts, in both themes: adjacent steps at least 1.15:1 and ΔE 7 (OKLab x100) apart, each further from the surface than the last. The tightest are series-4's, in light: 1.19:1 from 0 to 1, and ΔE 7.1 from 2 to 3. Under 3:1, as any five-step ramp from one hue must be, which is why a heatmap cell always carries its count in words.",
+      "0": {
+        "hue": { "$type": "number", "$value": 0 },
+        "fg": { "$type": "number", "$value": 0.06 }
+      },
+      "1": {
+        "hue": { "$type": "number", "$value": 0.45 },
+        "fg": { "$type": "number", "$value": 0 }
+      },
+      "2": {
+        "hue": { "$type": "number", "$value": 0.75 },
+        "fg": { "$type": "number", "$value": 0 }
+      },
+      "3": {
+        "hue": { "$type": "number", "$value": 1 },
+        "fg": { "$type": "number", "$value": 0 }
+      },
+      "4": {
+        "hue": { "$type": "number", "$value": 0.65 },
+        "fg": { "$type": "number", "$value": 0.35 }
+      }
+    }
+  }
+}

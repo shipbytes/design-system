@@ -735,6 +735,108 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── counter --}}
+{{-- At rest a counter is plain formatted text, so the picture is the formats:
+     the roll itself is proved in the behaviour suite. --}}
+<div data-shot="counter" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="grid grid-cols-2 gap-3">
+                <div class="rounded-panel border border-border bg-surface p-4">
+                    <div class="text-body font-medium text-fg-muted">Revenue</div>
+                    <x-ds::counter :value="12480.5" :format="['prefix' => '$', 'decimals' => 2]" size="xl" class="mt-1 font-semibold text-fg" />
+                </div>
+                <div class="rounded-panel border border-border bg-surface p-4">
+                    <div class="text-body font-medium text-fg-muted">Page views</div>
+                    <x-ds::counter :value="1840000" :format="['compact' => true]" size="xl" class="mt-1 font-semibold text-fg" />
+                </div>
+                <p class="col-span-2 rounded-panel border border-border bg-surface p-4 text-body text-fg-body">
+                    <x-ds::counter :value="342" class="font-semibold text-fg" /> people are online, a change of
+                    <x-ds::counter :value="-3.5" :format="['decimals' => 1, 'suffix' => '%']" class="font-semibold text-fg" /> since this morning.
+                </p>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── sparkline --}}
+<div data-shot="sparkline" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="grid grid-cols-2 gap-3">
+                <x-ds::stat-tile label="Signups" value="1284" :delta="12">
+                    <x-slot:caption><x-ds::sparkline :values="[3, 5, 4, 8, 6, 9, 8, 12]" tone="success" width="lg" :showLast="true" label="Signups, last eight weeks" /></x-slot:caption>
+                </x-ds::stat-tile>
+                <x-ds::stat-tile label="Refunds" value="18" :delta="-4">
+                    <x-slot:caption><x-ds::sparkline :values="[9, 7, 8, 5, 6, 4, 5, 3]" variant="area" width="lg" label="Refunds, last eight weeks" /></x-slot:caption>
+                </x-ds::stat-tile>
+                <div class="col-span-2 flex flex-col gap-3 rounded-panel border border-border bg-surface p-4 text-body text-fg-body">
+                    <div class="flex items-center justify-between gap-4"><span>Response time</span><x-ds::sparkline :values="[220, 240, 210, 260, 300, 280, 250, 230, 225, 215]" :showLast="true" width="lg" /></div>
+                    <div class="flex items-center justify-between gap-4"><span>Errors, with a gap</span><x-ds::sparkline :values="[4, 6, 5, null, null, 3, 7, 6, 9, 8]" variant="area" tone="danger" width="lg" /></div>
+                    <div class="flex items-center justify-between gap-4"><span>Net change</span><x-ds::sparkline :values="[3, 5, -2, 4, -4, 6, 2, -1, 5, 7]" variant="bar" tone="accent" width="lg" /></div>
+                    <div class="flex items-center justify-between gap-4"><span>Series 1, 2 and 3</span>
+                        <span class="flex gap-3">
+                            <x-ds::sparkline :values="[2, 4, 3, 5, 6]" series="1" width="sm" />
+                            <x-ds::sparkline :values="[5, 3, 4, 2, 3]" series="2" width="sm" />
+                            <x-ds::sparkline :values="[1, 2, 4, 3, 5]" series="3" width="sm" />
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── gauge --}}
+@php
+    $load = [
+        ['at' => 0, 'tone' => 'success'],
+        ['at' => 70, 'tone' => 'warning'],
+        ['at' => 90, 'tone' => 'danger', 'label' => 'Overloaded'],
+    ];
+@endphp
+<div data-shot="gauge" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-wrap items-end justify-around gap-6 rounded-panel border border-border bg-surface p-5">
+                <x-ds::gauge label="CPU" :value="42" :format="['suffix' => '%']" :thresholds="$load" />
+                <x-ds::gauge label="Memory" :value="76" :format="['suffix' => '%']" :thresholds="$load" />
+                <x-ds::gauge label="Disk" :value="94" :format="['suffix' => '%']" :thresholds="$load" variant="ring" />
+                <x-ds::gauge label="Score" :value="8.4" :max="10" :format="['decimals' => 1]" tone="accent" variant="ring" size="sm" />
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── activity heatmap --}}
+@php
+    // Deterministic, so the image changes only when the component does: a
+    // working-week rhythm, quieter weekends, a holiday gap and a busy spell.
+    $activity = [];
+    $day = \Illuminate\Support\Carbon::parse('2025-03-10');
+    for ($i = 0; $i < 365; $i++, $day->addDay()) {
+        $weekend = $day->isWeekend();
+        $n = ($i * 37 + intdiv($i, 7) * 11) % 13;
+        $count = $weekend ? ($n > 9 ? $n - 9 : 0) : ($n < 3 ? 0 : $n - 2);
+        if ($i > 280 && $i < 300) $count = 0;
+        if ($i > 320 && $i < 334 && ! $weekend) $count += 8;
+        if ($count) $activity[$day->format('Y-m-d')] = $count;
+    }
+@endphp
+<div data-shot="activity-heatmap" class="shot shot-widest">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-6 rounded-panel border border-border bg-surface p-5">
+                <x-ds::activity-heatmap label="Contributions in the last year" to="2026-03-08" :data="$activity" />
+                <div class="flex flex-wrap items-start gap-10">
+                    <x-ds::activity-heatmap label="Deploys" to="2026-03-08" :weeks="16" series="3" :levels="3" unit="deploy" :data="$activity" />
+                    <x-ds::activity-heatmap label="Incidents" to="2026-03-08" :weeks="16" tone="danger" :weekStartsOn="0" unit="incident" :data="$activity" />
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── stepper --}}
 {{-- The widest shot, because the stepper collapses below 40rem of ITS OWN
      width: at 900px a pane the horizontal one has room to show every title,

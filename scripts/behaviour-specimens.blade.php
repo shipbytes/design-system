@@ -737,4 +737,23 @@
             <x-slot:trigger><x-ds::button id="cp-edge-trigger" size="sm">Edge confirm</x-ds::button></x-slot:trigger>
         </x-ds::confirm-popover>
     </div>
+
+    {{-- ── counter (x-ds-roll from the server, dsRoll from Alpine state) ──
+         A server counter, and one bound to Alpine state with a format and
+         buttons that change it. animateIn and the morphs have host pages
+         of their own, in test-behaviour.mjs. --}}
+    <div class="mt-6 flex items-center gap-4">
+        <x-ds::counter id="ct-server" :value="998" />
+        <div x-data="{ count: 40 }" class="flex items-center gap-3">
+            <x-ds::counter id="ct-bound" ::value="count" :value="40" :format="['prefix' => '$', 'decimals' => 2]" size="lg" />
+            <button type="button" id="ct-add" x-on:click="count += 1234.5">Add</button>
+            <button type="button" id="ct-negative" x-on:click="count = -5">Negative</button>
+        </div>
+    </div>
+
+    {{-- ── activity heatmap: a year in a box too narrow for it ── --}}
+    <div class="mt-6 w-64" id="hm-narrow">
+        <x-ds::activity-heatmap label="Commits" to="2026-03-08" :data="['2026-03-03' => 12, '2026-03-04' => 1, '2025-03-10' => 2]" unit="commit" href="/day/{date}" />
+    </div>
+
 </div>

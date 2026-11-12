@@ -1,6 +1,6 @@
 # Shipbytes Blade UI — documentation
 
-Seventy-three Blade components for Laravel, plus two pagination views. Presentation
+Seventy-seven Blade components for Laravel, plus two pagination views. Presentation
 only: no state, no framework assumptions beyond Blade itself.
 
 **New here?** Start with [Getting started](getting-started.md) — install, three
@@ -52,6 +52,15 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Skeleton](components/skeleton.md) | A picture of content that is still loading |
 | [Progress](components/progress.md) | How far along a task is, as a bar or a ring |
 | [Usage meter](components/usage-meter.md) | An allowance and what fills it |
+
+### Data
+
+| | |
+|---|---|
+| [Counter](components/counter.md) | A number that rolls its digits when it changes — the roll needs Alpine and the script |
+| [Sparkline](components/sparkline.md) | A small trend with no axes: line, area or bars |
+| [Gauge](components/gauge.md) | One reading against a range, as an arc, with thresholds |
+| [Activity heatmap](components/activity-heatmap.md) | A count for every day, as a grid of shades |
 
 ### Navigation
 
@@ -107,13 +116,16 @@ plain Blade view. The one opt-in exception is the pagination views' Livewire
 variants, which emit `wire:click` for a component that uses `WithPagination`.
 
 [Alpine](https://alpinejs.dev) — a single 15 kB script, not a framework — is
-needed by twenty components, and by five optional props:
+needed by twenty-five components, and by five optional props:
 
 | | Needs Alpine |
 |---|---|
 | `modal` `drawer` `sheet` `dropdown` `select` `combobox` `date-picker` `accordion` `file-upload` `tooltip` | **Always.** Their whole behaviour is state the browser has no markup for. |
-| `otp-input` `tag-input` `number-field` `password-strength` `copy-button` `toolbar` `toggle-group` | **Always, and the package's script too.** Each renders its value from PHP and posts without JavaScript, but its behaviour is the script's. |
+| `otp-input` `tag-input` `number-field` `password-strength` `copy-button` `toolbar` `toggle-group` `theme-switcher` | **Always, and the package's script too.** Each renders its value from PHP and posts without JavaScript, but its behaviour is the script's. |
+| `popover` `hover-card` `context-menu` | **Always, and the package's script too.** Without them the panel never opens. |
 | `confirm-button` `hold-button` `confirm-popover` | **Always, and the package's script too.** Without them each renders its first face and does nothing, so no single press ever carries out the action. |
+| `sub-nav` | **Only to open and close.** Without it the section holding the current page is open and the rest are closed, as the server rendered them. |
+| `counter` | **Never**, unless its `value` is bound to Alpine state. With Alpine and the package's script its digits roll; without them it shows the number the server rendered, and a re-render changes it. Bound with `::value`, it needs both. |
 | `segmented-control` | **Never.** With Alpine and the package's script, its highlight slides; without them, the chosen segment draws its own face, and nothing throws. |
 | `input` | Only for `reveal`, which also needs the package's script. |
 | `checkbox` | Only for `indeterminate`. Without it the box renders unchecked — which is what a screen reader announces, so the feature is absent rather than lying. |
@@ -125,7 +137,7 @@ needed by twenty components, and by five optional props:
 
 The package also ships a small script of its own, the behaviours several
 components share, which goes in the layout as `<x-ds::scripts />` above Alpine.
-The ten above that need it, and `input`'s `reveal` and `announcement-bar`'s
+The fourteen above that need it, and `input`'s `reveal` and `announcement-bar`'s
 dismissal, say so at the top of
 their pages. See [Add the script](getting-started.md#3-add-the-script).
 
