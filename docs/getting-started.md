@@ -115,7 +115,7 @@ group, so it starts no session and sets no cookie, and it works under
 
 **A page that cannot reach the route** (a static export, an HTML email
 preview, a host whose routing will not take a package's) can carry the script
-in the page instead, about 18 kB (6 kB compressed), uncached:
+in the page instead, about 71 kB (18 kB compressed), uncached:
 
 ```blade
 <x-ds::scripts inline />

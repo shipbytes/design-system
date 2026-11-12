@@ -21,7 +21,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import vm from 'node:vm';
-import { bundle } from './build-js.mjs';
+import { bundle, sizes } from './build-js.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -64,6 +64,24 @@ try {
     pass('the classic build parses as a classic script (no import or export left in it)');
 } catch (error) {
     fail(`the classic build does not parse as a script: ${error.message}`);
+}
+
+/*
+  The size getting-started tells a reader the inline script costs. It said
+  "about 18 kB (6 kB compressed)" while the file grew to 71 and 18, because
+  nothing read it. Within a tenth, so a small behaviour does not mean an edit
+  and a large one does.
+*/
+{
+    const guide = await readFile(join(ROOT, 'docs/getting-started.md'), 'utf8');
+    const stated = guide.match(/about (\d+(?:\.\d+)?) kB \((\d+(?:\.\d+)?) kB compressed\)/);
+    const real = sizes(built.classic);
+    const near = (said, is) => Math.abs(Number(said) - is) <= is * 0.1;
+    expect(stated && near(stated[1], real.raw) && near(stated[2], real.compressed),
+        `getting-started states the script's size: about ${stated?.[1]} kB (${stated?.[2]} kB compressed)`,
+        stated
+            ? `getting-started says "about ${stated[1]} kB (${stated[2]} kB compressed)"; the file is ${real.raw.toFixed(1)} kB, ${real.compressed.toFixed(1)} kB gzipped`
+            : 'getting-started no longer states the script\'s size as "about N kB (M kB compressed)"');
 }
 
 // ------------------------------------------------------------ 2. what it registers
