@@ -218,6 +218,38 @@ function wire(root, o, api) {
         for (const input of mentions()) input.disabled = field.disabled || !present(field.value, input.dataset.dsMentionText ?? '');
     }
 
+    function remember(id, text) {
+        if (mentions().some((input) => input.value === id && input.dataset.dsMentionText === text)) return;
+        const input = template.content.firstElementChild.cloneNode(true);
+        input.value = id;
+        input.dataset.dsMentionText = text;
+        ids.append(input);
+    }
+
+    /*
+     * Text the host set: the mentions in it, found as Support\Mention::found()
+     * finds them for the server's first paint (longest first, each found one
+     * blanked so a shorter name inside it is not found again), post their ids.
+     */
+    function adopt() {
+        let rest = field.value;
+        const rows = options()
+            .map((row) => ({ id: row.dataset.value ?? '', text: token(o.insert ?? '@label', row.dataset.dsTrigger ?? triggers[0], row.dataset.dsLabel ?? '', row.dataset.value ?? '') }))
+            .sort((x, y) => y.text.length - x.text.length);
+        const hits = [];
+        for (const row of rows) {
+            if (!row.text) continue;
+            let at = -1;
+            for (let i = rest.indexOf(row.text); i >= 0; i = rest.indexOf(row.text, i + 1)) {
+                if (WORD.test(rest[i - 1] ?? '') || WORD.test(rest[i + row.text.length] ?? '')) continue;
+                if (at < 0) at = i;
+                rest = rest.slice(0, i) + '\0'.repeat(row.text.length) + rest.slice(i + row.text.length);
+            }
+            if (at >= 0) hits.push({ ...row, at });
+        }
+        for (const hit of hits.sort((x, y) => x.at - y.at)) remember(hit.id, hit.text);
+    }
+
     function choose(option) {
         if (!session) return;
         const text = token(o.insert ?? '@label', session.trigger, option.dataset.dsLabel ?? '', option.dataset.value ?? '');
@@ -244,12 +276,7 @@ function wire(root, o, api) {
         }
         inserting = false;
 
-        if (!mentions().some((input) => input.value === option.dataset.value && input.dataset.dsMentionText === text)) {
-            const input = template.content.firstElementChild.cloneNode(true);
-            input.value = option.dataset.value ?? '';
-            input.dataset.dsMentionText = text;
-            ids.append(input);
-        }
+        remember(option.dataset.value ?? '', text);
         reconcile();
     }
 
@@ -353,6 +380,7 @@ function wire(root, o, api) {
             if (text === field.value) return;
             field.value = text;
             close();
+            adopt();
             reconcile();
         },
         teardown() {

@@ -90,8 +90,10 @@ div[data-ds-mention][x-data=dsMention][x-modelable=dsValue]
 - **No enter or leave animation**: the list opens and closes a few keystrokes
   apart, and a list still fading from the last close as the next opens was
   once left on screen.
-- `dsValue` is the text; a value the host sets is shown, closes the list and
-  re-checks the mentions, without events.
+- `dsValue` is the text; a value the host sets is shown, closes the list,
+  posts the ids of the rows it mentions (found as the server finds them,
+  `Support\Mention::found`) and stops posting the ones it no longer does,
+  without events.
 
 ## Without the script
 

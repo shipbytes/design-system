@@ -89,8 +89,10 @@ colours the same way, and `tests/Fixtures/colour.json` holds both to it
 ## Behaviour (`dsColour`)
 
 - **Typing** in either text field sets the colour as soon as the text reads as
-  one; text that does not is left exactly as typed and gets `aria-invalid`.
-  Leaving a field with a colour in it writes it back as hex.
+  one; text that does not is left exactly as typed, gets `aria-invalid`, and
+  `""` posts until it reads again (the swatch says "No colour"), so a form
+  never sends a colour the field no longer shows. Leaving a field with a
+  colour in it writes it back as hex.
 - **Area:** press or drag (captured, so it follows outside the box). Keys:
   Left/Right saturation, Up/Down brightness, Shift for 10, Page Up/Down
   brightness by 10, Home/End saturation to 0/100.

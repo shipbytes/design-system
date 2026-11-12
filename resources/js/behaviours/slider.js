@@ -95,7 +95,9 @@ function wire(root, options, report) {
     const highest = () => Number(inputs.high.max);
     const ratio = (n) => (highest() > lowest() ? (n - lowest()) / (highest() - lowest()) : 0);
 
-    function draw() {
+    // `announce` false for the first paint and a morph: the status region
+    // says what the reader did, not what the page loaded with.
+    function draw(announce = true) {
         for (const key of keys) {
             const n = number(inputs[key]);
             const text = format(n);
@@ -118,9 +120,11 @@ function wire(root, options, report) {
             const text = forms[total === 1 ? 0 : forms.length - 1].replace(':count', formatCount(total));
             if (counted) counted.textContent = text;
             clearTimeout(saying);
-            saying = setTimeout(() => {
-                if (said) said.textContent = text;
-            }, 500);
+            if (announce) {
+                saying = setTimeout(() => {
+                    if (said) said.textContent = text;
+                }, 500);
+            }
         }
 
         for (const key of keys) {
@@ -300,13 +304,23 @@ function wire(root, options, report) {
     ];
     for (const [target, type, fn] of listeners) target.addEventListener(type, fn);
 
-    draw();
+    // A thumb's value attribute is what a morph writes, and the script never
+    // does: the server's value, taken and drawn without events (the number
+    // fields, which a typed-in value keeps from following, with it).
+    const observer = new MutationObserver((records) => {
+        for (const { target } of records) target.value = target.getAttribute('value') ?? target.value;
+        draw(false);
+    });
+    for (const key of keys) observer.observe(inputs[key], { attributes: true, attributeFilter: ['value'] });
+
+    draw(false);
 
     return {
         value,
         set,
         teardown() {
             clearTimeout(saying);
+            observer.disconnect();
             for (const [target, type, fn] of listeners) target.removeEventListener(type, fn);
         },
     };

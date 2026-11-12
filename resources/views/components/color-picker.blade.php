@@ -270,7 +270,7 @@
                         <div class="flex items-center gap-2">
                             <div role="tablist" aria-label="Format" class="flex flex-1 gap-0.5 rounded-control bg-surface-subtle p-0.5" data-ds-colour-tabs>
                                 @foreach (['hex' => 'HEX', 'rgb' => 'RGB', 'hsl' => 'HSL'] as $key => $word)
-                                    <button type="button" role="tab" id="{{ $id }}-tab-{{ $key }}" aria-controls="{{ $id }}-{{ $key }}" aria-selected="{{ $key === $format ? 'true' : 'false' }}" tabindex="{{ $key === $format ? '0' : '-1' }}" class="{{ $tab }}" data-ds-colour-tab="{{ $key }}">{{ $word }}</button>
+                                    <button type="button" role="tab" id="{{ $id }}-tab-{{ $key }}" aria-controls="{{ $id }}-pane-{{ $key }}" aria-selected="{{ $key === $format ? 'true' : 'false' }}" tabindex="{{ $key === $format ? '0' : '-1' }}" class="{{ $tab }}" data-ds-colour-tab="{{ $key }}">{{ $word }}</button>
                                 @endforeach
                             </div>
                             @if ($eyedropper)
@@ -281,13 +281,13 @@
                             @endif
                         </div>
 
-                        <div role="tabpanel" id="{{ $id }}-hex" aria-labelledby="{{ $id }}-tab-hex" @if ($format !== 'hex') hidden @endif data-ds-colour-pane="hex">
+                        <div role="tabpanel" id="{{ $id }}-pane-hex" aria-labelledby="{{ $id }}-tab-hex" @if ($format !== 'hex') hidden @endif data-ds-colour-pane="hex">
                             <span class="{{ $field['shell']((bool) $disabled) }}">
                                 <input type="text" aria-label="Hex" value="{{ $text }}" autocomplete="off" spellcheck="false" class="{{ $field['control'](false, false, (bool) $disabled, 'sm') }} font-mono" data-ds-colour-text="panel" @disabled($disabled) />
                             </span>
                         </div>
                         @foreach ($parts as $key => $row)
-                            <div role="tabpanel" id="{{ $id }}-{{ $key }}" aria-labelledby="{{ $id }}-tab-{{ $key }}" @if ($format !== $key) hidden @endif @class(['grid gap-2', 'grid-cols-4' => $alpha, 'grid-cols-3' => ! $alpha]) data-ds-colour-pane="{{ $key }}">
+                            <div role="tabpanel" id="{{ $id }}-pane-{{ $key }}" aria-labelledby="{{ $id }}-tab-{{ $key }}" @if ($format !== $key) hidden @endif @class(['grid gap-2', 'grid-cols-4' => $alpha, 'grid-cols-3' => ! $alpha]) data-ds-colour-pane="{{ $key }}">
                                 @foreach ($alpha ? [...$row, ['a', 'A', $words['alpha'], 100]] : $row as [$k, $letter, $word, $max])
                                     <label class="flex flex-col gap-1 text-meta text-fg-muted">
                                         <span aria-hidden="true">{{ $letter }}</span>

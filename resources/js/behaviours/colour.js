@@ -23,8 +23,8 @@
  *     and End saturation to its ends. The others: the arrows, Page keys by
  *     10, Home and End. Shift makes an arrow 10
  *   - text is read forgivingly (shared/colour.js) and never rewritten while
- *     invalid: aria-invalid instead. A valid one is written back as hex
- *     when the field is left
+ *     invalid: aria-invalid instead, and '' posts. A valid one is written
+ *     back as hex when the field is left
  *   - the format tabs are a roving tablist (shared/roving.js) that only
  *     changes which fields edit the colour; `format` decides what posts
  *   - the contrast line, against `contrastWith`, is the ratio as shown and
@@ -234,9 +234,10 @@ function wire(root, o, report) {
             const text = t.value.trim();
             const c = parse(text);
             mark(t, Boolean(text) && !c);
-            if (!text) empty = true;
-            else if (c) take(c);
-            else return;
+            // Text that is not a colour posts nothing, as the server's does:
+            // a form must not send a colour the field no longer shows.
+            if (c) take(c);
+            else empty = true;
             changed(t);
         } else if (t.matches('[data-ds-colour-part]')) {
             const pane = t.closest('[data-ds-colour-pane]');
