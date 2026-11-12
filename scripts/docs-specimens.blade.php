@@ -291,6 +291,114 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── segmented-control --}}
+<div data-shot="segmented-control" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col items-start gap-5">
+                <x-ds::segmented-control name="view{{ $loop->index }}" label="View">
+                    <x-ds::segment value="list" icon="list-bullet" :checked="true">List</x-ds::segment>
+                    <x-ds::segment value="board" icon="view-columns">Board</x-ds::segment>
+                    <x-ds::segment value="calendar" icon="calendar-days">Calendar</x-ds::segment>
+                </x-ds::segmented-control>
+                <div class="flex flex-wrap items-center gap-4">
+                    <x-ds::segmented-control name="period{{ $loop->index }}" label="Period" :hideLabel="true" size="sm">
+                        <x-ds::segment value="day">Day</x-ds::segment>
+                        <x-ds::segment value="week" :checked="true">Week</x-ds::segment>
+                        <x-ds::segment value="month">Month</x-ds::segment>
+                        <x-ds::segment value="year" :disabled="true">Year</x-ds::segment>
+                    </x-ds::segmented-control>
+                    <x-ds::segmented-control name="layout{{ $loop->index }}" label="Layout" :hideLabel="true" size="sm">
+                        <x-ds::segment value="grid" icon="squares-2x2" :iconOnly="true" :checked="true">Grid</x-ds::segment>
+                        <x-ds::segment value="rows" icon="table-cells" :iconOnly="true">Rows</x-ds::segment>
+                    </x-ds::segmented-control>
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── button-group --}}
+<div data-shot="button-group" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col items-start gap-4">
+                <x-ds::button-group label="Alignment">
+                    <x-ds::button>Left</x-ds::button>
+                    <x-ds::button>Center</x-ds::button>
+                    <x-ds::button>Right</x-ds::button>
+                </x-ds::button-group>
+                <div class="flex flex-wrap items-center gap-4">
+                    <x-ds::button-group label="Save options" variant="primary">
+                        <x-ds::button>Save changes</x-ds::button>
+                        <x-ds::dropdown>
+                            <x-slot:trigger>
+                                <x-ds::button iconOnly aria-label="More save options"><x-ds::icon name="chevron-down" /></x-ds::button>
+                            </x-slot:trigger>
+                            <x-ds::dropdown-item href="#button-group">Save as draft</x-ds::dropdown-item>
+                        </x-ds::dropdown>
+                    </x-ds::button-group>
+                    <x-ds::button-group label="Pages" size="sm">
+                        <x-ds::button iconOnly aria-label="Previous page"><x-ds::icon name="chevron-left" /></x-ds::button>
+                        <x-ds::button>Page 2 of 9</x-ds::button>
+                        <x-ds::button iconOnly aria-label="Next page"><x-ds::icon name="chevron-right" /></x-ds::button>
+                    </x-ds::button-group>
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── toolbar --}}
+<div data-shot="toolbar" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col items-start gap-5">
+                <x-ds::toolbar label="Formatting">
+                    <x-ds::toolbar-button icon="arrow-uturn-left" label="Undo" :iconOnly="true" />
+                    <x-ds::toolbar-button icon="arrow-uturn-right" label="Redo" :iconOnly="true" :disabled="true" />
+                    <x-ds::toolbar-separator />
+                    <x-ds::toggle-group label="Text style" type="multiple">
+                        <x-ds::toggle value="bold" label="Bold" icon="bold" :iconOnly="true" :pressed="true" />
+                        <x-ds::toggle value="italic" label="Italic" icon="italic" :iconOnly="true" data-shot-hover />
+                        <x-ds::toggle value="underline" label="Underline" icon="underline" :iconOnly="true" />
+                    </x-ds::toggle-group>
+                    <x-ds::toolbar-separator />
+                    <x-ds::toolbar-button icon="link" label="Link" />
+                </x-ds::toolbar>
+                <x-ds::toolbar label="3 selected" variant="floating">
+                    <span class="px-2 text-meta font-medium text-fg-muted">3 selected</span>
+                    <x-ds::toolbar-separator />
+                    <x-ds::toolbar-button icon="archive-box" label="Archive" />
+                    <x-ds::toolbar-button icon="tag" label="Label" />
+                    <x-ds::toolbar-button icon="trash" label="Delete" />
+                </x-ds::toolbar>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── toggle-group --}}
+<div data-shot="toggle-group" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col items-start gap-4">
+                <x-ds::toggle-group label="Alignment" name="align{{ $loop->index }}">
+                    <x-ds::toggle value="left" label="Left" icon="bars-3-bottom-left" :iconOnly="true" :pressed="true" />
+                    <x-ds::toggle value="center" label="Center" icon="bars-3" :iconOnly="true" />
+                    <x-ds::toggle value="right" label="Right" icon="bars-3-bottom-right" :iconOnly="true" />
+                </x-ds::toggle-group>
+                <x-ds::toggle-group label="Show" type="multiple" name="show{{ $loop->index }}" size="sm">
+                    <x-ds::toggle value="open" label="Open" :pressed="true" />
+                    <x-ds::toggle value="mine" label="Assigned to me" :pressed="true" />
+                    <x-ds::toggle value="flagged" label="Flagged" />
+                    <x-ds::toggle value="spam" label="Spam" :disabled="true" />
+                </x-ds::toggle-group>
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── number-field --}}
 <div data-shot="number-field" class="shot">
     @foreach ($themes as $t)

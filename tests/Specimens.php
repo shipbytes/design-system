@@ -226,6 +226,92 @@ final class Specimens
                 </x-ds::radio-cards>
                 BLADE,
 
+            'segmented-control/all' => <<<'BLADE'
+                <x-ds::segmented-control name="view" label="View">
+                    <x-ds::segment value="list" icon="list-bullet" :checked="true">List</x-ds::segment>
+                    <x-ds::segment value="board" icon="view-columns">Board</x-ds::segment>
+                    <x-ds::segment value="archive" :disabled="true">Archive</x-ds::segment>
+                </x-ds::segmented-control>
+                <x-ds::segmented-control name="period" label="Period" size="sm" :hideLabel="true" :fullWidth="true" x-model="period">
+                    <x-ds::segment value="day">Day</x-ds::segment>
+                    <x-ds::segment value="week" :checked="true">Week</x-ds::segment>
+                </x-ds::segmented-control>
+                <x-ds::segmented-control name="layout" label="Layout" size="lg" wire:model.live="layout">
+                    <x-ds::segment value="grid" icon="squares-2x2" :iconOnly="true">Grid</x-ds::segment>
+                    <x-ds::segment value="rows" icon="table-cells" :iconOnly="true" :checked="true">Rows</x-ds::segment>
+                </x-ds::segmented-control>
+                <x-ds::segmented-control label="Show">
+                    <x-ds::segment href="/tickets" :active="true">All</x-ds::segment>
+                    <x-ds::segment href="/tickets?mine=1" icon="user">Mine</x-ds::segment>
+                    <x-ds::segment href="/tickets?archived=1" :disabled="true">Archived</x-ds::segment>
+                </x-ds::segmented-control>
+                BLADE,
+
+            'button-group/all' => <<<'BLADE'
+                <x-ds::button-group label="Alignment">
+                    <x-ds::button>Left</x-ds::button>
+                    <x-ds::button>Center</x-ds::button>
+                    <x-ds::button>Right</x-ds::button>
+                </x-ds::button-group>
+                <x-ds::button-group label="Pages" size="sm" variant="primary">
+                    <x-ds::button iconOnly aria-label="Previous"><x-ds::icon name="chevron-left" /></x-ds::button>
+                    <x-ds::button iconOnly aria-label="Next"><x-ds::icon name="chevron-right" /></x-ds::button>
+                </x-ds::button-group>
+                <x-ds::button-group label="Zoom" orientation="vertical" variant="ghost" size="lg">
+                    <x-ds::button>In</x-ds::button>
+                    <x-ds::button>Out</x-ds::button>
+                </x-ds::button-group>
+                <x-ds::button-group label="Deploy" variant="danger">
+                    <x-ds::button>Roll back</x-ds::button>
+                    <x-ds::button variant="secondary" tone="danger">Pause</x-ds::button>
+                </x-ds::button-group>
+                <x-ds::button-group label="Save options">
+                    <x-ds::button>Save</x-ds::button>
+                    <x-ds::dropdown>
+                        <x-slot:trigger>
+                            <x-ds::button iconOnly aria-label="More save options"><x-ds::icon name="chevron-down" /></x-ds::button>
+                        </x-slot:trigger>
+                        <x-ds::dropdown-item href="/draft">Save as draft</x-ds::dropdown-item>
+                    </x-ds::dropdown>
+                </x-ds::button-group>
+                BLADE,
+
+            'toolbar/all' => <<<'BLADE'
+                <x-ds::toolbar label="Formatting">
+                    <x-ds::toolbar-button icon="arrow-uturn-left" label="Undo" :iconOnly="true" :tooltip="true" />
+                    <x-ds::toolbar-button icon="arrow-uturn-right" label="Redo" :iconOnly="true" :disabled="true" />
+                    <x-ds::toolbar-separator />
+                    <x-ds::toolbar-button icon="star" label="Star" :pressed="true" tooltip="Starred" />
+                    <x-ds::toolbar-button label="Share" href="/share" />
+                    <x-ds::toolbar-button label="Archived" href="/archive" :disabled="true" />
+                </x-ds::toolbar>
+                <x-ds::toolbar label="Canvas tools" variant="floating" size="sm" orientation="vertical">
+                    <x-ds::toolbar-button icon="hand-raised" label="Pan" :iconOnly="true" :pressed="false" />
+                    <x-ds::toolbar-separator />
+                    <x-ds::toolbar-button icon="pencil" label="Draw" />
+                </x-ds::toolbar>
+                BLADE,
+
+            'toggle-group/all' => <<<'BLADE'
+                <x-ds::toggle-group label="Alignment" name="align">
+                    <x-ds::toggle value="left" label="Left" icon="bars-3-bottom-left" :pressed="true" />
+                    <x-ds::toggle value="center" label="Center" icon="bars-3" :iconOnly="true" :tooltip="true" />
+                    <x-ds::toggle value="justify" label="Justify" :disabled="true" />
+                </x-ds::toggle-group>
+                <x-ds::toggle-group label="Text style" type="multiple" name="marks" size="sm" wire:model.live="marks">
+                    <x-ds::toggle value="bold" label="Bold" icon="bold" :iconOnly="true" :pressed="true" />
+                    <x-ds::toggle value="italic" label="Italic" icon="italic" :iconOnly="true" />
+                </x-ds::toggle-group>
+                <x-ds::toggle-group label="Filters" type="multiple" x-model="filters">
+                    <x-ds::toggle value="mine" label="Mine" />
+                </x-ds::toggle-group>
+                <x-ds::toolbar label="Editor" size="sm">
+                    <x-ds::toggle-group label="Marks" type="multiple">
+                        <x-ds::toggle value="bold" label="Bold" />
+                    </x-ds::toggle-group>
+                </x-ds::toolbar>
+                BLADE,
+
             'number-field/all' => <<<'BLADE'
                 <x-ds::number-field name="seats" label="Seats" :value="3" :min="1" :max="10" help="Up to ten on this plan." />
                 <x-ds::number-field name="seats" label="Seats" :value="1" :min="1" :max="10" />

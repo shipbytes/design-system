@@ -7,8 +7,8 @@ namespace Shipbytes\BladeUi\Tests\Fixtures\Browser;
 use Livewire\Component;
 
 /**
- * The Livewire host the behaviour tests drive: otp-input, tag-input, chip-group and
- * radio-cards bound with wire:model, the way docs/components/otp-input.md and tag-input.md show.
+ * The Livewire host the behaviour tests drive: otp-input, tag-input, chip-group,
+ * radio-cards, segmented-control and toggle-group bound with wire:model, the way docs/components/otp-input.md and tag-input.md show.
  * Served by scripts/request.php as <livewire:binding-host />.
  */
 final class BindingHost extends Component
@@ -22,6 +22,11 @@ final class BindingHost extends Component
     public array $filters = ['bug'];
 
     public string $plan = 'free';
+
+    public string $view = 'list';
+
+    /** @var list<string> */
+    public array $marks = ['bold'];
 
     public function render(): string
     {
@@ -37,6 +42,14 @@ final class BindingHost extends Component
                     <x-ds::radio-card value="free" title="Free" :checked="$plan === 'free'" />
                     <x-ds::radio-card value="pro" title="Pro" :checked="$plan === 'pro'" />
                 </x-ds::radio-cards>
+                <x-ds::segmented-control name="view" id="lw-view" label="View" wire:model="view">
+                    <x-ds::segment value="list" :checked="$view === 'list'">List</x-ds::segment>
+                    <x-ds::segment value="board" :checked="$view === 'board'">Board</x-ds::segment>
+                </x-ds::segmented-control>
+                <x-ds::toggle-group name="marks" id="lw-marks" label="Marks" type="multiple" wire:model="marks">
+                    <x-ds::toggle value="bold" label="Bold" :pressed="in_array('bold', $marks)" />
+                    <x-ds::toggle value="italic" label="Italic" :pressed="in_array('italic', $marks)" />
+                </x-ds::toggle-group>
             </div>
             BLADE;
     }

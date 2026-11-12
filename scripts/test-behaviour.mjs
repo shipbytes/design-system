@@ -376,8 +376,11 @@ await check('Escape closes and returns focus to the trigger', async () => {
 
 group('tooltip');
 
+// Scoped to this specimen's tip: the toolbar further down has tips of its own.
+const tip = () => page.locator('[data-ds-tooltip]:has(#tip-trigger) [role=tooltip]');
+
 await check('hidden until asked for', async () =>
-    (await page.locator('[role=tooltip]').isVisible()) === false || 'visible on load');
+    (await tip().isVisible()) === false || 'visible on load');
 
 await check('describes its trigger without stealing its name', async () => {
     const result = await page.evaluate(() => {
@@ -393,13 +396,13 @@ await check('describes its trigger without stealing its name', async () => {
 await check('appears on FOCUS, not only on hover', async () => {
     await page.focus('#tip-trigger');
     await settle(200);
-    return (await page.locator('[role=tooltip]').isVisible()) || 'invisible to a keyboard';
+    return (await tip().isVisible()) || 'invisible to a keyboard';
 });
 
 await check('Escape dismisses it (WCAG 1.4.13)', async () => {
     await page.keyboard.press('Escape');
     await settle(200);
-    return (await page.locator('[role=tooltip]').isVisible()) === false || 'still visible';
+    return (await tip().isVisible()) === false || 'still visible';
 });
 
 // ---------------------------------------------------------------- select
@@ -1520,6 +1523,372 @@ await check('three columns on a wide screen, one on a phone', async () => {
     return (wide === 1 && narrow === 3) || `rows: ${wide} wide, ${narrow} on a phone`;
 });
 
+// ---------------------------------------------------------------- glide
+
+/** Where a container's highlight is, against where an item is: true, or what is off. */
+const glideOn = (container, item) => page.evaluate(([c, i]) => {
+    const root = document.querySelector(c);
+    const h = [...root.querySelectorAll('[data-ds-glide-highlight]')].find((x) => x.closest('[data-ds-glide]') === root);
+    const target = typeof i === 'string' ? document.querySelector(i) : null;
+    if (!h || h.hidden || getComputedStyle(h).display === 'none') return 'the highlight is hidden';
+    if (getComputedStyle(h).opacity === '0') return 'the highlight is transparent';
+    const a = h.getBoundingClientRect();
+    const b = target.getBoundingClientRect();
+    const off = Math.max(Math.abs(a.left - b.left), Math.abs(a.top - b.top), Math.abs(a.width - b.width), Math.abs(a.height - b.height));
+    return off < 1 || `the highlight is ${off.toFixed(1)}px off ${i}`;
+}, [container, item]);
+
+const glideShown = (container) => page.evaluate((c) => {
+    const root = document.querySelector(c);
+    const h = [...root.querySelectorAll('[data-ds-glide-highlight]')].find((x) => x.closest('[data-ds-glide]') === root);
+    return Boolean(h && !h.hidden && getComputedStyle(h).opacity !== '0');
+}, container);
+
+/** The highlight's translate, as it is drawn this moment (mid-transition included). */
+const glideX = (container) => page.evaluate((c) => {
+    const root = document.querySelector(c);
+    const h = [...root.querySelectorAll('[data-ds-glide-highlight]')].find((x) => x.closest('[data-ds-glide]') === root);
+    return Math.round(h.getBoundingClientRect().left - root.getBoundingClientRect().left - root.clientLeft);
+}, container);
+
+const itemX = (container, item) => page.evaluate(([c, i]) => {
+    const root = document.querySelector(c);
+    return Math.round(document.querySelector(i).getBoundingClientRect().left - root.getBoundingClientRect().left - root.clientLeft);
+}, [container, item]);
+
+group('x-ds-glide on its own (selected mode, markup no component wrote)');
+
+await check('placed under the current item on start, and the container marked ready', async () => {
+    const ready = await page.evaluate(() => document.getElementById('glide-raw').hasAttribute('data-ds-glide-ready'));
+    if (!ready) return 'no data-ds-glide-ready on the container';
+    return glideOn('#glide-raw', '#glide-b');
+});
+
+await check('follows the watched expression to the new item, by a 150 ms slide', async () => {
+    const from = await glideX('#glide-raw');
+    await page.click('#glide-to-c');
+    await settle(60);
+    const mid = await glideX('#glide-raw');
+    const to = await itemX('#glide-raw', '#glide-c');
+    const style = await page.evaluate(() => {
+        const s = getComputedStyle(document.querySelector('#glide-raw [data-ds-glide-highlight]'));
+        return `${s.transitionDuration}`;
+    });
+    await settle(300);
+    if (!(mid > from && mid < to)) return `mid-way it was at ${mid}, between ${from} and ${to}?`;
+    if (!style.startsWith('0.15s')) return `transition ${style}`;
+    return glideOn('#glide-raw', '#glide-c');
+});
+
+await check('an item that changes width is re-measured (ResizeObserver)', async () => {
+    await page.click('#glide-grow');
+    await settle(300);
+    return glideOn('#glide-raw', '#glide-c');
+});
+
+await check('with reduced motion it jumps', async () => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const duration = await page.evaluate(() =>
+        getComputedStyle(document.querySelector('#glide-raw [data-ds-glide-highlight]')).transitionDuration);
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    return duration === '0s' || `transition-duration ${duration}`;
+});
+
+// ---------------------------------------------------------------- segmented control
+
+group('segmented control (radios and CSS; x-ds-glide when the script is there)');
+
+const segLabel = (scope, value) => `${scope} input[value="${value}"] >> xpath=..`;
+const segBg = (scope, value) => page.evaluate(([s, v]) =>
+    getComputedStyle(document.querySelector(`${s} input[value="${v}"]`).parentElement).backgroundColor, [scope, value]);
+
+await check('posts the checked value, and the highlight sits under it', async () => {
+    const p = await posted();
+    if (JSON.stringify(p.view) !== '["list"]') return `posted ${JSON.stringify(p.view)}`;
+    return glideOn('#seg [data-ds-glide]', '#seg label:has(input[value="list"])');
+});
+
+await check('once the highlight is in place the chosen segment stops drawing its own face', async () => {
+    const bg = await segBg('#seg', 'list');
+    return bg === 'rgba(0, 0, 0, 0)' || `the chosen segment still paints ${bg} under a highlight`;
+});
+
+await check('a press chooses natively, reaches x-model, and the highlight slides over', async () => {
+    await page.click(segLabel('#seg', 'board'));
+    await settle(300);
+    const p = await posted();
+    const mirror = await page.textContent('#seg-mirror');
+    if (JSON.stringify(p.view) !== '["board"]' || mirror !== 'board') return `posted ${JSON.stringify(p.view)}, host has ${mirror}`;
+    return glideOn('#seg [data-ds-glide]', '#seg label:has(input[value="board"])');
+});
+
+await check('the arrow keys are the radios\' own, and skip the disabled segment', async () => {
+    await page.focus('#seg input[value="board"]');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    await settle(300);
+    const p = await posted();
+    if (JSON.stringify(p.view) !== '["list"]') return `posted ${JSON.stringify(p.view)} after two presses from board`;
+    const ring = await page.evaluate(() => getComputedStyle(document.activeElement.parentElement).outlineStyle);
+    if (ring === 'none') return 'no ring on the focused segment';
+    return glideOn('#seg [data-ds-glide]', '#seg label:has(input[value="list"])');
+});
+
+await check('a value the host sets through x-model moves the highlight too, with no event fired', async () => {
+    await page.click('#seg-host-set');
+    await settle(300);
+    const checked = await page.evaluate(() => document.querySelector('#seg input:checked')?.value);
+    if (checked !== 'calendar') return `checked ${checked}`;
+    return glideOn('#seg [data-ds-glide]', '#seg label:has(input[value="calendar"])');
+});
+
+await check('right to left: the highlight is under the chosen segment, not its mirror image', async () =>
+    glideOn('#seg-rtl [data-ds-glide]', '#seg-rtl label:has(input[value="week"])'));
+
+await check('fullWidth: the segments share the width equally', async () => {
+    const widths = await page.evaluate(() => [...document.querySelectorAll('#seg-rtl label')].map((l) => Math.round(l.getBoundingClientRect().width)));
+    return new Set(widths).size === 1 || `widths ${JSON.stringify(widths)}`;
+});
+
+await check('links: the highlight sits under the aria-current="page" segment', async () =>
+    glideOn('#seg-links [data-ds-glide]', '#seg-links a[aria-current="page"]'));
+
+// ---------------------------------------------------------------- button group
+
+group('button group (plain Blade) and the split button');
+
+await check('joined: the outer corners are rounded and the inner ones square', async () => {
+    const r = await page.evaluate(() => ['bgroup-save', 'bgroup-more'].map((id) => {
+        const s = getComputedStyle(document.getElementById(id));
+        return [s.borderStartStartRadius, s.borderStartEndRadius].join(' ');
+    }));
+    return JSON.stringify(r) === '["8px 0px","0px 8px"]' || `radii ${JSON.stringify(r)}`;
+});
+
+await check('collapsed borders: the two buttons share one hairline', async () => {
+    const [a, b] = await page.evaluate(() => ['bgroup-save', 'bgroup-more'].map((id) => document.getElementById(id).getBoundingClientRect()));
+    return Math.round((a.right - b.left) * 10) / 10 === 1 || `overlap ${a.right - b.left}px`;
+});
+
+await check('the hovered button rises above its neighbour, so the shared border is drawn whole', async () => {
+    await page.hover('#bgroup-save');
+    const z = await page.evaluate(() => getComputedStyle(document.getElementById('bgroup-save')).zIndex);
+    return z === '10' || `z-index ${z}`;
+});
+
+await check('the split trigger opens its menu and says so', async () => {
+    await page.click('#bgroup-more');
+    await settle(200);
+    const expanded = await page.getAttribute('#bgroup-more', 'aria-expanded');
+    const open = await page.isVisible('#bgroup-draft');
+    await page.keyboard.press('Escape');
+    await settle(200);
+    return (expanded === 'true' && open) || `aria-expanded ${expanded}, menu visible ${open}`;
+});
+
+// ---------------------------------------------------------------- toolbar
+
+group('toolbar (dsToolbar, x-ds-glide.hover) with a toggle group inside');
+
+const tabStops = (scope) => page.evaluate((s) =>
+    [...document.querySelectorAll(`${s} [data-ds-toolbar-item]`)].filter((i) => i.getAttribute('tabindex') === '0').map((i) => i.id), scope);
+
+await check('one tab stop, the first usable item; every other item, toggles included, is -1', async () => {
+    const stops = await tabStops('#tb');
+    const all = await page.evaluate(() => [...document.querySelectorAll('#tb [data-ds-toolbar-item]')].map((i) => i.getAttribute('tabindex')).join(''));
+    return (JSON.stringify(stops) === '["tb-undo"]' && all === '0-1-1-1-1-1') || `stops ${JSON.stringify(stops)}, tabindex ${all}`;
+});
+
+await check('the arrows move, skip the disabled button, and wrap; Home and End go to the ends', async () => {
+    await page.focus('#tb-undo');
+    const seen = [];
+    for (const key of ['ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowLeft', 'End', 'Home', 'ArrowUp']) {
+        await page.keyboard.press(key);
+        seen.push(await active());
+    }
+    const want = ['tb-bold', 'tb-italic', 'tb-star', 'tb-share', 'tb-undo', 'tb-share', 'tb-share', 'tb-undo', 'tb-undo'];
+    return JSON.stringify(seen) === JSON.stringify(want) || `focus went ${seen.join(' → ')}`;
+});
+
+await check('the tab stop follows focus, so Tab leaves the toolbar and Shift+Tab comes back to the same item', async () => {
+    await page.focus('#tb-undo');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Tab');
+    const out = await page.evaluate(() => Boolean(document.activeElement.closest('#tb')));
+    await page.keyboard.press('Shift+Tab');
+    return (!out && (await active()) === 'tb-bold') || `left the toolbar: ${!out}, came back to ${await active()}`;
+});
+
+await check('keyboard focus is marked by the highlight as well as the ring', async () => {
+    await page.focus('#tb-undo');
+    await page.keyboard.press('ArrowRight');
+    await settle(250);
+    return glideOn('#tb', '#tb-bold');
+});
+
+await check('the highlight follows the pointer, and holds over the gap between items', async () => {
+    await page.mouse.move(0, 0);
+    await page.focus('#seg-host-set');
+    await settle(250);
+    await page.hover('#tb-italic');
+    await settle(250);
+    const on = await glideOn('#tb', '#tb-italic');
+    if (on !== true) return on;
+    const gap = await page.evaluate(() => {
+        const a = document.getElementById('tb-bold').getBoundingClientRect();
+        const b = document.getElementById('tb-italic').getBoundingClientRect();
+        return { x: (a.right + b.left) / 2, y: a.top + a.height / 2 };
+    });
+    await page.mouse.move(gap.x, gap.y);
+    await settle(250);
+    return glideOn('#tb', '#tb-italic');
+});
+
+await check('it hides when the pointer leaves, and appears in place rather than sliding in', async () => {
+    await page.mouse.move(5, 5);
+    await settle(250);
+    if (await glideShown('#tb')) return 'still shown after the pointer left';
+    await page.hover('#tb-share');
+    await settle(40);
+    const x = await glideX('#tb');
+    const target = await itemX('#tb', '#tb-share');
+    return Math.abs(x - target) < 1 || `40 ms after appearing it was at ${x}, the item is at ${target}: it slid in`;
+});
+
+await check('between two items it slides', async () => {
+    await page.hover('#tb-share');
+    await settle(250);
+    const from = await glideX('#tb');
+    await page.hover('#tb-undo');
+    await settle(40);
+    const mid = await glideX('#tb');
+    const to = await itemX('#tb', '#tb-undo');
+    await settle(250);
+    return (mid < from && mid > to) || `mid-way at ${mid}, from ${from} to ${to}`;
+});
+
+await check('a press darkens and shrinks the highlight, never the button', async () => {
+    await page.hover('#tb-star');
+    await settle(250);
+    await page.mouse.down();
+    await settle(250);
+    const during = await page.evaluate(() => {
+        const h = document.querySelector('#tb > [data-ds-glide-highlight]');
+        const b = document.getElementById('tb-star');
+        return { pressing: h.hasAttribute('data-pressing'), scale: getComputedStyle(h).scale, button: getComputedStyle(b).scale + ' ' + getComputedStyle(b).transform };
+    });
+    await page.mouse.up();
+    await settle(250);
+    const after = await page.evaluate(() => document.querySelector('#tb > [data-ds-glide-highlight]').hasAttribute('data-pressing'));
+    return (during.pressing && parseFloat(during.scale) === 0.95 && during.button === 'none none' && !after) || JSON.stringify({ during, after });
+});
+
+await check('touch input draws no highlight', async () => {
+    await page.mouse.move(5, 5);
+    await settle(250);
+    await page.evaluate(() => {
+        const item = document.getElementById('tb-italic');
+        for (const type of ['pointerover', 'pointermove', 'pointerdown']) {
+            item.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerType: 'touch', isPrimary: true, button: 0 }));
+        }
+    });
+    await settle(250);
+    return !(await glideShown('#tb')) || 'a touch drew the highlight';
+});
+
+await check('the toggle group inside stands its own highlight down; there is one, the toolbar\'s', async () => {
+    const own = await page.evaluate(() => document.querySelector('#tb-marks > [data-ds-glide-highlight]').hidden);
+    return own === true || 'the toggle group drew a second highlight';
+});
+
+await check('a toggle in the toolbar: reached by the toolbar\'s arrows, pressed by Space, posted', async () => {
+    await page.focus('#tb-undo');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Space');
+    await settle(100);
+    const pressed = await page.getAttribute('#tb-italic', 'aria-pressed');
+    const p = await posted();
+    return (pressed === 'true' && JSON.stringify(p['marks[]']) === '["bold","italic"]') || `aria-pressed ${pressed}, posted ${JSON.stringify(p['marks[]'])}`;
+});
+
+await check('an icon-only button\'s tip shows on keyboard focus, and its name stays its label', async () => {
+    await page.focus('#tb-undo');
+    await settle(200);
+    const shown = await page.locator('[data-ds-tooltip]:has(#tb-undo) [role=tooltip]').isVisible();
+    const name = await page.evaluate(() => document.getElementById('tb-undo').textContent.trim());
+    await page.keyboard.press('Escape');
+    return (shown && name === 'Undo') || `tip shown ${shown}, name ${JSON.stringify(name)}`;
+});
+
+await check('vertical: Up and Down move, Left and Right do not', async () => {
+    await page.focus('#tbv-a');
+    await page.keyboard.press('ArrowRight');
+    const across = await active();
+    await page.keyboard.press('ArrowDown');
+    const down = await active();
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('ArrowUp');
+    const wrapped = await active();
+    return (across === 'tbv-a' && down === 'tbv-b' && wrapped === 'tbv-c') || `right → ${across}, down → ${down}, up twice → ${wrapped}`;
+});
+
+// ---------------------------------------------------------------- toggle group
+
+group('toggle group on its own (dsToggleGroup)');
+
+await check('single: posts the pressed value, and the tab stop is the checked toggle', async () => {
+    const p = await posted();
+    const stops = await page.evaluate(() =>
+        [...document.querySelectorAll('#tg-single [data-ds-toggle]')].filter((t) => t.tabIndex === 0).map((t) => t.id));
+    return (JSON.stringify(p.align) === '["left"]' && JSON.stringify(stops) === '["tg-left"]') || `posted ${JSON.stringify(p.align)}, stops ${JSON.stringify(stops)}`;
+});
+
+await check('single: the arrows move the choice, as a radio group\'s do, past the disabled toggle', async () => {
+    await page.focus('#tg-left');
+    await page.keyboard.press('ArrowRight');
+    const first = [await active(), (await posted()).align?.join()];
+    await page.keyboard.press('ArrowRight');
+    const second = [await active(), (await posted()).align?.join()];
+    const checked = await page.evaluate(() =>
+        [...document.querySelectorAll('#tg-single [data-ds-toggle]')].map((t) => t.getAttribute('aria-checked')).join(' '));
+    return (first.join() === 'tg-center,center' && second.join() === 'tg-right,right' && checked === 'false false false true')
+        || `${first} then ${second}; aria-checked ${checked}`;
+});
+
+await check('single: pressing the chosen toggle leaves it chosen', async () => {
+    await page.click('#tg-right');
+    return JSON.stringify((await posted()).align) === '["right"]' || `posted ${JSON.stringify((await posted()).align)}`;
+});
+
+await check('multiple, x-model: a press reaches the host, and the host sets the toggles', async () => {
+    await page.click('#tgm-bold');
+    await settle(50);
+    const mirror = await page.textContent('#tg-mirror');
+    if (mirror !== '["bold","italic"]') return `the host has ${mirror}`;
+    await page.click('#tg-host-set');
+    await settle(50);
+    const pressed = await page.evaluate(() =>
+        [...document.querySelectorAll('#tg-model [data-ds-toggle]')].map((t) => t.getAttribute('aria-pressed')).join(' '));
+    return pressed === 'false false true' || `aria-pressed ${pressed}`;
+});
+
+await check('multiple: the arrows move focus without pressing, and Space presses', async () => {
+    await page.focus('#tgm-bold');
+    await page.keyboard.press('ArrowRight');
+    const moved = await active();
+    const before = await page.getAttribute('#tgm-italic', 'aria-pressed');
+    await page.keyboard.press('Space');
+    const after = await page.getAttribute('#tgm-italic', 'aria-pressed');
+    return (moved === 'tgm-italic' && before === 'false' && after === 'true') || `moved to ${moved}, pressed ${before} → ${after}`;
+});
+
+await check('standing alone, the group has its own highlight under the pointer', async () => {
+    await page.hover('#tg-center');
+    await settle(250);
+    return glideOn('#tg-single', '#tg-center');
+});
+
 // ---------------------------------------------------------------- number field
 
 group('number field (dsNumberField)');
@@ -1840,6 +2209,10 @@ await context.route(`${ORIGIN}/**`, async (route) => {
     }
 });
 
+const segMarkup = [
+    specimens.match(/<div class="mt-6 w-96" id="seg-rtl"[\s\S]*?<\/fieldset>\s*<\/div>/)?.[0],
+    specimens.match(/<div class="mt-6" id="seg-links"[\s\S]*?<\/nav>\s*<\/div>/)?.[0],
+].join('');
 const clipMarkup = specimens.match(/<div class="mt-6" id="clip"[\s\S]*?<\/span>\s*<\/div>/)?.[0];
 
 const hostPages = {
@@ -1884,6 +2257,13 @@ ${include}
     'missing.html': `<!doctype html><html><head><meta charset="utf-8">
 <script defer src="alpine.js"></script>
 </head><body>${clipMarkup}</body></html>`,
+
+    // The segmented control, with Alpine and no include: it must look chosen
+    // and post, from PHP and CSS alone, and say nothing in the console.
+    'glide-missing.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+<script defer src="alpine.js"></script>
+</head><body><form id="form">${segMarkup}</form></body></html>`,
 };
 
 for (const [name, html] of Object.entries(hostPages)) await writeFile(join(TMP, name), html);
@@ -1926,7 +2306,7 @@ group('host setup (b): Alpine bundled by the host, Alpine.plugin(bladeUi)');
     await check('the plugin works', () => copiesOn(tab));
     await check('plugin twice plus the include: each name registered exactly once', async () => {
         const names = await tab.evaluate(() => window.dsRegistered);
-        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength'];
+        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup'];
         return JSON.stringify(names) === JSON.stringify(expected) || `registered ${JSON.stringify(names)}`;
     });
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
@@ -1946,7 +2326,7 @@ group('host setup (c): Livewire\'s bundled Alpine, include loaded twice');
     await tab.close();
 }
 
-group('wire:model on otp-input, tag-input, chip-group and radio-cards, in a real Livewire component');
+group('wire:model on otp-input, tag-input, chip-group, radio-cards, segmented-control and toggle-group, in a real Livewire component');
 {
     const { tab, errors } = await openHost('_ds/livewire', LARAVEL);
     const wire = (name) => tab.evaluate((n) => JSON.parse(JSON.stringify(window.Livewire.first()[n])), name);
@@ -2015,6 +2395,38 @@ group('wire:model on otp-input, tag-input, chip-group and radio-cards, in a real
         return on === 'free' || `checked: ${JSON.stringify(on)}`;
     });
 
+    await check('segmented control: the segment the reader presses reaches $wire.view', async () => {
+        await tab.click('#lw-view input[value="board"] >> xpath=..');
+        await tab.waitForTimeout(100);
+        return (await wire('view')) === 'board' || `$wire.view is ${JSON.stringify(await wire('view'))}`;
+    });
+
+    await check('segmented control: a view Livewire sets on $wire.view checks it, and the highlight follows', async () => {
+        await tab.evaluate(() => { window.Livewire.first().view = 'list'; });
+        await tab.waitForTimeout(300);
+        return tab.evaluate(() => {
+            const input = document.querySelector('#lw-view input:checked');
+            if (input?.value !== 'list') return `checked: ${input?.value}`;
+            const h = document.querySelector('#lw-view [data-ds-glide-highlight]').getBoundingClientRect();
+            const l = input.parentElement.getBoundingClientRect();
+            return Math.abs(h.left - l.left) < 1 || `the highlight is ${h.left - l.left}px off the chosen segment`;
+        });
+    });
+
+    await check('toggle group: a toggle the reader presses reaches $wire.marks', async () => {
+        await tab.click('#lw-marks [data-ds-value="italic"]');
+        await tab.waitForTimeout(100);
+        return JSON.stringify(await wire('marks')) === '["bold","italic"]' || `$wire.marks is ${JSON.stringify(await wire('marks'))}`;
+    });
+
+    await check('toggle group: a list Livewire sets on $wire.marks presses those toggles', async () => {
+        await tab.evaluate(() => { window.Livewire.first().marks = ['italic']; });
+        await tab.waitForTimeout(100);
+        const on = await tab.evaluate(() =>
+            [...document.querySelectorAll('#lw-marks [data-ds-toggle]')].map((t) => t.getAttribute('aria-pressed')).join(' '));
+        return on === 'false true' || `aria-pressed: ${on}`;
+    });
+
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
     await tab.close();
 }
@@ -2032,6 +2444,34 @@ group('a host with a Content Security Policy');
 
     await check('the same policy blocks the include without the nonce, so the check above means something', async () =>
         errors.some((e) => /Content Security Policy/i.test(e)) || `nothing was blocked: ${errors.join(' | ') || 'no errors at all'}`);
+    await tab.close();
+}
+
+group('a segmented control in a host WITHOUT the script (the glide is an enhancement)');
+{
+    const { tab, errors } = await openHost('glide-missing.html');
+
+    await check('the markup reached the page', async () =>
+        (await tab.locator('#seg-rtl input').count()) === 3 || 'the specimen was not found in the rendered page');
+    await check('nothing in the console: a skipped glide is not an error', async () => !errors.length || errors.join(' | '));
+    await check('the chosen segment and the current link draw their own face, and the highlight stays hidden', async () => {
+        const r = await tab.evaluate(() => ({
+            week: getComputedStyle(document.querySelector('#seg-rtl input[value="week"]').parentElement).backgroundColor,
+            day: getComputedStyle(document.querySelector('#seg-rtl input[value="day"]').parentElement).backgroundColor,
+            link: getComputedStyle(document.querySelector('#seg-links a[aria-current="page"]')).backgroundColor,
+            hidden: [...document.querySelectorAll('[data-ds-glide-highlight]')].every((h) => getComputedStyle(h).display === 'none'),
+        }));
+        return (r.week === 'rgb(255, 255, 255)' && r.link === 'rgb(255, 255, 255)' && r.day === 'rgba(0, 0, 0, 0)' && r.hidden) || JSON.stringify(r);
+    });
+    await check('a press still chooses and posts', async () => {
+        await tab.click('#seg-rtl input[value="month"] >> xpath=..');
+        await tab.waitForTimeout(300);
+        const r = await tab.evaluate(() => ({
+            posted: new FormData(document.getElementById('form')).get('period'),
+            bg: getComputedStyle(document.querySelector('#seg-rtl input[value="month"]').parentElement).backgroundColor,
+        }));
+        return (r.posted === 'month' && r.bg === 'rgb(255, 255, 255)') || JSON.stringify(r);
+    });
     await tab.close();
 }
 

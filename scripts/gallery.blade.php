@@ -365,6 +365,195 @@
     </div>
 </section>
 
+<section class="ds-spec" id="segmented-control">
+    <header class="ds-spec-head">
+        <h2>Segmented control</h2>
+        <p>One of a few views or modes, side by side in a track. Each segment is a real radio, so the control posts with the form, takes the arrow keys and binds with <code>wire:model</code> on the control. Or each is a link, for switching views by URL.</p>
+    </header>
+
+    <div class="ds-note">No script needed. With the package's script and Alpine, one highlight slides between segments; this page loads no Alpine, so what you see is the face CSS draws on the chosen segment, which is also what every page shows before the script runs.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Radios <span>&middot; <code>sm</code>, <code>md</code>, <code>lg</code>, with icons, one disabled</span></div>
+        <div class="flex flex-col items-start gap-4 px-4">
+            @foreach (['sm', 'md', 'lg'] as $s)
+                <x-ds::segmented-control name="g-sc{{ $s }}" label="View, {{ $s }}" :size="$s" :hideLabel="true">
+                    <x-ds::segment value="list" icon="list-bullet" :checked="true">List</x-ds::segment>
+                    <x-ds::segment value="board" icon="view-columns">Board</x-ds::segment>
+                    <x-ds::segment value="calendar" icon="calendar-days" :disabled="true">Calendar</x-ds::segment>
+                </x-ds::segmented-control>
+            @endforeach
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Labelled, full width, icon only <span>&middot; <code>fullWidth</code>, <code>iconOnly</code></span></div>
+        <div class="flex flex-col gap-4 px-4">
+            <x-ds::segmented-control name="g-sc-period" label="Period" :fullWidth="true">
+                <x-ds::segment value="day">Day</x-ds::segment>
+                <x-ds::segment value="week" :checked="true">Week</x-ds::segment>
+                <x-ds::segment value="month">Month</x-ds::segment>
+                <x-ds::segment value="year">Year</x-ds::segment>
+            </x-ds::segmented-control>
+            <x-ds::segmented-control name="g-sc-layout" label="Layout" :hideLabel="true" size="sm">
+                <x-ds::segment value="grid" icon="squares-2x2" :iconOnly="true" :checked="true">Grid</x-ds::segment>
+                <x-ds::segment value="rows" icon="table-cells" :iconOnly="true">Rows</x-ds::segment>
+            </x-ds::segmented-control>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Links <span>&middot; <code>href</code> and <code>active</code>, a nav with <code>aria-current</code></span></div>
+        <div class="px-4">
+            <x-ds::segmented-control label="Report" :hideLabel="true">
+                <x-ds::segment href="#segmented-control" :active="true">Overview</x-ds::segment>
+                <x-ds::segment href="#segmented-control">Traffic</x-ds::segment>
+                <x-ds::segment href="#segmented-control" :disabled="true">Revenue</x-ds::segment>
+            </x-ds::segmented-control>
+        </div>
+    </div>
+</section>
+
+<section class="ds-spec" id="button-group">
+    <header class="ds-spec-head">
+        <h2>Button group</h2>
+        <p>Related buttons joined into one shape: the inner corners square off and neighbouring borders become one line. The group sets the size and variant of the buttons inside it, and any button can still set its own.</p>
+    </header>
+
+    <div class="ds-note">No script. A split button is a group whose last member is a <code>ds::dropdown</code> with a button as its trigger; the dropdown itself needs Alpine, the group does not.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Outlined <span>&middot; <code>secondary</code>, the default, at <code>sm</code>, <code>md</code>, <code>lg</code></span></div>
+        <div class="flex flex-col items-start gap-4 px-4">
+            @foreach (['sm', 'md', 'lg'] as $s)
+                <x-ds::button-group label="Alignment, {{ $s }}" :size="$s">
+                    <x-ds::button>Left</x-ds::button>
+                    <x-ds::button>Center</x-ds::button>
+                    <x-ds::button>Right</x-ds::button>
+                </x-ds::button-group>
+            @endforeach
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Split button and filled <span>&middot; <code>primary</code>, <code>danger</code>, parted by a hairline</span></div>
+        <div class="{{ $row }} px-4">
+            <x-ds::button-group label="Save options" variant="primary">
+                <x-ds::button>Save changes</x-ds::button>
+                <x-ds::dropdown>
+                    <x-slot:trigger>
+                        <x-ds::button iconOnly aria-label="More save options"><x-ds::icon name="chevron-down" /></x-ds::button>
+                    </x-slot:trigger>
+                    <x-ds::dropdown-item href="#button-group">Save as draft</x-ds::dropdown-item>
+                </x-ds::dropdown>
+            </x-ds::button-group>
+            <x-ds::button-group label="Remove" variant="danger" size="sm">
+                <x-ds::button>Delete</x-ds::button>
+                <x-ds::button>Delete all</x-ds::button>
+            </x-ds::button-group>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Vertical, icon only <span>&middot; <code>orientation="vertical"</code></span></div>
+        <div class="{{ $row }} items-start px-4">
+            <x-ds::button-group label="Zoom" orientation="vertical" size="sm">
+                <x-ds::button iconOnly aria-label="Zoom in"><x-ds::icon name="plus" /></x-ds::button>
+                <x-ds::button iconOnly aria-label="Zoom out"><x-ds::icon name="minus" /></x-ds::button>
+            </x-ds::button-group>
+            <x-ds::button-group label="Pages" size="sm">
+                <x-ds::button iconOnly aria-label="Previous page"><x-ds::icon name="chevron-left" /></x-ds::button>
+                <x-ds::button>Page 2 of 9</x-ds::button>
+                <x-ds::button iconOnly aria-label="Next page"><x-ds::icon name="chevron-right" /></x-ds::button>
+            </x-ds::button-group>
+        </div>
+    </div>
+</section>
+
+<section class="ds-spec" id="toolbar">
+    <header class="ds-spec-head">
+        <h2>Toolbar</h2>
+        <p>A row of tools that is one stop in the tab order: the arrow keys move between its buttons, Home and End jump to the ends. With the script, a highlight follows the pointer and the keyboard from button to button, and darkens while one is pressed.</p>
+    </header>
+
+    <div class="ds-note">Needs Alpine and the package's script for the keyboard and the highlight. This page loads no Alpine, so the buttons show their static faces; the pressed ones are drawn from PHP.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Muted <span>&middot; <code>md</code>, with a separator and a toggle group</span></div>
+        <div class="px-4">
+            <x-ds::toolbar label="Formatting">
+                <x-ds::toolbar-button icon="arrow-uturn-left" label="Undo" :iconOnly="true" />
+                <x-ds::toolbar-button icon="arrow-uturn-right" label="Redo" :iconOnly="true" :disabled="true" />
+                <x-ds::toolbar-separator />
+                <x-ds::toggle-group label="Text style" type="multiple">
+                    <x-ds::toggle value="bold" icon="bold" label="Bold" :iconOnly="true" :pressed="true" />
+                    <x-ds::toggle value="italic" icon="italic" label="Italic" :iconOnly="true" />
+                    <x-ds::toggle value="underline" icon="underline" label="Underline" :iconOnly="true" />
+                </x-ds::toggle-group>
+                <x-ds::toolbar-separator />
+                <x-ds::toolbar-button icon="link" label="Link" />
+            </x-ds::toolbar>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Floating <span>&middot; <code>sm</code>, a pressed button, a link</span></div>
+        <div class="px-4">
+            <x-ds::toolbar label="Selection" variant="floating" size="sm">
+                <x-ds::toolbar-button icon="archive-box" label="Archive" />
+                <x-ds::toolbar-button icon="star" label="Star" :pressed="true" />
+                <x-ds::toolbar-button icon="arrow-top-right-on-square" label="Open" href="#toolbar" />
+            </x-ds::toolbar>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Vertical <span>&middot; <code>orientation="vertical"</code>, icon only</span></div>
+        <div class="px-4">
+            <x-ds::toolbar label="Tools" variant="floating" orientation="vertical">
+                <x-ds::toolbar-button icon="cursor-arrow-rays" label="Select" :iconOnly="true" :pressed="true" />
+                <x-ds::toolbar-button icon="pencil" label="Draw" :iconOnly="true" :pressed="false" />
+                <x-ds::toolbar-separator />
+                <x-ds::toolbar-button icon="trash" label="Delete" :iconOnly="true" />
+            </x-ds::toolbar>
+        </div>
+    </div>
+</section>
+
+<section class="ds-spec" id="toggle-group">
+    <header class="ds-spec-head">
+        <h2>Toggle group</h2>
+        <p>Buttons that stay pressed. <code>single</code> is a radio group: one is on, and pressing another moves it. <code>multiple</code> is a set of on/off buttons. With a <code>name</code> it posts like the radios or checkboxes it stands in for.</p>
+    </header>
+
+    <div class="ds-note">Needs Alpine and the package's script to press. The state is rendered from PHP, so this page, which loads no Alpine, shows it exactly.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Single <span>&middot; icon only, <code>sm</code> and <code>md</code></span></div>
+        <div class="flex flex-col items-start gap-4 px-4">
+            @foreach (['sm', 'md'] as $s)
+                <x-ds::toggle-group label="Alignment, {{ $s }}" name="g-tg{{ $s }}" :size="$s">
+                    <x-ds::toggle value="left" icon="bars-3-bottom-left" label="Left" :iconOnly="true" :pressed="true" />
+                    <x-ds::toggle value="center" icon="bars-3" label="Center" :iconOnly="true" />
+                    <x-ds::toggle value="right" icon="bars-3-bottom-right" label="Right" :iconOnly="true" />
+                </x-ds::toggle-group>
+            @endforeach
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Multiple <span>&middot; labelled, one disabled</span></div>
+        <div class="px-4">
+            <x-ds::toggle-group label="Filters" type="multiple" name="g-tg-filters">
+                <x-ds::toggle value="open" label="Open" :pressed="true" />
+                <x-ds::toggle value="mine" label="Assigned to me" :pressed="true" />
+                <x-ds::toggle value="flagged" label="Flagged" />
+                <x-ds::toggle value="spam" label="Spam" :disabled="true" />
+            </x-ds::toggle-group>
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Radio cards --}}
 <section class="ds-spec" id="radio-cards">
     <header class="ds-spec-head">

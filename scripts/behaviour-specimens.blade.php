@@ -255,6 +255,88 @@
             </x-ds::radio-cards>
         </div>
 
+        {{-- ── segmented control: radios and CSS, the glide an enhancement ── --}}
+        <div class="mt-6" id="seg" x-data="{ view: 'list' }">
+            <x-ds::segmented-control name="view" label="View" x-model="view">
+                <x-ds::segment value="list" icon="list-bullet" :checked="true">List</x-ds::segment>
+                <x-ds::segment value="board" icon="view-columns">Board</x-ds::segment>
+                <x-ds::segment value="calendar">Calendar view</x-ds::segment>
+                <x-ds::segment value="archive" :disabled="true">Archive</x-ds::segment>
+            </x-ds::segmented-control>
+            <output id="seg-mirror" x-text="view"></output>
+            <button type="button" id="seg-host-set" @click="view = 'calendar'">host sets calendar</button>
+        </div>
+        <div class="mt-6 w-96" id="seg-rtl" dir="rtl">
+            <x-ds::segmented-control name="period" label="Period" :fullWidth="true" size="sm">
+                <x-ds::segment value="day">Day</x-ds::segment>
+                <x-ds::segment value="week" :checked="true">Week</x-ds::segment>
+                <x-ds::segment value="month">Month</x-ds::segment>
+            </x-ds::segmented-control>
+        </div>
+        <div class="mt-6" id="seg-links">
+            <x-ds::segmented-control label="Show">
+                <x-ds::segment href="#all">All</x-ds::segment>
+                <x-ds::segment href="#mine" :active="true">Mine</x-ds::segment>
+            </x-ds::segmented-control>
+        </div>
+
+        {{-- ── button group and split button: plain Blade ── --}}
+        <div class="mt-6" id="bgroup">
+            <x-ds::button-group label="Save options">
+                <x-ds::button id="bgroup-save">Save</x-ds::button>
+                <x-ds::dropdown>
+                    <x-slot:trigger>
+                        <x-ds::button id="bgroup-more" iconOnly aria-label="More save options">
+                            <x-ds::icon name="chevron-down" />
+                        </x-ds::button>
+                    </x-slot:trigger>
+                    <x-ds::dropdown-item id="bgroup-draft" href="#draft">Save as draft</x-ds::dropdown-item>
+                </x-ds::dropdown>
+            </x-ds::button-group>
+        </div>
+
+        {{-- ── toolbar (dsToolbar, x-ds-glide.hover) with a toggle group inside ── --}}
+        <div class="mt-6" id="tb-wrap">
+            <x-ds::toolbar label="Formatting" id="tb">
+                <x-ds::toolbar-button id="tb-undo" icon="arrow-uturn-left" label="Undo" :iconOnly="true" :tooltip="true" />
+                <x-ds::toolbar-button id="tb-redo" icon="arrow-uturn-right" label="Redo" :iconOnly="true" :disabled="true" />
+                <x-ds::toolbar-separator />
+                <x-ds::toggle-group label="Text style" type="multiple" name="marks" id="tb-marks">
+                    <x-ds::toggle id="tb-bold" value="bold" label="Bold" icon="bold" :iconOnly="true" :pressed="true" />
+                    <x-ds::toggle id="tb-italic" value="italic" label="Italic" icon="italic" :iconOnly="true" />
+                </x-ds::toggle-group>
+                <x-ds::toolbar-separator />
+                <x-ds::toolbar-button id="tb-star" icon="star" label="Star" :pressed="false" />
+                <x-ds::toolbar-button id="tb-share" label="Share" href="#share" />
+            </x-ds::toolbar>
+        </div>
+        <div class="mt-6" id="tb-v-wrap">
+            <x-ds::toolbar label="Canvas tools" orientation="vertical" variant="floating" size="sm" id="tb-v">
+                <x-ds::toolbar-button id="tbv-a" icon="cursor-arrow-rays" label="Select" :iconOnly="true" />
+                <x-ds::toolbar-button id="tbv-b" icon="hand-raised" label="Pan" :iconOnly="true" />
+                <x-ds::toolbar-button id="tbv-c" icon="pencil" label="Draw" :iconOnly="true" />
+            </x-ds::toolbar>
+        </div>
+
+        {{-- ── toggle groups on their own (dsToggleGroup) ── --}}
+        <div class="mt-6" id="tg-single-wrap">
+            <x-ds::toggle-group label="Alignment" name="align" id="tg-single">
+                <x-ds::toggle id="tg-left" value="left" label="Left" icon="bars-3-bottom-left" :pressed="true" />
+                <x-ds::toggle id="tg-center" value="center" label="Center" icon="bars-3" />
+                <x-ds::toggle id="tg-justify" value="justify" label="Justify" :disabled="true" />
+                <x-ds::toggle id="tg-right" value="right" label="Right" icon="bars-3-bottom-right" />
+            </x-ds::toggle-group>
+        </div>
+        <div class="mt-6" id="tg-model-wrap" x-data="{ marks: ['italic'] }">
+            <x-ds::toggle-group label="Marks" type="multiple" id="tg-model" x-model="marks">
+                <x-ds::toggle id="tgm-bold" value="bold" label="Bold" />
+                <x-ds::toggle id="tgm-italic" value="italic" label="Italic" :pressed="true" />
+                <x-ds::toggle id="tgm-under" value="underline" label="Underline" />
+            </x-ds::toggle-group>
+            <output id="tg-mirror" x-text="JSON.stringify(marks)"></output>
+            <button type="button" id="tg-host-set" @click="marks = ['underline']">host sets underline</button>
+        </div>
+
         {{-- ── number field, from the shared script ── --}}
         <div class="mt-6 max-w-xs">
             <x-ds::number-field name="seats" id="seats" label="Seats" :value="2" :min="1" :max="5" />
@@ -266,6 +348,20 @@
             <x-ds::password-strength for="password" id="strength" />
         </div>
     </form>
+
+    {{-- ── x-ds-glide on its own, in markup no component wrote ──
+         The host's `at` is what the glide watches, and the attribute it
+         reads; the grow button changes an item's width and nothing else. --}}
+    <div class="mt-6" x-data="{ at: 'b' }">
+        <div id="glide-raw" x-ds-glide="at" data-ds-glide class="relative inline-flex gap-6 p-2">
+            <span data-ds-glide-highlight hidden class="pointer-events-none absolute top-0 left-0 h-(--ds-glide-h) w-(--ds-glide-w) translate-x-(--ds-glide-x) translate-y-(--ds-glide-y) bg-fg/10 motion-safe:transition-[translate,width,height] motion-safe:duration-popover-enter motion-safe:ease-enter motion-safe:data-[instant]:transition-none"></span>
+            <span id="glide-a" data-ds-glide-item class="relative" :aria-current="String(at === 'a')">Alpha</span>
+            <span id="glide-b" data-ds-glide-item class="relative" :aria-current="String(at === 'b')">Bravo</span>
+            <span id="glide-c" data-ds-glide-item class="relative" :aria-current="String(at === 'c')">Charlie</span>
+        </div>
+        <button type="button" id="glide-to-c" @click="at = 'c'">to c</button>
+        <button type="button" id="glide-grow" @click="document.getElementById('glide-c').textContent = 'Charlie, now much longer'">grow</button>
+    </div>
 
     {{-- ── dsClipboard, from the shared script ──
          No component uses it yet, so this is the markup a component would
