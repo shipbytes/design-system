@@ -7,8 +7,9 @@
  *   dist/blade-ui.js         ES module, readable. `export default` is the
  *                            Alpine plugin, for a host that bundles Alpine:
  *                            `Alpine.plugin(bladeUi)`.
- *   dist/blade-ui.global.js  Classic script, comments stripped. Registers itself
- *                            on `alpine:init`. This is what ds::scripts inlines.
+ *   dist/blade-ui.global.js  Classic script, comments and indentation stripped.
+ *                            Registers itself on `alpine:init`. This is what
+ *                            ds::scripts inlines.
  *
  * Two files because one cannot be both. A classic script may not contain
  * `export`, and a module script is always deferred, so it would run AFTER a
@@ -122,10 +123,15 @@ function wrap(mod) {
 }
 
 /**
- * Whole-line comments and blank lines only. A trailing `// note` after code is
- * left alone, because telling it apart from `//` inside a string needs a
- * tokenizer, and the multi-line template literal check above is what makes the
- * whole-line case safe.
+ * Whole-line comments, blank lines and indentation only. A trailing `// note`
+ * after code is left alone, because telling it apart from `//` inside a string
+ * needs a tokenizer, and the multi-line template literal check above is what
+ * makes the whole-line case safe.
+ *
+ * The same check is what makes dropping indentation safe: no string or literal
+ * spans a line, so a line's leading whitespace is never inside one. It was a
+ * quarter of the file once the batch-02 behaviours arrived, and this is the
+ * file every page carries inline.
  */
 function stripComments(code) {
     const out = [];
@@ -144,7 +150,7 @@ function stripComments(code) {
             continue;
         }
         if (t.startsWith('//') || t === '') continue;
-        out.push(line);
+        out.push(line.trimStart());
     }
     return out.join('\n');
 }
