@@ -641,6 +641,7 @@ final class Specimens
             'scripts/include' => <<<'BLADE'
                 <x-ds::scripts />
                 <x-ds::scripts nonce="abc123" />
+                <x-ds::scripts inline />
                 BLADE,
         ];
     }

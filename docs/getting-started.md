@@ -89,15 +89,43 @@ In your layout's `head`, **above** Alpine's script tag:
 
 The package ships one small script of its own: the behaviours that several
 components share, registered with Alpine under a `ds` prefix. `ds::scripts`
-writes it into the page inline, about 19 kB (6 kB compressed), so there is nothing to publish, no
-route, no build step, and no copy in `public/` to go stale after a
-`composer update`. A component that needs it says so at the top of its page;
-put the include in the layout once and it is there for all of them.
+writes a script tag pointing at a route the package registers, at a URL that
+carries a hash of the file:
+
+```html
+<script src="https://your-app.test/blade-ui/blade-ui.0f3c9a1e5b7d2c48.js" data-ds-scripts></script>
+```
+
+The browser caches it for a year and never asks again, and a `composer update`
+that changes the script changes the URL, so nobody keeps running the old one.
+There is nothing to publish and no build step. A component that needs it says
+so at the top of its page; put the include in the layout once and it is there
+for all of them.
+
+**The route needs nothing from you.** It sits outside the `web` middleware
+group, so it starts no session and sets no cookie, and it works under
+`php artisan route:cache` and in an app installed in a subdirectory. If
+`/blade-ui` clashes with a path of yours, change the prefix after
+`php artisan vendor:publish --tag=blade-ui-config`:
+
+```php
+// config/blade-ui.php
+'script' => ['prefix' => 'assets/ds'],
+```
+
+**A page that cannot reach the route** (a static export, an HTML email
+preview, a host whose routing will not take a package's) can carry the script
+in the page instead, about 18 kB (6 kB compressed), uncached:
+
+```blade
+<x-ds::scripts inline />
+```
 
 **Above Alpine, not below it.** The script registers when Alpine announces it
 is starting (`alpine:init`), which Alpine does once, before it sets up a single
 element. Included after Alpine has started, it registers too late for anything
-already on the page.
+already on the page. The tag carries no `defer` or `async`, so the browser runs
+it where it stands, before the deferred Alpine below it; do not add either.
 
 **Loading it twice is harmless** — two layouts that both include it, or the
 include plus the Vite import below. The second copy sees the first and does
@@ -138,8 +166,8 @@ Then `<x-ds::scripts />` is not needed, and harmless if it stays.
 
 ### With a Content Security Policy
 
-The include is an inline script, so a CSP that forbids inline scripts needs a
-nonce on it:
+A CSP that allows scripts by nonce needs the nonce on the include as well,
+linked or `inline`:
 
 ```blade
 <x-ds::scripts :nonce="$cspNonce" />

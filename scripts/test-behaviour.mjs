@@ -61,13 +61,16 @@ const render = async (file) => {
 
 let specimens;
 let include;
+let includeWithNonce;
 try {
     specimens = await render(join(ROOT, 'scripts/behaviour-specimens.blade.php'));
     // The include, rendered through the component a consumer writes in their
     // layout rather than read from dist/, so the page gets exactly what a host
-    // gets.
+    // gets: a script element whose src is the package's route.
     await writeFile(join(TMP, 'include.blade.php'), '<x-ds::scripts />');
     include = await render(join(TMP, 'include.blade.php'));
+    await writeFile(join(TMP, 'include-nonce.blade.php'), '<x-ds::scripts nonce="t3st" />');
+    includeWithNonce = await render(join(TMP, 'include-nonce.blade.php'));
 } catch (err) {
     console.error('\nrender failed — run `composer install`?\n');
     console.error(String(err.stderr || err).slice(0, 800));
@@ -104,6 +107,20 @@ const css = await readFile(join(TMP, 'out.css'), 'utf8');
 */
 await writeFile(join(TMP, 'alpine.js'), await readFile(join(ROOT, 'node_modules/alpinejs/dist/cdn.min.js')));
 
+/*
+  Whether the include had run, and registered, by the moment Alpine announced
+  it was starting. Written as an inline script straight AFTER the include, so
+  its listener is added after the include's: if the include ran first, its
+  listener runs first and the plugin's mark is already on Alpine when this one
+  looks. An include that ran late, deferred or async, adds its listener after
+  this one, and this one sees no mark.
+*/
+const orderProbe = `<script>
+document.addEventListener('alpine:init', () => {
+    window.dsRegisteredAtInit = Boolean(window.Alpine && window.Alpine[Symbol.for('shipbytes.blade-ui')]);
+});
+</script>`;
+
 await writeFile(
     join(TMP, 'page.html'),
     `<!doctype html><html><head><meta charset="utf-8">
@@ -112,6 +129,7 @@ await writeFile(
     which is imported above, so this page proves the SHIPPED one works — an
     injected copy would hide a regression in the thing consumers actually get. -->
 ${include}
+${orderProbe}
 <script defer src="alpine.js"></script>
 </head><body>${specimens}</body></html>`,
 );
@@ -124,6 +142,33 @@ const context = await browser.newContext({
     permissions: ['clipboard-read', 'clipboard-write'],
 });
 const page = await context.newPage();
+
+/*
+  Every request for http://localhost/… is answered by Laravel, through
+  scripts/request.php: the include's src is the package's route, and the
+  browser gets what the route returns, headers and all. Serving a copy of
+  dist/ here instead would prove the script works and nothing about the URL
+  the include actually writes.
+*/
+const LARAVEL = 'http://localhost';
+const fromLaravel = [];
+
+await context.route(`${LARAVEL}/**`, async (route) => {
+    const request = route.request();
+    const headers = {};
+    const etag = await request.headerValue('if-none-match');
+    if (etag) headers['If-None-Match'] = etag;
+
+    const { stdout } = await run('php', [join(ROOT, 'scripts/request.php'), request.url(), JSON.stringify(headers)], {
+        cwd: ROOT,
+        maxBuffer: 64 * 1024 * 1024,
+        env: { ...process.env, DS_PAGES: TMP },
+    });
+    const response = JSON.parse(stdout);
+    fromLaravel.push({ path: new URL(request.url()).pathname, status: response.status, headers: response.headers, cookies: response.cookies });
+
+    await route.fulfill({ status: response.status, headers: response.headers, body: Buffer.from(response.body, 'base64') });
+});
 
 const jsErrors = [];
 page.on('pageerror', (e) => jsErrors.push('uncaught: ' + e.message));
@@ -690,6 +735,33 @@ await check('the arrow keys the spec says the host owns actually move it', async
     // presses again and moves from the tab they were on two presses ago.
     return (await active()) === 'tab-overview' || `selection moved but focus is on ${await active()}`;
 });
+
+// ---------------------------------------------------------------- ds::scripts
+
+group('ds::scripts (served by the package\'s route)');
+
+const scriptSrc = include.match(/src="([^"]+)"/)?.[1] ?? '';
+const scriptResponse = () => fromLaravel.find((r) => r.path === new URL(scriptSrc, LARAVEL).pathname);
+
+await check('the include is a src, at a URL carrying a content hash', async () =>
+    /\/blade-ui\/blade-ui\.[0-9a-f]{16}\.js$/.test(scriptSrc) || `src is ${JSON.stringify(scriptSrc)}`);
+
+await check('a classic script: no defer, no async, no type=module', async () =>
+    !/\b(defer|async)\b|type="module"/.test(include) || include);
+
+await check('the browser fetched it from the route, as JavaScript, cacheable for a year', async () => {
+    const r = scriptResponse();
+    if (!r) return `no request reached the route: ${JSON.stringify(fromLaravel.map((x) => x.path))}`;
+    if (r.status !== 200) return `status ${r.status}`;
+    if (!r.headers['Content-Type']?.startsWith('text/javascript')) return `Content-Type ${r.headers['Content-Type']}`;
+    if (!/immutable/.test(r.headers['Cache-Control']) || !/max-age=31536000/.test(r.headers['Cache-Control'])) return `Cache-Control ${r.headers['Cache-Control']}`;
+    if (!r.headers.ETag) return 'no ETag';
+    return r.cookies === 0 || `the route set ${r.cookies} cookie(s)`;
+});
+
+await check('it had run, and registered, by the time Alpine announced its start', async () =>
+    (await page.evaluate(() => window.dsRegisteredAtInit)) === true
+    || `at alpine:init the plugin had${(await page.evaluate(() => window.dsRegisteredAtInit)) === false ? ' not' : ' never been looked for, and had not'} registered`);
 
 // ---------------------------------------------------------------- dsClipboard
 
@@ -1419,6 +1491,10 @@ await context.route(`${ORIGIN}/**`, async (route) => {
         await route.fulfill({
             body: await readFile(file),
             contentType: path.endsWith('.html') ? 'text/html' : 'text/javascript',
+            // Alpine's CDN build evaluates expressions with Function(), so a
+            // policy that runs it needs 'unsafe-eval'; every script element
+            // still has to carry the nonce.
+            headers: path.startsWith('/csp') ? { 'Content-Security-Policy': "script-src 'nonce-t3st' 'unsafe-eval'" } : {},
         });
     } catch {
         await route.fulfill({ status: 404, body: '' });
@@ -1447,10 +1523,24 @@ ${include}
 
     'setup-c.html': `<!doctype html><html><head><meta charset="utf-8">
 ${include}
+${orderProbe}
 ${include}
 </head><body>${clipMarkup}
 <script src="livewire.js"></script>
 </body></html>`,
+
+    'csp.html': `<!doctype html><html><head><meta charset="utf-8">
+${includeWithNonce}
+<script nonce="t3st" defer src="alpine.js"></script>
+</head><body>${clipMarkup}</body></html>`,
+
+    // The other half: the same policy and the include WITHOUT the nonce. If
+    // this one still ran, the policy above was never enforced and the nonce
+    // check proves nothing.
+    'csp-without-nonce.html': `<!doctype html><html><head><meta charset="utf-8">
+${include}
+<script nonce="t3st" defer src="alpine.js"></script>
+</head><body>${clipMarkup}</body></html>`,
 
     'missing.html': `<!doctype html><html><head><meta charset="utf-8">
 <script defer src="alpine.js"></script>
@@ -1499,8 +1589,26 @@ group('host setup (c): Livewire\'s bundled Alpine, include loaded twice');
 
     await check('Livewire started the Alpine it bundles', async () =>
         (await tab.evaluate(() => Boolean(window.Livewire && window.Alpine?.version))) || 'no Livewire or no Alpine on the page');
+    await check('the include, from the head, had registered when Livewire started Alpine', async () =>
+        (await tab.evaluate(() => window.dsRegisteredAtInit)) === true || 'registered late, or never');
     await check('the behaviour registered on it and works', () => copiesOn(tab));
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+
+group('a host with a Content Security Policy');
+{
+    const { tab, errors } = await openHost('csp.html');
+
+    await check('the nonce reaches the script element, and the policy lets it run', () => copiesOn(tab));
+    await check('no violations reported', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+{
+    const { tab, errors } = await openHost('csp-without-nonce.html');
+
+    await check('the same policy blocks the include without the nonce, so the check above means something', async () =>
+        errors.some((e) => /Content Security Policy/i.test(e)) || `nothing was blocked: ${errors.join(' | ') || 'no errors at all'}`);
     await tab.close();
 }
 

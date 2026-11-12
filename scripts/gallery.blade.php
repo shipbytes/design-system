@@ -16,8 +16,10 @@
 {{-- The package's script, as a host's layout includes it. The gallery loads no
      Alpine on purpose (see the select section), so here it registers nothing;
      it is included so the page carries what a consumer's does, and so a
-     gallery that ever does load Alpine gets the behaviours with it. --}}
-<x-ds::scripts />
+     gallery that ever does load Alpine gets the behaviours with it. Inline,
+     because dist/gallery.html is a file opened from disk, with no route to
+     fetch the script from: the case the prop exists for. --}}
+<x-ds::scripts inline />
 
 {{-- ─────────────────────────────────────────── Button --}}
 <section class="ds-spec" id="button">

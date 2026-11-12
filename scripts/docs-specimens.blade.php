@@ -29,8 +29,9 @@
 @endphp
 
 {{-- The package's script, where a host's layout puts it: before Alpine, which
-     build-docs.mjs appends after everything here. --}}
-<x-ds::scripts />
+     build-docs.mjs appends after everything here. Inline, because the page is
+     opened from disk and has no route to fetch it from. --}}
+<x-ds::scripts inline />
 
 
 {{-- ─────────────────────────── button --}}

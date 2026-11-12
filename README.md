@@ -149,7 +149,8 @@ setting. Nothing to add for that.
 ```
 
 The package's own script: the behaviours several components share, registered
-with Alpine. It is inlined, about 19 kB (6 kB compressed), so there is nothing to publish and no
+with Alpine. It is served from a route the package registers, at a URL carrying a hash of the
+file, so browsers cache it for a year and an update is a new URL: nothing to publish and no
 build step. With Livewire, which brings its own Alpine, the include alone. If
 you bundle Alpine yourself, `Alpine.plugin()` the ES module instead; see
 [getting started](docs/getting-started.md#3-add-the-script).

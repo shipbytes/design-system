@@ -9,7 +9,7 @@
  *                            `Alpine.plugin(bladeUi)`.
  *   dist/blade-ui.global.js  Classic script, comments and indentation stripped.
  *                            Registers itself on `alpine:init`. This is what
- *                            ds::scripts inlines.
+ *                            ds::scripts links (and inlines, with `inline`).
  *
  * Two files because one cannot be both. A classic script may not contain
  * `export`, and a module script is always deferred, so it would run AFTER a
@@ -131,7 +131,7 @@ function wrap(mod) {
  * The same check is what makes dropping indentation safe: no string or literal
  * spans a line, so a line's leading whitespace is never inside one. It was a
  * quarter of the file once the batch-02 behaviours arrived, and this is the
- * file every page carries inline.
+ * file every page downloads.
  */
 function stripComments(code) {
     const out = [];
@@ -166,13 +166,14 @@ ${plugin.map(wrap).join('\n\n')}
 export default ${plugin.at(-1).id}.default;
 `;
 
-    const classic = `${banner('Shipbytes Blade UI: the classic script that ds::scripts inlines.')}(function () {
+    const classic = `${banner('Shipbytes Blade UI: the classic script that ds::scripts loads.')}(function () {
 'use strict';
 ${stripComments(global.map(wrap).join('\n'))}
 })();
 `;
 
-    // Inlined into a script element, the content must not be able to end it.
+    // `<x-ds::scripts inline />` writes this into a script element, so the
+    // content must not be able to end it.
     for (const bad of ['</script', '<!--', '<script']) {
         if (classic.toLowerCase().includes(bad)) {
             throw new Error(`dist/blade-ui.global.js contains "${bad}", which breaks out of the inline script element`);
@@ -190,5 +191,5 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 
     console.log('built the script:');
     console.log(`  → dist/blade-ui.js         ${(esm.length / 1024).toFixed(1)} kB (ES module, the Alpine plugin)`);
-    console.log(`  → dist/blade-ui.global.js  ${(classic.length / 1024).toFixed(1)} kB (classic, inlined by ds::scripts)`);
+    console.log(`  → dist/blade-ui.global.js  ${(classic.length / 1024).toFixed(1)} kB (classic, served by ds::scripts)`);
 }
