@@ -1,6 +1,6 @@
 # Shipbytes Blade UI — documentation
 
-117 Blade components for Laravel, plus two pagination views. Presentation
+119 Blade components for Laravel, plus two pagination views. Presentation
 only: no state, no framework assumptions beyond Blade itself.
 
 **New here?** Start with [Getting started](getting-started.md) — install, three
@@ -46,8 +46,10 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Select](components/select.md) | Styled listbox — needs Alpine |
 | [Combobox](components/combobox.md) | Filtering select, single or multiple — needs Alpine |
 | [Switch](components/switch.md) | A setting that takes effect |
-| [Date picker](components/date-picker.md) | A calendar, one date or a range — needs Alpine |
+| [Date picker](components/date-picker.md) | A calendar popover, one date or a range, with presets — needs Alpine and the script |
+| [Calendar](components/calendar.md) | A month grid, always visible: a day, a range or several, with markers — needs Alpine and the script |
 | [File upload](components/file-upload.md) | Drop zone with local previews — needs Alpine |
+| [Avatar upload](components/avatar-upload.md) | A profile photo or logo, cropped square in the browser and posted as a file — needs Alpine and the script |
 | [Checkbox](components/checkbox.md) | One independent yes/no |
 | [Radio](components/radio.md) | One of a set, plus the group |
 
@@ -166,11 +168,11 @@ plain Blade view. The one opt-in exception is the pagination views' Livewire
 variants, which emit `wire:click` for a component that uses `WithPagination`.
 
 [Alpine](https://alpinejs.dev) — a single 15 kB script, not a framework — is
-needed by forty-one components, and by eleven optional props:
+needed by forty-three components, and by eleven optional props:
 
 | | Needs Alpine |
 |---|---|
-| `modal` `drawer` `sheet` `dropdown` `select` `combobox` `date-picker` `accordion` `file-upload` `tooltip` `user-menu` | **Always.** Their whole behaviour is state the browser has no markup for. |
+| `modal` `drawer` `sheet` `dropdown` `select` `combobox` `accordion` `file-upload` `tooltip` `user-menu` | **Always.** Their whole behaviour is state the browser has no markup for. |
 | `otp-input` `tag-input` `number-field` `password-strength` `copy-button` `toolbar` `toggle-group` `theme-switcher` | **Always, and the package's script too.** Each renders its value from PHP and posts without JavaScript, but its behaviour is the script's. |
 | `popover` `hover-card` `context-menu` | **Always, and the package's script too.** Without them the panel never opens. |
 | `confirm-button` `hold-button` `confirm-popover` | **Always, and the package's script too.** Without them each renders its first face and does nothing, so no single press ever carries out the action. |
@@ -185,6 +187,8 @@ needed by forty-one components, and by eleven optional props:
 | `money-input` `phone-input` `shortcut-input` | **Always, and the package's script too.** Without them each is a plain field that posts: the money input a text field posting what was typed, the phone input a select and a tel field posting `name[country]` and `name[number]` rather than E.164, the shortcut input a text field holding the string. |
 | `mention-input` | **Always, and the package's script too.** Without them it is an ordinary textarea posting its text, and the ids of the mentions the server found in it. |
 | `color-picker` | **Always, and the package's script too**, but for `presetsOnly`, which is native radios and needs neither. Without them the browser's own colour input stands in for the panel, posting `#rrggbb`. |
+| `date-picker` `calendar` | **Always, and the package's script too.** Without them each posts from native date fields (two for a range): the date picker shows them in place of its button, the calendar under the grid the server drew. |
+| `avatar-upload` | **Always, and the package's script too.** Without them it is a plain file input posting the original photo, for the server to crop, and a Remove checkbox. |
 | `icon-swap` | **Never.** It reads its button's state from CSS. |
 | `scroll-area` | **Never.** It scrolls natively. With Alpine and the package's script it also draws its edge shadows in a browser that cannot from CSS. |
 | `sub-nav` | **Only to open and close.** Without it the section holding the current page is open and the rest are closed, as the server rendered them. |

@@ -379,7 +379,9 @@ table.ref .samp { color: var(--g-ink); font-family: Inter, ui-sans-serif, system
       <a href="#switch">Switch</a>
       <a href="#combobox">Combobox</a>
       <a href="#date-picker">Date</a>
+      <a href="#calendar">Calendar</a>
       <a href="#file-upload">Upload</a>
+      <a href="#avatar-upload">Avatar upload</a>
       <a href="#slider">Slider</a>
       <a href="#time-picker">Time</a>
       <a href="#money-input">Money</a>

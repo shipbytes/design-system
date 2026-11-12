@@ -20,41 +20,39 @@
     'disabled' => false,
     /** 0 = Sunday, 1 = Monday. Which day a week starts on is regional, not universal. */
     'weekStartsOn' => 1,
+    /** 1 or 2 months side by side in the popover; one on a phone. */
+    'months' => 1,
+    /** With `range`: true for the built-in ranges, or label => [from, to] worked out by the host. */
+    'presets' => false,
+    /** With `range`: the fewest days a range may span, counted inclusively. */
+    'minDays' => null,
+    /** With `range`: the most. */
+    'maxDays' => null,
+    /** Apply and Cancel: picks are a draft until applied, and nothing closes the popover by itself. */
+    'confirm' => false,
+    /** The day marked as today and counted from by the presets, Y-m-d; now() in the app's timezone by default, never the browser's clock. */
+    'today' => null,
 ])
 
 @php
+    /*
+     * The calendar in the popover is partials/calendar-grid.blade.php, drawn
+     * by Support\Calendar and redrawn by dsCalendar in the package's script:
+     * the grid ds::calendar draws too. Without the script, native date fields
+     * post the same names (see "Without the script" in specs/date-picker.md).
+     */
     // Stable under wire:model, random otherwise: see Support\ControlId.
     $id = \Shipbytes\BladeUi\Support\ControlId::for($attributes, $label, $name);
     $describedBy = $error ? "{$id}-error" : ($help ? "{$id}-help" : null);
 
-    /** Everything crossing into JS is Y-m-d — one format, no parsing. */
-    $iso = function ($date) {
-        if ($date === null || $date === '') return null;
-        if ($date instanceof \DateTimeInterface) return $date->format('Y-m-d');
-
-        return substr((string) $date, 0, 10);
-    };
+    /** Everything crossing into JS is Y-m-d: one format, no parsing. */
+    $iso = fn ($date) => \Shipbytes\BladeUi\Support\Calendar::iso($date);
 
     $values = $range
         ? array_pad(array_map($iso, array_slice((array) ($value ?? []), 0, 2)), 2, null)
         : [$iso($value), null];
 
     $weekStartsOn = (int) $weekStartsOn === 0 ? 0 : 1;
-
-    /*
-     * Day names come from PHP, not from a hard-coded array, so they follow the
-     * app's locale. Built from a known Monday so the rotation is arithmetic
-     * rather than a second list to keep in step with `weekStartsOn`.
-     */
-    $dayNames = collect(range(0, 6))
-        ->map(fn ($offset) => \Illuminate\Support\Carbon::parse('2024-01-01')
-            ->addDays(($offset + $weekStartsOn + 6) % 7)
-            ->isoFormat('dd'))
-        ->all();
-
-    $monthNames = collect(range(1, 12))
-        ->map(fn ($month) => \Illuminate\Support\Carbon::create(2024, $month, 1)->isoFormat('MMMM'))
-        ->all();
 
     $field = implode(' ', [
         'flex w-full items-center justify-between gap-2 rounded-control border bg-surface',
@@ -66,206 +64,139 @@
         $disabled ? 'cursor-not-allowed bg-surface-subtle text-fg-subtle' : 'cursor-pointer hover:border-fg/20',
     ]);
 
-    /*
-     * The whole calendar is built in JS from a cursor month.
-     *
-     * Dates are handled as Y-m-d STRINGS and compared as strings, never as Date
-     * objects. `new Date('2026-03-29')` is UTC midnight, and in a timezone west
-     * of Greenwich that is the 28th — so a picker built on Date objects selects
-     * the day before the one that was clicked, for some users, some of the time.
-     * String comparison on Y-m-d is both correct and ordered.
-     */
-    $scope = <<<'JS'
-    {
-        open: false,
-        start: null,
-        end: null,
-        hovered: null,
-        cursor: null,
-        min: null,
-        max: null,
-        range: false,
-        weekStartsOn: 1,
-        dayNames: [],
-        monthNames: [],
+    $startName = $range ? "{$name}_start" : $name;
+    $calendar = \Shipbytes\BladeUi\Support\Calendar::class;
+    $count = max(1, min(2, (int) $months));
+    $todayIso = $calendar::iso($today) ?? \Illuminate\Support\Carbon::now()->format('Y-m-d');
+    $names = $calendar::names(app()->getLocale(), $weekStartsOn) + ['start' => $weekStartsOn];
+    $selected = array_values(array_filter($values));
+    sort($selected);
+    $presetList = $range && $presets ? $calendar::presetList($presets, $todayIso) : [];
+    $mode = $range ? 'range' : 'single';
 
-        init() {
-            this.cursor = (this.start ?? this.todayIso()).slice(0, 7) + '-01';
-        },
+    $words = [
+        'previous' => 'Previous month',
+        'next' => 'Next month',
+        'month' => 'Month',
+        'year' => 'Year',
+        'week' => 'Week',
+        'weekShort' => 'Wk',
+        'event' => ':count event',
+        'events' => ':count events',
+        'marked' => 'marked',
+    ];
 
-        todayIso() {
-            const now = new Date();
-            return this.key(now.getFullYear(), now.getMonth() + 1, now.getDate());
-        },
-
-        key(year, month, day) {
-            return year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-        },
-
-        get cursorYear() { return Number(this.cursor.slice(0, 4)); },
-        get cursorMonth() { return Number(this.cursor.slice(5, 7)); },
-        get monthLabel() { return this.monthNames[this.cursorMonth - 1] + ' ' + this.cursorYear; },
-
-        shiftMonth(by) {
-            const month = this.cursorMonth - 1 + by;
-            const year = this.cursorYear + Math.floor(month / 12);
-            this.cursor = this.key(year, ((month % 12) + 12) % 12 + 1, 1);
-        },
-
-        // Leading blanks, then every day of the month. Day 0 of the next month
-        // is the last day of this one, which avoids a leap-year table.
-        get days() {
-            const first = new Date(Date.UTC(this.cursorYear, this.cursorMonth - 1, 1));
-            const length = new Date(Date.UTC(this.cursorYear, this.cursorMonth, 0)).getUTCDate();
-            const lead = (first.getUTCDay() - this.weekStartsOn + 7) % 7;
-            const cells = Array.from({ length: lead }, () => null);
-            for (let day = 1; day <= length; day++) cells.push(this.key(this.cursorYear, this.cursorMonth, day));
-            return cells;
-        },
-
-        disabledDay(iso) {
-            return (this.min && iso < this.min) || (this.max && iso > this.max);
-        },
-
-        isSelected(iso) { return iso === this.start || iso === this.end; },
-
-        isBetween(iso) {
-            if (! this.range || ! this.start) return false;
-            const until = this.end ?? this.hovered;
-            if (! until) return false;
-            const [from, to] = this.start <= until ? [this.start, until] : [until, this.start];
-            return iso > from && iso < to;
-        },
-
-        pick(iso) {
-            if (this.disabledDay(iso)) return;
-
-            if (! this.range) {
-                this.start = iso;
-                this.open = false;
-                return;
-            }
-
-            // A second click BEFORE the first re-opens the range from there,
-            // rather than producing a backwards one the reader has to undo.
-            if (! this.start || this.end || iso < this.start) {
-                this.start = iso;
-                this.end = null;
-            } else {
-                this.end = iso;
-                this.open = false;
-            }
-        },
-
-        clear() { this.start = null; this.end = null; this.hovered = null; },
-
-        // The button's label. Formatting stays in the browser so it follows the
-        // reader's locale rather than the server's.
-        display(iso) {
-            if (! iso) return '';
-            const [y, m, d] = iso.split('-').map(Number);
-            return new Date(y, m - 1, d).toLocaleDateString(undefined, {
-                day: 'numeric', month: 'short', year: 'numeric',
-            });
-        },
-
-        get summary() {
-            if (! this.start) return '';
-            return this.range
-                ? this.display(this.start) + ' – ' + (this.end ? this.display(this.end) : '…')
-                : this.display(this.start);
-        },
-
-        // Arrow keys move by a day, PageUp/PageDown by a month. A calendar that
-        // only answers to Tab makes a keyboard reader press it thirty times.
-        move(event) {
-            const focused = event.target.dataset.day;
-            if (! focused) return;
-
-            const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[event.key];
-            const [y, m, d] = focused.split('-').map(Number);
-
-            let next;
-            if (step !== undefined) {
-                const moved = new Date(Date.UTC(y, m - 1, d + step));
-                next = this.key(moved.getUTCFullYear(), moved.getUTCMonth() + 1, moved.getUTCDate());
-            } else if (event.key === 'PageUp' || event.key === 'PageDown') {
-                this.shiftMonth(event.key === 'PageUp' ? -1 : 1);
-                next = this.cursor;
-            } else if (event.key === 'Home' || event.key === 'End') {
-                next = event.key === 'Home'
-                    ? this.key(y, m, 1)
-                    : this.key(y, m, new Date(Date.UTC(y, m, 0)).getUTCDate());
-            } else {
-                return;
-            }
-
-            if (next.slice(0, 7) !== this.cursor.slice(0, 7)) this.cursor = next.slice(0, 7) + '-01';
-            this.$nextTick(() => this.$el.querySelector(`[data-day="${next}"]`)?.focus());
-        },
-    }
-    JS;
-
-    $initial = json_encode([
-        'start' => $values[0],
-        'end' => $values[1],
+    $options = [
+        'mode' => $mode,
+        'name' => $name,
         'min' => $iso($min),
         'max' => $iso($max),
-        'range' => (bool) $range,
-        'weekStartsOn' => $weekStartsOn,
-        'dayNames' => $dayNames,
-        'monthNames' => $monthNames,
+        'disabledDates' => [],
+        'disabledDays' => [],
+        'weekStart' => $weekStartsOn,
+        'today' => $todayIso,
+        'events' => (object) [],
+        'outside' => false,
+        'names' => ['long' => $names['long'], 'months' => $names['months']],
+        'words' => $words,
+        'minDays' => $range && is_numeric($minDays) ? max(1, (int) $minDays) : null,
+        'maxDays' => $range && is_numeric($maxDays) ? max(1, (int) $maxDays) : null,
+        'confirm' => (bool) $confirm,
+        'popover' => true,
+    ];
+
+    $grid = $calendar::grid([
+        'cursor' => substr($selected[0] ?? $todayIso, 0, 7).'-01',
+        'count' => $count,
+        'weekStart' => $weekStartsOn,
+        'names' => $names,
+        'mode' => $mode,
+        'value' => $selected,
+        'min' => $options['min'],
+        'max' => $options['max'],
+        'disabledDates' => [],
+        'disabledDays' => [],
+        'today' => $todayIso,
+        'events' => [],
+        'outside' => false,
+        'words' => $words,
     ]);
 
-    $data = 'Object.assign('.$scope.', '.$initial.')';
-
-    $startName = $range ? "{$name}_start" : $name;
+    $model = $attributes->filter(fn ($v, $key) => str_starts_with($key, 'wire:model') || str_starts_with($key, 'x-model'));
+    $state = \Shipbytes\BladeUi\Support\Behaviour::data('dsCalendar');
+    $placeholderText = $placeholder ?? ($range ? 'Choose a period' : 'Choose a date');
+    $quiet = 'rounded-control px-2 py-1 text-meta font-medium motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
+    $back = "dsOpen = false; \$el.closest('[x-data]').querySelector('[data-ds-date-trigger]').focus()";
 @endphp
 
-<div x-data="{{ $data }}" {{ $attributes->only('class')->merge(['class' => 'relative block w-full']) }}>
+<div
+    x-data="{{ $state }}"
+    x-modelable="dsValue"
+    {{ $model }}
+    data-ds-calendar="{{ json_encode($options, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) }}"
+    {{ $attributes->only('class')->merge(['class' => 'relative block w-full']) }}
+>
     @if ($label)
         <label id="{{ $id }}-label" for="{{ $id }}" class="mb-1.5 block text-body font-medium text-fg">{{ $label }}</label>
     @endif
 
-    {{-- Posts Y-m-d, which is what a database column and Carbon::parse both
-         want. Rendered by PHP and bound for Alpine, so the field carries its
-         value before the JS runs. --}}
-    <input type="hidden" name="{{ $startName }}" value="{{ $values[0] }}" :value="start ?? ''" />
-    @if ($range)
-        <input type="hidden" name="{{ $name }}_end" value="{{ $values[1] }}" :value="end ?? ''" />
-    @endif
+    {{-- Without the script these native date fields are the control and post
+         the value; dsCalendar turns them into hidden inputs under the same
+         names, hides this row and shows the trigger. readonly, not disabled,
+         when the picker is: a disabled field would stop posting its value. --}}
+    <div data-ds-cal-fallback class="flex items-center gap-2">
+        @foreach ($range ? [[$startName, $values[0], 'start'], ["{$name}_end", $values[1], 'end']] : [[$startName, $values[0], null]] as [$postName, $postValue, $end])
+            @if ($end === 'end')
+                <span aria-hidden="true" class="text-fg-muted">&ndash;</span>
+            @endif
+            <input
+                type="date"
+                name="{{ $postName }}"
+                value="{{ $postValue }}"
+                data-ds-cal-input
+                @if ($options['min']) min="{{ $options['min'] }}" @endif
+                @if ($options['max']) max="{{ $options['max'] }}" @endif
+                @if ($label) aria-labelledby="{{ $id }}-label{{ $end ? " {$id}-{$end}" : '' }}" @endif
+                @readonly($disabled)
+                @if ($error) aria-invalid="true" @endif
+                @if ($describedBy) aria-describedby="{{ $describedBy }}" @endif
+                class="{{ $field }} min-w-0"
+            />
+            @if ($end)
+                <span id="{{ $id }}-{{ $end }}" hidden>{{ $end === 'start' ? 'Start' : 'End' }}</span>
+            @endif
+        @endforeach
+    </div>
 
     <button
         type="button"
         id="{{ $id }}"
+        hidden
+        x-bind:hidden="! $data.dsReady"
         data-ds-date-trigger
         class="{{ $field }}"
-        @click="open = ! open"
-        @keydown.escape.stop="open = false"
-        @keydown.arrow-down.prevent="open = true"
+        @click="dsOpen = ! dsOpen"
+        @keydown.escape.stop="dsOpen = false"
+        @keydown.arrow-down.prevent="dsOpen = true"
         @disabled($disabled)
         aria-haspopup="dialog"
-        :aria-expanded="open"
+        :aria-expanded="dsOpen"
         @if ($label) aria-labelledby="{{ $id }}-label {{ $id }}" @endif
         @if ($error) aria-invalid="true" @endif
         @if ($describedBy) aria-describedby="{{ $describedBy }}" @endif
     >
-        <span class="truncate" :class="start ? 'text-fg' : 'text-fg-muted'">
-            <span x-text="summary || @js($placeholder ?? ($range ? 'Choose a period' : 'Choose a date'))">{{ $placeholder ?? ($range ? 'Choose a period' : 'Choose a date') }}</span>
+        <span class="truncate" :class="dsSummary ? 'text-fg' : 'text-fg-muted'">
+            <span x-text="dsSummary || @js($placeholderText)">{{ $placeholderText }}</span>
         </span>
         <x-ds::icon name="calendar" variant="mini" size="5" class="shrink-0 text-fg-muted sm:size-4" />
     </button>
 
-    {{-- x-ds-anchor is an enhancement, as on ds::select: with the script the
-         calendar flips above the field when there is no room below, shifts
-         to stay on screen and escapes a clipping ancestor; without it, the
-         absolute classes below place it, as in 1.x. --}}
     <div
-        x-show="open"
+        x-show="dsOpen"
         x-cloak
-        x-ds-anchor="{ open: open, reference: $el.previousElementSibling, placement: 'bottom-start', offset: 4 }"
-        @click.outside="open = false"
-        @keydown.escape.stop="open = false; $el.closest('[x-data]').querySelector('[data-ds-date-trigger]').focus()"
+        x-ds-anchor="{ open: dsOpen, reference: $el.previousElementSibling, placement: 'bottom-start', offset: 4 }"
+        @click.outside="dsOpen = false"
+        @keydown.escape.stop="{{ $back }}"
         x-transition:enter="motion-safe:transition motion-safe:duration-popover-enter motion-safe:ease-enter"
         x-transition:enter-start="opacity-0 scale-95"
         x-transition:enter-end="opacity-100 scale-100"
@@ -274,86 +205,37 @@
         @if ($label) aria-labelledby="{{ $id }}-label" @endif
         class="absolute z-50 mt-1 w-max origin-top data-[side=top]:origin-bottom rounded-control border border-border bg-surface p-3 shadow-float"
     >
-        <div class="mb-2 flex items-center justify-between gap-2">
-            <button
-                type="button"
-                @click="shiftMonth(-1)"
-                aria-label="Previous month"
-                class="rounded-control p-1.5 text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-            >
-                <x-ds::icon name="chevron-left" variant="mini" size="4" />
-            </button>
+        <div class="flex flex-col gap-3 sm:flex-row">
+            @if ($presetList)
+                {{-- Above the grid on a phone, wrapping to its width; beside it from sm. --}}
+                <div role="group" aria-label="Presets" class="flex flex-wrap gap-1 max-sm:max-w-66 sm:w-32 sm:flex-col sm:border-e sm:border-divider sm:pe-3">
+                    @foreach ($presetList as $preset)
+                        <button
+                            type="button"
+                            @if ($preset['key']) data-ds-cal-preset="{{ $preset['key'] }}" @else data-ds-cal-preset="" data-from="{{ $preset['from'] }}" data-to="{{ $preset['to'] }}" @endif
+                            aria-pressed="{{ $range && count($selected) === 2 && $selected === [$preset['from'], $preset['to']] ? 'true' : 'false' }}"
+                            class="{{ $quiet }} text-start text-fg-muted hover:bg-surface-subtle hover:text-fg aria-pressed:bg-surface-subtle aria-pressed:text-fg"
+                        >{{ $preset['label'] }}</button>
+                    @endforeach
+                </div>
+            @endif
 
-            {{-- A live region, because pressing the arrows changes the grid the
-                 reader is standing in and nothing else announces it. --}}
-            <span class="text-body font-medium text-fg" aria-live="polite" x-text="monthLabel"></span>
-
-            <button
-                type="button"
-                @click="shiftMonth(1)"
-                aria-label="Next month"
-                class="rounded-control p-1.5 text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-            >
-                <x-ds::icon name="chevron-right" variant="mini" size="4" />
-            </button>
-        </div>
-
-        <div role="grid" @keydown="move($event)" @mouseleave="hovered = null">
-            <div role="row" class="grid grid-cols-7">
-                <template x-for="day in dayNames" :key="day">
-                    {{-- abbr carries the full name; the column head shows two
-                         letters, which on its own announces as nonsense. --}}
-                    <div role="columnheader" class="py-1 text-center text-meta font-medium text-fg-muted">
-                        <span x-text="day"></span>
-                    </div>
-                </template>
-            </div>
-
-            <div class="grid grid-cols-7 gap-0.5">
-                <template x-for="(day, index) in days" :key="index">
-                    <div role="gridcell" class="flex">
-                        <template x-if="day === null">
-                            <span class="size-9"></span>
-                        </template>
-
-                        <template x-if="day !== null">
-                            <button
-                                type="button"
-                                :data-day="day"
-                                :disabled="disabledDay(day)"
-                                :tabindex="day === (start ?? cursor) ? 0 : -1"
-                                :aria-selected="isSelected(day)"
-                                :aria-current="day === todayIso() ? 'date' : null"
-                                @click="pick(day)"
-                                @mouseenter="hovered = day"
-                                class="size-9 rounded-control text-body tabular-nums motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:text-fg-subtle"
-                                :class="isSelected(day)
-                                    ? 'bg-surface-inverse text-on-inverse font-medium'
-                                    : isBetween(day)
-                                        ? 'bg-accent-wash text-fg'
-                                        : day === todayIso()
-                                            ? 'text-fg font-semibold'
-                                            : 'text-fg-body hover:bg-surface-subtle'"
-                                x-text="Number(day.slice(8))"
-                            ></button>
-                        </template>
-                    </div>
-                </template>
+            <div>
+                @include('ds::partials.calendar-grid', ['size' => 'md', 'weekNumbers' => false, 'jump' => false, 'years' => [], 'phoneOne' => true])
             </div>
         </div>
 
         <div class="mt-2 flex items-center justify-between gap-2 border-t border-divider pt-2">
-            <button
-                type="button"
-                @click="clear()"
-                class="rounded-control px-2 py-1 text-meta font-medium text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-            >Clear</button>
+            <button type="button" data-ds-cal-clear class="{{ $quiet }} text-fg-muted hover:text-fg">Clear</button>
 
-            <button
-                type="button"
-                @click="open = false; $el.closest('[x-data]').querySelector('[data-ds-date-trigger]').focus()"
-                class="rounded-control px-2 py-1 text-meta font-medium text-fg motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-            >Done</button>
+            @if ($confirm)
+                <span class="flex items-center gap-1">
+                    <button type="button" data-ds-cal-cancel class="{{ $quiet }} text-fg-muted hover:text-fg">Cancel</button>
+                    <button type="button" data-ds-cal-apply class="{{ $quiet }} bg-surface-inverse text-on-inverse hover:bg-surface-inverse-hover">Apply</button>
+                </span>
+            @else
+                <button type="button" @click="{{ $back }}" class="{{ $quiet }} text-fg hover:bg-surface-subtle">Done</button>
+            @endif
         </div>
     </div>
 

@@ -40,7 +40,9 @@ independent implementations the same component rather than three lookalikes.
 | [combobox.md](combobox.md) | Filtering select, and why multiple is a mode of it |
 | [switch.md](switch.md) | Switch, and what it is that a checkbox is not |
 | [date-picker.md](date-picker.md) | Calendar, ranges, and why dates are strings |
+| [calendar.md](calendar.md) | The month grid the date picker shares, modes, markers, the server's today |
 | [file-upload.md](file-upload.md) | Drop zone, previews, and where the line is |
+| [avatar-upload.md](avatar-upload.md) | Choose, crop square in the browser, post as a file; never upload |
 | [accordion.md](accordion.md) | Disclosure sections, and the one piece of state |
 | [checkbox.md](checkbox.md) | Checkbox, indeterminate, the styled native input |
 | [radio.md](radio.md) | Radio, and why the group is a fieldset |

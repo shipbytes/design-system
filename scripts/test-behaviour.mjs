@@ -104,14 +104,19 @@ await writeFile(join(TMP, 'fallback.blade.php'), `<div class="p-8">
     </x-ds::tooltip>
 </div>
 <div class="mt-6 max-w-xs">
-    <x-ds::date-picker name="fb-date" id="fb-date" label="Due" value="2026-09-10" />
-</div>
-<div class="mt-6 max-w-xs">
     <x-ds::combobox name="fb-combobox" id="fb-combobox" label="Tags" :options="['a11y' => 'Accessibility', 'billing' => 'Billing']" />
 </div>
 </div>`);
 const fallbackMarkup = await render(join(TMP, 'fallback.blade.php'));
 await writeFile(join(TMP, 'fallback.html'), fallbackMarkup);
+
+// The date picker needs the script in 2.0: without it, native date fields.
+await writeFile(join(TMP, 'date-fallback.blade.php'), `<form id="form" class="flex max-w-sm flex-col gap-6 p-6">
+    <x-ds::date-picker name="due" id="nd-due" label="Due" value="2026-09-10" />
+    <x-ds::date-picker name="period" id="nd-period" label="Period" :range="true" :value="['2026-09-01', '2026-09-30']" :presets="true" />
+    <x-ds::calendar name="day" aria-label="Day" value="2026-09-17" today="2026-09-14" />
+</form>`);
+const dateFallbackMarkup = await render(join(TMP, 'date-fallback.blade.php'));
 
 // One of each focusable component, for the focus-indicator walk.
 const focusMarkup = await render(join(ROOT, 'scripts/focus-specimens.blade.php'));
@@ -741,12 +746,13 @@ await check('posts start and end as two separate fields', async () => {
 await page.click('#period');
 await settle();
 
-await check('the grid opens on the month of the value', async () =>
-    (await page.locator('[x-data]:has(> #period) [aria-live=polite]').innerText()).includes('September 2026')
-    || `shows ${await page.locator('[x-data]:has(> #period) [aria-live=polite]').innerText()}`);
+await check('the grid opens on the month of the value', async () => {
+    const shown = await page.locator('[x-data]:has(> #period) [data-ds-cal-month]').first().getAttribute('data-ds-cal-month');
+    return shown === '2026-09' || `shows ${shown}`;
+});
 
 await check('picking a later day completes the range', async () => {
-    await page.click('[data-day="2026-09-17"]');
+    await page.click('[x-data]:has(> #period) [data-day="2026-09-17"]');
     await settle();
     const form = await posted();
     return (form.period_start?.[0] === '2026-09-10' && form.period_end?.[0] === '2026-09-17')
@@ -757,7 +763,7 @@ await page.click('#period');
 await settle();
 
 await check('the days between are marked', async () =>
-    (await page.locator('[data-day="2026-09-14"]').getAttribute('class')).includes('accent-wash')
+    (await page.locator('[x-data]:has(> #period) [data-day="2026-09-14"]').getAttribute('data-between')) !== null
     || 'the mid-range day is unmarked');
 
 await check('arrow keys move a day — and land on the right one', async () => {
@@ -766,7 +772,7 @@ await check('arrow keys move a day — and land on the right one', async () => {
      * activeElement synchronously reports the previous keypress's result, which
      * looks exactly like an off-by-one bug in the component.
      */
-    await page.locator('[data-day="2026-09-17"]').focus();
+    await page.locator('[x-data]:has(> #period) [data-day="2026-09-17"]').focus();
     await page.keyboard.press('ArrowRight');
     await settle(150);
     return (await active()) === '2026-09-18' || `focus on ${await active()}`;
@@ -785,7 +791,7 @@ await check('crossing a month boundary follows the grid', async () => {
 });
 
 await check('Clear empties both fields', async () => {
-    await page.click('text=Clear');
+    await page.click('[x-data]:has(> #period) [data-ds-cal-clear]');
     await settle();
     const form = await posted();
     return (form.period_start?.[0] === '' && form.period_end?.[0] === '') || `posted ${JSON.stringify(form)}`;
@@ -3498,6 +3504,10 @@ const anchored = [
         open: () => page.click('#dp-edge'), close: pressEscape,
     },
     {
+        name: 'date picker with presets', trigger: '#dpn-edge', panel: '[x-data]:has(> #dpn-edge) [role=dialog]',
+        open: () => page.click('#dpn-edge'), close: pressEscape,
+    },
+    {
         name: 'tooltip', trigger: '#tt-edge-trigger', panel: '[data-ds-tooltip]:has(#tt-edge-trigger) [role=tooltip]',
         open: () => page.hover('#tt-edge-trigger'),
         close: async () => {
@@ -3519,6 +3529,7 @@ const roomy = [
     { name: 'select', trigger: '#plan', panel: '#plan-listbox' },
     { name: 'combobox', trigger: '#tags', panel: '#tags-listbox' },
     { name: 'date picker', trigger: '#period', panel: '[x-data]:has(> #period) [role=dialog]' },
+    { name: 'date picker with confirm', trigger: '#dpc', panel: '[x-data]:has(> #dpc) [role=dialog]' },
     {
         name: 'tooltip', trigger: '#tip-trigger', panel: '[data-ds-tooltip]:has(#tip-trigger) [role=tooltip]',
         open: () => page.focus('#tip-trigger'), close: pressEscape,
@@ -6841,6 +6852,430 @@ group('mention, colour and histogram post what they show');
     });
 }
 
+// ---------------------------------------------------------------- batch 18: calendar
+
+group('calendar (dsCalendar)');
+{
+    const day = (cal, iso) => `#${cal} [data-ds-cal-day][data-day="${iso}"]:not([data-outside])`;
+    const sent = async () => {
+        await page.click('#b18-submit');
+        const all = await page.evaluate(() => window.b18Sent);
+        return (k) => all.filter(([n]) => n === k).map(([, v]) => v).join();
+    };
+    const attr = (sel, a) => page.evaluate(([s, n]) => document.querySelector(s)?.getAttribute(n) ?? null, [sel, a]);
+    const label = (cal) => page.evaluate((c) => document.querySelector(`#${c} [data-ds-cal-month]`).dataset.dsCalMonth, cal);
+
+    await check('the server drew the state, and the script took the native fields over: the same names, now hidden', async () => {
+        const r = await page.evaluate(() => ({
+            fallback: document.querySelector('#cal [data-ds-cal-fallback]').checkVisibility(),
+            types: [...document.querySelectorAll('#b18 [data-ds-cal-input]')].map((i) => i.type).filter((t) => t !== 'hidden').length,
+            stop: [...document.querySelectorAll('#cal [data-ds-cal-day][tabindex="0"]')].map((b) => b.dataset.day).join(),
+            today: document.querySelector('#cal [data-today]')?.dataset.day,
+            mark: document.querySelector('#cal [data-day="2028-02-04"] [data-ds-cal-mark]').textContent,
+            name: document.querySelector('#cal [data-day="2028-02-04"]').getAttribute('aria-label'),
+            week: document.querySelector('#cal [data-ds-cal-row]:not([hidden]) [data-ds-cal-week]').textContent,
+        }));
+        const field = await sent();
+        return (!r.fallback && r.types === 0 && r.stop === '2028-02-10' && r.today === '2028-02-14' && r.mark === '3' && r.name === 'Friday 4 February 2028, 3 events'
+            && r.week === '5' && field('delivery') === '2028-02-10' && field('stay_start') === '2028-03-06' && field('stay_end') === '2028-03-10' && field('off[]') === '2028-05-01,2028-05-15')
+            || JSON.stringify({ ...r, delivery: field('delivery'), off: field('off[]') });
+    });
+
+    await check('a click chooses the day; it posts, and dispatches change as a plain Event from the posted field', async () => {
+        await page.evaluate(() => { window.b18Changes = []; });
+        await page.click(day('cal', '2028-02-17'));
+        const field = await sent();
+        const changes = await page.evaluate(() => window.b18Changes.join());
+        return (field('delivery') === '2028-02-17' && changes === 'delivery:Event' && (await attr(day('cal', '2028-02-17'), 'tabindex')) === '0')
+            || JSON.stringify({ delivery: field('delivery'), changes });
+    });
+
+    await check('a disabled day (before min, a Sunday, a listed date) is aria-disabled, still focusable, and a click does nothing', async () => {
+        const r = await page.evaluate(() => ['2028-02-02', '2028-02-20', '2028-02-22']
+            .map((d) => document.querySelector(`#cal [data-day="${d}"]:not([data-outside])`).getAttribute('aria-disabled')).join());
+        // force: an aria-disabled button is one Playwright will not press.
+        await page.click(day('cal', '2028-02-22'), { force: true });
+        const field = await sent();
+        return (r === 'true,true,true' && field('delivery') === '2028-02-17') || JSON.stringify({ r, delivery: field('delivery') });
+    });
+
+    const keys = [
+        ['ArrowRight', '2028-02-18'], ['ArrowDown', '2028-02-25'], ['ArrowDown', '2028-03-03'],
+        ['Home', '2028-02-28'], ['End', '2028-03-05'], ['PageUp', '2028-02-05'],
+        ['Shift+PageDown', '2029-02-05'], ['Shift+PageUp', '2028-02-05'], ['ArrowLeft', '2028-02-04'],
+    ];
+    await check(`the grid keys: ${keys.map(([k]) => k).join(', ')} (Home and End by the week; Shift+Page by the year)`, async () => {
+        await page.evaluate(() => { window.b18Months = []; });
+        await page.focus(day('cal', '2028-02-17'));
+        const wrong = [];
+        for (const [key, want] of keys) {
+            await page.keyboard.press(key);
+            await settle(40);
+            const got = await active();
+            if (got !== want) wrong.push(`${key} went to ${got}, not ${want}`);
+        }
+        return !wrong.length || wrong.join('; ');
+    });
+
+    await check('crossing into another month brings it into view, says so in the live region, and dispatches month-change', async () => {
+        const r = await page.evaluate(() => ({
+            months: window.b18Months.map((m) => `${m.year}-${m.month}`).join(),
+            live: document.querySelector('#cal [data-ds-cal-live]').textContent,
+            grid: document.querySelector('#cal [role=grid]').getAttribute('aria-label'),
+            selects: [...document.querySelectorAll('#cal [data-ds-cal-jump]')].map((s) => s.value).join('-'),
+        }));
+        return (r.months === '2028-3,2028-2,2028-3,2028-2,2029-2,2028-2' && r.live === 'February 2028' && r.grid === 'February 2028' && r.selects === '2-2028') || JSON.stringify(r);
+    });
+
+    await check('one tab stop in the grid: Tab leaves it, Shift+Tab comes back to the same day', async () => {
+        await page.keyboard.press('Tab');
+        const out = await active();
+        await page.keyboard.press('Shift+Tab');
+        return (out !== '2028-02-04' && (await active()) === '2028-02-04') || `out to ${out}, back to ${await active()}`;
+    });
+
+    await check('the month and year selects jump; next and previous move a month; the markers follow the month', async () => {
+        await page.selectOption('#cal [data-ds-cal-jump="year"]', '2030');
+        const jumped = await label('cal');
+        await page.click('#cal [data-ds-cal-next]');
+        const next = await label('cal');
+        const marks = await page.evaluate(() => document.querySelectorAll('#cal [data-ds-cal-mark]:not([hidden])').length);
+        await page.selectOption('#cal [data-ds-cal-jump="year"]', '2028');
+        await page.click('#cal [data-ds-cal-prev]');
+        const back = await label('cal');
+        const markedAgain = await page.evaluate(() => document.querySelectorAll('#cal [data-ds-cal-mark]:not([hidden])').length);
+        return (jumped === '2030-02' && next === '2030-03' && back === '2028-02' && marks === 0 && markedAgain === 2) || JSON.stringify({ jumped, next, back, marks, markedAgain });
+    });
+
+    await check('range: the first pick starts it, the pointer previews it, an earlier second pick swaps the ends', async () => {
+        await page.click(day('cal-range', '2028-03-20'));
+        await page.hover(day('cal-range', '2028-03-15'));
+        await settle(50);
+        const preview = await page.evaluate(() => [...document.querySelectorAll('#cal-range [data-between]:not([data-outside])')].map((b) => b.dataset.day.slice(8)).join());
+        await page.click(day('cal-range', '2028-03-15'));
+        const field = await sent();
+        return (preview === '16,17,18,19' && field('stay_start') === '2028-03-15' && field('stay_end') === '2028-03-20')
+            || JSON.stringify({ preview, start: field('stay_start'), end: field('stay_end') });
+    });
+
+    await check('a range across the two months in view, by keyboard', async () => {
+        await page.focus(day('cal-range', '2028-03-30'));
+        await page.keyboard.press('Enter');
+        await page.keyboard.press('ArrowDown');
+        await page.keyboard.press('Enter');
+        const field = await sent();
+        return (field('stay_start') === '2028-03-30' && field('stay_end') === '2028-04-06' && (await label('cal-range')) === '2028-03')
+            || JSON.stringify({ start: field('stay_start'), end: field('stay_end'), month: await label('cal-range') });
+    });
+
+    await check('multiple: a click adds a day, a second click on it takes it away, one field a day', async () => {
+        await page.click(day('cal-multi', '2028-05-09'));
+        await page.click(day('cal-multi', '2028-05-01'));
+        const field = await sent();
+        return field('off[]') === '2028-05-09,2028-05-15' || field('off[]');
+    });
+
+    await check('x-model binds both ways: the host\'s day is drawn, its month shown; a click is the host\'s', async () => {
+        const before = await page.evaluate(() => ({
+            month: document.querySelector('#cal-model [data-ds-cal-month]').dataset.dsCalMonth,
+            chosen: document.querySelector('#cal-model [data-selected]:not([data-outside])')?.dataset.day,
+        }));
+        await page.click(day('cal-model', '2028-07-09'));
+        const after = JSON.parse(await page.locator('#cal-model-out').innerText()).day;
+        return (before.month === '2028-07' && before.chosen === '2028-07-04' && after === '2028-07-09') || JSON.stringify({ ...before, after });
+    });
+}
+
+group('date picker: months, presets, minDays, maxDays, confirm');
+{
+    const box = (id) => `[x-data]:has(> #${id})`;
+    const day = (id, iso) => `${box(id)} [data-ds-cal-day][data-day="${iso}"]:not([data-outside])`;
+    const sent = async () => {
+        await page.click('#b18-submit');
+        const all = await page.evaluate(() => window.b18Sent);
+        return (k) => all.filter(([n]) => n === k).map(([, v]) => v).join();
+    };
+    const open = (id) => page.isVisible(`${box(id)} [role=dialog]`);
+
+    await check('posts {name}_start and {name}_end as the 1.x picker does, and the trigger reads the range', async () => {
+        const field = await sent();
+        const text = await page.locator('#dpp').innerText();
+        return (field('period_start') === '2028-02-23' && field('period_end') === '2028-02-29' && text.includes('Feb 23, 2028') && text.includes('Feb 29, 2028'))
+            || JSON.stringify({ text, start: field('period_start') });
+    });
+
+    await check('two months side by side, and the preset equal to the range (the last 7 days to a leap day) is marked', async () => {
+        await page.click('#dpp');
+        await settle();
+        const r = await page.evaluate((b) => ({
+            months: [...document.querySelectorAll(`${b} [data-ds-cal-month]`)].filter((m) => m.checkVisibility()).map((m) => m.dataset.dsCalMonth).join(),
+            pressed: [...document.querySelectorAll(`${b} [data-ds-cal-preset][aria-pressed=true]`)].map((p) => p.textContent.trim()).join(),
+        }), box('dpp'));
+        return (r.months === '2028-02,2028-03' && r.pressed === 'Last 7 days') || JSON.stringify(r);
+    });
+
+    await check('a preset fills the range from the server\'s today, closes, posts, and gives focus back to the trigger', async () => {
+        await page.click(`${box('dpp')} [data-ds-cal-preset="lastMonth"]`);
+        await settle();
+        const r = { open: await open('dpp'), focus: await active() };
+        const field = await sent();
+        return (!r.open && field('period_start') === '2028-01-01' && field('period_end') === '2028-01-31' && r.focus === 'dpp')
+            || JSON.stringify({ ...r, start: field('period_start'), end: field('period_end') });
+    });
+
+    await check('the built-in presets the script works out are the server\'s (Last 30 days, to a leap day)', async () => {
+        await page.click('#dpp');
+        await settle();
+        await page.click(`${box('dpp')} [data-ds-cal-preset="last30"]`);
+        await settle();
+        const field = await sent();
+        return (field('period_start') === '2028-01-31' && field('period_end') === '2028-02-29') || `${field('period_start')} – ${field('period_end')}`;
+    });
+
+    await check('confirm: picks are a draft; minDays and maxDays disable the ends that would break them', async () => {
+        await page.click('#dpc');
+        await settle();
+        await page.click(day('dpc', '2028-06-10'));
+        const off = await page.evaluate((b) => [...document.querySelectorAll(`${b} [data-ds-cal-day][aria-disabled=true]:not([data-outside])`)]
+            .map((d) => Number(d.dataset.day.slice(8))).join(), box('dpc'));
+        const posted = await page.evaluate(() => document.querySelector('input[name=nights_start]').value);
+        return (off === '1,2,3,9,10,11,17,18,19,20,21,22,23,24,25,26,27,28,29,30' && posted === '' && (await open('dpc')))
+            || JSON.stringify({ off, posted, open: await open('dpc') });
+    });
+
+    await check('confirm: Escape drops the draft; Apply commits it, closes and returns focus', async () => {
+        await page.keyboard.press('Escape');
+        await settle();
+        await page.click('#dpc');
+        await settle();
+        const kept = await page.evaluate((b) => document.querySelectorAll(`${b} [data-selected]`).length, box('dpc'));
+        await page.click(day('dpc', '2028-06-10'));
+        await page.click(day('dpc', '2028-06-06'));
+        const stillOpen = await open('dpc');
+        await page.click(`${box('dpc')} [data-ds-cal-apply]`);
+        await settle();
+        const r = { kept, stillOpen, open: await open('dpc'), focus: await active() };
+        const field = await sent();
+        return (!r.kept && r.stillOpen && !r.open && r.focus === 'dpc' && field('nights_start') === '2028-06-06' && field('nights_end') === '2028-06-10')
+            || JSON.stringify({ ...r, start: field('nights_start'), end: field('nights_end') });
+    });
+
+    await check('confirm: Cancel puts the applied range back', async () => {
+        await page.click('#dpc');
+        await settle();
+        await page.click(`${box('dpc')} [data-ds-cal-clear]`);
+        await page.click(`${box('dpc')} [data-ds-cal-cancel]`);
+        await settle();
+        const field = await sent();
+        return (field('nights_start') === '2028-06-06' && field('nights_end') === '2028-06-10') || `${field('nights_start')} – ${field('nights_end')}`;
+    });
+
+    await check('x-model on the range: the host\'s pair is drawn, an applied range is the host\'s', async () => {
+        await page.click('#dpm');
+        await settle();
+        const drawn = await page.evaluate((b) => [...document.querySelectorAll(`${b} [data-selected]:not([data-outside])`)].map((d) => d.dataset.day).join(), box('dpm'));
+        await page.click(day('dpm', '2028-08-12'));
+        await page.click(day('dpm', '2028-08-14'));
+        await page.click(`${box('dpm')} [data-ds-cal-apply]`);
+        await settle();
+        const span = JSON.parse(await page.locator('#cal-model-out').innerText()).span;
+        return (drawn === '2028-08-01,2028-08-03' && span.join() === '2028-08-12,2028-08-14') || JSON.stringify({ drawn, span });
+    });
+
+    await check('at 320px the popover fits the window, with one month and the presets above it', async () => {
+        await page.setViewportSize({ width: 320, height: 800 });
+        await page.evaluate(() => document.getElementById('dpp').scrollIntoView({ block: 'start' }));
+        await page.click('#dpp');
+        await settle(400);
+        const r = await page.evaluate((b) => {
+            const panel = document.querySelector(`${b} [role=dialog]`).getBoundingClientRect();
+            const grid = document.querySelector(`${b} [data-ds-cal-months]`).getBoundingClientRect();
+            const presets = document.querySelector(`${b} [aria-label=Presets]`).getBoundingClientRect();
+            return {
+                left: Math.round(panel.left), right: Math.round(panel.right),
+                months: [...document.querySelectorAll(`${b} [data-ds-cal-month]`)].filter((m) => m.checkVisibility()).length,
+                next: document.querySelector(`${b} [data-ds-cal-next]`).checkVisibility({ visibilityProperty: true }),
+                above: presets.bottom <= grid.top,
+            };
+        }, box('dpp'));
+        await page.keyboard.press('Escape');
+        await page.setViewportSize({ width: 1200, height: 1000 });
+        return (r.left >= 8 && r.right <= 312 && r.months === 1 && r.next && r.above) || JSON.stringify(r);
+    });
+}
+
+group('avatar upload (dsAvatarUpload)');
+{
+    const root = (id) => `[data-ds-avatar-upload]:has(#${id})`;
+    // A photo drawn in the page, as a reader's file: `type` and `bytes` can
+    // be made to fail the checks.
+    const choose = (id, { type = 'image/png', name = 'me.png', width = 600, height = 400, pad = 0, how = 'pick' } = {}) =>
+        page.evaluate(async ([sel, type, name, width, height, pad, how]) => {
+            const canvas = Object.assign(document.createElement('canvas'), { width, height });
+            const c = canvas.getContext('2d');
+            c.fillStyle = '#336';
+            c.fillRect(0, 0, width, height);
+            c.fillStyle = '#c96';
+            c.fillRect(width / 2, 0, width / 2, height);
+            const png = await new Promise((done) => canvas.toBlob(done, 'image/png'));
+            const file = new File([png, new Uint8Array(pad)], name, { type });
+            const transfer = new DataTransfer();
+            transfer.items.add(file);
+            const el = document.querySelector(sel);
+            if (how === 'drop') {
+                const drop = el.querySelector('[data-ds-avatar-drop]');
+                drop.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: transfer }));
+                const lit = drop.hasAttribute('data-ds-dragging');
+                drop.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer }));
+                return lit;
+            }
+            const picker = el.querySelector('[data-ds-avatar-picker]');
+            picker.files = transfer.files;
+            picker.dispatchEvent(new Event('change'));
+            return true;
+        }, [root(id), type, name, width, height, pad, how]);
+    const state = (id) => page.evaluate((sel) => {
+        const el = document.querySelector(sel);
+        const scope = Alpine.$data(el);
+        const seen = (q) => el.querySelector(q)?.checkVisibility() ?? false;
+        return {
+            cropping: scope.dsCropping,
+            hasPhoto: scope.dsHasPhoto,
+            files: [...el.querySelector('[data-ds-avatar-input]').files].map((f) => `${f.name}|${f.type}`).join(','),
+            input: seen('[data-ds-avatar-input]'),
+            change: seen('[data-ds-avatar-change]'),
+            remove: seen('[data-ds-avatar-remove]'),
+            box: seen('[data-ds-avatar-removed]'),
+            preview: seen('[data-ds-avatar-preview]'),
+            initials: seen('[data-ds-avatar-initials]'),
+            current: seen('[data-ds-avatar-current]'),
+            error: el.querySelector('[data-ds-avatar-error]').hidden ? '' : el.querySelector('[data-ds-avatar-error-text]').textContent.trim(),
+            removed: el.querySelector('[data-ds-avatar-removed]')?.checked ?? null,
+            focus: document.activeElement?.matches('[data-ds-avatar-change]') ? 'change'
+                : document.activeElement?.closest('[data-ds-modal-panel]') ? 'dialog' : document.activeElement?.tagName,
+            image: el.querySelector('[data-ds-avatar-image]').style.transform,
+            zoom: el.querySelector('[data-ds-avatar-zoom] input[type=range]').value,
+        };
+    }, root(id));
+
+    await check('with the script: Change, no file input, no checkbox; the initials with no photo, Remove with one', async () => {
+        const a = await state('av');
+        const b = await state('av-logo');
+        return (a.change && !a.input && !a.box && !a.remove && a.initials && !a.current && !a.hasPhoto
+            && b.change && !b.input && !b.box && b.remove && b.current && !b.initials && b.hasPhoto) || JSON.stringify({ a, b });
+    });
+
+    await check('a file of a type not accepted is refused, said in words, and nothing opens', async () => {
+        await choose('av', { type: 'image/gif', name: 'me.gif' });
+        await settle(200);
+        const s = await state('av');
+        return (s.error === 'Choose a JPEG, PNG or WebP image.' && !s.cropping && s.files === '') || JSON.stringify(s);
+    });
+
+    await check('a file over maxSize is refused, said in words', async () => {
+        await choose('av', { pad: 250000 });
+        await settle(200);
+        const s = await state('av');
+        return (s.error === 'Choose an image of 0.2 MB or less.' && !s.cropping) || JSON.stringify(s);
+    });
+
+    await check('a photo opens the crop dialog, focus in it; the error goes; the input still holds nothing', async () => {
+        await choose('av');
+        await settle(400);
+        const s = await state('av');
+        const named = await page.evaluate((sel) => {
+            const stage = document.querySelector(`${sel} [data-ds-avatar-stage]`);
+            return `${stage.getAttribute('role')}|${stage.getAttribute('aria-label')}|${document.getElementById(stage.getAttribute('aria-describedby'))?.textContent.slice(0, 14)}`;
+        }, root('av'));
+        return (s.cropping && s.focus === 'dialog' && s.error === '' && s.files === '' && named === 'group|Crop area|Drag the photo') || JSON.stringify({ ...s, named });
+    });
+
+    await check('the keys move and zoom the photo, and the slider follows the zoom', async () => {
+        const before = (await state('av')).image;
+        await page.focus(`${root('av')} [data-ds-avatar-stage]`);
+        await page.keyboard.press('ArrowRight');
+        await page.keyboard.press('+');
+        await page.keyboard.press('+');
+        await settle(100);
+        const s = await state('av');
+        return (s.image !== before && s.zoom === '121' && /translate\(9\.68\d*px, 0px\)/.test(s.image)) || JSON.stringify({ before, after: s.image, zoom: s.zoom });
+    });
+
+    await check('a drag moves it, and it cannot be dragged past the mask', async () => {
+        const box = await page.locator(`${root('av')} [data-ds-avatar-stage]`).boundingBox();
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(box.x + box.width / 2 - 2000, box.y + box.height / 2 + 2000, { steps: 4 });
+        await page.mouse.up();
+        const s = await state('av');
+        // At 121% of a 3:2 photo covering the mask, x is held to the photo's
+        // overhang and y to its own, which is none: it stays on the mask.
+        const [, x, y] = s.image.match(/translate\(-50%, -50%\) translate\((-?[\d.]+)px, (-?[\d.]+)px\)/) ?? [];
+        return (Number(x) < 0 && Number(y) > 0 && Number(y) < 50) || s.image;
+    });
+
+    await check('the zoom slider zooms', async () => {
+        const scale = () => page.evaluate((sel) =>
+            Number(document.querySelector(`${sel} [data-ds-avatar-image]`).style.transform.match(/scale\(([\d.]+)\)/)[1]), root('av'));
+        const before = await scale();
+        await page.locator(`${root('av')} [data-ds-avatar-zoom] input[type=range]`).fill('242');
+        await settle(50);
+        const after = await scale();
+        return Math.abs(after / before - 2) < 0.01 || `scale ${before} to ${after}`;
+    });
+
+    await check('Apply puts a square JPEG of outputSize in the real input, dispatches crop, shows it, and gives focus to Change', async () => {
+        await page.click(`${root('av')} [data-ds-avatar-apply]`);
+        await settle(400);
+        const s = await state('av');
+        const crop = await page.evaluate(() => window.b18aCrops?.at(-1));
+        return (s.files === 'me.jpg|image/jpeg' && !s.cropping && s.preview && s.hasPhoto && s.remove && s.focus === 'change'
+            && crop?.width === 512 && crop?.height === 512 && crop?.type === 'image/jpeg') || JSON.stringify({ ...s, crop });
+    });
+
+    await check('the form posts the crop under the field\'s name', async () => {
+        await page.click('#b18a-submit');
+        const sent = Object.fromEntries(await page.evaluate(() => window.b18aSent));
+        return (/^me\.jpg\|image\/jpeg\|\d+$/.test(sent.photo ?? '') && !('logo_remove' in sent)) || JSON.stringify(sent);
+    });
+
+    await check('Escape drops a second photo and keeps the first crop', async () => {
+        await choose('av', { name: 'other.png' });
+        await settle(400);
+        const open = (await state('av')).cropping;
+        await page.keyboard.press('Escape');
+        await settle(400);
+        const s = await state('av');
+        return (open && !s.cropping && s.files === 'me.jpg|image/jpeg' && s.focus === 'change') || JSON.stringify({ open, ...s });
+    });
+
+    await check('a photo dropped on the avatar marks the target and opens the dialog; a square PNG of 256 comes out', async () => {
+        const lit = await choose('av-logo', { how: 'drop', name: 'logo.png' });
+        await settle(400);
+        const open = (await state('av-logo')).cropping;
+        await page.click(`${root('av-logo')} [data-ds-avatar-rotate]`).catch(() => {});
+        await page.click(`${root('av-logo')} [data-ds-avatar-apply]`);
+        await settle(400);
+        const s = await state('av-logo');
+        const crop = await page.evaluate(() => window.b18aCrops?.at(-1));
+        return (lit && open && s.files === 'logo.png|image/png' && crop?.width === 256 && crop?.type === 'image/png' && s.preview && !s.current) || JSON.stringify({ lit, open, ...s, crop });
+    });
+
+    await check('Remove ticks {name}_remove, clears the input, shows the initials and goes away', async () => {
+        await page.click(`${root('av-logo')} [data-ds-avatar-remove]`);
+        await settle(100);
+        const s = await state('av-logo');
+        await page.click('#b18a-submit');
+        const sent = Object.fromEntries(await page.evaluate(() => window.b18aSent));
+        return (s.removed === true && s.files === '' && s.initials && !s.preview && !s.current && !s.remove && !s.hasPhoto && s.focus === 'change'
+            && sent.logo_remove === '1' && /\|0$/.test(sent.logo ?? '')) || JSON.stringify({ ...s, sent });
+    });
+
+    await check('nothing was fetched: the photo never left the page', async () =>
+        (await page.evaluate(() => performance.getEntriesByType('resource').filter((r) => ['fetch', 'xmlhttprequest', 'beacon'].includes(r.initiatorType)).map((r) => r.name).join(' '))) === ''
+        || 'a request was made');
+}
+
 // ---------------------------------------------------------------- focus indicators
 
 /*
@@ -6998,7 +7433,8 @@ const overlays = [
     ['combobox options', '#f-combobox', 'ArrowDown', 'ArrowDown', 2],
     ['time picker options', '#f-time', 'ArrowDown', 'ArrowDown', 2],
     ['inline edit, its field', '[data-focus=inline-edit] [data-ds-inline-read]', 'Enter', 'Tab', 1],
-    ['date picker month buttons and days', '[data-ds-date-trigger]', 'Enter', 'Tab', 5],
+    ['date picker: the months\' buttons, a day, Clear, Done', '#f-date', 'Enter', 'Tab', 5],
+    ['date picker with presets and confirm: a preset, the months\' buttons, a day, Clear, Cancel, Apply', '#f-date2', 'Enter', 'Tab', 7],
     ['popover content', '#f-pop', 'Enter', 'Tab', 1],
     ['confirm button, asking', '[data-focus=confirm-button] [data-ds-confirm-trigger]', 'Enter', 'Tab', 2],
     ['confirm popover content', '#f-cp', 'Enter', 'Tab', 2],
@@ -7165,6 +7601,15 @@ ${include}
 
     // The overlays that take x-ds-anchor as an enhancement, with Alpine and
     // no include: they open where their absolute classes put them.
+    // The date picker and the calendar with Alpine and no include, and with neither.
+    'date-missing.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+<script defer src="alpine.js"></script>
+</head><body>${dateFallbackMarkup}</body></html>`,
+    'date-static.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+</head><body>${dateFallbackMarkup}</body></html>`,
+
     'anchor-missing.html': `<!doctype html><html><head><meta charset="utf-8">
 <style>${css}</style>
 <script defer src="alpine.js"></script>
@@ -7385,7 +7830,7 @@ group('host setup (b): Alpine bundled by the host, Alpine.plugin(bladeUi)');
     await check('the plugin works', () => copiesOn(tab));
     await check('plugin twice plus the include: each name registered exactly once', async () => {
         const names = await tab.evaluate(() => window.dsRegistered);
-        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme', 'dsDismiss', 'dsConfirm', 'dsHold', 'dsConfirmDialog', 'dsRoll', 'dsClamp', 'dsClear', 'dsTree', 'dsSlider', 'dsTimePicker', 'dsInlineEdit', 'dsCommandPalette', 'dsSortable', 'dsSplit', 'dsSwap', 'dsTeamSwitcher', 'dsMoneyInput', 'dsPhoneInput', 'dsSearch', 'dsShortcutInput', 'dsColour', 'dsMention'];
+        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme', 'dsDismiss', 'dsConfirm', 'dsHold', 'dsConfirmDialog', 'dsRoll', 'dsClamp', 'dsClear', 'dsTree', 'dsSlider', 'dsTimePicker', 'dsInlineEdit', 'dsCommandPalette', 'dsSortable', 'dsSplit', 'dsSwap', 'dsTeamSwitcher', 'dsMoneyInput', 'dsPhoneInput', 'dsSearch', 'dsShortcutInput', 'dsColour', 'dsMention', 'dsCalendar', 'dsAvatarUpload'];
         return JSON.stringify(names) === JSON.stringify(expected) || `registered ${JSON.stringify(names)}`;
     });
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
@@ -7736,7 +8181,6 @@ group('the overlays that predate x-ds-anchor, in a host WITHOUT the script (the 
             name: 'tooltip', trigger: '#fb-tip-trigger', panel: '[data-ds-tooltip]:has(#fb-tip-trigger) [role=tooltip]', side: 'top', gap: 8,
             open: (t) => t.focus('#fb-tip-trigger'), close: (t) => t.keyboard.press('Escape'),
         },
-        { name: 'date picker', trigger: '#fb-date', panel: '[x-data]:has(> #fb-date) [role=dialog]', side: 'bottom', gap: 4 },
         // Measured from the field the list hangs from, the text box's parent.
         { name: 'combobox', trigger: '#fb-combobox', panel: '#fb-combobox-listbox', side: 'bottom', gap: 4, from: 'parent' },
     ];
@@ -7772,6 +8216,35 @@ group('the overlays that predate x-ds-anchor, in a host WITHOUT the script (the 
     }
 
     await check('nothing in the console: a skipped anchor is not an error', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+
+group('the date picker and the calendar in a host WITHOUT the script, and with no Alpine at all: native date fields');
+for (const [name, label] of [['date-missing.html', 'no script'], ['date-static.html', 'no Alpine']]) {
+    const { tab, errors } = await openHost(name);
+    const form = () => tab.evaluate(() => Object.fromEntries(new FormData(document.getElementById('form'))));
+
+    await check(`${label}: native date fields carry the values, and the trigger is not shown`, async () => {
+        const r = await tab.evaluate(() => ({
+            fields: [...document.querySelectorAll('input[type=date]')].filter((i) => i.getClientRects().length).map((i) => `${i.name}=${i.value}`).join(','),
+            triggers: [...document.querySelectorAll('[data-ds-date-trigger]')].filter((b) => b.getClientRects().length).length,
+        }));
+        return (r.fields === 'due=2026-09-10,period_start=2026-09-01,period_end=2026-09-30,day=2026-09-17' && r.triggers === 0) || JSON.stringify(r);
+    });
+    await check(`${label}: a day typed in posts under the 1.x names`, async () => {
+        await tab.fill('input[name=due]', '2026-10-05');
+        await tab.fill('input[name=period_end]', '2026-10-31');
+        const f = await form();
+        return (f.due === '2026-10-05' && f.period_start === '2026-09-01' && f.period_end === '2026-10-31' && !('period' in f)) || JSON.stringify(f);
+    });
+    if (label === 'no script') {
+        await check('no script: the console names the missing include', async () => {
+            const said = errors.find((e) => e.includes('dsCalendar is not registered'));
+            return said?.includes('<x-ds::scripts />') || `the page logged: ${errors.join(' | ') || 'nothing'}`;
+        });
+    } else {
+        await check('no Alpine: nothing in the console', async () => !errors.length || errors.join(' | '));
+    }
     await tab.close();
 }
 

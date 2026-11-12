@@ -111,6 +111,9 @@
 <section data-focus="panel-collapsible"><x-ds::panel title="Billing" :collapsible="true" action="Manage" actionHref="#manage"><x-ds::panel-row>Row</x-ds::panel-row></x-ds::panel></section>
 {{-- A range input's ring is on its thumb, which getComputedStyle cannot read: the walk compares pictures for it. --}}
 <section data-focus="slider" class="max-w-sm"><x-ds::slider name="fvol" label="Volume" :value="40" /><x-ds::slider name="fprice" label="Price" :range="true" :value="[20, 80]" lowLabel="Minimum price" highLabel="Maximum price" /></section>
+<section data-focus="calendar"><x-ds::calendar name="fcal" aria-label="Day" value="2026-09-10" today="2026-09-14" :events="['2026-09-11' => 2]" /></section>
+<section data-focus="date-picker-grid" class="max-w-sm"><x-ds::date-picker name="fperiod" id="f-date2" label="Period" :range="true" :months="2" :confirm="true" :presets="['Q3' => ['2026-07-01', '2026-09-30']]" today="2026-09-14" /></section>
+<section data-focus="avatar-upload"><x-ds::avatar-upload name="fphoto" id="f-photo" alt="Ada Lovelace" src="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2710%27 height=%2710%27%3E%3Crect width=%2710%27 height=%2710%27 fill=%27%23888%27/%3E%3C/svg%3E" /></section>
 <section data-focus="time-picker" class="max-w-sm"><x-ds::time-picker name="fat" id="f-time" label="Start" value="09:30" :clearable="true" /></section>
 <section data-focus="money-input" class="max-w-sm"><x-ds::money-input name="fmoney" id="f-money" label="Price" value="12.5" /><x-ds::money-input name="fpay" id="f-pay" label="Pay" :currencies="['USD', 'EUR']" value="3" /></section>
 <section data-focus="phone-input" class="max-w-sm"><x-ds::phone-input name="fphone" id="f-phone" label="Phone" :countries="['GB', 'US', 'IN']" country="GB" /></section>

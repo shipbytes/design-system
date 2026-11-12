@@ -72,6 +72,10 @@ src/              the service provider
   Support/Listbox.php           reads the listbox recipe (partials/listbox.php)
   Support/Modal.php             reads the modal recipe (partials/modal.php)
   Support/Swap.php              reads the swap recipe (partials/swap.php)
+  Support/Calendar.php          the month grid ds::calendar and the date
+                                picker draw: dates as Y-m-d strings, weeks,
+                                ISO weeks, presets, the cells' state;
+                                mirrored by shared/dates.js (dates.json)
 config/           blade-ui.php — icon aliases, default icon size
 resources/views/  the Blade components + the two pagination views and
                   their two Livewire variants
@@ -125,6 +129,9 @@ resources/views/  the Blade components + the two pagination views and
   partials/panel-collapsible.blade.php  ds::panel with `collapsible`: a
                                 partial so the panel without it stays byte for
                                 byte 1.x (PanelUnchangedTest)
+  partials/calendar-grid.blade.php  the month grid of ds::calendar and the
+                                date picker's popover: six rows a month, the
+                                cells dsCalendar rewrites in place
 resources/js/     the shared script's source: plain ES modules, hand-edited
   blade-ui.js       the Alpine plugin; lists every behaviour
   global.js         the classic-script entry ds::scripts serves
@@ -138,7 +145,9 @@ resources/js/     the shared script's source: plain ES modules, hand-edited
                     mirroring Support\Chart::format;
                     flag.js: the timed flag dsClipboard and dsSwap raise
                     and let fall; rank.js: fold and rank, the matching the
-                    command palette and team switcher sort by)
+                    command palette and team switcher sort by; dates.js:
+                    the calendar's Y-m-d arithmetic, mirroring
+                    Support\Calendar)
                   (export-ignored: consumers get dist/, not the modules)
 
 tokens/           DTCG source. Edited by hand, like resources/js/.
@@ -611,11 +620,13 @@ its fallback position. Everything it sets is inline style over the panel's
 absolute placement classes, which are its no-script fallback.
 
 **Where it is an enhancement and where it is a requirement.** Since batch 06,
-dropdown, select, combobox, date-picker and tooltip carry `x-ds-anchor` over
+dropdown, select, combobox and tooltip carry `x-ds-anchor` over
 the absolute classes they had in 1.x, with their inline Alpine unchanged: in a
 host without the script Alpine skips the directive and each opens at its
 placement exactly as before, so `ds-anchor` is in `ENHANCEMENTS`, and the
-behaviour suite opens all five on a page with Alpine and no include. popover
+behaviour suite opens all four on a page with Alpine and no include. (The date
+picker was the fifth until batch 18 retired its 1.x grid: it needs the script
+now, and without it is native date fields.) popover
 and hover-card need the script anyway (`dsPopover`, `dsHoverCard`), so for
 them it sits inside a `Behaviour::data()` scope. A new overlay with a sound
 absolute fallback takes the first route; one without takes the second.
@@ -741,11 +752,11 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 117 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 119 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
-accordion, accordion-item, activity-heatmap, activity-rings, alert, announcement-bar, avatar, avatar-group, badge, bar-chart, bottom-nav,
-bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, chip,
+accordion, accordion-item, activity-heatmap, activity-rings, alert, announcement-bar, avatar, avatar-group, avatar-upload, badge, bar-chart, bottom-nav,
+bottom-nav-item, breadcrumb, breadcrumb-item, button, calendar, checkbox, chip,
 button-group, chip-group, code-block, color-picker, combobox, command-group, command-item, command-palette, confirm-button, confirm-popover, copy-button, counter, date-picker, donut-chart, drawer, dropdown,
 context-menu, dropdown-item, empty-state, expandable-text, file-upload, filter-bar, filter-chip, funnel-chart, gauge, hold-button, hover-card, icon, icon-swap,
 inline-edit, input, kbd, line-chart, mention-input, modal, money-input,
@@ -764,7 +775,7 @@ tree, tree-item, treemap, usage-meter, user-menu, waffle-chart.
 Verified end to end: `composer require` from GitHub into a fresh Laravel app,
 three lines of CSS, every component rendering styled in light and dark.
 
-**Needs Alpine:** modal, drawer, sheet, dropdown, select, combobox, date-picker,
+**Needs Alpine:** modal, drawer, sheet, dropdown, select, combobox, date-picker, calendar, avatar-upload,
 accordion (with accordion-item), file-upload, tooltip, otp-input, tag-input,
 number-field, password-strength, copy-button, toolbar (with toolbar-button and
 toolbar-separator), toggle-group (with toggle), popover, hover-card, context-menu, theme-switcher,
@@ -819,7 +830,15 @@ Support\Shortcut, also holds the palette's parse and match), mention-input
 list's place from `caretBox` in shared/caret.js, a mirror element; the server's
 ids from Support\Mention), color-picker (`dsColour`, on `dsPopover`; colours
 read and written by shared/colour.js, mirrored by Support\Colour and held to
-tests/Fixtures/colour.json from both sides), slider's `histogram` and `inputs`
+tests/Fixtures/colour.json from both sides), date-picker and calendar
+(`dsCalendar`, the picker's popover on `x-ds-anchor`; one grid,
+partials/calendar-grid.blade.php drawn by Support\Calendar, whose date
+arithmetic is mirrored by shared/dates.js and held to tests/Fixtures/dates.json
+from both sides; without the script both post from native date fields, which
+the script turns into hidden inputs; the 1.x picker's inline-Alpine grid was
+retired in batch 18 and DatePickerContractTest pins what consumers rely on),
+avatar-upload (`dsAvatarUpload`; its crop dialog is ds::modal; without the
+script a plain file input and a Remove checkbox), slider's `histogram` and `inputs`
 (in `dsSlider`) and input's
 `expanding` (`dsSearch`, partials/input-expanding.blade.php). icon-swap
 and button-group's `expanding` are plain Blade and CSS; user-menu is a
@@ -829,8 +848,8 @@ filter-chip are plain Blade and CSS; a chip's `remove` and the bar's `reset`
 are plain inline `onclick` dispatches.
 `<x-ds::theme-script />` is a class component like
 `ds::scripts`, plain inline JavaScript with no Alpine and no script. segmented-control
-uses `x-ds-glide` as an enhancement only, and dropdown, select, combobox,
-date-picker and tooltip use `x-ds-anchor` as an enhancement only: each works
+uses `x-ds-glide` as an enhancement only, and dropdown, select, combobox
+and tooltip use `x-ds-anchor` as an enhancement only: each works
 without the script exactly as in 1.x, and with it stays on screen. counter
 uses `x-ds-roll` as an enhancement only: without it the server's number is
 shown and a morph changes it, with it the digits roll. bar-chart, line-chart,

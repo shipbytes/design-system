@@ -1219,6 +1219,56 @@
     </div>
     <!-- /b17 -->
 
+    {{-- ── batch 18: the calendar, and the date picker on the calendar's
+         grid. Every date is in 2028, a year no other specimen shows, and
+         every day selector is scoped to its component, because the grid
+         carries hidden cells for the neighbouring months too. ── --}}
+    <div class="mt-6 w-[960px]" id="b18">
+        <form id="b18-form" onsubmit="event.preventDefault(); window.b18Sent = [...new FormData(event.target)]">
+            <div class="flex flex-wrap items-start gap-6"
+                x-on:month-change="(window.b18Months ??= []).push($event.detail)"
+                x-on:change="(window.b18Changes ??= []).push($event.target.name + ':' + $event.constructor.name)">
+                <x-ds::calendar id="cal" name="delivery" label="Delivery" value="2028-02-10" today="2028-02-14" min="2028-02-03"
+                    :disabledDays="[0]" :disabledDates="['2028-02-22']" :events="['2028-02-03' => 'success', '2028-02-04' => 3]" :showWeekNumbers="true" />
+                <x-ds::calendar id="cal-range" name="stay" aria-label="Stay" :range="true" :months="2" :value="['2028-03-06', '2028-03-10']" today="2028-02-14" :jump="false" />
+                <x-ds::calendar id="cal-multi" name="off" aria-label="Days off" :multiple="true" :value="['2028-05-01', '2028-05-15']" today="2028-02-14" :jump="false" />
+            </div>
+            <div class="mt-4 flex gap-6">
+                <div class="w-72">
+                    <x-ds::date-picker id="dpp" name="period" label="Period" :range="true" :months="2" :presets="true" today="2028-02-29" :value="['2028-02-23', '2028-02-29']" />
+                </div>
+                <div class="w-72">
+                    <x-ds::date-picker id="dpc" name="nights" label="Nights" :range="true" :minDays="3" :maxDays="7" :confirm="true" today="2028-06-01" />
+                </div>
+            </div>
+            <button id="b18-submit" type="submit">Send</button>
+        </form>
+        <div class="mt-4 flex items-start gap-6" x-data="{ day: '2028-07-04', span: ['2028-08-01', '2028-08-03'] }">
+            <x-ds::calendar id="cal-model" aria-label="Bound" x-model="day" today="2028-02-14" :jump="false" />
+            <div class="w-72"><x-ds::date-picker id="dpm" name="span" label="Span" :range="true" :confirm="true" today="2028-02-14" x-model="span" /></div>
+            <output id="cal-model-out" x-text="JSON.stringify({ day, span })"></output>
+        </div>
+    </div>
+    <!-- /b18 -->
+
+    {{-- ── batch 18: the avatar upload. The photos are drawn in the page by
+         the test and set on the picker, as a reader's choice is. ── --}}
+    <div class="mt-6 w-[640px]" id="b18a">
+        <form id="b18a-form" class="flex flex-col gap-6" onsubmit="event.preventDefault(); window.b18aSent = [...new FormData(event.target)].map(([k, v]) => [k, typeof v === 'string' ? v : `${v.name}|${v.type}|${v.size}`])"
+            x-on:crop="(window.b18aCrops ??= []).push({ id: $event.target.querySelector('[data-ds-avatar-input]').id, width: $event.detail.width, height: $event.detail.height, type: $event.detail.blob.type })">
+            <x-ds::avatar-upload id="av" name="photo" alt="Ada Lovelace" :maxSize="200000" help="Up to 200 kB." />
+            <x-ds::avatar-upload id="av-logo" name="logo" label="Logo" shape="square" alt="Acme Ltd" outputType="image/png" :outputSize="256" size="lg"
+                src="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2710%27 height=%2710%27%3E%3Crect width=%2710%27 height=%2710%27 fill=%27%2300f%27/%3E%3C/svg%3E" />
+            <button id="b18a-submit" type="submit">Send</button>
+        </form>
+    </div>
+
+    <div class="mt-6 flex h-10 justify-end overflow-hidden border border-border">
+        <div class="w-64">
+            <x-ds::date-picker name="dpn-edge" id="dpn-edge" aria-label="Edge period" :range="true" :presets="true" today="2029-01-15" />
+        </div>
+    </div>
+
     {{-- Outside #b17, which a page without Alpine reuses: a mention input in
          a modal, whose Escape must close the list and not the modal. --}}
     <div class="mt-6" x-data="{ mnModal: false }">

@@ -1950,6 +1950,38 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── calendar --}}
+<div data-shot="calendar" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="inline-block rounded-panel border border-border bg-surface p-4 shadow-raised">
+                <x-ds::calendar
+                    name="cal{{ $loop->index }}"
+                    label="Delivery day"
+                    value="2026-09-17"
+                    today="2026-09-14"
+                    min="2026-09-07"
+                    :disabledDays="[0]"
+                    :showWeekNumbers="true"
+                    :events="['2026-09-08' => 'success', '2026-09-10' => 'warning', '2026-09-17' => 'accent', '2026-09-22' => 3, '2026-09-24' => 'danger']"
+                />
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── avatar-upload --}}
+{{-- Operated: a photo drawn in the page is chosen, so the crop dialog is the
+     component's own, opened inside the pane (the transform makes the pane the
+     modal's containing block). --}}
+<div data-shot="avatar-upload" class="shot shot-crop">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }} relative [transform:translateZ(0)]">
+            <x-ds::avatar-upload name="photo{{ $loop->index }}" alt="Ada Lovelace" :maxSize="2097152" help="JPEG, PNG or WebP, up to 2 MB." />
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── slider --}}
 <div data-shot="slider" class="shot">
     @foreach ($themes as $t)

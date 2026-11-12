@@ -19,7 +19,7 @@ there is not.
 | `name` | string | — | Supplies the initials and the accessible name. |
 | `src` | string | — | Image URL. Without one, the initials are the avatar. |
 | `initials` | string | — | Letters of your own instead of the first and last word of `name`, upper-cased. |
-| `size` | `xs` `sm` `md` `lg` | `md` | 24 / 32 / 40 / 48px. |
+| `size` | `xs` `sm` `md` `lg` `xl` | `md` | 24 / 32 / 40 / 48 / 64px. `xl` is for a profile page and [avatar upload](avatar-upload.md). |
 | `square` | bool | `false` | For a company, project or file. |
 | `decorative` | bool | `false` | Hides it from screen readers. |
 

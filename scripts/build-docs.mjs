@@ -173,6 +173,9 @@ ${css}
   .shot-tall .pane { height: 320px; }
   .shot-calendar .pane { height: 460px; }
   .shot-colour .pane { height: 540px; }
+  /* The crop dialog, open: taller than an overlay pane, because the stage
+     is square and the zoom and the footer sit under it. */
+  .shot-crop .pane { height: 700px; }
   /* Animations are frozen: a pulsing skeleton or a spinning button photographs
      at a random frame, so the image would change on every run and the diff
      would be noise.
@@ -411,6 +414,35 @@ const OPERATE = {
         await tab.waitForTimeout(150);
         await tab.evaluate(() => document.activeElement?.blur());
     },
+    // A photo drawn in the page (the repository holds none), chosen through
+    // the component's own picker, so the crop dialog is its own doing.
+    'avatar-upload': async (pane) =>
+        pane.locator('[data-ds-avatar-picker]').evaluate(async (picker) => {
+            const canvas = Object.assign(document.createElement('canvas'), { width: 640, height: 480 });
+            const c = canvas.getContext('2d');
+            const sky = c.createLinearGradient(0, 0, 0, 480);
+            sky.addColorStop(0, '#9fb8d0');
+            sky.addColorStop(1, '#e8d9c4');
+            c.fillStyle = sky;
+            c.fillRect(0, 0, 640, 480);
+            c.fillStyle = '#4a5a6a';
+            c.beginPath();
+            c.ellipse(330, 470, 170, 120, 0, Math.PI, 0);
+            c.fill();
+            c.fillStyle = '#c99a7a';
+            c.beginPath();
+            c.ellipse(330, 230, 78, 96, 0, 0, Math.PI * 2);
+            c.fill();
+            c.fillStyle = '#3b2a20';
+            c.beginPath();
+            c.ellipse(330, 170, 86, 60, 0, Math.PI, 0);
+            c.fill();
+            const blob = await new Promise((done) => canvas.toBlob(done, 'image/png'));
+            const transfer = new DataTransfer();
+            transfer.items.add(new File([blob], 'ada.png', { type: 'image/png' }));
+            picker.files = transfer.files;
+            picker.dispatchEvent(new Event('change'));
+        }),
     // Real files, set on the real input, so the list and the thumbnail are the
     // component's own doing rather than a pose arranged for the photograph.
     'file-upload': async (pane) =>
