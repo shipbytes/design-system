@@ -1539,6 +1539,107 @@ return parts;
 }
 return { tagInput };
 })();
+const __ds_behaviours_theme = (() => {
+const CHOICES = ['light', 'dark', 'system'];
+const switchers = new Set();
+let applied = null;
+let systemListening = false;
+const systemDark = () => typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: dark)').matches;
+function read(key) {
+try {
+const value = localStorage.getItem(key);
+return value === 'light' || value === 'dark' ? value : 'system';
+} catch {
+return 'system';
+}
+}
+function write(key, choice) {
+try {
+if (choice === 'system') localStorage.removeItem(key);
+else localStorage.setItem(key, choice);
+} catch {
+}
+}
+function paint(choice) {
+const dark = choice === 'dark' || (choice === 'system' && systemDark());
+const root = document.documentElement;
+root.classList.toggle('dark', dark);
+root.classList.toggle('light', !dark);
+root.style.colorScheme = dark ? 'dark' : 'light';
+}
+function apply(choice, animate) {
+const before = document.documentElement.classList.contains('dark');
+applied = choice;
+const after = choice === 'dark' || (choice === 'system' && systemDark());
+const motion = typeof matchMedia !== 'function' || !matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (!animate || before === after || !motion || typeof document.startViewTransition !== 'function') {
+paint(choice);
+return;
+}
+const root = document.documentElement;
+root.dataset.dsThemeChanging = '';
+const transition = document.startViewTransition(() => paint(choice));
+transition.finished.finally(() => delete root.dataset.dsThemeChanging);
+}
+function listenToSystem() {
+if (systemListening || typeof matchMedia !== 'function') return;
+systemListening = true;
+const query = matchMedia('(prefers-color-scheme: dark)');
+const follow = () => {
+if (applied === 'system') paint('system');
+};
+if (query.addEventListener) query.addEventListener('change', follow);
+else query.addListener?.(follow);
+}
+function theme(Alpine) {
+Alpine.data('dsTheme', (options = {}) => {
+const key = typeof options.storageKey === 'string' && options.storageKey ? options.storageKey : 'ds-theme';
+const animate = options.transition !== false;
+let onStorage = null;
+return {
+dsTheme: 'system',
+dsKey: key,
+init() {
+this.dsTheme = read(key);
+switchers.add(this);
+listenToSystem();
+if (applied === null) {
+applied = this.dsTheme;
+const root = document.documentElement.classList;
+if (!root.contains('dark') && !root.contains('light')) paint(this.dsTheme);
+}
+this.$watch('dsTheme', (choice) => {
+if (!CHOICES.includes(choice)) {
+this.dsTheme = 'system';
+return;
+}
+if (choice === read(key) && choice === applied) return;
+write(key, choice);
+apply(choice, animate);
+for (const other of switchers) {
+if (other !== this && other.dsKey === key && other.dsTheme !== choice) other.dsTheme = choice;
+}
+});
+onStorage = (event) => {
+if (event.key !== key && event.key !== null) return;
+const choice = read(key);
+if (choice !== this.dsTheme) this.dsTheme = choice;
+if (applied !== choice) apply(choice, false);
+};
+window.addEventListener('storage', onStorage);
+},
+dsCycle() {
+this.dsTheme = CHOICES[(CHOICES.indexOf(this.dsTheme) + 1) % CHOICES.length];
+},
+destroy() {
+switchers.delete(this);
+if (onStorage) window.removeEventListener('storage', onStorage);
+},
+};
+});
+}
+return { theme };
+})();
 const __ds_shared_roving = (() => {
 const UNUSABLE = ':is(:disabled, [aria-disabled="true"])';
 function roving(root, options) {
@@ -1723,9 +1824,10 @@ const { otp } = __ds_behaviours_otp;
 const { password } = __ds_behaviours_password;
 const { popover } = __ds_behaviours_popover;
 const { tagInput } = __ds_behaviours_tag_input;
+const { theme } = __ds_behaviours_theme;
 const { toggleGroup } = __ds_behaviours_toggle_group;
 const { toolbar } = __ds_behaviours_toolbar;
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme];
 const REGISTERED = Symbol.for('shipbytes.blade-ui');
 function bladeUi(Alpine) {
 if (!Alpine || Alpine[REGISTERED]) return;

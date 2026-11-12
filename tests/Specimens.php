@@ -900,6 +900,14 @@ final class Specimens
                 <x-ds::context-menu>Empty menu</x-ds::context-menu>
                 BLADE,
 
+            'theme-switcher/all' => <<<'BLADE'
+                <x-ds::theme-switcher />
+                <x-ds::theme-switcher variant="button" />
+                <x-ds::theme-switcher variant="button" size="sm" label="Appearance" storageKey="app-theme" />
+                <x-ds::theme-switcher size="lg" :hideLabel="true" name="theme" :transition="false" />
+                <x-ds::theme-switcher variant="nonsense" size="huge" />
+                BLADE,
+
             // Not a visual component, but it renders inside a host's layout and
             // so inside a Livewire render too; this puts it through the markers
             // test with everything else.
@@ -907,6 +915,8 @@ final class Specimens
                 <x-ds::scripts />
                 <x-ds::scripts nonce="abc123" />
                 <x-ds::scripts inline />
+                <x-ds::theme-script />
+                <x-ds::theme-script storageKey="app-theme" nonce="abc123" />
                 BLADE,
         ];
     }

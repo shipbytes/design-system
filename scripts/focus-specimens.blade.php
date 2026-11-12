@@ -68,6 +68,7 @@
     </x-slot:menu>
 </x-ds::context-menu>
 </section>
+<section data-focus="theme-switcher"><x-ds::theme-switcher storageKey="focus-page-theme" /> <x-ds::theme-switcher variant="button" storageKey="focus-page-theme" /></section>
 <section data-focus="modal"><x-ds::button id="f-modal-open" @click="modalOpen = true">Open modal</x-ds::button><x-ds::modal open="modalOpen" title="Confirm" size="sm">Body<x-slot:footer><x-ds::button size="sm" @click="modalOpen = false">OK</x-ds::button></x-slot:footer></x-ds::modal></section>
 <section data-focus="drawer"><x-ds::button id="f-drawer-open" @click="drawerOpen = true">Open drawer</x-ds::button><x-ds::drawer open="drawerOpen" title="Filters">Body<x-slot:footer><x-ds::button size="sm" @click="drawerOpen = false">Apply</x-ds::button></x-slot:footer></x-ds::drawer></section>
 {{-- The walk stops here. A plain button, so it is not checked. --}}

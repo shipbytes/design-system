@@ -117,6 +117,25 @@ await writeFile(join(TMP, 'fallback.html'), fallbackMarkup);
 const focusMarkup = await render(join(ROOT, 'scripts/focus-specimens.blade.php'));
 await writeFile(join(TMP, 'focus.html'), focusMarkup);
 
+/*
+  The theme switcher and the pre-paint script, for host pages of their own:
+  they own <html>, localStorage and the colour scheme, which the main page
+  must not have changed under it. Two switchers on the default key, one on
+  another, and a probe that only a `dark:` utility colours.
+*/
+await writeFile(join(TMP, 'theme.blade.php'), `<div class="p-8">
+<x-ds::theme-switcher id="ts-a" />
+<x-ds::theme-switcher id="ts-b" variant="button" />
+<x-ds::theme-switcher id="ts-other" storageKey="other-theme" label="Other" />
+<p id="ts-probe" class="text-fg dark:text-accent">probe</p>
+</div>`);
+const themeMarkup = await render(join(TMP, 'theme.blade.php'));
+await writeFile(join(TMP, 'theme.html'), themeMarkup);
+await writeFile(join(TMP, 'theme-script.blade.php'), '<x-ds::theme-script />');
+const themeScript = await render(join(TMP, 'theme-script.blade.php'));
+await writeFile(join(TMP, 'theme-script-nonce.blade.php'), '<x-ds::theme-script nonce="t3st" />');
+const themeScriptNonce = await render(join(TMP, 'theme-script-nonce.blade.php'));
+
 await writeFile(
     join(TMP, 'in.css'),
     `@import "tailwindcss";
@@ -125,6 +144,7 @@ await writeFile(
 @source "${join(TMP, 'specimens.html')}";
 @source "${join(TMP, 'fallback.html')}";
 @source "${join(TMP, 'focus.html')}";
+@source "${join(TMP, 'theme.html')}";
 `,
 );
 
@@ -3397,7 +3417,7 @@ const SERVED = {
     '/livewire.js': join(ROOT, 'vendor/livewire/livewire/dist/livewire.js'),
 };
 
-await context.route(`${ORIGIN}/**`, async (route) => {
+const serveHostPage = async (route) => {
     const path = new URL(route.request().url()).pathname;
     const file = SERVED[path] ?? join(TMP, path);
     try {
@@ -3412,7 +3432,8 @@ await context.route(`${ORIGIN}/**`, async (route) => {
     } catch {
         await route.fulfill({ status: 404, body: '' });
     }
-});
+};
+await context.route(`${ORIGIN}/**`, serveHostPage);
 
 const segMarkup = [
     specimens.match(/<div class="mt-6 w-96" id="seg-rtl"[\s\S]*?<\/fieldset>\s*<\/div>/)?.[0],
@@ -3476,6 +3497,28 @@ ${include}
 <style>${css}</style>
 <script defer src="alpine.js"></script>
 </head><body>${fallbackMarkup}</body></html>`,
+
+    // The pre-paint script FIRST, then a probe that records <html>'s classes
+    // before any stylesheet or body exists, then the stylesheet. No Alpine,
+    // no package script: the snippet must stand alone.
+    'theme-pre.html': `<!doctype html><html><head><meta charset="utf-8">
+${themeScript}
+<script>window.atParse = { classes: document.documentElement.className, scheme: document.documentElement.style.colorScheme };</script>
+<style>${css}</style>
+</head><body class="bg-surface text-fg">before Alpine, before the body</body></html>`,
+
+    'theme.html': `<!doctype html><html><head><meta charset="utf-8">
+${themeScript}
+<style>${css}</style>
+${include}
+<script defer src="alpine.js"></script>
+</head><body class="bg-surface">${themeMarkup}</body></html>`,
+
+    // Served under the policy the CSP pages use: only a script with the
+    // nonce runs.
+    'csp-theme.html': `<!doctype html><html><head><meta charset="utf-8">
+${themeScriptNonce}
+</head><body></body></html>`,
 };
 
 for (const [name, html] of Object.entries(hostPages)) await writeFile(join(TMP, name), html);
@@ -3518,7 +3561,7 @@ group('host setup (b): Alpine bundled by the host, Alpine.plugin(bladeUi)');
     await check('the plugin works', () => copiesOn(tab));
     await check('plugin twice plus the include: each name registered exactly once', async () => {
         const names = await tab.evaluate(() => window.dsRegistered);
-        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu'];
+        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme'];
         return JSON.stringify(names) === JSON.stringify(expected) || `registered ${JSON.stringify(names)}`;
     });
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
@@ -3741,6 +3784,234 @@ group('the overlays that predate x-ds-anchor, in a host WITHOUT the script (the 
     await check('nothing in the console: a skipped anchor is not an error', async () => !errors.length || errors.join(' | '));
     await tab.close();
 }
+
+// ---------------------------------------------------------------- theme
+
+/*
+  A context of its own: the theme lives in localStorage and on <html>, and
+  two tabs of one context share the storage, which is what the cross-tab
+  check needs. Starts in a light system with nothing stored.
+*/
+const themeContext = await browser.newContext({ viewport: { width: 1000, height: 700 }, colorScheme: 'light' });
+await themeContext.route(`${ORIGIN}/**`, serveHostPage);
+await themeContext.route(`${LARAVEL}/**`, serveFromLaravel);
+
+const themeTab = async (name = 'theme.html') => {
+    const tab = await themeContext.newPage();
+    const errors = [];
+    tab.on('pageerror', (e) => errors.push(e.message));
+    tab.on('console', (m) => ['error', 'warning'].includes(m.type()) && errors.push(m.text()));
+    await tab.goto(`${ORIGIN}/${name}`, { waitUntil: 'networkidle' });
+    await tab.waitForTimeout(250);
+    return { tab, errors };
+};
+const rootState = (tab) => tab.evaluate(() => ({
+    dark: document.documentElement.classList.contains('dark'),
+    light: document.documentElement.classList.contains('light'),
+    scheme: document.documentElement.style.colorScheme,
+    stored: localStorage.getItem('ds-theme'),
+}));
+const checkedIn = (tab, id) => tab.evaluate((i) => document.querySelector(`#${i} input:checked`)?.value ?? null, id);
+const cycleLabel = (tab) => tab.locator('#ts-b [data-ds-theme-cycle]').getAttribute('aria-label');
+
+group('theme script (<x-ds::theme-script />, before the first paint, no Alpine)');
+{
+    const { tab, errors } = await themeTab('theme-pre.html');
+
+    await check('nothing stored, a light system: `light` on <html> before the stylesheet or the body', async () => {
+        const at = await tab.evaluate(() => window.atParse);
+        return (at.classes === 'light' && at.scheme === 'light') || `at parse: ${JSON.stringify(at)}`;
+    });
+
+    await tab.emulateMedia({ colorScheme: 'dark' });
+    await tab.reload({ waitUntil: 'networkidle' });
+    await check('nothing stored, a dark system: `dark`, and color-scheme dark', async () => {
+        const at = await tab.evaluate(() => window.atParse);
+        return (at.classes === 'dark' && at.scheme === 'dark') || `at parse: ${JSON.stringify(at)}`;
+    });
+
+    await tab.evaluate(() => localStorage.setItem('ds-theme', 'light'));
+    await tab.reload({ waitUntil: 'networkidle' });
+    await check('a stored "light" beats a dark system', async () =>
+        (await tab.evaluate(() => window.atParse.classes)) === 'light' || `at parse: ${await tab.evaluate(() => window.atParse.classes)}`);
+
+    await tab.emulateMedia({ colorScheme: 'light' });
+    await tab.evaluate(() => localStorage.setItem('ds-theme', 'dark'));
+    await tab.reload({ waitUntil: 'networkidle' });
+    await check('a stored "dark" beats a light system, and the page paints dark', async () => {
+        const at = await tab.evaluate(() => window.atParse.classes);
+        const ground = await tab.evaluate(() => getComputedStyle(document.body).backgroundColor);
+        await tab.evaluate(() => localStorage.removeItem('ds-theme'));
+        return (at === 'dark' && ground !== 'rgb(255, 255, 255)') || `at parse ${at}, body ${ground}`;
+    });
+
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+
+    // localStorage that throws on access, as a blocked-cookies browser has it.
+    const blocked = await themeContext.newPage();
+    const blockedErrors = [];
+    blocked.on('pageerror', (e) => blockedErrors.push(e.message));
+    await blocked.addInitScript(() => {
+        Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('denied', 'SecurityError'); } });
+    });
+    await blocked.goto(`${ORIGIN}/theme-pre.html`, { waitUntil: 'networkidle' });
+    await check('storage that throws: no error, and the system\'s theme', async () => {
+        const at = await blocked.evaluate(() => window.atParse.classes);
+        return (at === 'light' && !blockedErrors.length) || `at parse ${at}, errors ${blockedErrors.join(' | ')}`;
+    });
+    await blocked.close();
+}
+
+{
+    const csp = await themeContext.newPage();
+    await csp.goto(`${ORIGIN}/csp-theme.html`, { waitUntil: 'networkidle' });
+    await check('under a nonce-only Content Security Policy, the nonce lets it run', async () =>
+        (await csp.evaluate(() => document.documentElement.className)) === 'light' || 'the snippet did not run');
+    await csp.close();
+}
+
+group('theme switcher (dsTheme): light, dark, system');
+{
+    const { tab, errors } = await themeTab();
+
+    await check('nothing stored: every switcher shows "system", the button says so', async () => {
+        const a = await checkedIn(tab, 'ts-a');
+        const label = await cycleLabel(tab);
+        return (a === 'system' && label === 'Theme: System') || `segmented ${a}, button "${label}"`;
+    });
+
+    await check('the segmented one is the segmented control: a fieldset of three radios, named', async () => {
+        const r = await tab.evaluate(() => {
+            const set = document.querySelector('#ts-a fieldset');
+            return { legend: set?.querySelector('legend')?.textContent.trim(), radios: set?.querySelectorAll('input[type=radio]').length };
+        });
+        return (r.legend === 'Theme' && r.radios === 3) || JSON.stringify(r);
+    });
+
+    await tab.click('#ts-a label:has(input[value=dark])');
+    await tab.waitForTimeout(400);
+    await check('choosing dark: stored, `dark` on <html>, color-scheme dark, and dark: utilities apply', async () => {
+        const s = await rootState(tab);
+        const probe = await tab.evaluate(() => getComputedStyle(document.getElementById('ts-probe')).color);
+        const accent = await tab.evaluate(() => {
+            const el = document.createElement('span');
+            el.className = 'text-accent';
+            document.body.append(el);
+            const c = getComputedStyle(el).color;
+            el.remove();
+            return c;
+        });
+        return (s.dark && !s.light && s.scheme === 'dark' && s.stored === 'dark' && probe === accent) || `${JSON.stringify(s)}, probe ${probe} vs ${accent}`;
+    });
+
+    await check('the other switcher on the same key follows; the one on another key does not', async () => {
+        const label = await cycleLabel(tab);
+        const other = await checkedIn(tab, 'ts-other');
+        const otherStored = await tab.evaluate(() => localStorage.getItem('other-theme'));
+        return (label === 'Theme: Dark' && other === 'system' && otherStored === null) || `button "${label}", other ${other}, other key ${otherStored}`;
+    });
+
+    await check('the button steps on: dark, system, light, and the segmented one follows', async () => {
+        const seen = [];
+        for (let i = 0; i < 3; i++) {
+            await tab.click('#ts-b [data-ds-theme-cycle]');
+            await tab.waitForTimeout(350);
+            seen.push(`${await cycleLabel(tab)}/${await checkedIn(tab, 'ts-a')}/${(await rootState(tab)).stored}`);
+        }
+        return seen.join(', ') === 'Theme: System/system/null, Theme: Light/light/light, Theme: Dark/dark/dark' || seen.join(', ');
+    });
+
+    await check('"system" clears the key rather than storing it', async () => {
+        await tab.click('#ts-a label:has(input[value=system])');
+        await tab.waitForTimeout(350);
+        const s = await rootState(tab);
+        return (s.stored === null && s.light && !s.dark) || JSON.stringify(s);
+    });
+
+    await check('on "system", it follows the system as it changes', async () => {
+        await tab.emulateMedia({ colorScheme: 'dark' });
+        await tab.waitForTimeout(150);
+        const dark = await rootState(tab);
+        await tab.emulateMedia({ colorScheme: 'light' });
+        await tab.waitForTimeout(150);
+        const light = await rootState(tab);
+        return (dark.dark && !dark.light && light.light && !light.dark) || `dark system: ${JSON.stringify(dark)}, light: ${JSON.stringify(light)}`;
+    });
+
+    await check('a chosen theme does not follow the system', async () => {
+        await tab.click('#ts-a label:has(input[value=light])');
+        await tab.waitForTimeout(350);
+        await tab.emulateMedia({ colorScheme: 'dark' });
+        await tab.waitForTimeout(150);
+        const s = await rootState(tab);
+        await tab.emulateMedia({ colorScheme: 'light' });
+        return (s.light && !s.dark) || JSON.stringify(s);
+    });
+
+    await check('another tab follows through the storage event: page and switchers', async () => {
+        const { tab: second } = await themeTab();
+        const before = await checkedIn(second, 'ts-a');
+        await tab.click('#ts-a label:has(input[value=dark])');
+        await tab.waitForTimeout(400);
+        const s = await rootState(second);
+        const a = await checkedIn(second, 'ts-a');
+        const label = await cycleLabel(second);
+        await second.close();
+        return (before === 'light' && s.dark && a === 'dark' && label === 'Theme: Dark') || `started ${before}; then ${JSON.stringify(s)}, ${a}, "${label}"`;
+    });
+
+    await check('a reload starts from the stored choice', async () => {
+        await tab.reload({ waitUntil: 'networkidle' });
+        await tab.waitForTimeout(250);
+        const s = await rootState(tab);
+        return (s.dark && (await checkedIn(tab, 'ts-a')) === 'dark' && (await cycleLabel(tab)) === 'Theme: Dark') || JSON.stringify(s);
+    });
+
+    // Counted around the browser's own, which still runs the change.
+    const countTransitions = () => tab.evaluate(() => {
+        window.vtCalls = 0;
+        window.vtFlag = [];
+        const original = document.startViewTransition.bind(document);
+        document.startViewTransition = (update) => {
+            window.vtCalls++;
+            window.vtFlag.push(document.documentElement.hasAttribute('data-ds-theme-changing'));
+            return original(update);
+        };
+    });
+
+    await check('with motion allowed: one view transition per change, flagged for the timing rule, flag removed after', async () => {
+        await countTransitions();
+        await tab.click('#ts-a label:has(input[value=light])');
+        await tab.waitForTimeout(600);
+        const r = await tab.evaluate(() => ({ calls: window.vtCalls, flagged: window.vtFlag, left: document.documentElement.hasAttribute('data-ds-theme-changing') }));
+        const s = await rootState(tab);
+        return (r.calls === 1 && r.flagged[0] === true && !r.left && s.light) || `${JSON.stringify(r)}, ${JSON.stringify(s)}`;
+    });
+
+    await check('the timing rule is the dialog\'s, in the shipped theme.css', async () => {
+        const rule = await tab.evaluate(() => [...document.styleSheets].flatMap((sheet) => [...sheet.cssRules])
+            .find((r) => r.selectorText?.includes('data-ds-theme-changing'))?.style.animationDuration);
+        return rule === 'var(--ds-motion-duration-dialog-enter)' || `found ${rule}`;
+    });
+
+    await check('with reduced motion: no view transition, the change at once', async () => {
+        await tab.emulateMedia({ reducedMotion: 'reduce' });
+        await countTransitions();
+        await tab.click('#ts-a label:has(input[value=dark])');
+        await tab.waitForTimeout(200);
+        const calls = await tab.evaluate(() => window.vtCalls);
+        const s = await rootState(tab);
+        await tab.emulateMedia({ reducedMotion: 'no-preference' });
+        return (calls === 0 && s.dark) || `${calls} transitions, ${JSON.stringify(s)}`;
+    });
+
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await tab.evaluate(() => localStorage.clear());
+    await tab.close();
+}
+
+await themeContext.close();
 
 group('a host WITHOUT the script');
 {

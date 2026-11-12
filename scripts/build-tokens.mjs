@@ -368,9 +368,9 @@ const themeCss = `${banner('Tailwind CSS v4 theme, mapping the tokens onto utili
 /*
   The rule Alpine depends on and does not ship.
 
-  Twelve components mark an overlay \`x-cloak\`: modal, drawer, sheet, dropdown,
-  tooltip, select, combobox, date-picker, file-upload, popover, hover-card, and
-  sub-nav's link for the collapsed rail. Alpine removes the attribute once it
+  Thirteen components mark an overlay \`x-cloak\`: modal, drawer, sheet, dropdown,
+  tooltip, select, combobox, date-picker, file-upload, popover, hover-card,
+  context-menu, and sub-nav's link for the collapsed rail. Alpine removes the attribute once it
   boots, and \`x-show\` takes over from there — but
   until that moment the attribute is the ONLY thing hiding them. With no rule
   behind it, every dialog on the page renders open, backdrop and all, from first
@@ -387,6 +387,27 @@ const themeCss = `${banner('Tailwind CSS v4 theme, mapping the tokens onto utili
 */
 [x-cloak] {
   display: none !important;
+}
+
+/*
+  ds::theme-switcher changes the theme inside a view transition where the
+  browser has one and motion is allowed: the browser's own crossfade of the
+  page, at the dialog's timing instead of its 250ms default. Scoped to the
+  attribute the switcher sets for the length of the change, so a host's own
+  view transitions keep theirs. The switcher already skips the transition
+  under reduced motion; the media block is for a host that calls it anyway.
+*/
+:root[data-ds-theme-changing]::view-transition-old(root),
+:root[data-ds-theme-changing]::view-transition-new(root) {
+  animation-duration: var(--ds-motion-duration-dialog-enter);
+  animation-timing-function: var(--ds-motion-ease-enter);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-ds-theme-changing]::view-transition-old(root),
+  :root[data-ds-theme-changing]::view-transition-new(root) {
+    animation: none;
+  }
 }
 
 @theme {

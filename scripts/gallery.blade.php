@@ -1302,6 +1302,25 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Theme switcher --}}
+<section class="ds-spec" id="theme-switcher">
+    <header class="ds-spec-head">
+        <h2>Theme switcher</h2>
+        <p>Light, dark or the system&rsquo;s, remembered in the browser and applied to the page. Its partner, <code>&lt;x-ds::theme-script /&gt;</code>, goes in the head before the CSS so the first paint is already right.</p>
+    </header>
+
+    <div class="ds-note">With <em>no Alpine</em> here both show <em>System</em>, which is what the server draws: it cannot read the browser&rsquo;s storage. Pressing them does nothing on this page.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">segmented and button <span>&middot; three choices side by side for a settings page; one icon that steps through them for a header</span></div>
+        <div class="{{ $row }}">
+            <x-ds::theme-switcher storageKey="gallery-theme" />
+            <x-ds::theme-switcher variant="button" storageKey="gallery-theme" />
+            <x-ds::theme-switcher variant="button" size="sm" storageKey="gallery-theme" />
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Context menu --}}
 <section class="ds-spec" id="context-menu">
     <header class="ds-spec-head">

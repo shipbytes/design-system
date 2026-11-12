@@ -41,6 +41,7 @@ package.json      @shipbytes/design-tokens   Composer reads composer.json from
 
 src/              the service provider
   View/Components/Scripts.php   ds::scripts, the include (a class, not a view)
+  View/Components/ThemeScript.php  ds::theme-script, the pre-paint theme snippet
   View/Components/ButtonGroup.php  ds::button-group's props: a class so the
                                 buttons can @aware a key no other component
                                 has (see the class, and ButtonGroupTest)
@@ -652,18 +653,20 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 67 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 69 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
 accordion, accordion-item, alert, avatar, avatar-group, badge, bottom-nav,
 bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, chip,
 button-group, chip-group, combobox, copy-button, date-picker, drawer, dropdown,
-dropdown-item, empty-state, file-upload, hover-card, icon, input, modal,
+context-menu, dropdown-item, empty-state, file-upload, hover-card, icon,
+input, modal,
 nav-item, number-field, otp-input, panel, panel-row, password-strength,
 popover, progress, radio, radio-card, radio-cards, radio-group, rating,
 segment, segmented-control, select, sheet, sheet-item, skeleton, stat-tile,
 step, stepper, sub-nav, switch, tab,
-tab-panel, table, table-cell, table-row, tabs, tag-input, toast, toast-region,
+tab-panel, table, table-cell, table-row, tabs, tag-input, theme-switcher,
+toast, toast-region,
 toggle, toggle-group, toolbar, toolbar-button, toolbar-separator, tooltip,
 usage-meter.
 
@@ -675,7 +678,7 @@ three lines of CSS, every component rendering styled in light and dark.
 **Needs Alpine:** modal, drawer, sheet, dropdown, select, combobox, date-picker,
 accordion (with accordion-item), file-upload, tooltip, otp-input, tag-input,
 number-field, password-strength, copy-button, toolbar (with toolbar-button and
-toolbar-separator), toggle-group (with toggle), popover, hover-card, context-menu, sub-nav —
+toolbar-separator), toggle-group (with toggle), popover, hover-card, context-menu, theme-switcher, sub-nav —
 always (sub-nav only to toggle: its open state is rendered from PHP). Plus ONE optional prop each on
 checkbox (`indeterminate`), nav-item (`collapsedWhen`), toast (`dismiss`) and
 input (`reveal`), and the pagination views' Livewire variants, whose scroll to
@@ -691,7 +694,9 @@ copy-button (`dsClipboard`, which is also documented for direct use),
 toolbar (`dsToolbar`, `x-ds-glide.hover`), toggle-group (`dsToggleGroup`,
 `x-ds-glide.hover`), popover (`dsPopover`, `x-ds-anchor`), hover-card
 (`dsHoverCard`, `x-ds-anchor`), context-menu (`dsContextMenu`, `x-ds-anchor`
-with its `at` box), and input's `reveal` (`dsPassword`). segmented-control
+with its `at` box), theme-switcher (`dsTheme`), and input's `reveal`
+(`dsPassword`). `<x-ds::theme-script />` is a class component like
+`ds::scripts`, plain inline JavaScript with no Alpine and no script. segmented-control
 uses `x-ds-glide` as an enhancement only, and dropdown, select, combobox,
 date-picker and tooltip use `x-ds-anchor` as an enhancement only: each works
 without the script exactly as in 1.x, and with it stays on screen. See the

@@ -816,6 +816,20 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── theme-switcher
+     Both variants as the server draws them, on "system": the docs browser has
+     nothing stored. --}}
+<div data-shot="theme-switcher" class="shot">
+    @foreach ($themes as $t)
+        <div class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex items-end gap-6">
+                <x-ds::theme-switcher storageKey="docs-shot-theme" />
+                <x-ds::theme-switcher variant="button" storageKey="docs-shot-theme" />
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── popover
      Open from the host's `shown`, which is true from the start, so it takes
      no focus and both panes hold one open at once. --}}

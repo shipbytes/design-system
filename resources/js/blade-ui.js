@@ -21,10 +21,11 @@ import { otp } from './behaviours/otp.js';
 import { password } from './behaviours/password.js';
 import { popover } from './behaviours/popover.js';
 import { tagInput } from './behaviours/tag-input.js';
+import { theme } from './behaviours/theme.js';
 import { toggleGroup } from './behaviours/toggle-group.js';
 import { toolbar } from './behaviours/toolbar.js';
 
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme];
 
 // Symbol.for, not a module-level flag. Two copies of this script, say the
 // inlined one AND a Vite import, are two separate modules with two separate
