@@ -48,7 +48,7 @@
     // the browser's own state survive. Its focus is drawn on the card.
     $control = implode(' ', [
         'peer col-start-1 row-start-1 size-4.5 shrink-0 appearance-none rounded-full',
-        'border border-border-strong bg-surface transition-colors',
+        'border border-border-strong bg-surface motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter',
         'checked:border-accent checked:bg-accent',
         'focus-visible:outline-none',
         $disabled
