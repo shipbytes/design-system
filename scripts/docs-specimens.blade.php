@@ -1982,6 +1982,56 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── share-sheet --}}
+<div data-shot="share-sheet" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="rounded-panel border border-border bg-surface p-5 shadow-raised">
+                <x-ds::share-sheet id="docs-share-{{ $loop->index }}" url="https://example.com/r/q3-report" label="Share Q3 report"
+                    access="restricted" :accessOptions="['restricted' => 'Restricted', 'link' => 'Anyone with the link']"
+                    :roles="['viewer' => 'Viewer', 'editor' => 'Editor']"
+                    :people="[['id' => 1, 'name' => 'Maya Patel', 'email' => 'maya@example.com', 'role' => 'Owner', 'locked' => true], ['id' => 2, 'name' => 'Omar Malik', 'email' => 'omar@example.com', 'role' => 'editor']]" />
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── swipe-actions --}}
+{{-- Operated: the second row opened by its More button, as a swipe would. --}}
+<div data-shot="swipe-actions" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <ul role="list" class="divide-y divide-divider overflow-hidden rounded-panel border border-border bg-surface">
+                @foreach (['Invoice #1042 is overdue', 'Omar left a comment on the Q3 report', 'Your export is ready'] as $subject)
+                    <li>
+                        <x-ds::swipe-actions :data-shot-open="$loop->index === 1">
+                            <a href="#" class="block px-4 py-3"><span class="block text-body font-medium text-fg">{{ $subject }}</span><span class="block text-meta text-fg-muted">Yesterday</span></a>
+                            <x-slot:start><x-ds::swipe-action label="Archive" icon="archive-box" tone="accent" /></x-slot:start>
+                            <x-slot:end>
+                                <x-ds::swipe-action label="Flag" icon="flag" />
+                                <x-ds::swipe-action label="Delete" icon="trash" tone="danger" />
+                            </x-slot:end>
+                        </x-ds::swipe-actions>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── pull-refresh --}}
+<div data-shot="pull-refresh" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <x-ds::pull-refresh href="#" label="Feed" :refreshing="true" :timeout="0" class="h-64 rounded-panel border border-border bg-surface">
+                @foreach (['Deploy finished', 'New sign-up', 'Invoice paid', 'Backup completed', 'Report sent'] as $item)
+                    <p class="border-t border-divider px-4 py-3 text-body text-fg">{{ $item }}</p>
+                @endforeach
+            </x-ds::pull-refresh>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── slider --}}
 <div data-shot="slider" class="shot">
     @foreach ($themes as $t)

@@ -382,6 +382,9 @@ table.ref .samp { color: var(--g-ink); font-family: Inter, ui-sans-serif, system
       <a href="#calendar">Calendar</a>
       <a href="#file-upload">Upload</a>
       <a href="#avatar-upload">Avatar upload</a>
+      <a href="#share-sheet">Share sheet</a>
+      <a href="#swipe-actions">Swipe</a>
+      <a href="#pull-refresh">Pull to refresh</a>
       <a href="#slider">Slider</a>
       <a href="#time-picker">Time</a>
       <a href="#money-input">Money</a>

@@ -1,6 +1,6 @@
 # Shipbytes Blade UI — documentation
 
-119 Blade components for Laravel, plus two pagination views. Presentation
+123 Blade components for Laravel, plus two pagination views. Presentation
 only: no state, no framework assumptions beyond Blade itself.
 
 **New here?** Start with [Getting started](getting-started.md) — install, three
@@ -70,6 +70,8 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Expandable text](components/expandable-text.md) | Text held to a few lines with Read more — needs Alpine and the script |
 | [Scroll area](components/scroll-area.md) | A bounded box that scrolls natively, with a quiet scrollbar and edge shadows |
 | [Split](components/split.md) | Panes with a divider to drag between them, nested if need be — needs Alpine and the script |
+| [Swipe actions](components/swipe-actions.md) | A list row that slides sideways to show its actions, with a More button for everyone else — needs Alpine and the script |
+| [Pull to refresh](components/pull-refresh.md) | Pull a list down at its top to refresh it, with a Refresh button for everyone else — needs Alpine and the script |
 
 ### Data
 
@@ -130,7 +132,8 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 |---|---|
 | [Modal](components/modal.md) | Blocks the page until it is answered — Alpine |
 | [Drawer](components/drawer.md) | An edge panel to work in — Alpine |
-| [Sheet](components/sheet.md) | The mobile form of either — Alpine |
+| [Sheet](components/sheet.md) | The mobile form of either, with snap points and drag (those need the script) — Alpine |
+| [Share sheet](components/share-sheet.md) | Who has access and the link: roles, general access, copy, the device's share sheet — posts as a form |
 | [Dropdown](components/dropdown.md) | A menu of actions — Alpine |
 | [Popover](components/popover.md) | Anything else anchored to a button: fields, a form — needs Alpine and the script |
 | [Confirm popover](components/confirm-popover.md) | A question anchored to its button, with optional type-to-confirm — needs Alpine and the script |
@@ -168,7 +171,7 @@ plain Blade view. The one opt-in exception is the pagination views' Livewire
 variants, which emit `wire:click` for a component that uses `WithPagination`.
 
 [Alpine](https://alpinejs.dev) — a single 15 kB script, not a framework — is
-needed by forty-three components, and by eleven optional props:
+needed by forty-five components, and by eleven optional props:
 
 | | Needs Alpine |
 |---|---|
@@ -189,6 +192,10 @@ needed by forty-three components, and by eleven optional props:
 | `color-picker` | **Always, and the package's script too**, but for `presetsOnly`, which is native radios and needs neither. Without them the browser's own colour input stands in for the panel, posting `#rrggbb`. |
 | `date-picker` `calendar` | **Always, and the package's script too.** Without them each posts from native date fields (two for a range): the date picker shows them in place of its button, the calendar under the grid the server drew. |
 | `avatar-upload` | **Always, and the package's script too.** Without them it is a plain file input posting the original photo, for the server to crop, and a Remove checkbox. |
+| `swipe-actions` | **Always, and the package's script too.** Without them the actions sit after the row's content as ordinary buttons. |
+| `pull-refresh` | **Always, and the package's script too.** Without them it is its Refresh button: a link, or a submit for its form. |
+| `sheet` | Its snap points and drag need the package's script as well. Without it the sheet opens at its natural height. |
+| `share-sheet` | **Never.** Its controls post as a form. With Alpine each change is also dispatched as an event, and the device share button appears where the browser has one. |
 | `icon-swap` | **Never.** It reads its button's state from CSS. |
 | `scroll-area` | **Never.** It scrolls natively. With Alpine and the package's script it also draws its edge shadows in a browser that cannot from CSS. |
 | `sub-nav` | **Only to open and close.** Without it the section holding the current page is open and the rest are closed, as the server rendered them. |
@@ -209,7 +216,7 @@ needed by forty-three components, and by eleven optional props:
 
 The package also ships a small script of its own, the behaviours several
 components share, which goes in the layout as `<x-ds::scripts />` above Alpine.
-The twenty-four above that need it, and `input`'s `reveal` and `announcement-bar`'s
+The twenty-six above that need it, and `sheet`'s snap points, `input`'s `reveal` and `announcement-bar`'s
 dismissal, say so at the top of
 their pages. See [Add the script](getting-started.md#3-add-the-script).
 

@@ -59,7 +59,7 @@
         x-show="dsOpen"
         x-cloak
         x-effect="{{ $focus }}"
-        @keydown.escape.window="if (dsOpen) dsOpen = false"
+        @keydown.escape.window="{{ $layer['escape']('dsOpen') }}"
         class="fixed inset-0 z-50 flex items-start justify-center p-4 sm:pt-[12vh]"
     >
         <div x-show="dsOpen" @click="dsOpen = false" {{ $backdropTransition }} class="{{ $layer['backdrop'] }}"></div>
@@ -73,7 +73,7 @@
             role="dialog"
             aria-modal="true"
             aria-label="{{ $label }}"
-            class="relative flex max-h-full w-full max-w-xl flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden"
+            class="relative flex max-h-full w-full max-w-xl flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden {{ $layer['covered'] }}"
         >
             {{-- The field keeps focus the whole time the palette is open, so
                  its ring is drawn on its row, inward, where the panel's

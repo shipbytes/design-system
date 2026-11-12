@@ -220,7 +220,7 @@ async function bladeFiles(dir) {
   directive costs the readout and the keyboard and nothing else:
   test-behaviour.mjs renders the three charts on a page with no include.
 */
-const ENHANCEMENTS = new Set(['ds-glide', 'ds-anchor', 'ds-roll', 'ds-chart', 'ds-scroll-shadows', 'ds-shortcut']);
+const ENHANCEMENTS = new Set(['ds-glide', 'ds-anchor', 'ds-roll', 'ds-chart', 'ds-scroll-shadows', 'ds-shortcut', 'ds-sheet']);
 
 const used = new Map(); // "data:dsX" -> [files]
 const rawData = [];

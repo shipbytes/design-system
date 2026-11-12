@@ -12,7 +12,7 @@
 A design system for Laravel and Blade, with design tokens any other stack can
 use from plain CSS or JavaScript.
 
-**119 Blade components**, a spec and a documentation page for each, design tokens
+**123 Blade components**, a spec and a documentation page for each, design tokens
 with light and dark values, and three test suites — including one that drives
 every interactive component in a real browser.
 
@@ -38,7 +38,7 @@ compiled CSS; the install is one `composer require` and three lines of CSS. Add
 `@shipbytes/design-tokens` only if your own JavaScript needs the token *values*
 — a chart palette reading `tokens.js` rather than repeating hex literals.
 
-**Laravel with Inertia + React?** Skip `blade-ui` — 119 Blade components you
+**Laravel with Inertia + React?** Skip `blade-ui` — 123 Blade components you
 cannot render are not useful — and take `@shipbytes/design-tokens`: the same
 `tokens.css` and `theme.css`, so your own React components draw from the same
 values. If you have both, Blade marketing pages and a React app behind login,
@@ -182,12 +182,12 @@ source, in both themes.
 
 ### What you get
 
-119 Blade components, plus the pagination views.
+123 Blade components, plus the pagination views.
 
 **Layout & content** — `panel` `panel-row` `table` `table-cell` `table-row`
 `stat-tile` `empty-state` `skeleton` `progress` `usage-meter` `accordion`
 `accordion-item` `code-block` `kbd` `expandable-text` `scroll-area` `split`
-`split-pane`
+`split-pane` `swipe-actions` `swipe-action` `pull-refresh`
 **Forms** — `input` `select` `combobox` `checkbox` `radio` `radio-group`
 `radio-cards` `radio-card` `chip-group` `chip` `rating` `switch` `date-picker`
 `calendar` `file-upload` `avatar-upload` `otp-input` `tag-input` `number-field` `password-strength`
@@ -201,7 +201,7 @@ source, in both themes.
 `user-menu` `team-switcher`
 **Overlays** — `modal` `drawer` `sheet` `sheet-item` `dropdown` `dropdown-item`
 `popover` `confirm-popover` `hover-card` `context-menu` `tooltip` `toast`
-`toast-region` `command-palette` `command-group` `command-item`
+`toast-region` `command-palette` `command-group` `command-item` `share-sheet`
 **Data** — `counter` `sparkline` `gauge` `activity-heatmap` `bar-chart`
 `line-chart` `donut-chart` `split-bar` `waffle-chart` `activity-rings`
 `slope-chart` `funnel-chart` `radar-chart` `treemap` `timeline`
@@ -234,7 +234,7 @@ Forty-three need [Alpine](https://alpinejs.dev) — `modal`, `drawer`, `sheet`,
 `swap-button`, `team-switcher`, `money-input`, `phone-input`,
 `shortcut-input`, `mention-input`, `color-picker` (but for its
 `presetsOnly`, a radio group), `date-picker`, `calendar` and
-`avatar-upload`, the last thirty-two with the package's own script as well
+`avatar-upload`, `swipe-actions` and `pull-refresh`, the last thirty-four with the package's own script as well
 (without them the date picker and the calendar post from native date fields,
 and the avatar upload is a plain file input) — plus one optional prop each on
 `checkbox`, `nav-item`, `toast`, `panel` (`collapsible`), `filter-bar`

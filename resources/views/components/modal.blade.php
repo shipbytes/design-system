@@ -85,6 +85,7 @@
     $layer = \Shipbytes\BladeUi\Support\Modal::recipe();
     $focusTrap = $layer['trap'];
     $focusManagement = $layer['focus']($open);
+    $escape = $layer['escape']($open);
     $backdropTransition = new \Illuminate\View\ComponentAttributeBag($layer['backdropTransition']);
     $panelTransition = new \Illuminate\View\ComponentAttributeBag($layer['panelTransition']);
 @endphp
@@ -94,7 +95,7 @@
     x-cloak
     x-effect="{{ $focusManagement }}"
     @if ($dismissible)
-        @keydown.escape.window="if ({{ $open }}) {{ $open }} = false"
+        @keydown.escape.window="{{ $escape }}"
     @endif
     {{-- Above the bottom nav (z-40) and level with the sheet (z-50): the sheet
          is this component's mobile sibling, and the two never coexist. --}}
@@ -118,7 +119,7 @@
         tabindex="-1"
         {{ $attributes->merge([
             'class' => "relative flex w-full {$width} flex-col overflow-hidden rounded-panel "
-                .'bg-surface shadow-overlay outline-hidden '
+                .'bg-surface shadow-overlay outline-hidden '.$layer['covered'].' '
                 // `full`, not a viewport unit. The root is `fixed inset-0 p-4`,
                 // so 100% of it is already "the viewport, less the gutter" —
                 // and it stays correct when the root is NOT the viewport, which

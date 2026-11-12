@@ -35,6 +35,7 @@ final class Components
         'sortable-item' => 'sortable-list',
         'split-pane' => 'split',
         'step' => 'stepper',
+        'swipe-action' => 'swipe-actions',
         'tab' => 'tabs',
         'tab-panel' => 'tabs',
         'table-cell' => 'table',

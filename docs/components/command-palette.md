@@ -155,7 +155,8 @@ A modal dialog on the same layer as [modal](modal.md): focus moves to the
 field and stays there, Tab is trapped, the page behind does not scroll, and
 focus goes back where it was on close. The field is an ARIA combobox whose
 `aria-activedescendant` names the active option; "No results" is announced.
-Disabled options are passed over.
+Disabled options are passed over. Opened over another overlay it stacks; see
+[Stacking overlays](../getting-started.md#stacking-overlays).
 
 ## Don't
 

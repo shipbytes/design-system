@@ -222,10 +222,13 @@ use the component.
 | `dsSearch` | Behind `ds::input`'s `expanding`. Escape clears, then collapses with focus on the icon button; the button and a key typed on it go to the field; `shortcut` opens it from anywhere. |
 | `dsCalendar` | Behind `ds::calendar` and `ds::date-picker`. Redraws the month grid the server drew (one day, a range or several; one to three months), with the ARIA date-grid keys (arrows, PageUp/PageDown a month, Shift for a year, Home/End the week); previews a half-made range under the pointer or focus and swaps the ends on an earlier second pick; keeps the posted inputs in step and dispatches `input` and `change` from them; dispatches `month-change` with `{ year, month }`; binds `wire:model` / `x-model` through `x-modelable`. In the date picker, also the popover, the presets, `minDays` / `maxDays` and the Apply / Cancel draft. |
 | `dsAvatarUpload` | Behind `ds::avatar-upload`. Takes a photo from Change, a drop or a paste, checks its type and size, and opens the crop dialog: drag, pinch, the wheel, the slider and the keys move and zoom it, Rotate turns it. Apply draws the square crop to a canvas at `outputSize`, puts it in the real file input (so a form posts it and `wire:model` uploads it), dispatches `crop` with `{ blob, width, height }`, and shows it. Remove ticks `{name}_remove`. Nothing is uploaded by the script. |
+| `dsSwipe` | Behind `ds::swipe-actions`. Puts the actions under the row's content and slides it to show them: a horizontal drag (pan-y, so a vertical one is the page's scroll), opening past `threshold` or on a flick, the side by reading direction; with `full`, a swipe most of the way presses the outer action and dispatches `swipe` with `{ side }`. More opens the end, then the start, then closes; focus on an action opens its side; Escape closes onto More. One row open per list or `group`. |
+| `dsPullRefresh` | Behind `ds::pull-refresh`. A touch pull down at the top brings the content down against a growing resistance and fills the `ds::progress` ring; past `threshold`, and on the Refresh button, marks the root `data-refreshing` and `aria-busy` and dispatches a cancelable `refresh`; unanswered, follows the button's link or submits its form. Ends on `refreshed`, a re-render that drops `data-refreshing`, or `timeout`, and says "Updated". |
 | `dsTree` | Behind `ds::tree`. One Tab stop for the tree; the arrow keys, Home, End, type-ahead and `*`; opens and closes folders (dispatching `expand` and `collapse`), selects or checks rows with tri-state parents, keeps the posted inputs in step, and binds `wire:model` / `x-model` both ways. |
 | `x-ds-roll` | A directive, behind `ds::counter` when its value comes from the server. Rolls the digits when a re-render (a Livewire morph) changes the number; with `.in`, rolls up from zero the first time the counter is half in view. Instant under reduced motion. |
 | `x-ds-scroll-shadows` | A directive, behind `ds::scroll-area`. Where the browser cannot draw the edge shadows from CSS (no scroll-driven animations), marks each edge that has more content past it, on scroll and on resize. Does nothing where CSS can. |
 | `x-ds-chart` | A directive, behind `ds::bar-chart`, `ds::line-chart`, `ds::donut-chart`, `ds::split-bar`, `ds::waffle-chart`, `ds::activity-rings`, `ds::slope-chart`, `ds::funnel-chart`, `ds::radar-chart` and `ds::treemap` when `interactive` (the default). Shows a readout (label, value, series) beside the mark under the pointer or keyboard focus; makes the marks reachable through one Tab stop per chart, the arrow keys moving along a series and across to the next, Home and End to the ends, Escape putting the readout away; and, on a chart with several series, turns the legend's entries into buttons that show and hide their series without re-scaling anything. |
+| `x-ds-sheet` | A directive, behind `ds::sheet`'s `snap` and `draggable`. Draws the sheet at its highest point and slides it to the one it is at; drags it by the handle and header (and the content below the top, the nested-scroll rule); settles on the nearest point by position and speed, or closes it past the lowest; makes the handle a button (Enter, Space, the arrows) that says Expanded, Half or Collapsed; follows the visual viewport and an on-screen keyboard; dispatches `snap` with `{ index, value }`. An enhancement: without it the sheet opens at its natural height. |
 | `x-ds-shortcut` | A directive, behind `ds::kbd`'s `shortcut` (and so `ds::shortcut-input`'s keys). Redraws a stored shortcut for a Mac, ⌘⇧K in place of Ctrl + Shift + K, with words for screen readers, and again when its `data-ds-shortcut` changes. An enhancement: without it the server's words form stands. |
 
 ### When it is missing
@@ -241,8 +244,8 @@ The component renders, because the server rendered it, and does nothing when
 pressed. In your own `x-data` the same cause reads as Alpine's
 `dsClipboard is not defined`.
 
-`x-ds-glide`, `x-ds-anchor`, `x-ds-roll`, `x-ds-chart` and
-`x-ds-scroll-shadows` are the five registrations that are silent when missing, on purpose. `x-ds-glide` only adds the sliding highlight, and
+`x-ds-glide`, `x-ds-anchor`, `x-ds-roll`, `x-ds-chart`,
+`x-ds-scroll-shadows` and `x-ds-sheet` are the six registrations that are silent when missing, on purpose. `x-ds-glide` only adds the sliding highlight, and
 `ds::segmented-control`, which uses it without any `ds…` behaviour, works and
 posts the same without it: Alpine skips a directive it does not know, and the
 chosen segment keeps the face CSS draws. `x-ds-anchor` keeps an overlay on
@@ -257,7 +260,9 @@ which does report itself, because nothing else would write the number.
 chart itself is drawn by the server as an image named by its summary, which
 is what every reader gets without it. `x-ds-scroll-shadows` only draws the
 scroll area's edge shadows in a browser whose CSS cannot: the box scrolls the
-same without it.
+same without it. `x-ds-sheet` only adds the snap points and the drag: without
+it a sheet opens at its natural height and closes by its ✕, its backdrop and
+Escape, as a 1.x sheet does.
 
 ## 4. Use a component
 
@@ -429,6 +434,49 @@ markup usable from plain Blade, a Livewire component, or a Volt page.
 
 `dropdown` and `tooltip` are the exceptions: leave `open` off and they scope
 their own state, so a menu on every row of a table needs no wrapper.
+
+## Stacking overlays
+
+`modal`, `drawer`, `command-palette` and a `sheet` with any of its 2.0 props
+(`snap`, `initialSnap`, `draggable`, `dismissible`, `handle`, `modal`) are
+layers of one stack. Open one from another and:
+
+- **The one below steps back.** It scales back a little and dims, so the
+  reader can see there is something under the top one and that it is not the
+  one they are in. Under reduced motion it only dims.
+- **The page is darkened once.** The top layer drops its own backdrop.
+- **Focus** is trapped in the top layer, and goes back where it came from as
+  each closes.
+- **Escape closes the top one only.** Press it again for the next.
+- **The page stays locked** until the last one closes.
+- **The order on screen is the order of opening**, whichever comes first in
+  your markup.
+
+```blade
+<div x-data="{ show: { filters: false, save: false } }">
+    <x-ds::button @click="show.filters = true">Filters</x-ds::button>
+
+    <x-ds::drawer open="show.filters" title="Filters">
+        …
+        <x-ds::button @click="show.save = true">Save as a view…</x-ds::button>
+    </x-ds::drawer>
+
+    <x-ds::modal open="show.save" title="Save view" size="sm">…</x-ds::modal>
+</div>
+```
+
+Write the layers side by side, as above, rather than one inside another's
+body: side by side, the one below scales back; nested, it only dims (scaling
+it would scale the one inside it too). Both work.
+
+Closing a layer from code that is not the top one (`show.filters = false`
+while the modal is open) is fine: nobody's focus moves, and the modal returns
+focus to where the drawer would have.
+
+It needs no script, only Alpine: the stack is kept on the layers themselves
+(`data-ds-layer`, `data-ds-covered`). A plain 1.x `sheet`, with none of the
+2.0 props, renders exactly as it did and does not take part. Keep it to two:
+a third layer is a page.
 
 ## Driving components from client-side state
 

@@ -9,7 +9,7 @@
 
     Overlays are opened by the check from their triggers, with the keyboard.
 --}}
-<div class="space-y-6 p-8" x-data="{ show: true, modalOpen: false, drawerOpen: false }">
+<div class="space-y-6 p-8" x-data="{ show: true, modalOpen: false, drawerOpen: false, sheetOpen: false }">
 <section data-focus="button"><x-ds::button>Save</x-ds::button> <x-ds::button variant="primary">Go</x-ds::button> <x-ds::button variant="ghost" iconOnly aria-label="Settings"><x-ds::icon name="cog" /></x-ds::button> <x-ds::button href="/x">Link</x-ds::button></section>
 <section data-focus="pagination">
 @php $paginator = new \Illuminate\Pagination\LengthAwarePaginator(range(1, 15), 237, 15, 4, ['path' => '/reports']); $simple = new \Illuminate\Pagination\Paginator(range(1, 16), 15, 2, ['path' => '/reports']); @endphp
@@ -130,6 +130,14 @@
 <section data-focus="split"><div class="h-24 w-96 border border-border"><x-ds::split label="Resize"><x-ds::split-pane size="50%">A</x-ds::split-pane><x-ds::split-pane>B</x-ds::split-pane></x-ds::split></div></section>
 {{-- The trigger is the host's; the field's ring is on its row, checked by the overlay walk. --}}
 <section data-focus="command-palette"><x-ds::button id="f-cmd-open" x-on:click="$dispatch('open-command-palette', { name: 'focus' })">Search</x-ds::button><x-ds::command-palette name="focus" :shortcut="false"><x-ds::command-item label="Invoices" href="#invoices" /></x-ds::command-palette></section>
+{{-- Batch 19. A swipe row's More, then its actions (focus opens their side). --}}
+<section data-focus="swipe-actions" class="max-w-sm"><ul role="list"><li><x-ds::swipe-actions><a href="#swipe" class="block px-4 py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring">Message</a><x-slot:start><x-ds::swipe-action label="Archive" icon="archive-box" tone="accent" /></x-slot:start><x-slot:end><x-ds::swipe-action label="Delete" icon="trash" tone="danger" /></x-slot:end></x-ds::swipe-actions></li></ul></section>
+{{-- The Refresh button; the region is not a stop of its own. --}}
+<section data-focus="pull-refresh" class="max-w-sm"><x-ds::pull-refresh href="#refresh" label="Feed" class="h-24"><p class="px-4 py-2">Item</p></x-ds::pull-refresh></section>
+{{-- A role select, a remove button, the access select, the link, Copy link. --}}
+<section data-focus="share-sheet" class="max-w-md"><x-ds::share-sheet url="https://example.com/r/1" label="Share" access="restricted" :accessOptions="['restricted' => 'Restricted', 'link' => 'Anyone with the link']" :roles="['viewer' => 'Viewer', 'editor' => 'Editor']" :people="[['id' => 2, 'name' => 'Omar Malik', 'role' => 'editor']]" /></section>
+{{-- Lg:hidden, so its inside is walked at phone width only: the handle, the ✕, a row. --}}
+<section data-focus="sheet-snap"><x-ds::button id="f-sheet-open" @click="sheetOpen = true">Open sheet</x-ds::button><x-ds::sheet open="sheetOpen" title="Places" :snap="['40%', 'full']"><a href="#place" class="block px-5 py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring">A place</a></x-ds::sheet></section>
 {{-- The walk stops here. A plain button, so it is not checked. --}}
 <p><button id="f-end" type="button">end</button></p>
 </div>

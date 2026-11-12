@@ -161,6 +161,35 @@ The non-negotiables, all of them implemented rather than documented as intent:
 - Escape closes, when `dismissible`.
 - The page behind does not scroll while it is open.
 
+### The overlay stack (2.0)
+
+The modal, the drawer, the command palette and a 2.0 sheet share one layer
+recipe (`partials/modal.php`) and, through it, one stack. It is kept in the
+DOM, so there is one of it whichever overlays are on the page, and it needs no
+script:
+
+- An open layer's root carries `data-ds-layer`, its order of opening. The
+  highest is on top, and is lifted one z-index above the rest, so the order on
+  screen is the order of opening, not of the source.
+- Every lower layer is `data-ds-covered`: its panel dims (an `::after` scrim at
+  half strength, over its content) and scales back to 0.94, on the dialog
+  motion tokens. Not under reduced motion (it only dims), and not when it holds
+  the top layer in its own markup (scaling it would scale the one on top).
+- A layer opened over another is `data-ds-stacked` and drops its own backdrop:
+  the page is darkened once, never twice.
+- **Tab** is trapped in the top layer only: a covered layer leaves Tab alone,
+  which matters when a dialog is written inside another one's body.
+- **Escape** closes the top layer only. The keydown is marked as it is used, so
+  the layer below, uncovered in the same key press, does not close too.
+- **The scroll lock** goes with the last layer, not the first to close.
+- **Closing a layer that is not on top** (from code) moves nobody's focus; what
+  it would have returned focus to is handed to the layer that was going to
+  return into it.
+
+This changed the modal's markup (`tests/ModalUnchangedTest`'s fixture was
+rewritten once, deliberately) and how two open layers behave. One modal on
+its own behaves exactly as it did.
+
 ### Why the focus trap is written out longhand
 
 `x-trap` from `@alpinejs/focus` is the usual answer and it is not used here.
@@ -201,10 +230,9 @@ half an hour, which is why it is a render-time exception now
 
 ## Do not
 
-- **Nest a modal in a modal.** Two blocking layers give the reader no way to know
-  what Escape means. Same rule as the sheet, for the same reason.
-- **Open a modal and a sheet together.** They share `z-50` and the stacking order
-  becomes source order, which is not a design.
+- **Stack more than two.** A modal opened from a modal, a drawer or a sheet takes
+  its place in the overlay stack (below), so Escape and focus are clear; a third
+  layer is a page.
 - **Put a form's only validation errors in a modal that closes on submit.** The
   reader never sees them.
 - **Use `dismissible="false"` without an explicit exit** in the footer.
