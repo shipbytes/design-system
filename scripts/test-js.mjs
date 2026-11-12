@@ -268,7 +268,7 @@ expect(!orphans.length, 'every registered behaviour is used by a component or do
   money cases are tests/MoneyTest.php's, so the browser and the server are
   held to the same answers.
 */
-head('shared helpers: amounts as digits, shortcuts as strings');
+head('shared helpers: amounts as digits, shortcuts as strings, colours');
 {
     const money = await import(pathToFileURL(join(ROOT, 'resources/js/shared/money.js')).href);
     const out = (value, decimals = 2, minor = false, givenMinor = false) =>
@@ -318,6 +318,26 @@ head('shared helpers: amounts as digits, shortcuts as strings');
         [sc.caps('alt+arrowup', true).map((c) => `${c.cap}/${c.word}`).join(' '), '⌥/Option ↑/Up Arrow', 'a named key has a symbol and a word'],
     ];
     for (const [got, want, what] of shortcuts) expect(got === want, what, `${what}: got ${JSON.stringify(got)}, wanted ${JSON.stringify(want)}`);
+
+    // tests/Fixtures/colour.json is ColourTest's too: one set of answers for
+    // Support\Colour and Support\Ink and for shared/colour.js.
+    const colour = await import(pathToFileURL(join(ROOT, 'resources/js/shared/colour.js')).href);
+    const fixture = JSON.parse(await readFile(join(ROOT, 'tests/Fixtures/colour.json'), 'utf8'));
+    const wrong = [];
+    for (const [text, want] of fixture.parse) {
+        const c = colour.parse(text);
+        if ((c && colour.hex(c, c.a < 1)) !== want) wrong.push(`parse(${JSON.stringify(text)})`);
+    }
+    for (const [hex, rgb, hsl, hsv] of fixture.convert) {
+        const c = colour.parse(hex);
+        const round = (list) => JSON.stringify(list.map(Math.round));
+        if (JSON.stringify([c.r, c.g, c.b]) !== JSON.stringify(rgb) || round(colour.toHsl(c)) !== JSON.stringify(hsl) || round(colour.toHsv(c)) !== JSON.stringify(hsv)) wrong.push(`convert ${hex}`);
+        if (colour.hex(colour.fromHsl(...colour.toHsl(c))) !== hex || colour.hex(colour.fromHsv(...colour.toHsv(c))) !== hex) wrong.push(`round trip ${hex}`);
+    }
+    for (const [hex, format, alpha, want] of fixture.write) if (colour.write(colour.parse(hex), format, alpha) !== want) wrong.push(`write ${hex} ${format}`);
+    for (const [a, b, want] of fixture.contrast) if (colour.ratio(colour.contrast(colour.parse(a), colour.parse(b))) !== want) wrong.push(`contrast ${a} on ${b}`);
+    const total = ['parse', 'convert', 'write', 'contrast'].reduce((n, k) => n + fixture[k].length, 0);
+    expect(!wrong.length, `colours: the ${total} cases of tests/Fixtures/colour.json, the server's answers`, `shared/colour.js disagrees with tests/Fixtures/colour.json: ${wrong.join(', ')}`);
 }
 
 finish();

@@ -1,0 +1,58 @@
+{
+    "about": "Shared by tests/ColourTest.php and scripts/test-js.mjs, so Support\\Colour and Support\\Ink on the server and resources/js/shared/colour.js in the browser are held to the same answers. parse: text, then the colour as #rrggbb (#rrggbbaa when translucent), or null. convert: hex, then [r, g, b], HSL and HSV rounded to whole numbers. write: hex, format, alpha, then the posted string. contrast: two colours, then the ratio as shown.",
+    "parse": [
+        ["abc", "#aabbcc"],
+        ["#ABC", "#aabbcc"],
+        [" #FFF ", "#ffffff"],
+        ["#1234", "#11223344"],
+        ["336699", "#336699"],
+        ["#aabbcc80", "#aabbcc80"],
+        ["rgb(1, 2, 3)", "#010203"],
+        ["rgb(1 2 3 / 50%)", "#01020380"],
+        ["rgba(255,0,0,0.5)", "#ff000080"],
+        ["rgb(100%, 50%, 0%)", "#ff8000"],
+        ["rgb(300, -5, 10)", "#ff000a"],
+        ["hsl(210deg 50% 40%)", "#336699"],
+        ["hsl(120, 100%, 25%)", "#008000"],
+        ["hsla(0, 0%, 100%, .25)", "#ffffff40"],
+        ["teal", "#008080"],
+        ["Grey", "#808080"],
+        ["#12345", null],
+        ["rgb(1,2)", null],
+        ["rgb(a, b, c)", null],
+        ["hsl(10, 20%)", null],
+        ["orange", null],
+        ["", null],
+        ["nonsense", null]
+    ],
+    "convert": [
+        ["#336699", [51, 102, 153], [210, 50, 40], [210, 67, 60]],
+        ["#ff8800", [255, 136, 0], [32, 100, 50], [32, 100, 100]],
+        ["#123456", [18, 52, 86], [210, 65, 20], [210, 79, 34]],
+        ["#808080", [128, 128, 128], [0, 0, 50], [0, 0, 50]],
+        ["#00ff7f", [0, 255, 127], [150, 100, 50], [150, 100, 100]],
+        ["#c0ffee", [192, 255, 238], [164, 100, 88], [164, 25, 100]],
+        ["#000000", [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+        ["#ffffff", [255, 255, 255], [0, 0, 100], [0, 0, 100]]
+    ],
+    "write": [
+        ["#336699", "hex", false, "#336699"],
+        ["#336699", "hex", true, "#336699ff"],
+        ["#33669980", "hex", true, "#33669980"],
+        ["#336699", "rgb", false, "rgb(51, 102, 153)"],
+        ["#33669980", "rgb", true, "rgba(51, 102, 153, 0.5)"],
+        ["#336699", "hsl", false, "hsl(210, 50%, 40%)"],
+        ["#33669940", "hsl", true, "hsla(210, 50%, 40%, 0.25)"]
+    ],
+    "contrast": [
+        ["#000000", "#ffffff", "21.00"],
+        ["#777777", "#ffffff", "4.47"],
+        ["#767676", "#ffffff", "4.54"],
+        ["#336699", "#ffffff", "5.99"],
+        ["#ff0000", "#ffffff", "3.99"],
+        ["#0000ff", "#ffff00", "8.00"],
+        ["#ffffff", "#ffffff", "1.00"],
+        ["#00000080", "#ffffff", "4.00"],
+        ["#09090b", "#fafafa", "19.06"]
+    ]
+}
