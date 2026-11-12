@@ -139,6 +139,384 @@ const __ds_behaviours_clipboard = (() => {
     return { clipboard };
 })();
 
+// behaviours/glide.js
+const __ds_behaviours_glide = (() => {
+    /*
+     * x-ds-glide: one highlight per container, moved to a target child.
+     *
+     *   x-ds-glide               selected: follows the checked, current, pressed or
+     *                            selected item, and is always shown while there is one
+     *   x-ds-glide="view"        the same, re-measured whenever `view` changes: the
+     *                            host's model, which can check a radio without
+     *                            firing an event
+     *   x-ds-glide.hover         hover: follows the pointer, and keyboard focus, and
+     *                            is hidden when neither is inside
+     *
+     * The markup is the component's, rendered complete by PHP:
+     *
+     *   container  data-ds-glide, positioned, and the `group/glide` its items read
+     *   highlight  data-ds-glide-highlight, `hidden`, absolute at the top left,
+     *              sized and moved by --ds-glide-x, -y, -w and -h
+     *   items      data-ds-glide-item
+     *
+     * This only measures and writes. It never adds a class: what the highlight
+     * looks like, and how it moves, is the view's, and travels as attributes the
+     * view's variants read. On the highlight, `data-visible` (hover mode),
+     * `data-instant` (place without sliding) and `data-pressing` (a press is under
+     * way); on the container, `data-ds-glide-ready` once the highlight has taken
+     * over from the server-rendered selected style.
+     *
+     * A glide inside another glide stands down, so a toggle group dropped into a
+     * toolbar shows the toolbar's one highlight and not two.
+     *
+     * In a host without the script, Alpine skips this directive in silence, and
+     * that is the design rather than the trap it usually is: every component that
+     * uses it renders its state in full from PHP, so a missing glide loses an
+     * animation and nothing else. See CLAUDE.md, "Traps".
+     */
+
+    // Selected mode: what makes an item the one to sit under. A label wrapping a
+    // checked radio is the segmented control; the attributes are links and
+    // pressed or checked buttons.
+    const SELECTED = ':is([aria-current]:not([aria-current="false"]), [aria-checked="true"], [aria-pressed="true"], [aria-selected="true"])';
+
+    const DISABLED = ':is(:disabled, [aria-disabled="true"])';
+
+    // Attributes whose change can move a selected-mode highlight. Not `style`,
+    // `hidden` or any data-* attribute: those are the ones this file writes.
+    const WATCHED = ['aria-current', 'aria-checked', 'aria-pressed', 'aria-selected', 'checked', 'disabled', 'class'];
+
+    function glide(Alpine) {
+        Alpine.directive('ds-glide', (el, { modifiers, expression }, { effect, evaluateLater, cleanup }) => {
+            if (el.parentElement?.closest('[data-ds-glide]')) return;
+
+            const highlight = [...el.querySelectorAll('[data-ds-glide-highlight]')].find((h) => h.closest('[data-ds-glide]') === el);
+            if (!highlight) return;
+
+            const hover = modifiers.includes('hover');
+            const glider = hover ? followPointer(el, highlight) : followSelection(el, highlight);
+
+            if (!hover && expression) {
+                const read = evaluateLater(expression);
+                effect(() => read(() => glider.schedule()));
+            }
+
+            cleanup(glider.teardown);
+        });
+    }
+
+    /** The parts both modes share: measuring, writing, and one write per frame. */
+    function mover(root, highlight) {
+        let frame = 0;
+        let instant = true;
+        let settle = 0;
+
+        const items = () => [...root.querySelectorAll('[data-ds-glide-item]')];
+
+        /** The item's border box, in the container's padding box, in CSS pixels. */
+        function measure(item) {
+            let x = 0;
+            let y = 0;
+            let node = item;
+
+            // offsetLeft is relative to the nearest POSITIONED ancestor, which is
+            // the container only when nothing positioned sits between: a tooltip
+            // around a toolbar button is, so the offsets are summed up the chain.
+            while (node && node !== root) {
+                x += node.offsetLeft;
+                y += node.offsetTop;
+                node = node.offsetParent;
+                if (node && node !== root && !root.contains(node)) {
+                    node = null;
+                }
+            }
+
+            if (node !== root) {
+                // The container is not the offset parent at all (not positioned):
+                // the slower rectangle reading, which still gives the right answer.
+                const a = item.getBoundingClientRect();
+                const b = root.getBoundingClientRect();
+                x = a.left - b.left - root.clientLeft;
+                y = a.top - b.top - root.clientTop;
+            }
+
+            return { x, y, w: item.offsetWidth, h: item.offsetHeight };
+        }
+
+        function write(box) {
+            // Physical left and top, in both directions: offsetLeft is physical
+            // in a right-to-left page too, so the highlight needs no mirroring.
+            const style = highlight.style;
+            style.setProperty('--ds-glide-x', `${box.x}px`);
+            style.setProperty('--ds-glide-y', `${box.y}px`);
+            style.setProperty('--ds-glide-w', `${box.w}px`);
+            style.setProperty('--ds-glide-h', `${box.h}px`);
+        }
+
+        /**
+         * Put the highlight on `item` now, without sliding when this is its first
+         * placement, when it is appearing, or when the layout itself changed.
+         */
+        function moveTo(item, { jump = false } = {}) {
+            const box = measure(item);
+            if (!box.w || !box.h) return false;
+
+            if (instant || jump) {
+                // The attribute turns the movement transitions off for the frame
+                // the new position is drawn in, and comes off in the next one, so
+                // the change after this one slides again.
+                highlight.setAttribute('data-instant', '');
+                cancelAnimationFrame(settle);
+                settle = requestAnimationFrame(() => {
+                    settle = requestAnimationFrame(() => highlight.removeAttribute('data-instant'));
+                });
+            }
+            instant = false;
+            write(box);
+            return true;
+        }
+
+        function schedule(run, { relayout = false } = {}) {
+            if (relayout) instant = true;
+            // One measurement per frame however many events asked for it: a
+            // pointer crossing a row fires dozens, and each read after a write
+            // would force a layout.
+            if (!frame) {
+                frame = requestAnimationFrame(() => {
+                    frame = 0;
+                    run();
+                });
+            }
+        }
+
+        /** Re-measure when the container or any item changes size, or items come and go. */
+        function observe(onChange, attributes = []) {
+            let sizes = null;
+            const watchSizes = () => {
+                if (typeof ResizeObserver !== 'function') return;
+                sizes?.disconnect();
+                sizes = new ResizeObserver(() => onChange(true));
+                sizes.observe(root);
+                for (const item of items()) sizes.observe(item);
+            };
+            watchSizes();
+
+            // No ResizeObserver: the window's own resize, which is most of what
+            // moves an item without moving the DOM.
+            const onResize = () => onChange(true);
+            if (typeof ResizeObserver !== 'function') window.addEventListener('resize', onResize);
+
+            const mutations = new MutationObserver((records) => {
+                if (records.some((r) => r.type === 'childList')) watchSizes();
+                onChange(false);
+            });
+            mutations.observe(root, {
+                childList: true,
+                subtree: true,
+                attributes: attributes.length > 0,
+                ...(attributes.length ? { attributeFilter: attributes } : {}),
+            });
+
+            return () => {
+                sizes?.disconnect();
+                mutations.disconnect();
+                window.removeEventListener('resize', onResize);
+            };
+        }
+
+        function stop() {
+            cancelAnimationFrame(frame);
+            cancelAnimationFrame(settle);
+            frame = 0;
+            highlight.removeAttribute('data-instant');
+        }
+
+        return { items, moveTo, schedule, observe, stop };
+    }
+
+    /** Selected mode: under the chosen item, always. */
+    function followSelection(root, highlight) {
+        const m = mover(root, highlight);
+
+        const chosen = () => m.items().find((item) => item.matches(SELECTED) || item.querySelector('input:checked')) ?? null;
+
+        function place() {
+            const item = chosen();
+            if (!item || !m.moveTo(item)) {
+                highlight.hidden = true;
+                return;
+            }
+            if (highlight.hidden) highlight.hidden = false;
+            // Set only once the highlight sits where the server-rendered style
+            // was, so the swap from one to the other is never seen.
+            if (!root.hasAttribute('data-ds-glide-ready')) root.setAttribute('data-ds-glide-ready', '');
+        }
+
+        const schedule = (relayout = false) => m.schedule(place, { relayout });
+        const onChange = () => schedule();
+
+        root.addEventListener('change', onChange);
+        const unobserve = m.observe(schedule, WATCHED);
+        schedule(true);
+
+        return {
+            schedule: () => schedule(),
+            teardown() {
+                m.stop();
+                unobserve();
+                root.removeEventListener('change', onChange);
+                root.removeAttribute('data-ds-glide-ready');
+                highlight.hidden = true;
+            },
+        };
+    }
+
+    /** Hover mode: under the pointer, or under keyboard focus, or nowhere. */
+    function followPointer(root, highlight) {
+        const m = mover(root, highlight);
+
+        let pointerItem = null;
+        let focusItem = null;
+        let pressed = null;
+
+        const itemAt = (target) => {
+            const item = target instanceof Element ? target.closest('[data-ds-glide-item]') : null;
+            return item && root.contains(item) && !item.matches(DISABLED) ? item : null;
+        };
+
+        const focusVisible = (el) => {
+            try {
+                return el.matches(':focus-visible');
+            } catch {
+                // No :focus-visible: every focus counts as visible, which shows a
+                // highlight after a click as well. Better than none for a keyboard.
+                return true;
+            }
+        };
+
+        // An item can be removed, or disabled by its own press, while it is the one
+        // under the highlight.
+        const live = (item) => (item?.isConnected && !item.matches(DISABLED) ? item : null);
+
+        function place() {
+            const item = live(pointerItem) ?? live(focusItem);
+            const visible = highlight.hasAttribute('data-visible');
+
+            if (!item) {
+                if (visible) highlight.removeAttribute('data-visible');
+                setPressing(false);
+                return;
+            }
+
+            // Appearing: jump to the item, then fade in where it is, rather than
+            // sliding in from wherever it was last hidden.
+            if (!m.moveTo(item, { jump: !visible })) return;
+            if (!visible) highlight.setAttribute('data-visible', '');
+        }
+
+        const schedule = (relayout = false) => m.schedule(place, { relayout });
+
+        function setPressing(on) {
+            if (on) highlight.setAttribute('data-pressing', '');
+            else highlight.removeAttribute('data-pressing');
+        }
+
+        function release() {
+            pressed?.abort();
+            pressed = null;
+            setPressing(false);
+        }
+
+        // Touch has no hover, and a highlight left behind under a lifted finger
+        // reads as a stuck press: touch input is ignored throughout.
+        const onPointerMove = (event) => {
+            if (event.pointerType === 'touch') return;
+            const item = itemAt(event.target);
+            // Over a gap between items, or a disabled one: hold where it is.
+            if (!item || item === pointerItem) return;
+            pointerItem = item;
+            schedule();
+        };
+
+        const onPointerLeave = (event) => {
+            if (event.pointerType === 'touch') return;
+            pointerItem = null;
+            release();
+            schedule();
+        };
+
+        const onPointerDown = (event) => {
+            if (event.pointerType === 'touch' || event.button !== 0) return;
+            const item = itemAt(event.target);
+            if (!item) return;
+            pointerItem = item;
+            schedule();
+            release();
+            setPressing(true);
+            pressed = new AbortController();
+            // On the window: the pointer can be released anywhere.
+            window.addEventListener('pointerup', release, { signal: pressed.signal });
+            window.addEventListener('pointercancel', release, { signal: pressed.signal });
+        };
+
+        const onFocusIn = (event) => {
+            const item = itemAt(event.target);
+            if (item && focusVisible(event.target)) {
+                focusItem = item;
+                // The keyboard has taken over from a pointer resting on another
+                // item; the pointer takes it back by moving.
+                pointerItem = null;
+            } else {
+                focusItem = null;
+            }
+            schedule();
+        };
+
+        const onFocusOut = (event) => {
+            if (root.contains(event.relatedTarget)) return;
+            focusItem = null;
+            schedule();
+        };
+
+        const onKeyDown = (event) => {
+            if ((event.key === ' ' || event.key === 'Enter') && itemAt(event.target)) setPressing(true);
+        };
+        const onKeyUp = (event) => {
+            if (event.key === ' ' || event.key === 'Enter') setPressing(false);
+        };
+
+        const listeners = [
+            ['pointermove', onPointerMove],
+            ['pointerleave', onPointerLeave],
+            ['pointerdown', onPointerDown],
+            ['focusin', onFocusIn],
+            ['focusout', onFocusOut],
+            ['keydown', onKeyDown],
+            ['keyup', onKeyUp],
+        ];
+        for (const [type, fn] of listeners) root.addEventListener(type, fn);
+
+        const unobserve = m.observe(schedule, ['disabled', 'aria-disabled']);
+        highlight.hidden = false;
+        root.setAttribute('data-ds-glide-ready', '');
+
+        return {
+            schedule: () => schedule(),
+            teardown() {
+                m.stop();
+                release();
+                unobserve();
+                for (const [type, fn] of listeners) root.removeEventListener(type, fn);
+                root.removeAttribute('data-ds-glide-ready');
+                highlight.removeAttribute('data-visible');
+                highlight.hidden = true;
+            },
+        };
+    }
+
+    return { glide };
+})();
+
 // behaviours/number-field.js
 const __ds_behaviours_number_field = (() => {
     /*
@@ -1110,6 +1488,299 @@ const __ds_behaviours_tag_input = (() => {
     return { tagInput };
 })();
 
+// shared/roving.js
+const __ds_shared_roving = (() => {
+    /*
+     * A roving tabindex: one tab stop for a set of items, and the arrow keys to
+     * move between them. The keyboard model of the ARIA toolbar and of a radio
+     * group, shared by dsToolbar and dsToggleGroup. Registers nothing.
+     *
+     *   const stop = roving(root, {
+     *       items: () => [...],            the items, in order, read on every key
+     *       axis: () => 'horizontal',      'horizontal' | 'vertical' | 'both'
+     *       current: () => el | null,      where the tab stop starts (the checked
+     *                                      radio); the first usable item otherwise
+     *       moved: (item) => {},           after a key moved focus to `item`
+     *   });
+     *   stop();                            remove the listeners
+     *
+     * The arrows wrap, skip disabled items and follow the reading direction: in a
+     * right-to-left page ArrowLeft is the next item. Home and End go to the ends.
+     * The tab stop is the last item focused, however it was focused, so Tab out
+     * and back in returns to it.
+     *
+     * Without the script every item is a tab stop of its own: slower, and still
+     * every item reachable.
+     */
+
+    const UNUSABLE = ':is(:disabled, [aria-disabled="true"])';
+
+    function roving(root, options) {
+        const axis = options.axis ?? (() => 'horizontal');
+        const current = options.current ?? (() => null);
+        const moved = options.moved ?? (() => {});
+
+        let stop = null;
+
+        const enabled = (item) => !item.matches(UNUSABLE);
+        // Not shown is not reachable by the arrows: an item the host has hidden is
+        // skipped as a disabled one is. Only for the arrows, though, and not for
+        // the tab stop, which is settled while a toolbar in a closed modal has no
+        // boxes at all.
+        const usable = (item) => enabled(item) && item.getClientRects().length > 0;
+
+        function settle() {
+            const all = options.items();
+            const live = all.filter(enabled);
+            if (!stop || !live.includes(stop)) {
+                const preferred = current();
+                stop = preferred && live.includes(preferred) ? preferred : live[0] ?? null;
+            }
+            for (const item of all) {
+                const want = item === stop ? '0' : '-1';
+                // Written only when it differs: the observer below hears every
+                // write, and an unchanged one would wake it for nothing.
+                if (item.getAttribute('tabindex') !== want) item.setAttribute('tabindex', want);
+            }
+        }
+
+        function step(key) {
+            const along = axis();
+            const rtl = getComputedStyle(root).direction === 'rtl';
+            const across = along !== 'vertical';
+            const down = along !== 'horizontal';
+
+            if (key === 'Home') return 'first';
+            if (key === 'End') return 'last';
+            if (across && key === 'ArrowRight') return rtl ? -1 : 1;
+            if (across && key === 'ArrowLeft') return rtl ? 1 : -1;
+            if (down && key === 'ArrowDown') return 1;
+            if (down && key === 'ArrowUp') return -1;
+            return null;
+        }
+
+        function onKeyDown(event) {
+            if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+
+            const live = options.items().filter(usable);
+            const at = live.indexOf(event.target);
+            if (at < 0) return;
+
+            const by = step(event.key);
+            if (by === null) return;
+
+            event.preventDefault();
+            const to = by === 'first' ? 0
+                : by === 'last' ? live.length - 1
+                : (at + by + live.length) % live.length;
+
+            stop = live[to];
+            settle();
+            live[to].focus();
+            moved(live[to]);
+        }
+
+        function onFocusIn(event) {
+            if (!options.items().includes(event.target)) return;
+            stop = event.target;
+            settle();
+        }
+
+        root.addEventListener('keydown', onKeyDown);
+        root.addEventListener('focusin', onFocusIn);
+
+        // Items a host adds or disables later (a Livewire update) join the set
+        // with the right tabindex rather than as extra tab stops.
+        const observer = new MutationObserver(settle);
+        observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled', 'aria-disabled', 'hidden'] });
+
+        settle();
+
+        return () => {
+            observer.disconnect();
+            root.removeEventListener('keydown', onKeyDown);
+            root.removeEventListener('focusin', onFocusIn);
+        };
+    }
+
+    return { roving };
+})();
+
+// behaviours/toggle-group.js
+const __ds_behaviours_toggle_group = (() => {
+    /*
+     * dsToggleGroup: pressed buttons, one of or any of, behind ds::toggle-group.
+     *
+     *   x-data="dsToggleGroup({ type: 'single' })"    radio semantics: role=radio, aria-checked
+     *   x-data="dsToggleGroup({ type: 'multiple' })"  independent buttons, aria-pressed
+     *
+     * The markup is the component's, rendered complete by PHP: each toggle a
+     * button marked data-ds-toggle with its value in data-ds-value and its state
+     * in aria-checked or aria-pressed, holding (when the group has a name) a
+     * hidden input marked data-ds-toggle-input that is disabled while the toggle
+     * is off. A press flips the attribute and the input's disabled flag, so the
+     * form posts what is pressed and the look follows from the attribute.
+     *
+     * Single is a radio group: a press on the pressed one leaves it pressed, the
+     * arrow keys move the choice, and the tab stop is the chosen toggle. Multiple
+     * moves focus with the arrows and leaves Space and Enter to press. Inside a
+     * ds::toolbar the toolbar's arrow keys move between all its items, these
+     * included, and Space or Enter chooses, as in the ARIA toolbar pattern.
+     *
+     * Every press the reader makes dispatches `input` and `change` from the
+     * toggle, bubbling. Two-way binding goes through `dsValue`, as with dsOtp: a
+     * string for single ('' for none), an array for multiple. A value the host
+     * sets is drawn, not announced.
+     */
+    const { roving } = __ds_shared_roving;
+
+    function toggleGroup(Alpine) {
+        Alpine.data('dsToggleGroup', (options = {}) => {
+            const single = options.type !== 'multiple';
+            let control = null;
+
+            return {
+                dsValue: single ? '' : [],
+
+                init() {
+                    control = wire(this.$el, single, (value) => {
+                        this.dsValue = value;
+                    });
+                    this.dsValue = control.value();
+                    this.$watch('dsValue', (value) => control.set(value));
+                },
+
+                destroy() {
+                    control?.teardown();
+                },
+            };
+        });
+    }
+
+    function wire(root, single, report) {
+        const state = single ? 'aria-checked' : 'aria-pressed';
+        const toggles = () => [...root.querySelectorAll('[data-ds-toggle]')]
+            .filter((t) => t.closest('[data-ds-toggle-group]') === root);
+        const isOn = (t) => t.getAttribute(state) === 'true';
+
+        function draw(t, on) {
+            t.setAttribute(state, on ? 'true' : 'false');
+            const input = t.querySelector('[data-ds-toggle-input]');
+            // A disabled toggle posts nothing, pressed or not, as a disabled
+            // checkbox does.
+            if (input) input.disabled = !on || t.disabled;
+        }
+
+        function value() {
+            const on = toggles().filter(isOn).map((t) => t.dataset.dsValue);
+            return single ? on[0] ?? '' : on;
+        }
+
+        function announce(t) {
+            report(value());
+            t.dispatchEvent(new Event('input', { bubbles: true }));
+            t.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        function choose(t) {
+            if (single) {
+                if (isOn(t)) return;
+                for (const other of toggles()) draw(other, other === t);
+            } else {
+                draw(t, !isOn(t));
+            }
+            announce(t);
+        }
+
+        function onClick(event) {
+            const t = event.target.closest('[data-ds-toggle]');
+            if (!t || !toggles().includes(t) || t.disabled) return;
+            choose(t);
+        }
+
+        root.addEventListener('click', onClick);
+
+        // In a toolbar, its keyboard is the one; a second set of arrow keys on the
+        // same items would move focus twice per press.
+        const inToolbar = Boolean(root.parentElement?.closest('[data-ds-toolbar]'));
+        const unrove = inToolbar ? null : roving(root, {
+            items: toggles,
+            // A radio group answers all four arrows, as native radios do, and a
+            // row of toggles has no second axis to keep them for.
+            axis: () => 'both',
+            current: () => (single ? toggles().find(isOn) ?? null : null),
+            moved: (t) => {
+                if (single) choose(t);
+            },
+        });
+
+        return {
+            value,
+
+            set(next) {
+                const wanted = new Set((Array.isArray(next) ? next : next === null || next === undefined || next === '' ? [] : [next]).map(String));
+                let first = true;
+                for (const t of toggles()) {
+                    // Single holds one at most, however many the host asked for.
+                    const on = wanted.has(t.dataset.dsValue) && (!single || first);
+                    if (on) first = false;
+                    if (isOn(t) !== on || t.querySelector('[data-ds-toggle-input]')) draw(t, on);
+                }
+            },
+
+            teardown() {
+                unrove?.();
+                root.removeEventListener('click', onClick);
+            },
+        };
+    }
+
+    return { toggleGroup };
+})();
+
+// behaviours/toolbar.js
+const __ds_behaviours_toolbar = (() => {
+    /*
+     * dsToolbar: the keyboard of ds::toolbar.
+     *
+     *   x-data="dsToolbar"   on the element with role="toolbar"
+     *
+     * role="toolbar" promises one tab stop and the arrow keys, and this keeps the
+     * promise: the arrows along aria-orientation move between the items marked
+     * data-ds-toolbar-item, wrapping and skipping disabled ones, Home and End go
+     * to the ends, and Tab leaves. Toggles of a ds::toggle-group inside the
+     * toolbar are items of the toolbar; the group leaves its own arrow keys to it.
+     *
+     * The highlight under the pointer is x-ds-glide.hover on the same element,
+     * not this. The scope exposes nothing but Alpine's own init and destroy.
+     */
+    const { roving } = __ds_shared_roving;
+
+    function toolbar(Alpine) {
+        Alpine.data('dsToolbar', () => {
+            let teardown = null;
+
+            return {
+                init() {
+                    const root = this.$el;
+                    teardown = roving(root, {
+                        // Not the items of a toolbar nested inside this one.
+                        items: () => [...root.querySelectorAll('[data-ds-toolbar-item]')]
+                            .filter((item) => item.closest('[data-ds-toolbar]') === root),
+                        axis: () => (root.getAttribute('aria-orientation') === 'vertical' ? 'vertical' : 'horizontal'),
+                    });
+                },
+
+                destroy() {
+                    teardown?.();
+                },
+            };
+        });
+    }
+
+    return { toolbar };
+})();
+
 // blade-ui.js
 const __ds_blade_ui = (() => {
     /*
@@ -1122,15 +1793,19 @@ const __ds_blade_ui = (() => {
      * classic build (global.js), which calls the same function.
      *
      * Adding a behaviour: one file in behaviours/, one import and one entry in
-     * BEHAVIOURS below. The conventions are in CLAUDE.md under "The shared script".
+     * BEHAVIOURS below. A helper two behaviours share goes in shared/, which
+     * registers nothing. The conventions are in CLAUDE.md under "The shared script".
      */
     const { clipboard } = __ds_behaviours_clipboard;
+    const { glide } = __ds_behaviours_glide;
     const { numberField } = __ds_behaviours_number_field;
     const { otp } = __ds_behaviours_otp;
     const { password } = __ds_behaviours_password;
     const { tagInput } = __ds_behaviours_tag_input;
+    const { toggleGroup } = __ds_behaviours_toggle_group;
+    const { toolbar } = __ds_behaviours_toolbar;
 
-    const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password];
+    const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup];
 
     // Symbol.for, not a module-level flag. Two copies of this script, say the
     // inlined one AND a Vite import, are two separate modules with two separate

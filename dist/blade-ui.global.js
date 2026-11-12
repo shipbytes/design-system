@@ -81,6 +81,255 @@ return ok;
 }
 return { clipboard };
 })();
+const __ds_behaviours_glide = (() => {
+const SELECTED = ':is([aria-current]:not([aria-current="false"]), [aria-checked="true"], [aria-pressed="true"], [aria-selected="true"])';
+const DISABLED = ':is(:disabled, [aria-disabled="true"])';
+const WATCHED = ['aria-current', 'aria-checked', 'aria-pressed', 'aria-selected', 'checked', 'disabled', 'class'];
+function glide(Alpine) {
+Alpine.directive('ds-glide', (el, { modifiers, expression }, { effect, evaluateLater, cleanup }) => {
+if (el.parentElement?.closest('[data-ds-glide]')) return;
+const highlight = [...el.querySelectorAll('[data-ds-glide-highlight]')].find((h) => h.closest('[data-ds-glide]') === el);
+if (!highlight) return;
+const hover = modifiers.includes('hover');
+const glider = hover ? followPointer(el, highlight) : followSelection(el, highlight);
+if (!hover && expression) {
+const read = evaluateLater(expression);
+effect(() => read(() => glider.schedule()));
+}
+cleanup(glider.teardown);
+});
+}
+function mover(root, highlight) {
+let frame = 0;
+let instant = true;
+let settle = 0;
+const items = () => [...root.querySelectorAll('[data-ds-glide-item]')];
+function measure(item) {
+let x = 0;
+let y = 0;
+let node = item;
+while (node && node !== root) {
+x += node.offsetLeft;
+y += node.offsetTop;
+node = node.offsetParent;
+if (node && node !== root && !root.contains(node)) {
+node = null;
+}
+}
+if (node !== root) {
+const a = item.getBoundingClientRect();
+const b = root.getBoundingClientRect();
+x = a.left - b.left - root.clientLeft;
+y = a.top - b.top - root.clientTop;
+}
+return { x, y, w: item.offsetWidth, h: item.offsetHeight };
+}
+function write(box) {
+const style = highlight.style;
+style.setProperty('--ds-glide-x', `${box.x}px`);
+style.setProperty('--ds-glide-y', `${box.y}px`);
+style.setProperty('--ds-glide-w', `${box.w}px`);
+style.setProperty('--ds-glide-h', `${box.h}px`);
+}
+function moveTo(item, { jump = false } = {}) {
+const box = measure(item);
+if (!box.w || !box.h) return false;
+if (instant || jump) {
+highlight.setAttribute('data-instant', '');
+cancelAnimationFrame(settle);
+settle = requestAnimationFrame(() => {
+settle = requestAnimationFrame(() => highlight.removeAttribute('data-instant'));
+});
+}
+instant = false;
+write(box);
+return true;
+}
+function schedule(run, { relayout = false } = {}) {
+if (relayout) instant = true;
+if (!frame) {
+frame = requestAnimationFrame(() => {
+frame = 0;
+run();
+});
+}
+}
+function observe(onChange, attributes = []) {
+let sizes = null;
+const watchSizes = () => {
+if (typeof ResizeObserver !== 'function') return;
+sizes?.disconnect();
+sizes = new ResizeObserver(() => onChange(true));
+sizes.observe(root);
+for (const item of items()) sizes.observe(item);
+};
+watchSizes();
+const onResize = () => onChange(true);
+if (typeof ResizeObserver !== 'function') window.addEventListener('resize', onResize);
+const mutations = new MutationObserver((records) => {
+if (records.some((r) => r.type === 'childList')) watchSizes();
+onChange(false);
+});
+mutations.observe(root, {
+childList: true,
+subtree: true,
+attributes: attributes.length > 0,
+...(attributes.length ? { attributeFilter: attributes } : {}),
+});
+return () => {
+sizes?.disconnect();
+mutations.disconnect();
+window.removeEventListener('resize', onResize);
+};
+}
+function stop() {
+cancelAnimationFrame(frame);
+cancelAnimationFrame(settle);
+frame = 0;
+highlight.removeAttribute('data-instant');
+}
+return { items, moveTo, schedule, observe, stop };
+}
+function followSelection(root, highlight) {
+const m = mover(root, highlight);
+const chosen = () => m.items().find((item) => item.matches(SELECTED) || item.querySelector('input:checked')) ?? null;
+function place() {
+const item = chosen();
+if (!item || !m.moveTo(item)) {
+highlight.hidden = true;
+return;
+}
+if (highlight.hidden) highlight.hidden = false;
+if (!root.hasAttribute('data-ds-glide-ready')) root.setAttribute('data-ds-glide-ready', '');
+}
+const schedule = (relayout = false) => m.schedule(place, { relayout });
+const onChange = () => schedule();
+root.addEventListener('change', onChange);
+const unobserve = m.observe(schedule, WATCHED);
+schedule(true);
+return {
+schedule: () => schedule(),
+teardown() {
+m.stop();
+unobserve();
+root.removeEventListener('change', onChange);
+root.removeAttribute('data-ds-glide-ready');
+highlight.hidden = true;
+},
+};
+}
+function followPointer(root, highlight) {
+const m = mover(root, highlight);
+let pointerItem = null;
+let focusItem = null;
+let pressed = null;
+const itemAt = (target) => {
+const item = target instanceof Element ? target.closest('[data-ds-glide-item]') : null;
+return item && root.contains(item) && !item.matches(DISABLED) ? item : null;
+};
+const focusVisible = (el) => {
+try {
+return el.matches(':focus-visible');
+} catch {
+return true;
+}
+};
+const live = (item) => (item?.isConnected && !item.matches(DISABLED) ? item : null);
+function place() {
+const item = live(pointerItem) ?? live(focusItem);
+const visible = highlight.hasAttribute('data-visible');
+if (!item) {
+if (visible) highlight.removeAttribute('data-visible');
+setPressing(false);
+return;
+}
+if (!m.moveTo(item, { jump: !visible })) return;
+if (!visible) highlight.setAttribute('data-visible', '');
+}
+const schedule = (relayout = false) => m.schedule(place, { relayout });
+function setPressing(on) {
+if (on) highlight.setAttribute('data-pressing', '');
+else highlight.removeAttribute('data-pressing');
+}
+function release() {
+pressed?.abort();
+pressed = null;
+setPressing(false);
+}
+const onPointerMove = (event) => {
+if (event.pointerType === 'touch') return;
+const item = itemAt(event.target);
+if (!item || item === pointerItem) return;
+pointerItem = item;
+schedule();
+};
+const onPointerLeave = (event) => {
+if (event.pointerType === 'touch') return;
+pointerItem = null;
+release();
+schedule();
+};
+const onPointerDown = (event) => {
+if (event.pointerType === 'touch' || event.button !== 0) return;
+const item = itemAt(event.target);
+if (!item) return;
+pointerItem = item;
+schedule();
+release();
+setPressing(true);
+pressed = new AbortController();
+window.addEventListener('pointerup', release, { signal: pressed.signal });
+window.addEventListener('pointercancel', release, { signal: pressed.signal });
+};
+const onFocusIn = (event) => {
+const item = itemAt(event.target);
+if (item && focusVisible(event.target)) {
+focusItem = item;
+pointerItem = null;
+} else {
+focusItem = null;
+}
+schedule();
+};
+const onFocusOut = (event) => {
+if (root.contains(event.relatedTarget)) return;
+focusItem = null;
+schedule();
+};
+const onKeyDown = (event) => {
+if ((event.key === ' ' || event.key === 'Enter') && itemAt(event.target)) setPressing(true);
+};
+const onKeyUp = (event) => {
+if (event.key === ' ' || event.key === 'Enter') setPressing(false);
+};
+const listeners = [
+['pointermove', onPointerMove],
+['pointerleave', onPointerLeave],
+['pointerdown', onPointerDown],
+['focusin', onFocusIn],
+['focusout', onFocusOut],
+['keydown', onKeyDown],
+['keyup', onKeyUp],
+];
+for (const [type, fn] of listeners) root.addEventListener(type, fn);
+const unobserve = m.observe(schedule, ['disabled', 'aria-disabled']);
+highlight.hidden = false;
+root.setAttribute('data-ds-glide-ready', '');
+return {
+schedule: () => schedule(),
+teardown() {
+m.stop();
+release();
+unobserve();
+for (const [type, fn] of listeners) root.removeEventListener(type, fn);
+root.removeAttribute('data-ds-glide-ready');
+highlight.removeAttribute('data-visible');
+highlight.hidden = true;
+},
+};
+}
+return { glide };
+})();
 const __ds_behaviours_number_field = (() => {
 const HOLD_DELAY = 400;
 const HOLD_EVERY = 75;
@@ -697,13 +946,189 @@ return parts;
 }
 return { tagInput };
 })();
+const __ds_shared_roving = (() => {
+const UNUSABLE = ':is(:disabled, [aria-disabled="true"])';
+function roving(root, options) {
+const axis = options.axis ?? (() => 'horizontal');
+const current = options.current ?? (() => null);
+const moved = options.moved ?? (() => {});
+let stop = null;
+const enabled = (item) => !item.matches(UNUSABLE);
+const usable = (item) => enabled(item) && item.getClientRects().length > 0;
+function settle() {
+const all = options.items();
+const live = all.filter(enabled);
+if (!stop || !live.includes(stop)) {
+const preferred = current();
+stop = preferred && live.includes(preferred) ? preferred : live[0] ?? null;
+}
+for (const item of all) {
+const want = item === stop ? '0' : '-1';
+if (item.getAttribute('tabindex') !== want) item.setAttribute('tabindex', want);
+}
+}
+function step(key) {
+const along = axis();
+const rtl = getComputedStyle(root).direction === 'rtl';
+const across = along !== 'vertical';
+const down = along !== 'horizontal';
+if (key === 'Home') return 'first';
+if (key === 'End') return 'last';
+if (across && key === 'ArrowRight') return rtl ? -1 : 1;
+if (across && key === 'ArrowLeft') return rtl ? 1 : -1;
+if (down && key === 'ArrowDown') return 1;
+if (down && key === 'ArrowUp') return -1;
+return null;
+}
+function onKeyDown(event) {
+if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+const live = options.items().filter(usable);
+const at = live.indexOf(event.target);
+if (at < 0) return;
+const by = step(event.key);
+if (by === null) return;
+event.preventDefault();
+const to = by === 'first' ? 0
+: by === 'last' ? live.length - 1
+: (at + by + live.length) % live.length;
+stop = live[to];
+settle();
+live[to].focus();
+moved(live[to]);
+}
+function onFocusIn(event) {
+if (!options.items().includes(event.target)) return;
+stop = event.target;
+settle();
+}
+root.addEventListener('keydown', onKeyDown);
+root.addEventListener('focusin', onFocusIn);
+const observer = new MutationObserver(settle);
+observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled', 'aria-disabled', 'hidden'] });
+settle();
+return () => {
+observer.disconnect();
+root.removeEventListener('keydown', onKeyDown);
+root.removeEventListener('focusin', onFocusIn);
+};
+}
+return { roving };
+})();
+const __ds_behaviours_toggle_group = (() => {
+const { roving } = __ds_shared_roving;
+function toggleGroup(Alpine) {
+Alpine.data('dsToggleGroup', (options = {}) => {
+const single = options.type !== 'multiple';
+let control = null;
+return {
+dsValue: single ? '' : [],
+init() {
+control = wire(this.$el, single, (value) => {
+this.dsValue = value;
+});
+this.dsValue = control.value();
+this.$watch('dsValue', (value) => control.set(value));
+},
+destroy() {
+control?.teardown();
+},
+};
+});
+}
+function wire(root, single, report) {
+const state = single ? 'aria-checked' : 'aria-pressed';
+const toggles = () => [...root.querySelectorAll('[data-ds-toggle]')]
+.filter((t) => t.closest('[data-ds-toggle-group]') === root);
+const isOn = (t) => t.getAttribute(state) === 'true';
+function draw(t, on) {
+t.setAttribute(state, on ? 'true' : 'false');
+const input = t.querySelector('[data-ds-toggle-input]');
+if (input) input.disabled = !on || t.disabled;
+}
+function value() {
+const on = toggles().filter(isOn).map((t) => t.dataset.dsValue);
+return single ? on[0] ?? '' : on;
+}
+function announce(t) {
+report(value());
+t.dispatchEvent(new Event('input', { bubbles: true }));
+t.dispatchEvent(new Event('change', { bubbles: true }));
+}
+function choose(t) {
+if (single) {
+if (isOn(t)) return;
+for (const other of toggles()) draw(other, other === t);
+} else {
+draw(t, !isOn(t));
+}
+announce(t);
+}
+function onClick(event) {
+const t = event.target.closest('[data-ds-toggle]');
+if (!t || !toggles().includes(t) || t.disabled) return;
+choose(t);
+}
+root.addEventListener('click', onClick);
+const inToolbar = Boolean(root.parentElement?.closest('[data-ds-toolbar]'));
+const unrove = inToolbar ? null : roving(root, {
+items: toggles,
+axis: () => 'both',
+current: () => (single ? toggles().find(isOn) ?? null : null),
+moved: (t) => {
+if (single) choose(t);
+},
+});
+return {
+value,
+set(next) {
+const wanted = new Set((Array.isArray(next) ? next : next === null || next === undefined || next === '' ? [] : [next]).map(String));
+let first = true;
+for (const t of toggles()) {
+const on = wanted.has(t.dataset.dsValue) && (!single || first);
+if (on) first = false;
+if (isOn(t) !== on || t.querySelector('[data-ds-toggle-input]')) draw(t, on);
+}
+},
+teardown() {
+unrove?.();
+root.removeEventListener('click', onClick);
+},
+};
+}
+return { toggleGroup };
+})();
+const __ds_behaviours_toolbar = (() => {
+const { roving } = __ds_shared_roving;
+function toolbar(Alpine) {
+Alpine.data('dsToolbar', () => {
+let teardown = null;
+return {
+init() {
+const root = this.$el;
+teardown = roving(root, {
+items: () => [...root.querySelectorAll('[data-ds-toolbar-item]')]
+.filter((item) => item.closest('[data-ds-toolbar]') === root),
+axis: () => (root.getAttribute('aria-orientation') === 'vertical' ? 'vertical' : 'horizontal'),
+});
+},
+destroy() {
+teardown?.();
+},
+};
+});
+}
+return { toolbar };
+})();
 const __ds_blade_ui = (() => {
 const { clipboard } = __ds_behaviours_clipboard;
+const { glide } = __ds_behaviours_glide;
 const { numberField } = __ds_behaviours_number_field;
 const { otp } = __ds_behaviours_otp;
 const { password } = __ds_behaviours_password;
 const { tagInput } = __ds_behaviours_tag_input;
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password];
+const { toggleGroup } = __ds_behaviours_toggle_group;
+const { toolbar } = __ds_behaviours_toolbar;
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup];
 const REGISTERED = Symbol.for('shipbytes.blade-ui');
 function bladeUi(Alpine) {
 if (!Alpine || Alpine[REGISTERED]) return;

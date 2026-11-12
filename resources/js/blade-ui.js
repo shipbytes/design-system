@@ -8,15 +8,19 @@
  * classic build (global.js), which calls the same function.
  *
  * Adding a behaviour: one file in behaviours/, one import and one entry in
- * BEHAVIOURS below. The conventions are in CLAUDE.md under "The shared script".
+ * BEHAVIOURS below. A helper two behaviours share goes in shared/, which
+ * registers nothing. The conventions are in CLAUDE.md under "The shared script".
  */
 import { clipboard } from './behaviours/clipboard.js';
+import { glide } from './behaviours/glide.js';
 import { numberField } from './behaviours/number-field.js';
 import { otp } from './behaviours/otp.js';
 import { password } from './behaviours/password.js';
 import { tagInput } from './behaviours/tag-input.js';
+import { toggleGroup } from './behaviours/toggle-group.js';
+import { toolbar } from './behaviours/toolbar.js';
 
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup];
 
 // Symbol.for, not a module-level flag. Two copies of this script, say the
 // inlined one AND a Vite import, are two separate modules with two separate
