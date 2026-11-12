@@ -13,6 +13,8 @@
     /** Rows for a textarea. */
     'rows' => 3,
     'disabled' => false,
+    /** A button that shows and hides the value. type="password" only; needs Alpine and the package's script. */
+    'reveal' => false,
 ])
 
 @php
@@ -41,6 +43,13 @@
         $icon ? 'pl-9 sm:pl-9' : '',
         $as === 'select' ? 'pr-9 sm:pr-8' : '',
     ]);
+
+    // Appended rather than listed above, so a field without it renders the
+    // exact string it always has: see InputUnchangedTest.
+    $revealable = $reveal && $as === 'input' && $type === 'password';
+    if ($revealable) {
+        $control .= ' pr-11 sm:pr-9';
+    }
 
     $shared = $attributes->except(['class'])->merge([
         'id' => $id,
@@ -73,6 +82,25 @@
                      conflicting sizes — size-5 and sm:size-4 do not fight. --}}
                 <x-ds::icon name="chevron-down" variant="mini" size="5" class="sm:size-4" />
             </span>
+        @elseif ($revealable)
+            <input type="password" {{ $shared }} @disabled($disabled) />
+            {{-- A toggle button with a name that does not change: aria-pressed
+                 says whether the password is showing, and a name that ALSO
+                 flipped would be read as "Hide password, pressed", which is
+                 two answers to one question. The icons swap off aria-pressed
+                 in CSS, so the first paint is right before the script runs. --}}
+            <button
+                type="button"
+                class="group absolute inset-y-0 right-0 z-10 flex w-11 items-center justify-center rounded-r-control text-fg-muted hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:text-fg-subtle disabled:hover:text-fg-subtle sm:w-9"
+                x-data="{{ \Shipbytes\BladeUi\Support\Behaviour::data('dsPassword') }}"
+                aria-controls="{{ $id }}"
+                aria-pressed="false"
+                aria-label="Show password"
+                @disabled($disabled)
+            >
+                <x-ds::icon name="eye" class="group-aria-pressed:hidden" />
+                <x-ds::icon name="eye-slash" class="hidden group-aria-pressed:block" />
+            </button>
         @else
             <input type="{{ $type }}" {{ $shared }} @disabled($disabled) />
         @endif
