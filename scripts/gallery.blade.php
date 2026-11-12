@@ -2590,6 +2590,8 @@
 
     <div class="{{ $plate }}">
         <div class="ds-plate-label">Files, editor and console <span>&middot; 30% and a console of 35%</span></div>
+        {{-- Wrapped: the plate pads its direct child, which would inset the panes inside the box. --}}
+        <div>
         <div class="mx-auto h-64 max-w-2xl overflow-hidden rounded-panel border border-border bg-surface">
             <x-ds::split label="Resize the file list">
                 <x-ds::split-pane size="30%" min="120"><div class="p-3 text-body text-fg-body">Files</div></x-ds::split-pane>
@@ -2600,6 +2602,7 @@
                     </x-ds::split>
                 </x-ds::split-pane>
             </x-ds::split>
+        </div>
         </div>
     </div>
 </section>
