@@ -730,6 +730,71 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Progress --}}
+<section class="ds-spec" id="progress">
+    <header class="ds-spec-head">
+        <h2>Progress</h2>
+        <p>A task with a known length, or one without. The fill reads one number, <code>--ds-progress</code>, so a host moves it with a single binding and no class is ever built at runtime.</p>
+    </header>
+
+    <div class="ds-note">The indeterminate sweep is <em>motion-safe</em>. Ask for reduced motion and it becomes a static striped bar &mdash; a still partial bar would read as a real value.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Bar <span>&middot; md and sm, five tones, indeterminate</span></div>
+        <div class="flex flex-col gap-5 px-4 pb-4">
+            <x-ds::progress label="Uploading report.pdf" :value="64" :showValue="true" />
+            <x-ds::progress label="Importing contacts" :value="3" :max="12" tone="accent">3 of 12 files</x-ds::progress>
+            <x-ds::progress label="Checks passing" :value="100" tone="success" :showValue="true" size="sm" />
+            <x-ds::progress label="Quota" :value="88" tone="warning" :showValue="true" size="sm" />
+            <x-ds::progress label="Failed rows" :value="12" tone="danger" :showValue="true" size="sm" />
+            <x-ds::progress label="Preparing the export" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Circle <span>&middot; md carries its value inside, sm beside</span></div>
+        <div class="{{ $row }} gap-6 px-4">
+            <x-ds::progress label="Synced" :value="100" variant="circle" tone="success" :showValue="true" />
+            <x-ds::progress label="Disk" :value="91" variant="circle" tone="warning" :showValue="true" :hideLabel="true" />
+            <x-ds::progress label="Building" :value="40" variant="circle" size="sm" :showValue="true" />
+            <x-ds::progress label="Waiting" variant="circle" size="sm" />
+            <x-ds::progress label="Waiting" variant="circle" tone="accent" :hideLabel="true" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Usage meter --}}
+<section class="ds-spec" id="usage-meter">
+    <header class="ds-spec-head">
+        <h2>Usage meter</h2>
+        <p>An allowance and what fills it, drawn on the progress bar's track. A <code>meter</code>, not a progressbar: nothing is moving towards done. The tone comes from the thresholds, and over the limit is said in words.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Thresholds <span>&middot; neutral, then warning at 80%, danger at 100%</span></div>
+        <div class="flex flex-col gap-5 px-4 pb-4">
+            <x-ds::usage-meter label="AI credits" :used="18" :limit="50" unit="credits" />
+            <x-ds::usage-meter label="Team seats" :used="9" :limit="10" unit="seats" />
+            <x-ds::usage-meter label="Emails this month" :used="5240" :limit="5000" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Segments <span>&middot; a stacked bar and its legend; over the limit they shrink together</span></div>
+        <div class="flex flex-col gap-5 px-4 pb-4">
+            <x-ds::usage-meter label="Storage" :limit="10" unit="GB" :segments="[
+                ['label' => 'Files', 'value' => 4.5, 'tone' => 'accent'],
+                ['label' => 'Backups', 'value' => 2, 'tone' => 'success'],
+                ['label' => 'Logs', 'value' => 1.25, 'tone' => 'warning'],
+            ]" />
+            <x-ds::usage-meter label="Storage" :limit="10" unit="GB" :segments="[
+                ['label' => 'Files', 'value' => 9, 'tone' => 'accent'],
+                ['label' => 'Backups', 'value' => 3],
+            ]" />
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Breadcrumb --}}
 <section class="ds-spec" id="breadcrumb">
     <header class="ds-spec-head">

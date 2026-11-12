@@ -767,6 +767,77 @@ await check('without the async clipboard API it falls back, copies, and gives fo
     return result.focus === 'clip-copy' || `focus ended on ${result.focus}, not the button that was pressed`;
 });
 
+// ---------------------------------------------------------------- progress
+
+/*
+ * The live wiring from docs/components/progress.md, driven rather than
+ * described. The component computes its width from a number in PHP, so the
+ * claim worth proving is that ONE binding on the tag moves the fill: a host
+ * that reached for `::value` would bind an attribute nothing reads, the same
+ * silence as `::tone` (see CLAUDE.md).
+ */
+group('progress (driven live by the host)');
+
+const progressState = (id) => page.evaluate((barId) => {
+    const bar = document.getElementById(barId);
+    const track = bar.querySelector('.bg-fg\\/10');
+    const fill = track.querySelector('.h-full.shrink-0');
+    return {
+        now: bar.getAttribute('aria-valuenow'),
+        ratio: Math.round((fill.getBoundingClientRect().width / track.getBoundingClientRect().width) * 100),
+        text: bar.textContent.replace(/\s+/g, ' ').trim(),
+        transition: getComputedStyle(fill).transitionDuration,
+    };
+}, id);
+
+await check('renders its value from PHP before anything is bound', async () => {
+    const s = await progressState('live-progress');
+    return (s.now === '10' && s.ratio === 10) || `aria-valuenow ${s.now}, fill at ${s.ratio}%`;
+});
+
+await check('a bound --ds-progress and aria-valuenow move the bar', async () => {
+    await page.click('#progress-advance');
+    // The width transitions over duration-slide-enter (300ms); read after it.
+    await settle(500);
+    const s = await progressState('live-progress');
+    if (s.now !== '75') return `aria-valuenow is ${s.now}`;
+    if (s.ratio !== 75) return `the fill sits at ${s.ratio}% of the track`;
+    return s.text.includes('75%') || `the slot still reads "${s.text}"`;
+});
+
+await check('the fill animates only when motion is allowed', async () => {
+    const moving = (await progressState('live-progress')).transition;
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const still = (await progressState('live-progress')).transition;
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    return (moving !== '0s' && still === '0s') || `transition is ${moving} with motion, ${still} without`;
+});
+
+await check('an indeterminate bar sweeps, and under reduced motion stands still in stripes', async () => {
+    const look = () => page.evaluate(() => {
+        const track = document.querySelector('#busy-progress .bg-fg\\/10');
+        const [stripes, sweep] = track.children;
+        return {
+            stripes: getComputedStyle(stripes).display,
+            sweep: getComputedStyle(sweep).display,
+            animation: getComputedStyle(sweep).animationName,
+            now: document.getElementById('busy-progress').hasAttribute('aria-valuenow'),
+        };
+    });
+
+    const moving = await look();
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const still = await look();
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+
+    if (moving.now) return 'an indeterminate bar carries aria-valuenow';
+    if (moving.animation !== 'ds-progress-indeterminate' || moving.stripes !== 'none') {
+        return `with motion: sweep animation "${moving.animation}", stripes display ${moving.stripes}`;
+    }
+    return (still.sweep === 'none' && still.stripes !== 'none')
+        || `reduced motion: sweep display ${still.sweep}, stripes display ${still.stripes}`;
+});
+
 // ---------------------------------------------------------------- x-cloak
 
 /*

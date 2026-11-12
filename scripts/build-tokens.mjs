@@ -344,6 +344,28 @@ const themeCss = `${banner('Tailwind CSS v4 theme, mapping the tokens onto utili
 }
 
 /*
+  The sweep an indeterminate progress bar makes: a segment two fifths of the
+  track wide, travelling from fully off the left edge to fully off the right
+  (250% of its own width is the whole track). The component applies it as
+  \`motion-safe:progress-indeterminate\` and draws a static striped bar instead
+  under reduced motion.
+
+  The period is a literal, not a motion token. The tokens are transition
+  ceilings, none past 300ms; this is the length of a loop, the same kind of
+  number as Tailwind's own spin (1s) and pulse (2s) that the button spinner and
+  the skeleton already use. ease-in-out because a loop that only decelerates
+  visibly jumps at the seam.
+*/
+@utility progress-indeterminate {
+  animation: ds-progress-indeterminate 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes ds-progress-indeterminate {
+  from { translate: -100% 0; }
+  to { translate: 250% 0; }
+}
+
+/*
   The rule Alpine depends on and does not ship.
 
   Nine components mark their overlay root \`x-cloak\`: modal, drawer, sheet,

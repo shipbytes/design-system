@@ -338,6 +338,46 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── progress --}}
+<div data-shot="progress" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-5 rounded-panel border border-border bg-surface p-4">
+                <x-ds::progress label="Uploading report.pdf" :value="64" :showValue="true" />
+                <x-ds::progress label="Importing contacts" :value="3" :max="12" tone="accent">3 of 12 files</x-ds::progress>
+                <x-ds::progress label="Preparing the export" size="sm" />
+                <div class="flex flex-wrap items-center gap-5">
+                    <x-ds::progress label="Synced" :value="100" variant="circle" tone="success" :showValue="true" :hideLabel="true" />
+                    <x-ds::progress label="Disk" :value="91" variant="circle" tone="warning" :showValue="true" :hideLabel="true" />
+                    <x-ds::progress label="Building" :value="40" variant="circle" size="sm" :showValue="true" />
+                    <x-ds::progress label="Waiting" variant="circle" size="sm" />
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── usage meter --}}
+@php
+    $storage = [
+        ['label' => 'Files', 'value' => 4.5, 'tone' => 'accent'],
+        ['label' => 'Backups', 'value' => 2, 'tone' => 'success'],
+        ['label' => 'Logs', 'value' => 1.25, 'tone' => 'warning'],
+    ];
+@endphp
+<div data-shot="usage-meter" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-5 rounded-panel border border-border bg-surface p-4">
+                <x-ds::usage-meter label="AI credits" :used="18" :limit="50" unit="credits" />
+                <x-ds::usage-meter label="Team seats" :used="9" :limit="10" unit="seats" />
+                <x-ds::usage-meter label="Storage" :limit="10" unit="GB" :segments="$storage" />
+                <x-ds::usage-meter label="Emails this month" :used="5240" :limit="5000" />
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── dropdown --}}
 <div data-shot="dropdown" class="shot shot-tall">
     @foreach ($themes as $t)
