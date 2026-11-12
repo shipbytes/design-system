@@ -477,7 +477,8 @@ const __ds_shared_roving = (() => {
 const __ds_behaviours_chart = (() => {
     /*
      * x-ds-chart: a chart's values, reachable one at a time. Behind ds::bar-chart,
-     * ds::line-chart and ds::donut-chart when `interactive` (the default):
+     * ds::line-chart, ds::donut-chart, ds::split-bar, ds::waffle-chart,
+     * ds::activity-rings and ds::slope-chart when `interactive` (the default):
      *
      *   x-data x-ds-chart
      *
@@ -515,6 +516,9 @@ const __ds_behaviours_chart = (() => {
      *             (series index), data-ds-label, data-ds-value (formatted by PHP),
      *             data-ds-series (its name, or empty) and data-ds-slot (1 to 8, or
      *             empty), and an aria-label
+     *   piece     data-ds-chart-piece="i", the rest of a mark drawn in several
+     *             pieces (a waffle's cells): the pointer over one reads the mark
+     *             whose data-ds-at is i, and the readout stands beside the piece
      *   series    data-ds-chart-series="n" on everything drawn for series n
      *   key       data-ds-chart-key="n", a legend entry
      *   readout   data-ds-chart-readout, hidden, holding
@@ -531,6 +535,7 @@ const __ds_behaviours_chart = (() => {
     const { anchor } = __ds_shared_anchor;
 
     const MARK = '[data-ds-chart-mark]';
+    const PIECE = '[data-ds-chart-piece]';
     const OPPOSITE = { ArrowDown: 'ArrowUp', ArrowUp: 'ArrowDown', ArrowLeft: 'ArrowRight', ArrowRight: 'ArrowLeft' };
 
     function chart(Alpine) {
@@ -562,6 +567,7 @@ const __ds_behaviours_chart = (() => {
         for (const mark of all()) mark.setAttribute('role', 'img');
 
         let active = null;
+        let beside = null;
         let anchored = null;
 
         function fill(mark) {
@@ -576,16 +582,17 @@ const __ds_behaviours_chart = (() => {
             }
         }
 
-        function show(mark) {
-            if (mark === active) return;
+        function show(mark, near = mark) {
+            if (mark === active && near === beside) return;
             active?.removeAttribute('data-ds-active');
             active = mark;
+            beside = near;
             mark.setAttribute('data-ds-active', '');
             if (!readout) return;
 
             fill(mark);
             readout.hidden = false;
-            const settings = { reference: mark, placement: 'top', offset: 8, clamp: false };
+            const settings = { reference: near, placement: 'top', offset: 8, clamp: false };
             if (anchored) anchored.update(settings);
             else anchored = anchor(readout, settings);
         }
@@ -593,6 +600,7 @@ const __ds_behaviours_chart = (() => {
         function hide() {
             active?.removeAttribute('data-ds-active');
             active = null;
+            beside = null;
             if (readout) readout.hidden = true;
             anchored?.stop();
             anchored = null;
@@ -662,9 +670,10 @@ const __ds_behaviours_chart = (() => {
         }
 
         function onPointerMove(event) {
-            const under = event.target.closest?.(MARK);
+            const piece = event.target.closest?.(PIECE);
+            const under = event.target.closest?.(MARK) ?? (piece && plot.querySelector(`${MARK}[data-ds-at="${piece.dataset.dsChartPiece}"]`));
             const mark = nearest ? closest(event) : under && shown(under) ? under : null;
-            if (mark) show(mark);
+            if (mark) show(mark, !nearest && piece && piece !== mark ? piece : mark);
             else if (active && !plot.contains(document.activeElement)) hide();
         }
 

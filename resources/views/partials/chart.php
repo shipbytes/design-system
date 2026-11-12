@@ -109,8 +109,8 @@ return [
      * class a consumer's Tailwind can see.
      */
     'gutters' => [
-        'left' => [16 => 'pl-4', 24 => 'pl-6', 32 => 'pl-8', 40 => 'pl-10', 48 => 'pl-12', 56 => 'pl-14', 64 => 'pl-16', 80 => 'pl-20', 96 => 'pl-24', 112 => 'pl-28', 128 => 'pl-32', 144 => 'pl-36'],
-        'right' => [0 => 'pr-0', 8 => 'pr-2', 16 => 'pr-4', 24 => 'pr-6', 32 => 'pr-8', 40 => 'pr-10', 48 => 'pr-12', 56 => 'pr-14', 64 => 'pr-16', 80 => 'pr-20', 96 => 'pr-24', 112 => 'pr-28', 128 => 'pr-32', 144 => 'pr-36'],
+        'left' => [16 => 'pl-4', 24 => 'pl-6', 32 => 'pl-8', 40 => 'pl-10', 48 => 'pl-12', 56 => 'pl-14', 64 => 'pl-16', 80 => 'pl-20', 96 => 'pl-24', 112 => 'pl-28', 128 => 'pl-32', 144 => 'pl-36', 160 => 'pl-40', 176 => 'pl-44', 192 => 'pl-48'],
+        'right' => [0 => 'pr-0', 8 => 'pr-2', 16 => 'pr-4', 24 => 'pr-6', 32 => 'pr-8', 40 => 'pr-10', 48 => 'pr-12', 56 => 'pr-14', 64 => 'pr-16', 80 => 'pr-20', 96 => 'pr-24', 112 => 'pr-28', 128 => 'pr-32', 144 => 'pr-36', 160 => 'pr-40', 176 => 'pr-44', 192 => 'pr-48'],
     ],
 
     /*
@@ -124,5 +124,15 @@ return [
         448 => '@max-md:hidden', 512 => '@max-lg:hidden', 576 => '@max-xl:hidden', 672 => '@max-2xl:hidden',
         768 => '@max-3xl:hidden', 896 => '@max-4xl:hidden', 1024 => '@max-5xl:hidden', 1152 => '@max-6xl:hidden',
         1280 => '@max-7xl:hidden',
+    ],
+
+    // The exact complement of `below`, for a stand-in shown only while the
+    // label it replaces is hidden: a split bar's legend entry for a segment
+    // too narrow to carry its name (Chart::above()).
+    'above' => [
+        256 => '@3xs:hidden', 288 => '@2xs:hidden', 320 => '@xs:hidden', 384 => '@sm:hidden',
+        448 => '@md:hidden', 512 => '@lg:hidden', 576 => '@xl:hidden', 672 => '@2xl:hidden',
+        768 => '@3xl:hidden', 896 => '@4xl:hidden', 1024 => '@5xl:hidden', 1152 => '@6xl:hidden',
+        1280 => '@7xl:hidden',
     ],
 ];

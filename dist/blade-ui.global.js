@@ -273,6 +273,7 @@ const __ds_behaviours_chart = (() => {
 const { roving } = __ds_shared_roving;
 const { anchor } = __ds_shared_anchor;
 const MARK = '[data-ds-chart-mark]';
+const PIECE = '[data-ds-chart-piece]';
 const OPPOSITE = { ArrowDown: 'ArrowUp', ArrowUp: 'ArrowDown', ArrowLeft: 'ArrowRight', ArrowRight: 'ArrowLeft' };
 function chart(Alpine) {
 Alpine.directive('ds-chart', (el, _, { cleanup }) => {
@@ -294,6 +295,7 @@ plot.setAttribute('role', 'group');
 plot.setAttribute('tabindex', '-1');
 for (const mark of all()) mark.setAttribute('role', 'img');
 let active = null;
+let beside = null;
 let anchored = null;
 function fill(mark) {
 const part = (name) => readout.querySelector(`[data-ds-chart-readout-${name}]`);
@@ -306,21 +308,23 @@ if (mark.dataset.dsSeries && mark.dataset.dsSlot) swatch.setAttribute('data-seri
 else swatch.removeAttribute('data-series');
 }
 }
-function show(mark) {
-if (mark === active) return;
+function show(mark, near = mark) {
+if (mark === active && near === beside) return;
 active?.removeAttribute('data-ds-active');
 active = mark;
+beside = near;
 mark.setAttribute('data-ds-active', '');
 if (!readout) return;
 fill(mark);
 readout.hidden = false;
-const settings = { reference: mark, placement: 'top', offset: 8, clamp: false };
+const settings = { reference: near, placement: 'top', offset: 8, clamp: false };
 if (anchored) anchored.update(settings);
 else anchored = anchor(readout, settings);
 }
 function hide() {
 active?.removeAttribute('data-ds-active');
 active = null;
+beside = null;
 if (readout) readout.hidden = true;
 anchored?.stop();
 anchored = null;
@@ -375,9 +379,10 @@ best = mark;
 return best;
 }
 function onPointerMove(event) {
-const under = event.target.closest?.(MARK);
+const piece = event.target.closest?.(PIECE);
+const under = event.target.closest?.(MARK) ?? (piece && plot.querySelector(`${MARK}[data-ds-at="${piece.dataset.dsChartPiece}"]`));
 const mark = nearest ? closest(event) : under && shown(under) ? under : null;
-if (mark) show(mark);
+if (mark) show(mark, !nearest && piece && piece !== mark ? piece : mark);
 else if (active && !plot.contains(document.activeElement)) hide();
 }
 function onPointerLeave() {

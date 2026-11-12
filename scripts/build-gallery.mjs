@@ -404,6 +404,10 @@ table.ref .samp { color: var(--g-ink); font-family: Inter, ui-sans-serif, system
       <a href="#bar-chart">Bar chart</a>
       <a href="#line-chart">Line chart</a>
       <a href="#donut-chart">Donut</a>
+      <a href="#split-bar">Split bar</a>
+      <a href="#waffle-chart">Waffle</a>
+      <a href="#activity-rings">Rings</a>
+      <a href="#slope-chart">Slope</a>
       <a href="#timeline">Timeline</a>
       <a href="#stepper">Stepper</a>
       <a href="#breadcrumb">Breadcrumb</a>

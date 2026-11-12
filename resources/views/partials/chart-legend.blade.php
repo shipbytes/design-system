@@ -4,7 +4,8 @@
 
     $items    list of ['name' => …, 'colour' => class, 'series' => index or
               null, 'detail' => text after the name or null, 'title' => the
-              full name when `name` was cut short, or null]
+              full name when `name` was cut short, or null, 'class' => classes
+              for the entry, a container query that hides it, or none]
     $toggles  the entries are hooks x-ds-chart turns into show-and-hide
               buttons (role, tabindex and aria-pressed are the script's to
               write: without it they are a plain list, which is right)
@@ -19,7 +20,7 @@
     'flex-wrap gap-x-4 gap-y-1' => ! ($column ?? false),
 ])>
     @foreach ($items as $item)
-        <li class="min-w-0">
+        <li class="{{ trim('min-w-0 '.($item['class'] ?? '')) }}">
             <span
                 @if (($toggles ?? false) && $item['series'] !== null) data-ds-chart-key="{{ $item['series'] }}" @endif
                 @if ($item['title'] ?? null) title="{{ $item['title'] }}" @endif

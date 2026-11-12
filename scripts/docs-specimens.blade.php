@@ -918,6 +918,100 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── split-bar --}}
+<div data-shot="split-bar" class="shot shot-wide">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-3">
+                <div class="flex flex-col gap-5 rounded-panel border border-border bg-surface p-4">
+                    <x-ds::split-bar label="Plan mix" :data="['Free' => 744, 'Pro' => 360, 'Team' => 84, 'Enterprise' => 12]" :format="['suffix' => ' seats']" />
+                    <x-ds::split-bar label="Storage" legend="inline" :total="500" size="lg" :format="['suffix' => ' GB']"
+                        :data="['Photos' => 150, 'Video' => 96, 'Documents' => 38, 'Mail' => 2]" data-shot-hover />
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="w-80 shrink-0 rounded-panel border border-border bg-surface p-4">
+                        <x-ds::split-bar label="Tickets by status" size="sm" showValues="value" :interactive="false"
+                            :data="[['label' => 'Open', 'value' => 18], ['label' => 'Pending', 'value' => 7], ['label' => 'Solved', 'value' => 41], ['label' => 'Blocked', 'value' => 0]]" />
+                    </div>
+                    <div class="min-w-0 flex-1 rounded-panel border border-border bg-surface p-4">
+                        <x-ds::split-bar label="Storage, narrow" legend="inline" :total="500" showValues="percent" :interactive="false"
+                            :data="['Photos' => 150, 'Video' => 96, 'Documents' => 38, 'Mail' => 2]" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── waffle-chart --}}
+<div data-shot="waffle-chart" class="shot shot-wide">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-3">
+                <div class="rounded-panel border border-border bg-surface p-4">
+                    <x-ds::waffle-chart label="Seats by plan" :data="['Free' => 620, 'Pro' => 290, 'Team' => 74, 'Enterprise' => 16]" :format="['suffix' => ' seats']" data-shot-hover />
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="w-80 shrink-0 rounded-panel border border-border bg-surface p-4">
+                        <x-ds::waffle-chart label="Survey answered" :data="37" size="sm" tone="accent" legend="below" :interactive="false" />
+                    </div>
+                    <div class="min-w-0 flex-1 rounded-panel border border-border bg-surface p-4">
+                        <x-ds::waffle-chart label="Of 200 invited" :total="200" :rows="5" :columns="20" shape="circle" size="sm" legend="below" :interactive="false"
+                            :data="['Accepted' => 112, 'Declined' => 31]" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── activity-rings --}}
+<div data-shot="activity-rings" class="shot shot-wide">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-3">
+                <div class="rounded-panel border border-border bg-surface p-4">
+                    <x-ds::activity-rings label="Today" :rings="[
+                        ['label' => 'Move', 'value' => 420, 'max' => 600, 'format' => ['suffix' => ' kcal']],
+                        ['label' => 'Exercise', 'value' => 25, 'max' => 30, 'format' => ['suffix' => ' min']],
+                        ['label' => 'Stand', 'value' => 14, 'max' => 12, 'format' => ['suffix' => ' h']],
+                    ]" data-shot-hover>
+                        <x-slot:centre><span class="text-title font-semibold text-fg">2/3</span><span class="text-meta text-fg-muted">goals</span></x-slot:centre>
+                    </x-ds::activity-rings>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="w-80 shrink-0 rounded-panel border border-border bg-surface p-4">
+                        <x-ds::activity-rings label="Sprint" size="sm" legend="below" :interactive="false" :format="['suffix' => ' pts']"
+                            :rings="[['label' => 'Done', 'value' => 34, 'max' => 50], ['label' => 'Reviewed', 'value' => 21, 'max' => 50]]" />
+                    </div>
+                    <div class="min-w-0 flex-1 rounded-panel border border-border bg-surface p-4">
+                        <x-ds::activity-rings label="Quarter's target by region" size="sm" thickness="lg" :interactive="false"
+                            :rings="['North' => 82, 'South' => 64, 'East' => 97, 'West' => 41]" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── slope-chart --}}
+<div data-shot="slope-chart" class="shot shot-wide">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-3">
+                <div class="rounded-panel border border-border bg-surface p-4">
+                    <x-ds::slope-chart label="Conversion by channel" fromLabel="Q1" toLabel="Q2" :format="['suffix' => '%', 'decimals' => 1]" height="sm"
+                        :data="['Search' => [3.1, 4.2], 'Email' => [5.4, 5.1], 'Social' => [1.2, 2.6], 'Direct' => [4.0, 4.0], 'Referral' => [2.2, 1.6]]" data-shot-hover />
+                </div>
+                <div class="rounded-panel border border-border bg-surface p-4">
+                    <x-ds::slope-chart label="Satisfaction by team" fromLabel="Before the redesign" toLabel="After" colourBy="direction" :highlight="['Billing', 'Onboarding']" height="sm" :interactive="false"
+                        :data="['Support' => [72, 75], 'Billing' => [54, 71], 'Onboarding' => [68, 59], 'Reporting and analytics' => [61, 62], 'Integrations' => [80, 80], 'Mobile' => [66, 64]]" />
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── timeline --}}
 <div data-shot="timeline" class="shot shot-wide">
     @foreach ($themes as $t)

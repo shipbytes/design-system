@@ -82,6 +82,11 @@
 <section data-focus="bar-chart"><x-ds::bar-chart label="Two" :data="['a' => [1, 2], 'b' => [3, 4]]" :series="['One', 'Two']" height="sm" /></section>
 <section data-focus="line-chart"><x-ds::line-chart label="Line" :data="['a' => 1, 'b' => 3, 'c' => 2]" height="sm" /></section>
 <section data-focus="donut-chart"><x-ds::donut-chart label="Donut" size="sm" legend="none" :data="['a' => 1, 'b' => 3]" /></section>
+{{-- Batch 13: a segment's own ring; a waffle's on its first cell; rings and slope as the donut and line are. --}}
+<section data-focus="split-bar"><x-ds::split-bar label="Split" legend="none" :data="['a' => 1, 'b' => 3]" /></section>
+<section data-focus="waffle-chart"><x-ds::waffle-chart label="Waffle" legend="none" :data="['a' => 40, 'b' => 60]" size="sm" /></section>
+<section data-focus="activity-rings"><x-ds::activity-rings label="Rings" size="sm" legend="none" :rings="['a' => 40, 'b' => 70]" /></section>
+<section data-focus="slope-chart"><x-ds::slope-chart label="Slope" fromLabel="Then" toLabel="Now" height="sm" :data="['a' => [1, 2], 'b' => [3, 1]]" /></section>
 <section data-focus="timeline"><x-ds::timeline><x-ds::timeline-item title="Linked entry" href="#entry" time="2026-11-12" /></x-ds::timeline></section>
 {{-- A tree is one stop; a navigation tree's links join it once the script runs. --}}
 <section data-focus="tree"><x-ds::tree label="Files"><x-ds::tree-item label="app" :open="true"><x-ds::tree-item label="a.php" /></x-ds::tree-item></x-ds::tree> <x-ds::tree label="Perms" selectable="multiple" name="fperms"><x-ds::tree-item label="View" /></x-ds::tree></section>

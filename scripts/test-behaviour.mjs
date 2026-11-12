@@ -4152,6 +4152,101 @@ group('charts (x-ds-chart: readout, roving tabindex, legend toggles)');
         return (first.focused === 'Direct: 1,200 (50%)' && first.value === '1,200 (50%)' && first.series === ''
             && next.focused === 'Search: 800 (33%)' && ring === 'solid') || JSON.stringify({ first, next, ring });
     });
+    await check('a split bar: its div is a group, each segment an img; Tab, the arrows and End walk the segments, the empty rest included, a zero skipped', async () => {
+        const roles = await page.evaluate(() => {
+            const plot = document.querySelector('#ch-split [data-ds-chart-plot]');
+            return { plot: plot.getAttribute('role'), tag: plot.tagName, marks: [...plot.querySelectorAll('[data-ds-chart-mark]')].map((m) => m.getAttribute('role')) };
+        });
+        await page.focus('#ch-split [data-ds-chart-mark][tabindex="0"]');
+        const first = await chartState(page, 'ch-split');
+        await page.keyboard.press('ArrowRight');
+        const next = await chartState(page, 'ch-split');
+        await page.keyboard.press('End');
+        const end = await chartState(page, 'ch-split');
+        return (roles.plot === 'group' && roles.tag === 'DIV' && JSON.stringify(roles.marks) === '["img","img","img"]'
+            && first.focused === 'Photos: 150 GB (30%)' && first.shown && first.label === 'Photos' && first.value === '150 GB (30%)'
+            && next.focused === 'Video: 96 GB (19%)' && end.focused === 'Remaining: 254 GB (51%)') || JSON.stringify({ roles, first, next, end });
+    });
+    await check('a split bar: 2px of surface between segments, only the outer ends rounded', async () => {
+        const r = await page.evaluate(() => {
+            const marks = [...document.querySelectorAll('#ch-split [data-ds-chart-mark]')];
+            const box = marks.map((m) => m.getBoundingClientRect());
+            const radius = marks.map((m) => [getComputedStyle(m).borderTopLeftRadius, getComputedStyle(m).borderTopRightRadius]);
+            return { gaps: box.slice(1).map((b, i) => Math.round((b.left - box[i].right) * 10) / 10), radius };
+        });
+        const [a, b, c] = r.radius;
+        return (JSON.stringify(r.gaps) === '[2,2]' && a[0] !== '0px' && a[1] === '0px' && b[0] === '0px' && b[1] === '0px' && c[0] === '0px' && c[1] !== '0px') || JSON.stringify(r);
+    });
+    await check('a waffle: one mark per part; the pointer over any cell of a part reads it, beside that cell', async () => {
+        const r = await page.evaluate(() => ({
+            marks: document.querySelectorAll('#ch-waffle [data-ds-chart-mark]').length,
+            pieces: document.querySelectorAll('#ch-waffle [data-ds-chart-piece]').length,
+            cells: document.querySelectorAll('#ch-waffle [data-ds-chart-plot] > *').length,
+        }));
+        await page.evaluate(() => document.getElementById('ch-waffle').scrollIntoView({ block: 'center' }));
+        const cell = page.locator('#ch-waffle [data-ds-chart-piece="1"]').nth(20);
+        await cell.hover();
+        await page.waitForTimeout(50);
+        const over = await chartState(page, 'ch-waffle');
+        const near = await page.evaluate(() => {
+            const piece = document.querySelectorAll('#ch-waffle [data-ds-chart-piece="1"]')[20].getBoundingClientRect();
+            const box = document.querySelector('#ch-waffle [data-ds-chart-readout]').getBoundingClientRect();
+            return { above: Math.round(piece.top - box.bottom), across: box.left < piece.right && box.right > piece.left };
+        });
+        await page.mouse.move(2, 2);
+        await page.waitForTimeout(50);
+        const away = await chartState(page, 'ch-waffle');
+        return (r.marks === 3 && r.pieces === 97 && r.cells === 100 && over.shown && over.label === 'Pro' && over.value === '30 (30%)'
+            && over.active === 'Pro: 30 (30%)' && near.above >= 4 && near.above <= 12 && near.across && away.shown === false) || JSON.stringify({ r, over, near, away });
+    });
+    await check('a waffle: the keyboard reaches each part once, not each cell', async () => {
+        await page.focus('#ch-waffle [data-ds-chart-mark][tabindex="0"]');
+        const first = await chartState(page, 'ch-waffle');
+        await page.keyboard.press('ArrowRight');
+        await page.keyboard.press('ArrowRight');
+        const third = await chartState(page, 'ch-waffle');
+        await page.keyboard.press('ArrowRight');
+        const wrapped = await chartState(page, 'ch-waffle');
+        return (first.focused === 'Free: 62 (62%)' && third.focused === 'Team: 8 (8%)' && wrapped.focused === 'Free: 62 (62%)') || JSON.stringify({ first, third, wrapped });
+    });
+    await check('a waffle in a right-to-left page fills from the right', async () => {
+        const r = await page.evaluate(() => {
+            const cells = [...document.querySelectorAll('#ch-waffle-rtl [data-ds-chart-plot] > *')].map((c) => c.getBoundingClientRect().left);
+            return { first: cells[0], second: cells[1], last: cells[9] };
+        });
+        return (r.first > r.second && r.second > r.last) || JSON.stringify(r);
+    });
+    await check('activity rings: each ring a stop, its value against its goal, a goal passed said in figures; the ring round the whole', async () => {
+        await page.focus('#ch-rings [data-ds-chart-mark][tabindex="0"]');
+        const first = await chartState(page, 'ch-rings');
+        await page.keyboard.press('ArrowDown');
+        const next = await chartState(page, 'ch-rings');
+        const ring = await page.evaluate(() => getComputedStyle(document.querySelector('#ch-rings [data-ds-chart-plot]').parentElement).outlineStyle);
+        return (first.focused === 'Move: 420 of 600 (70%)' && first.shown && next.focused === 'Stand: 14 of 12 (117%)' && next.value === '14 of 12 (117%)' && ring === 'solid')
+            || JSON.stringify({ first, next, ring });
+    });
+    await check('a slope chart: ArrowRight goes from an item\'s first point to its second, ArrowDown to the next item; the column is the series', async () => {
+        await page.focus('#ch-slope [data-ds-chart-mark][tabindex="0"]');
+        const first = await chartState(page, 'ch-slope');
+        await page.keyboard.press('ArrowRight');
+        const along = await chartState(page, 'ch-slope');
+        await page.keyboard.press('ArrowDown');
+        const across = await chartState(page, 'ch-slope');
+        return (first.focused === 'Oslo, 2024: 120' && along.focused === 'Oslo, 2025: 180 (+60)' && along.series === '2025' && along.swatch === '1'
+            && across.focused === 'Rome, 2025: 140 (−10)' && across.swatch === '2') || JSON.stringify({ first, along, across });
+    });
+    await check('a slope chart: the pointer reads the nearest point, column first', async () => {
+        await page.evaluate(() => document.getElementById('ch-slope').scrollIntoView({ block: 'center' }));
+        const at = await page.evaluate(() => {
+            const r = document.querySelector('#ch-slope [data-ds-chart-mark][data-ds-at="1"][data-ds-in="2"]').getBoundingClientRect();
+            return { x: r.left - 30, y: r.top + r.height / 2 + 3 };
+        });
+        await page.mouse.move(at.x, at.y);
+        await page.waitForTimeout(50);
+        const over = await chartState(page, 'ch-slope');
+        await page.mouse.move(2, 2);
+        return (over.shown && over.label === 'Lima' && over.value === '90 (±0)' && over.series === '2025') || JSON.stringify(over);
+    });
     await check('interactive off: an image, no tab stops, no readout', async () => {
         const r = await page.evaluate(() => {
             const root = document.getElementById('ch-static');
@@ -6203,7 +6298,7 @@ for (const [page, what] of [['charts-missing.html', 'Alpine and no include'], ['
     const { tab, errors } = await openHost(page);
 
     await check('the markup reached the page', async () =>
-        (await tab.locator('#charts [data-ds-chart-plot]').count()) === 5 || 'the specimen was not found in the rendered page');
+        (await tab.locator('#charts [data-ds-chart-plot]').count()) === 9 || 'the specimen was not found in the rendered page');
     await check('nothing in the console', async () => !errors.length || errors.join(' | '));
     await check('every chart is an image named by its summary; no mark is focusable, no readout shows', async () => {
         const r = await tab.evaluate(() => {

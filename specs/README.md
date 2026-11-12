@@ -60,6 +60,10 @@ independent implementations the same component rather than three lookalikes.
 | [bar-chart.md](bar-chart.md) | Percent x and px y so text never scales, labels thinned by container query, the keyboard model |
 | [line-chart.md](line-chart.md) | A nested stretched plot, the monotone curve, gaps, end labels and the legend rule |
 | [donut-chart.md](donut-chart.md) | Arcs by dash, the fold into Other, largest-remainder shares, when not to use one |
+| [split-bar.md](split-bar.md) | Flex-basis segments with a least width, the rest as track, inline names that fall back by container query |
+| [waffle-chart.md](waffle-chart.md) | Cells by largest remainder, one image not a hundred cells, a mark drawn in pieces, reading order and rtl |
+| [activity-rings.md](activity-rings.md) | Dashes shortened by their round caps, rings narrowed to leave a hole, a goal passed said not drawn |
+| [slope-chart.md](slope-chart.md) | Two axes in the bar chart's frame, labels spread apart greedily, the change written on every label |
 | [timeline.md](timeline.md) | Timeline, timeline-item and timeline-group: the rail each item draws, time elements, sticky groups |
 | [stepper.md](stepper.md) | Steps, statuses, the narrow-width collapse |
 | [avatar-group.md](avatar-group.md) | Overlapping avatars, the ground ring, the spoken sentence |

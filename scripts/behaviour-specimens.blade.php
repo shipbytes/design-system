@@ -756,8 +756,8 @@
         <x-ds::activity-heatmap label="Commits" to="2026-03-08" :data="['2026-03-03' => 12, '2026-03-04' => 1, '2025-03-10' => 2]" unit="commit" href="/day/{date}" />
     </div>
 
-    {{-- ── charts (x-ds-chart): grouped bars, a line, a donut, and one bar
-         chart with interactive off. The block is also cut out for the host
+    {{-- ── charts (x-ds-chart): grouped bars, a line, a donut, one bar
+         chart with interactive off, and batch 13's four. The block is also cut out for the host
          pages without the script, by its id and the closing comment. ── --}}
     <div class="mt-6 w-[640px]" id="charts">
         <button type="button" id="ch-before">before the charts</button>
@@ -767,8 +767,16 @@
         <x-ds::line-chart id="ch-line" label="Visits" :data="['Mon' => [3, 1], 'Tue' => [4, 2], 'Wed' => [6, 3], 'Thu' => [5, 4]]" :series="['New', 'Returning']" />
         <x-ds::donut-chart id="ch-donut" label="Traffic" :data="['Direct' => 1200, 'Search' => 800, 'Social' => 400]" />
         <x-ds::bar-chart id="ch-static" label="Static" :interactive="false" :data="['a' => 1, 'b' => 2]" />
+        {{-- batch 13: the four that joined x-ds-chart by its hooks alone. --}}
+        <x-ds::split-bar id="ch-split" label="Storage" :total="500" :format="['suffix' => ' GB']" :data="['Photos' => 150, 'Video' => 96, 'Mail' => 0]" />
+        <x-ds::waffle-chart id="ch-waffle" label="Seats" :data="['Free' => 62, 'Pro' => 30, 'Team' => 8]" />
+        <x-ds::activity-rings id="ch-rings" label="Today" :rings="[['label' => 'Move', 'value' => 420, 'max' => 600], ['label' => 'Stand', 'value' => 14, 'max' => 12]]" />
+        <x-ds::slope-chart id="ch-slope" label="Price" fromLabel="2024" toLabel="2025" :data="['Oslo' => [120, 180], 'Rome' => [150, 140], 'Lima' => [90, 90]]" />
     </div>
     <!-- /charts -->
+    <div class="mt-6" dir="rtl" id="ch-waffle-rtl">
+        <x-ds::waffle-chart label="Share" :data="['A' => 23, 'B' => 41]" :total="100" :interactive="false" legend="none" />
+    </div>
 
     {{-- ── batch 10: tree (dsTree), filter bar, clearable input, code block,
          expandable text (dsClamp) and the collapsible panel. The block marked

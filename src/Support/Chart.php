@@ -672,16 +672,29 @@ final class Chart
      */
     public static function percentages(array $values): array
     {
+        return self::apportion($values, 100);
+    }
+
+    /**
+     * Whole units shared out in proportion to the values, by the largest
+     * remainder, so they always add up to `units` exactly: percentages are
+     * this with 100, a waffle's cells this with rows × columns. Ties go to
+     * the value given first.
+     *
+     * @return list<int>
+     */
+    public static function apportion(array $values, int $units): array
+    {
         $values = array_values(array_map('floatval', $values));
         $total = array_sum($values);
 
-        if ($total <= 0) {
+        if ($total <= 0 || $units <= 0) {
             return array_fill(0, count($values), 0);
         }
 
-        $exact = array_map(fn ($v) => $v / $total * 100, $values);
+        $exact = array_map(fn ($v) => $v / $total * $units, $values);
         $whole = array_map(fn ($v) => (int) floor($v), $exact);
-        $left = 100 - array_sum($whole);
+        $left = $units - array_sum($whole);
 
         $order = array_keys($exact);
         usort($order, fn ($a, $b) => ($exact[$b] - $whole[$b]) <=> ($exact[$a] - $whole[$a]) ?: $a <=> $b);
@@ -691,6 +704,321 @@ final class Chart
         }
 
         return $whole;
+    }
+
+    /**
+     * A waffle's cells: how many each part fills of `cells`, measured against
+     * `total` (the sum when null), and how many stay empty after them. The
+     * empty remainder takes part in the rounding, so the counts always add up
+     * to `cells`. A part above zero always gets at least one cell, taken from
+     * the part with the most, because a part the legend lists and the grid
+     * does not show reads as a mistake; the cost is at most a cell each.
+     *
+     * @param  list<float>  $values
+     * @return array{parts: list<int>, empty: int}
+     */
+    public static function cells(array $values, int $cells, ?float $total = null): array
+    {
+        $values = array_values(array_map(fn ($v) => max(0.0, (float) $v), $values));
+        $sum = array_sum($values);
+        $whole = max($sum, (float) ($total ?? $sum));
+
+        $counts = self::apportion(array_merge($values, [$whole - $sum]), $cells);
+        $empty = array_pop($counts);
+
+        foreach ($values as $i => $value) {
+            if ($value > 0 && $counts[$i] === 0) {
+                $from = array_search(max($counts), $counts, true);
+                if ($counts[$from] > 1) {
+                    $counts[$from]--;
+                    $counts[$i] = 1;
+                } elseif ($empty > 0) {
+                    $empty--;
+                    $counts[$i] = 1;
+                }
+            }
+        }
+
+        return ['parts' => $counts, 'empty' => $empty];
+    }
+
+    /**
+     * The parts of a whole in one shape, from any of the shapes a chart of
+     * parts takes:
+     *
+     *   ['Free' => 70, 'Pro' => 25]
+     *   ['Free' => ['value' => 70, 'tone' => 'success'], …]
+     *   [['label' => 'Free', 'value' => 70, 'series' => 3], …]
+     *
+     * `$keys` are the numeric fields a row carries (value; or value and max;
+     * or from and to), the first of them the one a bare number fills. A row
+     * given as a list ([12, 14]) fills them in order. tone, series and format
+     * travel with a row when it has them. Validating the numbers is the
+     * component's, which knows what makes one wrong.
+     *
+     * @param  list<string>  $keys
+     * @return list<array<string, mixed>>
+     */
+    public static function rows(iterable $data, array $keys = ['value']): array
+    {
+        $out = [];
+        $i = 0;
+
+        foreach ($data as $key => $row) {
+            $i++;
+            $row = $row instanceof \Traversable ? iterator_to_array($row) : $row;
+            $fallback = is_string($key) ? $key : (string) $i;
+
+            if (! is_array($row)) {
+                $out[] = ['label' => $fallback, $keys[0] => $row, 'tone' => null, 'series' => null, 'format' => null];
+                continue;
+            }
+
+            $entry = ['label' => isset($row['label']) && trim((string) $row['label']) !== '' ? (string) $row['label'] : $fallback];
+            foreach ($keys as $k => $field) {
+                $entry[$field] = array_key_exists($field, $row) ? $row[$field] : (array_is_list($row) ? ($row[$k] ?? null) : null);
+            }
+            $entry['tone'] = isset($row['tone']) ? (string) $row['tone'] : null;
+            $entry['series'] = $row['series'] ?? null;
+            $entry['format'] = isset($row['format']) && is_array($row['format']) ? $row['format'] : null;
+            $out[] = $entry;
+        }
+
+        return $out;
+    }
+
+    /**
+     * The sentence a chart of the parts of a whole is read as. With a legend
+     * on screen, which already lists every part, the gist; without one, every
+     * part. `$of` is the whole when it is more than the parts (a storage bar
+     * with room left), and then the sentence says how much of it is used.
+     *
+     *   Plans: 3 parts, total 1,200; the largest is Free at 62%.
+     *   Storage: 3 parts, 320 of 500; the largest is Photos at 30%.
+     *   Plans: Free 744 (62%), Pro 360 (30%), Team 96 (8%); total 1,200.
+     *
+     * @param  list<array{label: string, value: float}>  $parts
+     * @param  list<int|string>  $shares  each part's whole percentage, from percentages(),
+     *                                   or the words a view writes for one ("<1")
+     */
+    public static function whole(array $parts, array $shares, array $format = [], ?string $label = null, bool $list = false, ?float $of = null): string
+    {
+        $f = fn (float $v) => self::format($v, $format);
+        $lead = $label !== null && trim($label) !== '' ? trim($label).': ' : '';
+
+        if ($parts === []) {
+            return $lead === '' ? 'No data.' : $lead.'no data.';
+        }
+
+        $sum = array_sum(array_column($parts, 'value'));
+        $amount = $of !== null && $of > $sum ? $f($sum).' of '.$f($of) : 'total '.$f($sum);
+
+        if ($list || count($parts) === 1) {
+            $each = implode(', ', array_map(fn ($p, $i) => $p['label'].' '.$f($p['value']).' ('.$shares[$i].'%)', $parts, array_keys($parts)));
+            $text = $each.'; '.$amount.'.';
+        } else {
+            $largest = array_keys(array_column($parts, 'value'), max(array_column($parts, 'value')))[0];
+            $text = count($parts).' parts, '.$amount.'; the largest is '.$parts[$largest]['label'].' at '.$shares[$largest].'%.';
+        }
+
+        return $lead === '' ? ucfirst($text) : $lead.$text;
+    }
+
+    /**
+     * Labels stacked down one side of a chart (a slope chart's, a line
+     * chart's names at its ends), moved apart so none overprints another:
+     * down the page first, each at least `gap` below the one above; then back
+     * up from `max`, so none is pushed out of the box; and down again from
+     * `min` if the box is too short for all of them, where they then
+     * overflow at the foot rather than the head. Keys are kept, and so is
+     * the order the labels are in down the page.
+     *
+     * @param  array<int|string, float>  $ys
+     * @return array<int|string, float>
+     */
+    public static function spread(array $ys, float $gap, float $min, float $max): array
+    {
+        $ys = array_map('floatval', $ys);
+        $keys = array_keys($ys);
+        usort($keys, fn ($a, $b) => $ys[$a] <=> $ys[$b] ?: (array_search($a, array_keys($ys), true) <=> array_search($b, array_keys($ys), true)));
+
+        $at = [];
+        foreach ($keys as $n => $key) {
+            $at[$key] = $n === 0 ? max($min, $ys[$key]) : max($ys[$key], $at[$keys[$n - 1]] + $gap);
+        }
+
+        $limit = $max;
+        foreach (array_reverse($keys) as $key) {
+            $at[$key] = min($at[$key], $limit);
+            $limit = $at[$key] - $gap;
+        }
+
+        $floor = $min;
+        foreach ($keys as $key) {
+            $at[$key] = max($at[$key], $floor);
+            $floor = $at[$key] + $gap;
+        }
+
+        $out = [];
+        foreach (array_keys($ys) as $key) {
+            $out[$key] = $at[$key];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Concentric rings in a 100-unit box, outermost first: each ring's
+     * radius and the stroke width they all share. `$width` is the width
+     * asked for; with more rings than fit it narrows, so the innermost still
+     * leaves a hole of `$hole` radius for whatever sits in the middle.
+     *
+     * @return array{width: float, radii: list<float>}
+     */
+    public static function rings(int $count, float $width, float $gap = 2.0, float $hole = 16.0, float $outer = 49.0): array
+    {
+        $count = max(1, $count);
+        $width = min($width, ($outer - $hole - ($count - 1) * $gap) / $count);
+
+        return [
+            'width' => $width,
+            'radii' => array_map(fn ($i) => $outer - $width / 2 - $i * ($width + $gap), range(0, $count - 1)),
+        ];
+    }
+
+    /**
+     * One progress ring as a dash on a circle turned to start at twelve
+     * o'clock: its stroke-dasharray and stroke-dashoffset, or null for
+     * nothing to draw. Its ends are round caps, which reach half the
+     * stroke's width past each end of the dash, so the dash is shortened by
+     * a width and started half a width in: what shows runs from twelve
+     * o'clock to exactly the fraction. A sliver shorter than its caps draws
+     * as a dot. A full ring, or more, is the whole circle.
+     *
+     * @return array{dash: string, offset: string}|null
+     */
+    public static function ring(float $r, float $fraction, float $width): ?array
+    {
+        $circumference = 2 * M_PI * $r;
+
+        if ($fraction <= 0) {
+            return null;
+        }
+
+        if ($fraction >= 1) {
+            return ['dash' => self::n($circumference).' '.self::n($circumference), 'offset' => '0'];
+        }
+
+        return [
+            'dash' => self::n(max(0.01, $circumference * $fraction - $width)).' '.self::n($circumference),
+            'offset' => self::n(-$width / 2),
+        ];
+    }
+
+    /**
+     * The sentence a before-and-after comparison is read as: how many went
+     * each way, and the largest move each way, by name.
+     *
+     *   Price: 2024 to 2025, 3 up and 1 down; the largest rise is Oslo (+12), the largest fall Rome (−4).
+     *   Price: 2024 to 2025, all 3 flat.
+     *   Price: Oslo up from 10 to 22 (+12), 2024 to 2025.
+     *
+     * @param  list<array{label: string, from: float, to: float}>  $items
+     */
+    public static function slope(array $items, string $from, string $to, array $format = [], ?string $label = null): string
+    {
+        $lead = $label !== null && trim($label) !== '' ? trim($label).': ' : '';
+
+        if ($items === []) {
+            return $lead === '' ? 'No data.' : $lead.'no data.';
+        }
+
+        $span = trim($from).' to '.trim($to);
+        $move = fn (array $item) => $item['label'].' ('.self::change($item['from'], $item['to'], $format).')';
+
+        if (count($items) === 1) {
+            $item = $items[0];
+            $way = self::direction($item['from'], $item['to']);
+            $text = $item['label'].' '.($way === 'flat'
+                ? 'flat at '.self::format($item['to'], $format)
+                : $way.' from '.self::format($item['from'], $format).' to '.self::format($item['to'], $format).' ('.self::change($item['from'], $item['to'], $format).')').', '.$span.'.';
+
+            return $lead === '' ? ucfirst($text) : $lead.$text;
+        }
+
+        $ways = ['up' => [], 'down' => [], 'flat' => []];
+        foreach ($items as $item) {
+            $ways[self::direction($item['from'], $item['to'])][] = $item;
+        }
+        $counts = array_filter(array_map('count', $ways));
+
+        if (count($counts) === 1) {
+            $text = $span.', all '.count($items).' '.array_key_first($counts);
+        } else {
+            $said = array_map(fn ($way, $n) => $n.' '.$way, array_keys($counts), $counts);
+            $text = $span.', '.implode(', ', array_slice($said, 0, -1)).' and '.end($said);
+        }
+
+        $by = fn (array $item) => $item['to'] - $item['from'];
+        $notes = [];
+        if ($ways['up'] !== []) {
+            $notes[] = 'the largest rise is '.$move(array_reduce($ways['up'], fn ($c, $i) => $c === null || $by($i) > $by($c) ? $i : $c));
+        }
+        if ($ways['down'] !== []) {
+            $notes[] = ($notes === [] ? 'the largest fall is ' : 'the largest fall ').$move(array_reduce($ways['down'], fn ($c, $i) => $c === null || $by($i) < $by($c) ? $i : $c));
+        }
+
+        $text .= $notes === [] ? '.' : '; '.implode(', ', $notes).'.';
+
+        return $lead === '' ? ucfirst($text) : $lead.$text;
+    }
+
+    /** Which way a value went: up, down, or flat. */
+    public static function direction(float $from, float $to): string
+    {
+        return match ($to <=> $from) {
+            1 => 'up',
+            -1 => 'down',
+            default => 'flat',
+        };
+    }
+
+    /**
+     * A change as a reader sees it, signed: +4, −$1.2K, ±0. A change is a
+     * difference, so its sign is always written, and a plus is as wide as
+     * the minus format() uses.
+     */
+    public static function change(float $from, float $to, array $format = []): string
+    {
+        $text = self::format($to - $from, $format);
+
+        if (str_starts_with($text, self::MINUS)) {
+            return $text;
+        }
+
+        // A change too small to show at these decimals reads as none.
+        return ($text === self::format(0, $format) ? '±' : '+').$text;
+    }
+
+    /**
+     * The class that hides a label while the chart is WIDER than `$width`:
+     * the exact opposite of below(), for the stand-in that shows only while
+     * the label it stands in for is hidden. `hidden` for null (the label is
+     * always shown), none for a label that never fits.
+     */
+    public static function above(?float $width): string
+    {
+        if ($width === null) {
+            return 'hidden';
+        }
+
+        foreach (self::recipe()['above'] as $at => $class) {
+            if ($at >= $width) {
+                return $class;
+            }
+        }
+
+        return '';
     }
 
     /**
