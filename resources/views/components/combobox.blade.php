@@ -57,21 +57,10 @@
         $disabled ? 'cursor-not-allowed bg-surface-subtle' : 'hover:border-fg/20',
     ]);
 
-    /*
-     * Arrow keys walk the FILTERED list, so the handler reads the DOM rather
-     * than the options array — what is on screen is the only correct source
-     * once a filter is applied.
-     */
-    $moveFocus = <<<'JS'
-        const items = [...$el.querySelectorAll('[role="option"]')];
-        if (!items.length) return;
-        const at = items.indexOf(document.activeElement);
-        const to = $event.key === 'Home' ? 0
-            : $event.key === 'End' ? items.length - 1
-            : $event.key === 'ArrowUp' ? (at <= 0 ? items.length - 1 : at - 1)
-            : (at === items.length - 1 ? 0 : at + 1);
-        items[to].focus();
-    JS;
+    // The list, its options and its arrow keys are the listbox recipe, which
+    // the time picker draws with too: see resources/views/partials/listbox.php.
+    $listbox = \Shipbytes\BladeUi\Support\Listbox::recipe();
+    $moveFocus = $listbox['move'];
 @endphp
 
 <div
@@ -185,7 +174,7 @@
         role="listbox"
         :aria-multiselectable="multiple"
         @if ($label) aria-labelledby="{{ $id }}-label" @endif
-        class="absolute z-50 mt-1 max-h-60 w-full origin-top data-[side=top]:origin-bottom overflow-y-auto rounded-control border border-border bg-surface py-1 shadow-float"
+        class="{{ $listbox['panel'] }}"
     >
         <template
             x-for="option in options.filter((o) => o.label.toLowerCase().includes(query.trim().toLowerCase()))"
@@ -207,7 +196,7 @@
                 "
                 @keydown.enter.prevent="$el.click()"
                 @keydown.space.prevent="$el.click()"
-                class="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-body text-fg-body motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:bg-surface-subtle focus-visible:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring aria-selected:font-medium aria-selected:text-fg"
+                class="{{ $listbox['option'] }}"
             >
                 <span class="truncate" x-text="option.label"></span>
                 <x-ds::icon
@@ -223,7 +212,7 @@
         {{-- An empty list with no message reads as a broken control. --}}
         <li
             x-show="! options.filter((o) => o.label.toLowerCase().includes(query.trim().toLowerCase())).length"
-            class="px-3 py-2 text-body text-fg-muted"
+            class="{{ $listbox['empty'] }}"
         >{{ $emptyText }}</li>
     </ul>
 
