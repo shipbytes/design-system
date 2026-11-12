@@ -79,48 +79,14 @@
     $labelledBy = $title ? "{$id}-title" : null;
     $describedBy = $description ? "{$id}-desc" : null;
 
-    /*
-     * Focus trap, written out rather than delegated to @alpinejs/focus.
-     *
-     * The plugin's `x-trap` is the usual answer, but Alpine SKIPS a directive it
-     * has no handler for — so in a host that forgot the plugin the trap silently
-     * does not exist, and `aria-modal="true"` becomes a lie a screen reader
-     * believes. This repo's whole "traps" list is failures that threw nothing;
-     * this would have been the sixth. Ten lines inline depend on nothing.
-     *
-     * Built in @php because a multi-line expression written straight onto the
-     * tag is what makes Blade give up and emit the tag as literal text.
-     */
-    $focusTrap = <<<'JS'
-        const focusable = [...$el.querySelectorAll(
-            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        )].filter((node) => node.offsetParent !== null);
-        if (!focusable.length) return;
-        const at = focusable.indexOf(document.activeElement);
-        const step = $event.shiftKey ? -1 : 1;
-        focusable[(at + step + focusable.length) % focusable.length].focus();
-    JS;
-
-    /*
-     * Open: remember what had focus, move focus into the panel, and stop the
-     * page behind from scrolling — a background that scrolls under a modal is
-     * the single most common way one feels broken.
-     * Close: put focus back where it came from, or the reader is returned to
-     * the top of the document with no idea where they were.
-     */
-    $focusManagement = <<<JS
-        if ({$open}) {
-            \$el._returnFocusTo = document.activeElement;
-            document.body.classList.add('overflow-hidden');
-            \$nextTick(() => {
-                const panel = \$el.querySelector('[data-ds-modal-panel]');
-                (panel.querySelector('[autofocus]') ?? panel).focus();
-            });
-        } else {
-            document.body.classList.remove('overflow-hidden');
-            \$el._returnFocusTo?.focus();
-        }
-    JS;
+    // The layer itself, the trap, focus in and back out, the scroll lock and
+    // both transitions, is the modal recipe, which ds::command-palette opens
+    // in too: see resources/views/partials/modal.php.
+    $layer = \Shipbytes\BladeUi\Support\Modal::recipe();
+    $focusTrap = $layer['trap'];
+    $focusManagement = $layer['focus']($open);
+    $backdropTransition = new \Illuminate\View\ComponentAttributeBag($layer['backdropTransition']);
+    $panelTransition = new \Illuminate\View\ComponentAttributeBag($layer['panelTransition']);
 @endphp
 
 <div
@@ -137,25 +103,13 @@
     <div
         x-show="{{ $open }}"
         @if ($dismissible) @click="{{ $open }} = false" @endif
-        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
-        {{-- `scrim` stays dark in both themes. Deriving it from `fg` would make
-             it white in dark — lighting the page up instead of pushing it back. --}}
-        class="absolute inset-0 bg-scrim"
+        {{ $backdropTransition }}
+        class="{{ $layer['backdrop'] }}"
     ></div>
 
     <div
         x-show="{{ $open }}"
-        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0 scale-95"
-        x-transition:enter-end="opacity-100 scale-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100 scale-100"
-        x-transition:leave-end="opacity-0 scale-95"
+        {{ $panelTransition }}
         @keydown.tab.prevent="{{ $focusTrap }}"
         data-ds-modal-panel
         {{-- tabindex so the panel itself can hold focus when it contains no

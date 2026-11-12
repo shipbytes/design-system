@@ -380,6 +380,9 @@ table.ref .samp { color: var(--g-ink); font-family: Inter, ui-sans-serif, system
       <a href="#time-picker">Time</a>
       <a href="#inline-edit">Inline edit</a>
       <a href="#scroll-area">Scroll area</a>
+      <a href="#command-palette">Command palette</a>
+      <a href="#sortable-list">Sortable</a>
+      <a href="#split">Split</a>
       <a href="#accordion">Accordion</a>
       <a href="#tree">Tree</a>
       <a href="#filter-bar">Filter bar</a>

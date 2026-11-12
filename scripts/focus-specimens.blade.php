@@ -98,6 +98,11 @@
 <section data-focus="inline-edit"><x-ds::inline-edit name="ftitle" label="Title" value="Q3 roadmap" /></section>
 {{-- Plain text: the region is the stop. With a link inside, the link is. --}}
 <section data-focus="scroll-area"><x-ds::scroll-area :maxHeight="40" label="Notes" class="w-48"><p>One</p><p>Two</p><p>Three</p><p>Four</p></x-ds::scroll-area></section>
+{{-- Each handle, then its row's Move up and Move down, shown on focus. --}}
+<section data-focus="sortable-list" class="max-w-sm"><x-ds::sortable-list label="Steps"><x-ds::sortable-item value="1">One</x-ds::sortable-item><x-ds::sortable-item value="2">Two</x-ds::sortable-item></x-ds::sortable-list></section>
+<section data-focus="split"><div class="h-24 w-96 border border-border"><x-ds::split label="Resize"><x-ds::split-pane size="50%">A</x-ds::split-pane><x-ds::split-pane>B</x-ds::split-pane></x-ds::split></div></section>
+{{-- The trigger is the host's; the field's ring is on its row, checked by the overlay walk. --}}
+<section data-focus="command-palette"><x-ds::button id="f-cmd-open" x-on:click="$dispatch('open-command-palette', { name: 'focus' })">Search</x-ds::button><x-ds::command-palette name="focus" :shortcut="false"><x-ds::command-item label="Invoices" href="#invoices" /></x-ds::command-palette></section>
 {{-- The walk stops here. A plain button, so it is not checked. --}}
 <p><button id="f-end" type="button">end</button></p>
 </div>

@@ -1621,4 +1621,79 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── sortable-list --}}
+{{-- A row part way through a drag, operated by build-docs with pointer
+     events on the second row's handle in each pane. --}}
+<div data-shot="sortable-list" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <x-ds::sortable-list name="steps{{ $loop->index }}" label="Release checklist">
+                <x-ds::sortable-item value="1" label="Write the changelog">Write the changelog</x-ds::sortable-item>
+                <x-ds::sortable-item value="2" label="Tag the release" data-shot-drag>
+                    <span class="text-fg">Tag the release</span>
+                    <span class="block text-meta text-fg-muted">v2.0.0 on next-2.0</span>
+                </x-ds::sortable-item>
+                <x-ds::sortable-item value="3" label="Rebuild the docs">Rebuild the docs</x-ds::sortable-item>
+                <x-ds::sortable-item value="4" label="Announce it" :disabled="true">Announce it <span class="text-meta text-fg-muted">(after the rest)</span></x-ds::sortable-item>
+            </x-ds::sortable-list>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── split --}}
+<div data-shot="split" class="shot shot-tall">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="h-full overflow-hidden rounded-panel border border-border bg-surface">
+                <x-ds::split label="Resize the file list">
+                    <x-ds::split-pane size="32%" min="120">
+                        <div class="flex flex-col gap-1 p-3 text-body text-fg-body">
+                            <span class="text-label text-fg">Files</span>
+                            <span>app/</span><span>config/</span><span>routes/web.php</span>
+                        </div>
+                    </x-ds::split-pane>
+                    <x-ds::split-pane>
+                        <x-ds::split orientation="vertical" label="Resize the console">
+                            <x-ds::split-pane>
+                                <pre class="p-3 font-mono text-meta text-fg-body">Route::get('/', fn () =&gt; view('home'));</pre>
+                            </x-ds::split-pane>
+                            <x-ds::split-pane size="38%" min="48" :collapsible="true">
+                                <div class="bg-surface-subtle p-3 font-mono text-meta text-fg-muted h-full">$ php artisan test<br>Tests: 42 passed</div>
+                            </x-ds::split-pane>
+                        </x-ds::split>
+                    </x-ds::split-pane>
+                </x-ds::split>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── command-palette --}}
+{{-- Opened by build-docs (the open event naming each pane's palette) with
+     "in" typed, so the image shows the filter and its ranking. Last on the
+     page: opening it locks the body's scroll, as a modal does. --}}
+<div data-shot="command-palette" class="shot shot-calendar">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }} relative [transform:translateZ(0)]">
+            <x-ds::command-palette name="docs{{ $loop->index }}" data-shot-name="docs{{ $loop->index }}">
+                <x-ds::command-group label="Go to">
+                    <x-ds::command-item label="Invoices" href="#invoices" icon="document-text" shortcut="G+I" />
+                    <x-ds::command-item label="Customers" href="#customers" icon="users" shortcut="G+C" />
+                    <x-ds::command-item label="Settings" href="#settings" icon="cog" />
+                </x-ds::command-group>
+                <x-ds::command-group label="Actions">
+                    <x-ds::command-item label="New invoice" action="create" icon="plus" :shortcut="['⌘', 'N']" />
+                    <x-ds::command-item label="Archive invoice" action="archive" icon="archive-box">Moves it out of the inbox</x-ds::command-item>
+                    <x-ds::command-item label="Delete customer" action="delete" icon="trash" :disabled="true" />
+                </x-ds::command-group>
+                <x-slot:footer>
+                    <span class="flex items-center gap-1.5"><x-ds::kbd>↑</x-ds::kbd><x-ds::kbd>↓</x-ds::kbd> to move</span>
+                    <span class="flex items-center gap-1.5"><x-ds::kbd>↵</x-ds::kbd> to open</span>
+                    <span class="flex items-center gap-1.5"><x-ds::kbd>Esc</x-ds::kbd> to close</span>
+                </x-slot:footer>
+            </x-ds::command-palette>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── In situ --}}
