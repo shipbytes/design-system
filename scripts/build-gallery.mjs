@@ -388,6 +388,10 @@ table.ref .samp { color: var(--g-ink); font-family: Inter, ui-sans-serif, system
       <a href="#counter">Counter</a>
       <a href="#sparkline">Sparkline</a>
       <a href="#activity-heatmap">Heatmap</a>
+      <a href="#bar-chart">Bar chart</a>
+      <a href="#line-chart">Line chart</a>
+      <a href="#donut-chart">Donut</a>
+      <a href="#timeline">Timeline</a>
       <a href="#stepper">Stepper</a>
       <a href="#breadcrumb">Breadcrumb</a>
       <a href="#empty-state">Empty</a>

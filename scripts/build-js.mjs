@@ -32,6 +32,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { gzipSync } from 'node:zlib';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(ROOT, 'resources/js');
@@ -155,6 +156,21 @@ function stripComments(code) {
     return out.join('\n');
 }
 
+/**
+ * What a page downloads: the classic file as it stands, and gzipped at the
+ * level a server's default compression gets close to. In kB of 1,024 bytes.
+ * docs/getting-started.md states both ("about N kB (M kB compressed)"), and
+ * test-js.mjs holds that sentence to these, because it said 18 kB for four
+ * batches while the file grew past 70.
+ */
+export function sizes(code) {
+    const bytes = Buffer.from(code);
+    return {
+        raw: bytes.length / 1024,
+        compressed: gzipSync(bytes, { level: 9 }).length / 1024,
+    };
+}
+
 /** Both outputs, as strings. test-js.mjs compares them against dist/. */
 export async function bundle() {
     const plugin = [...(await collect(join(SRC, 'blade-ui.js'))).values()];
@@ -191,5 +207,6 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 
     console.log('built the script:');
     console.log(`  → dist/blade-ui.js         ${(esm.length / 1024).toFixed(1)} kB (ES module, the Alpine plugin)`);
-    console.log(`  → dist/blade-ui.global.js  ${(classic.length / 1024).toFixed(1)} kB (classic, served by ds::scripts)`);
+    const served = sizes(classic);
+    console.log(`  → dist/blade-ui.global.js  ${served.raw.toFixed(1)} kB, ${served.compressed.toFixed(1)} kB gzipped (classic, served by ds::scripts)`);
 }

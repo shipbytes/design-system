@@ -246,4 +246,114 @@ final class ChartTest extends TestCase
         $this->assertSame([0, 4], Chart::steps(2));
         $this->assertSame([0, 1, 2, 3, 4], Chart::steps(9));
     }
+
+    #[Test]
+    public function a_smooth_line_passes_through_every_point_and_flattens_at_a_turn(): void
+    {
+        // A peak's tangent is level, so the curve tops out AT the point.
+        $this->assertSame(
+            'M0 10C3.33 5 6.67 0 10 0C13.33 0 16.67 5 20 5C23.33 5 26.67 5 30 5C33.33 5 36.67 7.5 40 10',
+            Chart::line([[0, 10], [10, 0], [20, 5], [30, 5], [40, 10]], smooth: true),
+        );
+        $this->assertSame('M0 10L0 10C3.33 5 6.67 0 10 0C13.33 0 16.67 2.5 20 5L20 10Z', Chart::area([[0, 10], [10, 0], [20, 5]], 10, smooth: true));
+        // Two points have no bend to make, and a gap still lifts the pen.
+        $this->assertSame('M0 0L10 10', Chart::line([[0, 0], [10, 10]], smooth: true));
+        $this->assertSame('M0 0h0M20 5L30 0', Chart::line([[0, 0], null, [20, 5], [30, 0]], smooth: true));
+    }
+
+    #[Test]
+    public function a_smooth_line_never_overshoots_its_neighbours(): void
+    {
+        // A step: Catmull-Rom would dip below 0 and rise above 10 here.
+        $path = Chart::line([[0, 10], [10, 10], [20, 0], [30, 0]], smooth: true);
+        preg_match_all('/-?\d+(?:\.\d+)?/', $path, $numbers);
+        $ys = array_map('floatval', array_values(array_filter($numbers[0], fn ($k) => $k % 2 === 1, ARRAY_FILTER_USE_KEY)));
+
+        $this->assertGreaterThanOrEqual(0, min($ys));
+        $this->assertLessThanOrEqual(10, max($ys));
+    }
+
+    #[Test]
+    public function a_dataset_reads_every_shape_a_chart_takes(): void
+    {
+        $this->assertSame(
+            ['labels' => ['Jan', 'Feb'], 'series' => ['Signups'], 'rows' => [[12.0, null]]],
+            Chart::dataset(['Jan' => 12, 'Feb' => 'n/a'], 'Signups'),
+        );
+        $this->assertSame(
+            ['labels' => ['Jan', 'Feb'], 'series' => ['Revenue', 'Costs'], 'rows' => [[12.0, null], [8.0, 3.0]]],
+            Chart::dataset(['Jan' => ['Revenue' => 12, 'Costs' => 8], 'Feb' => ['Costs' => 3]]),
+        );
+        $this->assertSame(
+            ['labels' => ['Jan', 'Feb'], 'series' => ['A', 'B'], 'rows' => [[12.0, 1.0], [8.0, null]]],
+            Chart::dataset(['Jan' => [12, 8], 'Feb' => [1]], ['A', 'B']),
+        );
+        $this->assertSame(['1', '2', '3'], Chart::dataset([3, 4, 5])['labels']);
+        $this->assertSame(['Series 1', 'Series 2'], Chart::dataset(['Q1' => [1, 2]])['series']);
+    }
+
+    #[Test]
+    public function a_ninth_series_is_refused(): void
+    {
+        $this->expectExceptionMessage('at most 8 series');
+        Chart::dataset(['Q1' => range(1, 9)]);
+    }
+
+    #[Test]
+    public function the_value_axis_starts_and_ends_on_a_round_tick(): void
+    {
+        $this->assertSame(['min' => 0.0, 'max' => 100.0, 'ticks' => [0.0, 20.0, 40.0, 60.0, 80.0, 100.0]], Chart::scale([3, 97], zero: true));
+        $this->assertSame(['min' => -10.0, 'max' => 30.0, 'ticks' => [-10.0, 0.0, 10.0, 20.0, 30.0]], Chart::scale([-4, 28], zero: true));
+        $this->assertSame([0.0, 1.0], Chart::scale([0, 0], zero: true)['ticks'], 'all zero: an axis to stand on, not a division by nothing');
+        $this->assertSame(['min' => 6.0, 'max' => 8.0, 'ticks' => [6.0, 6.5, 7.0, 7.5, 8.0]], Chart::scale([7, 7]));
+        $this->assertSame(['min' => -3.0, 'max' => 12.0, 'ticks' => [0.0, 5.0, 10.0]], Chart::scale([-3, 12], true, [10, 0, 5]));
+        $this->assertSame([0.0, 50.0, 100.0], Chart::scale([3, 97], true, 3)['ticks']);
+    }
+
+    #[Test]
+    public function stacks_grow_up_from_zero_and_negatives_hang_below_it(): void
+    {
+        $this->assertSame([
+            'segments' => [[[0.0, 1.0], [0.0, -2.0], null], [[1.0, 4.0], [-2.0, -3.0], [0.0, 4.0]]],
+            'totals' => [4.0, 4.0, -3.0],
+        ], Chart::stack([[1, -2, null], [3, -1, 4]]));
+    }
+
+    #[Test]
+    public function percentages_are_whole_and_add_up_to_a_hundred(): void
+    {
+        $this->assertSame([34, 33, 33], Chart::percentages([1, 1, 1]));
+        $this->assertSame([45, 30, 15, 10], Chart::percentages([1200, 800, 400, 250]));
+        $this->assertSame(100, array_sum(Chart::percentages([7, 7, 7, 7, 7, 7])));
+    }
+
+    #[Test]
+    public function text_is_estimated_and_cut_to_a_width_with_an_ellipsis(): void
+    {
+        $this->assertEqualsWithDelta(48.72, Chart::textWidth('Revenue'), 0.001);
+        $this->assertSame('Northern Eur…', Chart::truncate('Northern Europe and Scandinavia', 80));
+        $this->assertSame('Asia', Chart::truncate('Asia', 80));
+    }
+
+    #[Test]
+    public function crowded_labels_drop_in_halves_and_the_first_always_stays(): void
+    {
+        // Twelve labels needing 30px each, beside a 40px gutter: all twelve
+        // from 400px, every other one below it, and that fits anywhere.
+        $this->assertSame([null, 400.0, null, 400.0, null, 400.0, null, 400.0, null, 400.0, null, 400.0], Chart::thinning(12, 30, 40, 12));
+        // Thirty points on a line: the halvings step down to a quarter, then
+        // an eighth, which is what the narrowest box keeps.
+        $thirty = Chart::thinning(30, 40, 40, 29);
+        $this->assertSame([null, 1200.0, 620.0, 1200.0, 330.0], array_slice($thirty, 0, 5));
+        $this->assertNull($thirty[8]);
+    }
+
+    #[Test]
+    public function a_chart_of_categories_is_read_as_its_highest_and_lowest(): void
+    {
+        $this->assertSame('Revenue: highest Europe at 30, lowest Asia at 8.', Chart::ranked([30, 8, 12], ['Europe', 'Asia', 'Americas'], [], 'Revenue'));
+        $this->assertSame('All 3 at 7.', Chart::ranked([7, 7, 7], ['a', 'b', 'c']));
+        $this->assertSame('Plans: Pro at $9.', Chart::ranked([null, 9], ['Free', 'Pro'], ['prefix' => '$'], 'Plans'));
+        $this->assertSame('No data.', Chart::ranked([], []));
+    }
 }

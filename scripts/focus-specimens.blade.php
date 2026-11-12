@@ -78,6 +78,11 @@
 <section data-focus="drawer"><x-ds::button id="f-drawer-open" @click="drawerOpen = true">Open drawer</x-ds::button><x-ds::drawer open="drawerOpen" title="Filters">Body<x-slot:footer><x-ds::button size="sm" @click="drawerOpen = false">Apply</x-ds::button></x-slot:footer></x-ds::drawer></section>
 {{-- Two weeks, two linked days: the scroll region and its links are stops. --}}
 <section data-focus="activity-heatmap"><x-ds::activity-heatmap label="Commits" to="2026-03-08" :weeks="2" :data="['2026-03-03' => 4, '2026-03-05' => 1]" href="#day-{date}" /></section>
+{{-- One stop per chart, then its legend keys; a donut's ring is on its wrapper. A timeline's link. --}}
+<section data-focus="bar-chart"><x-ds::bar-chart label="Two" :data="['a' => [1, 2], 'b' => [3, 4]]" :series="['One', 'Two']" height="sm" /></section>
+<section data-focus="line-chart"><x-ds::line-chart label="Line" :data="['a' => 1, 'b' => 3, 'c' => 2]" height="sm" /></section>
+<section data-focus="donut-chart"><x-ds::donut-chart label="Donut" size="sm" legend="none" :data="['a' => 1, 'b' => 3]" /></section>
+<section data-focus="timeline"><x-ds::timeline><x-ds::timeline-item title="Linked entry" href="#entry" time="2026-11-12" /></x-ds::timeline></section>
 {{-- The walk stops here. A plain button, so it is not checked. --}}
 <p><button id="f-end" type="button">end</button></p>
 </div>

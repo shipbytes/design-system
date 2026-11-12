@@ -29,7 +29,7 @@
   <x-ds::alert> uses, so every alert rendered a checkmark the height of the
   panel in any app that did not already use size-4.5 for something else.
 */
-@source inline("size-{1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,7,8,9,10,11,12,14,16,24,32}");
+@source inline("size-{1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,7,8,9,10,11,12,14,16,24,32,40,52}");
 
 /*
   The notch padding the bottom nav depends on.

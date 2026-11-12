@@ -21,7 +21,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import vm from 'node:vm';
-import { bundle } from './build-js.mjs';
+import { bundle, sizes } from './build-js.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -64,6 +64,24 @@ try {
     pass('the classic build parses as a classic script (no import or export left in it)');
 } catch (error) {
     fail(`the classic build does not parse as a script: ${error.message}`);
+}
+
+/*
+  The size getting-started tells a reader the inline script costs. It said
+  "about 18 kB (6 kB compressed)" while the file grew to 71 and 18, because
+  nothing read it. Within a tenth, so a small behaviour does not mean an edit
+  and a large one does.
+*/
+{
+    const guide = await readFile(join(ROOT, 'docs/getting-started.md'), 'utf8');
+    const stated = guide.match(/about (\d+(?:\.\d+)?) kB \((\d+(?:\.\d+)?) kB compressed\)/);
+    const real = sizes(built.classic);
+    const near = (said, is) => Math.abs(Number(said) - is) <= is * 0.1;
+    expect(stated && near(stated[1], real.raw) && near(stated[2], real.compressed),
+        `getting-started states the script's size: about ${stated?.[1]} kB (${stated?.[2]} kB compressed)`,
+        stated
+            ? `getting-started says "about ${stated[1]} kB (${stated[2]} kB compressed)"; the file is ${real.raw.toFixed(1)} kB, ${real.compressed.toFixed(1)} kB gzipped`
+            : 'getting-started no longer states the script\'s size as "about N kB (M kB compressed)"');
 }
 
 // ------------------------------------------------------------ 2. what it registers
@@ -195,8 +213,14 @@ async function bladeFiles(dir) {
   changes it, so skipping the directive costs the roll and nothing else:
   test-behaviour.mjs morphs one on a page with no include. A counter bound to
   Alpine state is a different route, dsRoll, through Behaviour::data().
+
+  `ds-chart` makes a chart's marks reachable and readable one at a time, and
+  its legend a set of toggles. PHP draws the chart as an image named by its
+  summary, with the values in a hidden table on request, so skipping the
+  directive costs the readout and the keyboard and nothing else:
+  test-behaviour.mjs renders the three charts on a page with no include.
 */
-const ENHANCEMENTS = new Set(['ds-glide', 'ds-anchor', 'ds-roll']);
+const ENHANCEMENTS = new Set(['ds-glide', 'ds-anchor', 'ds-roll', 'ds-chart']);
 
 const used = new Map(); // "data:dsX" -> [files]
 const rawData = [];

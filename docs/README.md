@@ -1,6 +1,6 @@
 # Shipbytes Blade UI — documentation
 
-Seventy-seven Blade components for Laravel, plus two pagination views. Presentation
+Eighty-three Blade components for Laravel, plus two pagination views. Presentation
 only: no state, no framework assumptions beyond Blade itself.
 
 **New here?** Start with [Getting started](getting-started.md) — install, three
@@ -61,6 +61,10 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Sparkline](components/sparkline.md) | A small trend with no axes: line, area or bars |
 | [Gauge](components/gauge.md) | One reading against a range, as an arc, with thresholds |
 | [Activity heatmap](components/activity-heatmap.md) | A count for every day, as a grid of shades |
+| [Bar chart](components/bar-chart.md) | Values compared across categories: grouped or stacked, vertical or horizontal — the readout needs Alpine and the script |
+| [Line chart](components/line-chart.md) | Values in order over time, up to eight series, with gaps — the readout needs Alpine and the script |
+| [Donut chart](components/donut-chart.md) | The parts of one whole, with the total in the middle — the readout needs Alpine and the script |
+| [Timeline](components/timeline.md) | Events in order on a rail, with groups under sticky headings |
 
 ### Navigation
 
@@ -126,6 +130,7 @@ needed by twenty-five components, and by five optional props:
 | `confirm-button` `hold-button` `confirm-popover` | **Always, and the package's script too.** Without them each renders its first face and does nothing, so no single press ever carries out the action. |
 | `sub-nav` | **Only to open and close.** Without it the section holding the current page is open and the rest are closed, as the server rendered them. |
 | `counter` | **Never**, unless its `value` is bound to Alpine state. With Alpine and the package's script its digits roll; without them it shows the number the server rendered, and a re-render changes it. Bound with `::value`, it needs both. |
+| `bar-chart` `line-chart` `donut-chart` | **Never.** With Alpine and the package's script, a readout on hover and focus, every mark reachable by keyboard, and legend toggles; without them each is a static SVG with a generated text alternative, which is complete. |
 | `segmented-control` | **Never.** With Alpine and the package's script, its highlight slides; without them, the chosen segment draws its own face, and nothing throws. |
 | `input` | Only for `reveal`, which also needs the package's script. |
 | `checkbox` | Only for `indeterminate`. Without it the box renders unchecked — which is what a screen reader announces, so the feature is absent rather than lying. |

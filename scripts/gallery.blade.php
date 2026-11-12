@@ -1690,6 +1690,139 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Bar chart --}}
+@php
+    $gMonths = [
+        'Jan' => ['Revenue' => 12, 'Costs' => 8], 'Feb' => ['Revenue' => 18, 'Costs' => 10],
+        'Mar' => ['Revenue' => 15, 'Costs' => 11], 'Apr' => ['Revenue' => 22, 'Costs' => 12],
+        'May' => ['Revenue' => 26, 'Costs' => 14], 'Jun' => ['Revenue' => 24, 'Costs' => 15],
+    ];
+@endphp
+<section class="ds-spec" id="bar-chart">
+    <header class="ds-spec-head">
+        <h2>Bar chart</h2>
+        <p>Values across categories, grouped or stacked, vertical or horizontal. x in percent and y in px, so the bars stretch and the text never scales; labels thin by container query. A <code>role="img"</code> named from the data; with the script, one Tab stop, the arrows, a readout and legend toggles. Hover a bar, or Tab in.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Grouped and stacked <span>&middot; two series, a legend that toggles; values on the stack</span></div>
+        <div class="grid gap-6 px-4 pb-4 md:grid-cols-2">
+            <x-ds::bar-chart label="Revenue and costs" :data="$gMonths" :format="['prefix' => '$', 'suffix' => 'K']" />
+            <x-ds::bar-chart label="Tickets" :data="['W1' => [5, 3], 'W2' => [7, 2], 'W3' => [4, 6], 'W4' => [8, 4]]" :series="['Open', 'Closed']" :stacked="true" :showValues="true" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Horizontal, and at 320px <span>&middot; long names truncate with a title; negatives hang from zero</span></div>
+        <div class="flex flex-wrap items-start gap-6 px-4 pb-4">
+            <div class="w-80"><x-ds::bar-chart label="Views by page" orientation="horizontal" height="sm" :showValues="true"
+                :data="['Pricing' => 4210, 'Getting started with the API' => 3180, 'Changelog' => 1920, 'Billing and invoices' => 1340, 'Status' => 610]" /></div>
+            <div class="w-80"><x-ds::bar-chart label="Revenue and costs, narrow" :data="$gMonths" height="sm" :showValues="true" /></div>
+            <div class="w-80"><x-ds::bar-chart label="Net change" tone="accent" height="sm" :data="['Q1' => 4, 'Q2' => -3, 'Q3' => 6, 'Q4' => -1]" /></div>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Edges <span>&middot; one bar, all zero, empty</span></div>
+        <div class="grid gap-6 px-4 pb-4 md:grid-cols-3">
+            <x-ds::bar-chart label="One" height="sm" :data="['Only' => 4]" />
+            <x-ds::bar-chart label="Zero" height="sm" :data="['a' => 0, 'b' => 0, 'c' => 0]" />
+            <x-ds::bar-chart :data="[]" empty="No signups yet" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Line chart --}}
+<section class="ds-spec" id="line-chart">
+    <header class="ds-spec-head">
+        <h2>Line chart</h2>
+        <p>Values in order. The lines live in a nested, stretched plot with non-scaling strokes; points and text stay round and 12px. <code>smooth</code> is monotone, so it never invents a peak. Gaps are never bridged. The pointer reads the nearest point.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Two series, smooth <span>&middot; legend and end labels, as the series contract asks</span></div>
+        <div class="px-4 pb-4">
+            <x-ds::line-chart label="Visits, new and returning" curve="smooth" :series="['New', 'Returning']"
+                :data="['1 Nov' => [320, 150], '2 Nov' => [410, 190], '3 Nov' => [380, 170], '4 Nov' => [520, 260], '5 Nov' => [610, 300], '6 Nov' => [480, 230], '7 Nov' => [450, 210], '8 Nov' => [700, 330], '9 Nov' => [660, 310], '10 Nov' => [720, 350], '11 Nov' => [690, 330], '12 Nov' => [810, 400]]" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Area, gaps, end labels only <span>&middot; at 320px</span></div>
+        <div class="flex flex-wrap items-start gap-6 px-4 pb-4">
+            <div class="w-80"><x-ds::line-chart label="Error rate" :area="true" tone="danger" height="sm" :points="true" :format="['suffix' => '%', 'decimals' => 1]"
+                :data="['Mon' => 1.2, 'Tue' => 0.8, 'Wed' => null, 'Thu' => 2.4, 'Fri' => null, 'Sat' => 0.6, 'Sun' => 0.9]" /></div>
+            <div class="w-80"><x-ds::line-chart label="Response time" legend="end" height="sm" :format="['suffix' => ' ms']"
+                :data="['W1' => [210, 180, 260], 'W2' => [230, 170, 250], 'W3' => [220, 190, 300], 'W4' => [200, 175, 280]]" :series="['EU', 'US', 'APAC']" /></div>
+            <div class="w-80"><x-ds::line-chart label="Eight series" height="sm" :interactive="false" :series="['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']"
+                :data="['1' => [1, 2, 3, 4, 5, 6, 7, 8], '2' => [2, 3, 4, 5, 6, 7, 8, 9], '3' => [3, 2, 5, 4, 7, 6, 9, 8]]" /></div>
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Donut chart --}}
+<section class="ds-spec" id="donut-chart">
+    <header class="ds-spec-head">
+        <h2>Donut chart</h2>
+        <p>Parts of one whole: arcs by dash on one circle, a pixel of surface between segments, the smallest folded into a neutral &ldquo;Other&rdquo;. Shares by largest remainder, so they add to 100. Zeros and negatives throw.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Sizes, thicknesses, legends <span>&middot; right, bottom, none; a centre slot; one part</span></div>
+        <div class="flex flex-wrap items-start gap-8 px-4 pb-4">
+            <x-ds::donut-chart label="Traffic by source" :data="['Direct' => 1200, 'Search' => 800, 'Social' => 400, 'Email' => 250]" />
+            <x-ds::donut-chart label="Seats" size="sm" thickness="lg" legend="bottom" :format="['suffix' => ' seats']" :data="['Free' => 70, 'Pro' => 25, 'Team' => 5]" />
+            <x-ds::donut-chart label="Browsers" size="lg" thickness="sm" :maxSegments="4" :data="['Chrome' => 640, 'Safari' => 190, 'Firefox' => 60, 'Edge' => 50, 'Samsung' => 30, 'Opera' => 12]">
+                <x-slot:centre><span class="text-title font-semibold text-fg">65%</span><span class="text-meta text-fg-muted">Chrome</span></x-slot:centre>
+            </x-ds::donut-chart>
+            <x-ds::donut-chart label="One" legend="none" size="sm" :data="['All' => 5]" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Timeline --}}
+<section class="ds-spec" id="timeline">
+    <header class="ds-spec-head">
+        <h2>Timeline</h2>
+        <p>Events in order on a rail. An ordered list; each item draws its own piece of the rail behind its marker, so it never runs past the last one and never breaks beside a long body. Groups put a sticky heading over a run. No JavaScript. Here on the sunken plate, so <code>--ds-timeline-bg</code> is set to it.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Markers and bodies <span>&middot; icon, avatar, dot; a long URL; actions; a link</span></div>
+        <div class="max-w-xl px-4 pb-4">
+            <x-ds::timeline label="Order 1042" class="[--ds-timeline-bg:var(--color-surface-sunken)]">
+                <x-ds::timeline-item title="Shipped" time="2026-11-12T10:42:00Z" icon="truck" tone="success">Two parcels, tracked.</x-ds::timeline-item>
+                <x-ds::timeline-item title="Payment failed" time="2026-11-10T09:31:00Z" icon="exclamation-triangle" tone="danger">
+                    Declined. The customer was sent https://example.com/pay/a-very-long-link-with-no-spaces-in-it-at-all-1042
+                    <x-slot:actions><x-ds::button size="sm" variant="secondary">Retry payment</x-ds::button></x-slot:actions>
+                </x-ds::timeline-item>
+                <x-ds::timeline-item title="Ada Lovelace added a note" avatar="Ada Lovelace" time="Yesterday" datetime="2026-11-11" href="#timeline">Gift wrap both items.</x-ds::timeline-item>
+                <x-ds::timeline-item title="Order placed" time="2026-11-10" />
+            </x-ds::timeline>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Dense, grouped, one item <span>&middot; scroll the box: the headings stick</span></div>
+        <div class="flex flex-wrap items-start gap-8 px-4 pb-4">
+            <div class="h-56 w-64 overflow-y-auto">
+                <x-ds::timeline label="Deploys" :dense="true" class="[--ds-timeline-bg:var(--color-surface-sunken)]">
+                    @foreach (['Today' => ['v2.4.1 live' => 'success', 'Build started' => 'accent'], 'Yesterday' => ['Rolled back' => 'warning', 'v2.4.0 live' => 'neutral', 'Build started' => 'accent'], '10 November' => ['v2.3.9 live' => 'success', 'Build started' => 'accent']] as $day => $entries)
+                        <x-ds::timeline-group :label="$day">
+                            @foreach ($entries as $title => $tone)
+                                <x-ds::timeline-item :title="$title" :time="(10 + $loop->index).':0'.$loop->index" :tone="$tone" />
+                            @endforeach
+                        </x-ds::timeline-group>
+                    @endforeach
+                </x-ds::timeline>
+            </div>
+            <div class="w-64">
+                <x-ds::timeline class="[--ds-timeline-bg:var(--color-surface-sunken)]"><x-ds::timeline-item title="Only one" time="2026-11-12" icon="sparkles" tone="accent" /></x-ds::timeline>
+            </div>
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Stepper --}}
 <section class="ds-spec" id="stepper">
     <header class="ds-spec-head">

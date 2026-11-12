@@ -3978,6 +3978,165 @@ group('activity heatmap (a table, scrolling in its own box)');
     });
 }
 
+// ---------------------------------------------------------------- charts
+
+/** The focused element as a chart reads it, and the readout beside it. */
+const chartState = (tab, id) => tab.evaluate((id) => {
+    const root = document.getElementById(id);
+    const readout = root.querySelector('[data-ds-chart-readout]');
+    const part = (n) => readout?.querySelector(`[data-ds-chart-readout-${n}]`)?.textContent ?? null;
+    const a = document.activeElement;
+    return {
+        focused: root.contains(a) ? (a.getAttribute('aria-label') ?? a.tagName) : null,
+        active: root.querySelector('[data-ds-active]')?.getAttribute('aria-label') ?? null,
+        shown: readout ? !readout.hidden : null,
+        label: part('label'), series: part('series'), value: part('value'),
+        swatch: readout?.querySelector('[data-ds-chart-readout-swatch]')?.getAttribute('data-series') ?? null,
+    };
+}, id);
+
+group('charts (x-ds-chart: readout, roving tabindex, legend toggles)');
+{
+    await check('enhanced: the plot is a group named by the summary, each mark an img named by its value', async () => {
+        const r = await page.evaluate(() => {
+            const plot = document.querySelector('#ch-bar [data-ds-chart-plot]');
+            const marks = [...plot.querySelectorAll('[data-ds-chart-mark]')];
+            return {
+                role: plot.getAttribute('role'), name: plot.getAttribute('aria-label'), tab: plot.getAttribute('tabindex'),
+                roles: [...new Set(marks.map((m) => m.getAttribute('role')))],
+                first: marks[0].getAttribute('aria-label'),
+                stops: marks.filter((m) => m.tabIndex === 0).length, count: marks.length,
+            };
+        });
+        return (r.role === 'group' && r.name.startsWith('Revenue and costs. Revenue: highest Feb') && r.tab === '-1'
+            && JSON.stringify(r.roles) === '["img"]' && r.first === 'Jan, Revenue: $12K' && r.stops === 1 && r.count === 6) || JSON.stringify(r);
+    });
+    await check('one Tab stop per chart: Tab lands on the first bar (not the svg), and the legend keys come next', async () => {
+        await page.focus('#ch-before');
+        await page.keyboard.press('Tab');
+        const first = await chartState(page, 'ch-bar');
+        await page.keyboard.press('Tab');
+        const key = await page.evaluate(() => document.activeElement.getAttribute('data-ds-chart-key'));
+        await page.keyboard.press('Tab');
+        await page.keyboard.press('Tab');
+        const next = await chartState(page, 'ch-stack');
+        return (first.focused === 'Jan, Revenue: $12K' && key === '0' && next.focused === 'W1, Open: 5') || JSON.stringify({ first, key, next });
+    });
+    await check('focus shows the readout: label, value and series, with the series swatch, and marks the bar', async () => {
+        await page.focus('#ch-before');
+        await page.keyboard.press('Tab');
+        const s = await chartState(page, 'ch-bar');
+        const hidden = await page.evaluate(() => document.querySelector('#ch-bar [data-ds-chart-readout]').getAttribute('aria-hidden'));
+        return (s.shown && s.label === 'Jan' && s.value === '$12K' && s.series === 'Revenue' && s.swatch === '1'
+            && s.active === 'Jan, Revenue: $12K' && hidden === 'true') || JSON.stringify({ ...s, hidden });
+    });
+    await check('ArrowRight moves along the series, ArrowDown across to the same month in the next, wrapping', async () => {
+        await page.keyboard.press('ArrowRight');
+        const along = await chartState(page, 'ch-bar');
+        await page.keyboard.press('ArrowDown');
+        const across = await chartState(page, 'ch-bar');
+        await page.keyboard.press('ArrowDown');
+        const wrapped = await chartState(page, 'ch-bar');
+        return (along.focused === 'Feb, Revenue: $18K' && along.value === '$18K' && across.focused === 'Feb, Costs: $10K'
+            && across.series === 'Costs' && across.swatch === '2' && wrapped.focused === 'Feb, Revenue: $18K') || JSON.stringify({ along, across, wrapped });
+    });
+    await check('Home and End go to the ends; the tab stop follows focus', async () => {
+        await page.keyboard.press('End');
+        const end = await chartState(page, 'ch-bar');
+        await page.keyboard.press('Home');
+        const home = await chartState(page, 'ch-bar');
+        await page.keyboard.press('End');
+        const stops = await page.evaluate(() => [...document.querySelectorAll('#ch-bar [data-ds-chart-mark]')].filter((m) => m.tabIndex === 0).map((m) => m.getAttribute('aria-label')));
+        return (end.focused === 'Mar, Costs: $11K' && home.focused === 'Jan, Revenue: $12K' && JSON.stringify(stops) === '["Mar, Costs: $11K"]') || JSON.stringify({ end, home, stops });
+    });
+    await check('Escape puts the readout away and keeps focus; a second Escape is left to the page', async () => {
+        await page.evaluate(() => {
+            window.escSeen = 0;
+            document.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.escSeen++; });
+        });
+        await page.keyboard.press('Escape');
+        const after = await chartState(page, 'ch-bar');
+        const first = await page.evaluate(() => window.escSeen);
+        await page.keyboard.press('Escape');
+        const second = await page.evaluate(() => window.escSeen);
+        return (after.shown === false && after.focused === 'Mar, Costs: $11K' && after.active === null && first === 0 && second === 1) || JSON.stringify({ after, first, second });
+    });
+    await check('stacked: ArrowUp goes up the stack to the next series', async () => {
+        await page.focus('#ch-stack [data-ds-chart-mark][tabindex="0"]');
+        await page.keyboard.press('ArrowUp');
+        const s = await chartState(page, 'ch-stack');
+        return s.focused === 'W1, Closed: 3' || JSON.stringify(s);
+    });
+    await check('a legend entry is a toggle button: hides its series, skipped by the arrows, nothing re-scaled', async () => {
+        const bar = '#ch-bar [data-ds-chart-mark][data-ds-in="0"][data-ds-at="1"]';
+        const before = await page.evaluate((b) => document.querySelector(b).getBoundingClientRect().height, bar);
+        const key = page.locator('#ch-bar [data-ds-chart-key="1"]');
+        const r0 = await key.evaluate((k) => ({ role: k.getAttribute('role'), pressed: k.getAttribute('aria-pressed'), tab: k.tabIndex }));
+        await key.focus();
+        await page.keyboard.press('Enter');
+        const r = await page.evaluate((b) => ({
+            pressed: document.querySelector('#ch-bar [data-ds-chart-key="1"]').getAttribute('aria-pressed'),
+            off: document.querySelector('#ch-bar [data-ds-chart-series="1"]').hasAttribute('data-ds-off'),
+            hiddenStop: [...document.querySelectorAll('#ch-bar [data-ds-chart-series="1"] [data-ds-chart-mark]')].some((m) => m.tabIndex === 0),
+            height: document.querySelector(b).getBoundingClientRect().height,
+        }), bar);
+        await page.focus('#ch-bar [data-ds-chart-mark][tabindex="0"]');
+        await page.keyboard.press('End');
+        const end = await chartState(page, 'ch-bar');
+        return (r0.role === 'button' && r0.pressed === 'true' && r0.tab === 0 && r.pressed === 'false' && r.off && !r.hiddenStop
+            && Math.abs(r.height - before) < 0.5 && end.focused === 'Mar, Revenue: $15K') || JSON.stringify({ r0, r, before, end });
+    });
+    await check('the last series shown cannot be hidden; Space shows a hidden one again', async () => {
+        await page.locator('#ch-bar [data-ds-chart-key="0"]').click();
+        const last = await page.evaluate(() => document.querySelector('#ch-bar [data-ds-chart-key="0"]').getAttribute('aria-pressed'));
+        await page.locator('#ch-bar [data-ds-chart-key="1"]').focus();
+        await page.keyboard.press(' ');
+        const back = await page.evaluate(() => !document.querySelector('#ch-bar [data-ds-chart-series="1"]').hasAttribute('data-ds-off'));
+        return (last === 'true' && back) || JSON.stringify({ last, back });
+    });
+    await check('a line: the pointer reads the nearest point, and leaving hides the readout', async () => {
+        await page.evaluate(() => document.getElementById('ch-line').scrollIntoView({ block: 'center' }));
+        const box = await page.evaluate(() => {
+            const r = document.querySelector('#ch-line [data-ds-chart-mark][data-ds-at="2"][data-ds-in="0"]').getBoundingClientRect();
+            return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        });
+        await page.mouse.move(box.x + 12, box.y - 6);
+        await page.waitForTimeout(50);
+        const over = await chartState(page, 'ch-line');
+        await page.mouse.move(2, 2);
+        await page.waitForTimeout(50);
+        const away = await chartState(page, 'ch-line');
+        return (over.shown && over.label === 'Wed' && over.value === '6' && over.series === 'New' && away.shown === false) || JSON.stringify({ over, away });
+    });
+    await check('a line: ArrowDown moves to the same day on the next line', async () => {
+        await page.focus('#ch-line [data-ds-chart-mark][tabindex="0"]');
+        await page.keyboard.press('ArrowRight');
+        await page.keyboard.press('ArrowDown');
+        const s = await chartState(page, 'ch-line');
+        return (s.focused === 'Tue, Returning: 2' && s.shown) || JSON.stringify(s);
+    });
+    await check('a donut: Tab reaches the first segment, any arrow moves on, the ring is drawn round the whole', async () => {
+        await page.focus('#ch-line [data-ds-chart-mark][tabindex="0"]');
+        let first = null;
+        for (let i = 0; i < 6 && !first?.focused; i++) {
+            await page.keyboard.press('Tab');
+            first = await chartState(page, 'ch-donut');
+        }
+        await page.keyboard.press('ArrowDown');
+        const next = await chartState(page, 'ch-donut');
+        const ring = await page.evaluate(() => getComputedStyle(document.querySelector('#ch-donut [data-ds-chart-plot]').parentElement).outlineStyle);
+        return (first.focused === 'Direct: 1,200 (50%)' && first.value === '1,200 (50%)' && first.series === ''
+            && next.focused === 'Search: 800 (33%)' && ring === 'solid') || JSON.stringify({ first, next, ring });
+    });
+    await check('interactive off: an image, no tab stops, no readout', async () => {
+        const r = await page.evaluate(() => {
+            const root = document.getElementById('ch-static');
+            return { role: root.querySelector('svg').getAttribute('role'), x: root.hasAttribute('x-ds-chart'), focusable: root.querySelectorAll('[tabindex]').length, readout: root.querySelectorAll('[data-ds-chart-readout]').length };
+        });
+        return (r.role === 'img' && !r.x && r.focusable === 0 && r.readout === 0) || JSON.stringify(r);
+    });
+}
+
 // ---------------------------------------------------------------- focus indicators
 
 /*
@@ -4204,6 +4363,7 @@ const segMarkup = [
     specimens.match(/<div class="mt-6 w-96" id="seg-rtl"[\s\S]*?<\/fieldset>\s*<\/div>/)?.[0],
     specimens.match(/<div class="mt-6" id="seg-links"[\s\S]*?<\/nav>\s*<\/div>/)?.[0],
 ].join('');
+const chartsMarkup = specimens.match(/<div class="mt-6 w-\[640px\]" id="charts"[\s\S]*?<!-- \/charts -->/)?.[0];
 const clipMarkup = specimens.match(/<div class="mt-6" id="clip"[\s\S]*?<\/span>\s*<\/div>/)?.[0];
 
 const hostPages = {
@@ -4262,6 +4422,17 @@ ${include}
 <style>${css}</style>
 <script defer src="alpine.js"></script>
 </head><body>${fallbackMarkup}</body></html>`,
+
+    // The charts with Alpine and no include, and with neither: each is the
+    // static image PHP drew, and says nothing in the console.
+    'charts-missing.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+<script defer src="alpine.js"></script>
+</head><body>${chartsMarkup}</body></html>`,
+
+    'charts-static.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+</head><body>${chartsMarkup}</body></html>`,
 
     // The pre-paint script FIRST, then a probe that records <html>'s classes
     // before any stylesheet or body exists, then the stylesheet. No Alpine,
@@ -4554,6 +4725,35 @@ group('a segmented control in a host WITHOUT the script (the glide is an enhance
             bg: getComputedStyle(document.querySelector('#seg-rtl input[value="month"]').parentElement).backgroundColor,
         }));
         return (r.posted === 'month' && r.bg === 'rgb(255, 255, 255)') || JSON.stringify(r);
+    });
+    await tab.close();
+}
+
+for (const [page, what] of [['charts-missing.html', 'Alpine and no include'], ['charts-static.html', 'no Alpine at all']]) {
+    group(`charts in a host with ${what} (x-ds-chart is an enhancement)`);
+    const { tab, errors } = await openHost(page);
+
+    await check('the markup reached the page', async () =>
+        (await tab.locator('#charts [data-ds-chart-plot]').count()) === 5 || 'the specimen was not found in the rendered page');
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await check('every chart is an image named by its summary; no mark is focusable, no readout shows', async () => {
+        const r = await tab.evaluate(() => {
+            const plots = [...document.querySelectorAll('#charts [data-ds-chart-plot]')];
+            return {
+                roles: [...new Set(plots.map((p) => p.getAttribute('role')))],
+                named: plots.every((p) => (p.getAttribute('aria-label') ?? '').length > 10),
+                focusable: document.querySelectorAll('#charts svg [tabindex]').length,
+                shown: [...document.querySelectorAll('#charts [data-ds-chart-readout]')].filter((r) => !r.hidden).length,
+                keys: document.querySelectorAll('#charts [data-ds-chart-key][role="button"]').length,
+            };
+        });
+        return (JSON.stringify(r.roles) === '["img"]' && r.named && r.focusable === 0 && r.shown === 0 && r.keys === 0) || JSON.stringify(r);
+    });
+    await check('Tab passes the charts by', async () => {
+        await tab.focus('#ch-before');
+        await tab.keyboard.press('Tab');
+        const at = await tab.evaluate(() => document.activeElement.closest('#charts') ? document.activeElement.tagName : 'left');
+        return at === 'left' || `focus went to ${at}`;
     });
     await tab.close();
 }

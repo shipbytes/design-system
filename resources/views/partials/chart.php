@@ -73,4 +73,56 @@ return [
     // What the empty part of a gauge or the unfilled track is drawn in: the
     // progress ring's track, so the two read as one family.
     'track' => 'text-fg/10',
+
+    /*
+     * The axes of a bar or line chart. Gridlines in the hairline border
+     * colour, so they sit behind the marks; the zero line one step
+     * stronger, because a bar's length is read from it. Tick and category
+     * labels at the meta size, muted, in figures that line up.
+     */
+    'grid' => 'text-border',
+    'zero' => 'text-border-strong',
+    'tick' => 'fill-current text-meta tabular-nums text-fg-muted',
+    // A value printed on its bar, and a line's name at its end: the body
+    // colour, never the series colour, which is too faint to read as text
+    // (specs/chart-series.md: no series token on text).
+    'value' => 'fill-current text-meta font-medium tabular-nums text-fg',
+
+    /*
+     * The readout x-ds-chart shows beside a mark: the tooltip's surface,
+     * class for class, so a chart's readout and a tooltip are one thing.
+     * Its swatch takes the series colour from a data-series attribute the
+     * script writes, because the script never adds a class.
+     */
+    'readout' => 'pointer-events-none absolute left-0 top-0 z-50 w-max max-w-56 rounded-control bg-surface-inverse px-2 py-1 text-meta text-on-inverse shadow-float',
+    'readoutSwatch' => implode(' ', [
+        'hidden size-2 shrink-0 rounded-full bg-current data-series:inline-block',
+        'data-[series=1]:text-series-1 data-[series=2]:text-series-2 data-[series=3]:text-series-3 data-[series=4]:text-series-4',
+        'data-[series=5]:text-series-5 data-[series=6]:text-series-6 data-[series=7]:text-series-7 data-[series=8]:text-series-8',
+        'data-[series=other]:text-fg-subtle',
+    ]),
+
+    /*
+     * The room beside the plot for the labels there, by the px it needs,
+     * rounded up to the next of these. The width of a label is estimated in
+     * PHP (Chart::textWidth()), never measured, so the gutter is a literal
+     * class a consumer's Tailwind can see.
+     */
+    'gutters' => [
+        'left' => [16 => 'pl-4', 24 => 'pl-6', 32 => 'pl-8', 40 => 'pl-10', 48 => 'pl-12', 56 => 'pl-14', 64 => 'pl-16', 80 => 'pl-20', 96 => 'pl-24', 112 => 'pl-28', 128 => 'pl-32', 144 => 'pl-36'],
+        'right' => [0 => 'pr-0', 8 => 'pr-2', 16 => 'pr-4', 24 => 'pr-6', 32 => 'pr-8', 40 => 'pr-10', 48 => 'pr-12', 56 => 'pr-14', 64 => 'pr-16', 80 => 'pr-20', 96 => 'pr-24', 112 => 'pr-28', 128 => 'pr-32', 144 => 'pr-36'],
+    ],
+
+    /*
+     * An axis label hidden while the chart's box is narrower than the
+     * container size named, so a crowded axis thins out as the box narrows
+     * with no script and nothing measured (Chart::thinning()). Tailwind's
+     * own container sizes, in px.
+     */
+    'below' => [
+        256 => '@max-3xs:hidden', 288 => '@max-2xs:hidden', 320 => '@max-xs:hidden', 384 => '@max-sm:hidden',
+        448 => '@max-md:hidden', 512 => '@max-lg:hidden', 576 => '@max-xl:hidden', 672 => '@max-2xl:hidden',
+        768 => '@max-3xl:hidden', 896 => '@max-4xl:hidden', 1024 => '@max-5xl:hidden', 1152 => '@max-6xl:hidden',
+        1280 => '@max-7xl:hidden',
+    ],
 ];

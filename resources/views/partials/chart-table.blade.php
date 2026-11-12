@@ -5,22 +5,26 @@
     through its `table` prop.
 
     $caption  what the table is (the chart's label or summary)
-    $rows     list of [label, value], both already formatted strings
-    $headers  the two column headers
+    $headers  the column headers: what a row is, then one per series
+    $rows     a list per row: its name, then a value per series, every one
+              already a formatted string
 --}}
 <table class="sr-only">
     <caption>{{ $caption }}</caption>
     <thead>
         <tr>
-            <th scope="col">{{ $headers[0] }}</th>
-            <th scope="col">{{ $headers[1] }}</th>
+            @foreach ($headers as $header)
+                <th scope="col">{{ $header }}</th>
+            @endforeach
         </tr>
     </thead>
     <tbody>
-        @foreach ($rows as [$name, $value])
+        @foreach ($rows as $row)
             <tr>
-                <th scope="row">{{ $name }}</th>
-                <td>{{ $value }}</td>
+                <th scope="row">{{ $row[0] }}</th>
+                @foreach (array_slice($row, 1) as $value)
+                    <td>{{ $value }}</td>
+                @endforeach
             </tr>
         @endforeach
     </tbody>

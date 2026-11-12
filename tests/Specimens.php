@@ -1002,6 +1002,69 @@ final class Specimens
                 <x-ds::activity-heatmap label="Reversed" from="2026-03-11" to="2026-03-01" :showMonthLabels="false" :levels="9" />
                 BLADE,
 
+            'bar-chart/all' => <<<'BLADE'
+                <x-ds::bar-chart label="Signups" :data="['Jan' => 12, 'Feb' => 18, 'Mar' => null, 'Apr' => 9]" />
+                <x-ds::bar-chart label="Revenue and costs" :data="['Jan' => ['Revenue' => 12, 'Costs' => 8], 'Feb' => ['Revenue' => 18, 'Costs' => 10]]"
+                    :format="['prefix' => '$', 'suffix' => 'K']" :showValues="true" :table="true" height="lg" :yTicks="3" />
+                <x-ds::bar-chart :data="['W1' => [5, 3], 'W2' => [7, 2]]" :series="['Open', 'Closed']" :stacked="true" :showValues="true" height="sm" />
+                <x-ds::bar-chart label="Views by page" orientation="horizontal" :showValues="true" tone="success"
+                    :data="['Getting started with the API in ten minutes' => 3180, 'Pricing' => 4210]" />
+                <x-ds::bar-chart label="Net" orientation="horizontal" :stacked="true" :data="['A' => [3, -2], 'B' => [-4, 1]]" :series="['In', 'Out']" :yTicks="[-5, 0, 5]" />
+                <x-ds::bar-chart label="Zero" :data="['a' => 0, 'b' => 0]" :interactive="false" />
+                <x-ds::bar-chart label="One" :data="['Only' => 4]" summary="Just the one." />
+                <x-ds::bar-chart :data="[]" empty="No signups yet" />
+                <x-ds::bar-chart :data="[1, 2]" orientation="nonsense" height="nonsense" tone="nonsense" :format="'nonsense'" />
+                BLADE,
+
+            'line-chart/all' => <<<'BLADE'
+                <x-ds::line-chart label="Visits" :data="['Mon' => 320, 'Tue' => 410, 'Wed' => null, 'Thu' => 520, 'Fri' => 480]" :points="true" />
+                <x-ds::line-chart label="New and returning" :data="['Mon' => [3, 1], 'Tue' => [4, 2], 'Wed' => [6, 3]]" :series="['New', 'Returning']"
+                    curve="smooth" :area="true" :table="true" height="lg" :yTicks="4" />
+                <x-ds::line-chart label="Regions" legend="end" :format="['suffix' => ' ms']" :interactive="false"
+                    :data="['W1' => [210, 180, 260], 'W2' => [230, 170, 250]]" :series="['EU', 'US', 'APAC']" />
+                <x-ds::line-chart :data="['a' => [1, 2, 3, 4, 5], 'b' => [2, 3, 4, 5, 6]]" :series="['1', '2', '3', '4', '5']" legend="end" xLabels="none" />
+                <x-ds::line-chart label="Errors" tone="danger" :area="true" xLabels="2" height="sm" :data="[1.2, null, 2.4, null, 0.6, 0.9]" />
+                <x-ds::line-chart label="One" :data="['Mon' => 5]" legend="bottom" />
+                <x-ds::line-chart label="Flat" :data="['Mon' => 5, 'Tue' => 5]" summary="Steady." />
+                <x-ds::line-chart :data="['Mon' => null]" />
+                <x-ds::line-chart :data="[1, 2]" curve="nonsense" height="nonsense" legend="nonsense" xLabels="nonsense" tone="nonsense" />
+                BLADE,
+
+            'donut-chart/all' => <<<'BLADE'
+                <x-ds::donut-chart label="Traffic by source" :data="['Direct' => 1200, 'Search' => 800, 'Social' => 400, 'Email' => 250]" />
+                <x-ds::donut-chart label="Seats" size="sm" thickness="lg" legend="bottom" :table="true" :format="['suffix' => ' seats']" :data="['Free' => 70, 'Pro' => 25, 'Team' => 5]" />
+                <x-ds::donut-chart label="Browsers" size="lg" thickness="sm" :maxSegments="3" otherLabel="Everything else" :interactive="false"
+                    :data="['Chrome' => 640, 'Safari' => 190, 'Firefox' => 60, 'Edge' => 50]">
+                    <x-slot:centre><span>65%</span></x-slot:centre>
+                </x-ds::donut-chart>
+                <x-ds::donut-chart label="One" legend="none" :showTotal="false" :data="['All' => 5]" summary="All of it." />
+                <x-ds::donut-chart label="Tickets" legend="none" totalLabel="" :data="['Open' => 3, 'Closed' => 9]" />
+                <x-ds::donut-chart :data="[]" empty="Nothing yet" />
+                <x-ds::donut-chart :data="['a' => 1, 'b' => 2]" size="nonsense" thickness="nonsense" legend="nonsense" :maxSegments="99" />
+                BLADE,
+
+            'timeline/all' => <<<'BLADE'
+                <x-ds::timeline label="Order history">
+                    <x-ds::timeline-item title="Shipped" time="2026-11-12T10:42:00Z" icon="truck" tone="success">Two parcels.</x-ds::timeline-item>
+                    <x-ds::timeline-item title="Payment failed" :time="new DateTimeImmutable('2026-11-10 09:31')" icon="exclamation-triangle" tone="danger">
+                        Declined.
+                        <x-slot:actions><x-ds::button size="sm" variant="secondary">Retry</x-ds::button></x-slot:actions>
+                    </x-ds::timeline-item>
+                    <x-ds::timeline-item title="Ada added a note" avatar="Ada Lovelace" time="Yesterday" datetime="2026-11-11" href="/notes/1" />
+                    <x-ds::timeline-item title="Grace replied" :avatar="['name' => 'Grace Hopper', 'src' => '/grace.jpg']" time="2026-11-09" time-format="relative" />
+                    <x-ds::timeline-item title="Placed" time="2026-11-09T08:00:00+05:30" time-format="j M, H:i" tone="accent" />
+                    <x-ds::timeline-item tone="nonsense" time="">A body with no title.</x-ds::timeline-item>
+                </x-ds::timeline>
+                <x-ds::timeline :dense="true">
+                    <x-ds::timeline-group label="Today">
+                        <x-ds::timeline-item title="Deployed" time="10:42" tone="warning" />
+                    </x-ds::timeline-group>
+                    <x-ds::timeline-group label="Yesterday" :level="9">
+                        <x-ds::timeline-item title="Built" />
+                    </x-ds::timeline-group>
+                </x-ds::timeline>
+                BLADE,
+
             // Not a visual component, but it renders inside a host's layout and
             // so inside a Livewire render too; this puts it through the markers
             // test with everything else.
