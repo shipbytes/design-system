@@ -624,7 +624,10 @@ summary; the directive adds a readout on the tooltip's surface beside the mark
 under the pointer or focus (placed by `shared/anchor.js`), every mark as a stop
 behind one roving tab stop (`shared/roving.js` along the categories, its own
 keys across the series), and, with `data-ds-chart-toggles`, legend entries that
-show and hide a series with no re-scaling. Because focusable marks cannot sit
+show and hide a series with no re-scaling. A mark drawn in several pieces (a
+waffle's cells) is its first piece, and the rest carry `data-ds-chart-piece`
+naming it, so the pointer reads the part over any of them (batch 13, the one
+addition the four charts of that batch made to the script: about 0.3 kB). Because focusable marks cannot sit
 inside an image, it turns the plot into a group named by the same summary and
 each mark into an image named by the `aria-label` PHP wrote on it. It is in
 `ENHANCEMENTS`: without it the chart is the image it was rendered as, and the
@@ -727,23 +730,23 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 101 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 105 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
-accordion, accordion-item, activity-heatmap, alert, announcement-bar, avatar, avatar-group, badge, bar-chart, bottom-nav,
+accordion, accordion-item, activity-heatmap, activity-rings, alert, announcement-bar, avatar, avatar-group, badge, bar-chart, bottom-nav,
 bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, chip,
 button-group, chip-group, code-block, combobox, command-group, command-item, command-palette, confirm-button, confirm-popover, copy-button, counter, date-picker, donut-chart, drawer, dropdown,
 context-menu, dropdown-item, empty-state, expandable-text, file-upload, filter-bar, filter-chip, gauge, hold-button, hover-card, icon,
 inline-edit, input, kbd, line-chart, modal,
 nav-item, number-field, otp-input, panel, panel-row, password-strength,
 popover, progress, radio, radio-card, radio-cards, radio-group, rating,
-scroll-area, segment, segmented-control, select, sheet, sheet-item, skeleton, slider, sortable-item, sortable-list, sparkline, split, split-pane, stat-tile,
+scroll-area, segment, segmented-control, select, sheet, sheet-item, skeleton, slider, slope-chart, sortable-item, sortable-list, sparkline, split, split-bar, split-pane, stat-tile,
 step, stepper, sub-nav, switch, tab,
 tab-panel, table, table-cell, table-row, tabs, tag-input, theme-switcher,
 time-picker, timeline, timeline-group, timeline-item,
 toast, toast-region,
 toggle, toggle-group, toolbar, toolbar-button, toolbar-separator, tooltip,
-tree, tree-item, usage-meter.
+tree, tree-item, usage-meter, waffle-chart.
 
 **Every built component has a spec.**
 
@@ -796,10 +799,12 @@ uses `x-ds-glide` as an enhancement only, and dropdown, select, combobox,
 date-picker and tooltip use `x-ds-anchor` as an enhancement only: each works
 without the script exactly as in 1.x, and with it stays on screen. counter
 uses `x-ds-roll` as an enhancement only: without it the server's number is
-shown and a morph changes it, with it the digits roll. bar-chart, line-chart
-and donut-chart use `x-ds-chart` as an enhancement only: without it each is
-a static `role="img"` SVG named by its generated summary, with it a readout,
-keyboard access to every mark and legend toggles. scroll-area uses
+shown and a morph changes it, with it the digits roll. bar-chart, line-chart,
+donut-chart, split-bar, waffle-chart, activity-rings and slope-chart use
+`x-ds-chart` as an enhancement only: without it each is a static
+`role="img"` image (SVG, or plain elements for the split bar and the waffle)
+named by its generated summary, with it a readout, keyboard access to every
+mark and legend toggles. scroll-area uses
 `x-ds-scroll-shadows` as an enhancement only, and only where the browser has
 no scroll-driven animations: its shadows are CSS, its scrolling native. timeline (with
 timeline-item and timeline-group) is plain Blade and CSS. See the

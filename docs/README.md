@@ -1,6 +1,6 @@
 # Shipbytes Blade UI — documentation
 
-101 Blade components for Laravel, plus two pagination views. Presentation
+105 Blade components for Laravel, plus two pagination views. Presentation
 only: no state, no framework assumptions beyond Blade itself.
 
 **New here?** Start with [Getting started](getting-started.md) — install, three
@@ -74,7 +74,26 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Bar chart](components/bar-chart.md) | Values compared across categories: grouped or stacked, vertical or horizontal — the readout needs Alpine and the script |
 | [Line chart](components/line-chart.md) | Values in order over time, up to eight series, with gaps — the readout needs Alpine and the script |
 | [Donut chart](components/donut-chart.md) | The parts of one whole, with the total in the middle — the readout needs Alpine and the script |
+| [Split bar](components/split-bar.md) | The parts of one whole as one bar, with room left if there is a total — the readout needs Alpine and the script |
+| [Waffle chart](components/waffle-chart.md) | A share as cells of a 10 × 10 grid, one cell a percent — the readout needs Alpine and the script |
+| [Activity rings](components/activity-rings.md) | Up to four goals as concentric rings, each against its own target — the readout needs Alpine and the script |
+| [Slope chart](components/slope-chart.md) | A handful of items before and after, the change written on each — the readout needs Alpine and the script |
 | [Timeline](components/timeline.md) | Events in order on a rail, with groups under sticky headings |
+
+**Which chart?** Start from the question.
+
+| The question | Use |
+|---|---|
+| One number, and is it changing? | [Counter](components/counter.md), in a stat tile with a [sparkline](components/sparkline.md) for the trend |
+| One reading in a range, with bands (CPU, latency)? | [Gauge](components/gauge.md) |
+| How busy was each day? | [Activity heatmap](components/activity-heatmap.md) |
+| How do these categories compare? | [Bar chart](components/bar-chart.md), sorted; horizontal for long names |
+| How did it move over time? | [Line chart](components/line-chart.md) |
+| What is one whole made of? | [Split bar](components/split-bar.md) in a line, [donut chart](components/donut-chart.md) with the total in the middle, [waffle chart](components/waffle-chart.md) as a count of 100 |
+| What share is one part? | [Waffle chart](components/waffle-chart.md) with one number, or a [progress](components/progress.md) bar |
+| How far toward several goals? | [Activity rings](components/activity-rings.md) |
+| What changed between two moments, item by item? | [Slope chart](components/slope-chart.md) |
+| How much of an allowance is used? | Not a chart: a [usage meter](components/usage-meter.md) |
 
 ### Navigation
 
@@ -149,7 +168,7 @@ needed by thirty-three components, and by nine optional props:
 | `scroll-area` | **Never.** It scrolls natively. With Alpine and the package's script it also draws its edge shadows in a browser that cannot from CSS. |
 | `sub-nav` | **Only to open and close.** Without it the section holding the current page is open and the rest are closed, as the server rendered them. |
 | `counter` | **Never**, unless its `value` is bound to Alpine state. With Alpine and the package's script its digits roll; without them it shows the number the server rendered, and a re-render changes it. Bound with `::value`, it needs both. |
-| `bar-chart` `line-chart` `donut-chart` | **Never.** With Alpine and the package's script, a readout on hover and focus, every mark reachable by keyboard, and legend toggles; without them each is a static SVG with a generated text alternative, which is complete. |
+| `bar-chart` `line-chart` `donut-chart` `split-bar` `waffle-chart` `activity-rings` `slope-chart` | **Never.** With Alpine and the package's script, a readout on hover and focus, every mark reachable by keyboard, and legend toggles; without them each is a static SVG with a generated text alternative, which is complete. |
 | `segmented-control` | **Never.** With Alpine and the package's script, its highlight slides; without them, the chosen segment draws its own face, and nothing throws. |
 | `input` | Only for `reveal` and `clearable`, which also need the package's script. |
 | `code-block` | Only for its copy button (on by default) and `expandable`, which also need the package's script. Without them the code shows and scrolls. |

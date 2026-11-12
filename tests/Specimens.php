@@ -1043,6 +1043,48 @@ final class Specimens
                 <x-ds::donut-chart :data="['a' => 1, 'b' => 2]" size="nonsense" thickness="nonsense" legend="nonsense" :maxSegments="99" />
                 BLADE,
 
+            'split-bar/all' => <<<'BLADE'
+                <x-ds::split-bar label="Plans" :data="['Free' => 744, 'Pro' => 360, 'Team' => 96]" />
+                <x-ds::split-bar label="Storage" :total="500" legend="inline" size="lg" :table="true" :format="['suffix' => ' GB']" :data="['Photos' => 150, 'Video' => 96, 'Mail' => 0.4]" />
+                <x-ds::split-bar label="Tickets" size="sm" showValues="value" legend="none" :interactive="false"
+                    :data="[['label' => 'Open', 'value' => 18, 'tone' => 'warning'], ['label' => 'Solved', 'value' => 41, 'series' => 3], ['label' => 'Blocked', 'value' => 0]]" />
+                <x-ds::split-bar :data="['a' => 1]" showValues="percent" summary="All of it." />
+                <x-ds::split-bar :data="[]" empty="Nothing yet" />
+                <x-ds::split-bar :data="['a' => 0]" />
+                <x-ds::split-bar :data="['a' => 1, 'b' => 2]" size="nonsense" legend="nonsense" showValues="nonsense" :total="'nonsense'" :format="'nonsense'" />
+                BLADE,
+
+            'waffle-chart/all' => <<<'BLADE'
+                <x-ds::waffle-chart label="Answered" :data="37" tone="success" />
+                <x-ds::waffle-chart label="Seats" :data="['Free' => 620, 'Pro' => 290, 'Team' => 0.5]" legend="below" shape="circle" size="lg" :table="true" :format="['suffix' => ' seats']" />
+                <x-ds::waffle-chart label="Invited" :total="200" :rows="5" :columns="20" size="sm" legend="none" :interactive="false"
+                    :data="[['label' => 'Accepted', 'value' => 112, 'series' => 4], ['label' => 'Declined', 'value' => 31, 'tone' => 'danger']]" />
+                <x-ds::waffle-chart :data="0" summary="None yet." />
+                <x-ds::waffle-chart :data="[]" empty="Nothing yet" />
+                <x-ds::waffle-chart :data="12" :rows="99" :columns="-3" size="nonsense" shape="nonsense" legend="nonsense" tone="nonsense" :format="'nonsense'" />
+                BLADE,
+
+            'activity-rings/all' => <<<'BLADE'
+                <x-ds::activity-rings label="Today" :rings="[['label' => 'Move', 'value' => 420, 'max' => 600, 'format' => ['suffix' => ' kcal']], ['label' => 'Exercise', 'value' => 25, 'max' => 30], ['label' => 'Stand', 'value' => 14, 'max' => 12, 'tone' => 'success']]">
+                    <x-slot:centre><span>2/3</span></x-slot:centre>
+                </x-ds::activity-rings>
+                <x-ds::activity-rings label="Regions" size="lg" thickness="lg" legend="below" :table="true" :interactive="false" :rings="['North' => 82, 'South' => 64, 'East' => 0, 'West' => ['value' => 41, 'series' => 7]]" />
+                <x-ds::activity-rings size="sm" thickness="sm" legend="none" :rings="['Done' => 99.5]" summary="Nearly done." />
+                <x-ds::activity-rings :rings="[]" empty="No goals yet" />
+                <x-ds::activity-rings :rings="['a' => 1]" size="nonsense" thickness="nonsense" legend="nonsense" :format="'nonsense'" />
+                BLADE,
+
+            'slope-chart/all' => <<<'BLADE'
+                <x-ds::slope-chart label="Conversion" fromLabel="Q1" toLabel="Q2" :format="['suffix' => '%', 'decimals' => 1]"
+                    :data="['Search' => [3.1, 4.2], 'Email' => [5.4, 5.1], 'Direct' => [4.0, 4.0]]" />
+                <x-ds::slope-chart label="Satisfaction" fromLabel="Before" toLabel="After" colourBy="direction" highlight="Billing" height="lg" :table="true" :interactive="false"
+                    :data="[['label' => 'Billing', 'from' => 54, 'to' => 71], ['label' => 'A team with a very long name indeed', 'from' => 68, 'to' => 59, 'tone' => 'warning'], ['label' => 'Mobile', 'from' => 66, 'to' => 66, 'series' => 5]]" />
+                <x-ds::slope-chart fromLabel="2024" toLabel="2025" height="sm" :data="['Only' => [5, 5]]" summary="Unchanged." />
+                <x-ds::slope-chart fromLabel="Then" toLabel="Now" colourBy="direction" :data="['a' => [1, 2], 'b' => [1, 2], 'c' => [1, 2], 'd' => [1, 2], 'e' => [1, 2], 'f' => [2, 1], 'g' => [2, 1], 'h' => [2, 1], 'i' => [2, 2], 'j' => [3, 1]]" />
+                <x-ds::slope-chart fromLabel="Then" toLabel="Now" :data="[]" empty="Nothing to compare" />
+                <x-ds::slope-chart fromLabel="Then" toLabel="Now" :data="['a' => [1, 2]]" height="nonsense" colourBy="nonsense" :highlight="'nobody'" :format="'nonsense'" />
+                BLADE,
+
             'timeline/all' => <<<'BLADE'
                 <x-ds::timeline label="Order history">
                     <x-ds::timeline-item title="Shipped" time="2026-11-12T10:42:00Z" icon="truck" tone="success">Two parcels.</x-ds::timeline-item>

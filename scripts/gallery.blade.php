@@ -1780,6 +1780,103 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Split bar --}}
+<section class="ds-spec" id="split-bar">
+    <header class="ds-spec-head">
+        <h2>Split bar</h2>
+        <p>One 100% bar cut into parts: plain elements with flex-basis percentages, 2px of surface between segments, a minimum width so a sliver never vanishes, and rounding on the outer ends only. <code>total</code> leaves the rest as empty track. Inline names move under the bar, by container query, when their segment is too narrow for them.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Legends <span>&middot; below, inline with room left, none; sm, md, lg</span></div>
+        <div class="flex flex-col gap-6 px-4 pb-4">
+            <x-ds::split-bar label="Plan mix" size="sm" :data="['Free' => 744, 'Pro' => 360, 'Team' => 84, 'Enterprise' => 12]" :format="['suffix' => ' seats']" />
+            <x-ds::split-bar label="Storage" legend="inline" :total="500" :format="['suffix' => ' GB']" :data="['Photos' => 150, 'Video' => 96, 'Documents' => 38, 'Mail' => 2]" />
+            <x-ds::split-bar label="Tickets" legend="none" size="lg" showValues="value"
+                :data="[['label' => 'Open', 'value' => 18], ['label' => 'Pending', 'value' => 7], ['label' => 'Solved', 'value' => 41]]" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">At 320px <span>&middot; inline names fall back to the line below; a zero is listed, not drawn</span></div>
+        <div class="flex flex-wrap items-start gap-6 px-4 pb-4">
+            <div class="w-80"><x-ds::split-bar label="Storage, narrow" legend="inline" :total="500" showValues="percent" :data="['Photos' => 150, 'Video' => 96, 'Documents' => 38, 'Mail' => 2]" /></div>
+            <div class="w-80"><x-ds::split-bar label="Status" showValues="percent" :data="['Open' => 18, 'Blocked' => 0, 'Solved' => 41]" /></div>
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Waffle chart --}}
+<section class="ds-spec" id="waffle-chart">
+    <header class="ds-spec-head">
+        <h2>Waffle chart</h2>
+        <p>A grid where each cell is a share: 10 &times; 10 by default, so a cell is 1%. Cells by largest remainder, so they always total the grid; they fill in reading order, so a right-to-left page fills from the right. The grid is one <code>role="img"</code>, not a hundred announced cells.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Parts and one share <span>&middot; legend beside and below; square and circle; sm, md, lg</span></div>
+        <div class="flex flex-wrap items-start gap-8 px-4 pb-4">
+            <x-ds::waffle-chart label="Seats by plan" :data="['Free' => 620, 'Pro' => 290, 'Team' => 74, 'Enterprise' => 16]" />
+            <x-ds::waffle-chart label="Survey answered" :data="37" tone="accent" size="sm" legend="below" />
+            <x-ds::waffle-chart label="Of 200 invited" :total="200" :rows="5" :columns="20" shape="circle" size="sm" legend="below" :data="['Accepted' => 112, 'Declined' => 31]" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Right to left <span>&middot; <code>dir="rtl"</code> on a wrapper; the cells fill from the right</span></div>
+        <div dir="rtl" class="px-4 pb-4">
+            <x-ds::waffle-chart label="Share" :data="['A' => 23, 'B' => 41]" :total="100" size="sm" legend="none" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Activity rings --}}
+<section class="ds-spec" id="activity-rings">
+    <header class="ds-spec-head">
+        <h2>Activity rings</h2>
+        <p>Concentric goals, outermost first, at most four. Each ring is a round-capped dash on a faint track of its own colour, shortened by its caps so it ends exactly at its share. A ring past its goal is drawn full, and the real figure is written in the legend, readout and summary.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Sizes and thicknesses <span>&middot; a centre slot; a goal passed; four rings narrowed to leave a hole</span></div>
+        <div class="flex flex-wrap items-start gap-8 px-4 pb-4">
+            <x-ds::activity-rings label="Today" :rings="[
+                ['label' => 'Move', 'value' => 420, 'max' => 600, 'format' => ['suffix' => ' kcal']],
+                ['label' => 'Exercise', 'value' => 25, 'max' => 30, 'format' => ['suffix' => ' min']],
+                ['label' => 'Stand', 'value' => 14, 'max' => 12, 'format' => ['suffix' => ' h']],
+            ]">
+                <x-slot:centre><span class="text-title font-semibold text-fg">2/3</span></x-slot:centre>
+            </x-ds::activity-rings>
+            <x-ds::activity-rings label="Sprint" size="sm" thickness="sm" legend="below" :rings="['Done' => ['value' => 34, 'max' => 50], 'Reviewed' => ['value' => 21, 'max' => 50]]" />
+            <x-ds::activity-rings label="Regions" size="lg" thickness="lg" legend="below" :rings="['North' => 82, 'South' => 64, 'East' => 97, 'West' => 0]" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Slope chart --}}
+<section class="ds-spec" id="slope-chart">
+    <header class="ds-spec-head">
+        <h2>Slope chart</h2>
+        <p>A handful of items at two points in time. Two axes, a line per item, labels on both sides nudged apart where they would collide, and the change written in words so up and down never rest on colour. Colour by series or by direction; <code>highlight</code> mutes the rest.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">By series <span>&middot; five items, labels nudged where Search and Direct end close</span></div>
+        <div class="px-4 pb-4">
+            <x-ds::slope-chart label="Conversion by channel" fromLabel="Q1" toLabel="Q2" :format="['suffix' => '%', 'decimals' => 1]" height="sm"
+                :data="['Search' => [3.1, 4.2], 'Email' => [5.4, 5.1], 'Social' => [1.2, 2.6], 'Direct' => [4.0, 4.0], 'Referral' => [2.2, 1.6]]" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">By direction, highlighted <span>&middot; the rest muted; a long name cut with its title</span></div>
+        <div class="px-4 pb-4">
+            <x-ds::slope-chart label="Satisfaction by team" fromLabel="Before the redesign" toLabel="After" colourBy="direction" :highlight="['Billing', 'Onboarding']" height="sm"
+                :data="['Support' => [72, 75], 'Billing' => [54, 71], 'Onboarding' => [68, 59], 'Reporting and analytics' => [61, 62], 'Integrations' => [80, 80], 'Mobile' => [66, 64]]" />
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Timeline --}}
 <section class="ds-spec" id="timeline">
     <header class="ds-spec-head">

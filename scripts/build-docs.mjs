@@ -232,6 +232,16 @@ const names = await tab.$$eval('[data-shot]', (nodes) => nodes.map((n) => n.data
 
   Both panes of a shot get the same treatment, so light and dark match.
 */
+// A pointer resting on an element, as x-ds-chart hears one: a pointermove
+// at its middle, bubbling to the plot. Nothing at the document listens.
+const hoverAt = (locator) =>
+    locator.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        el.dispatchEvent(new PointerEvent('pointermove', {
+            bubbles: true, pointerType: 'mouse', clientX: r.left + r.width / 2, clientY: r.top + r.height / 2,
+        }));
+    });
+
 const OPERATE = {
     /*
      * Dispatched directly on the element, and NOT bubbling.
@@ -309,6 +319,14 @@ const OPERATE = {
                 bubbles: true, pointerType: 'mouse', clientX: r.left + r.width / 2, clientY: r.top + r.height / 2,
             }));
         }),
+    // The same resting pointer on one mark of each of the batch 13 charts:
+    // the storage bar's video segment, a cell inside the waffle's second
+    // part (not its first, so the readout stands beside the cell it is
+    // over), the middle ring, and the slope chart's Social in Q2.
+    'split-bar': async (pane) => hoverAt(pane.locator('[data-shot-hover] [data-ds-chart-mark][data-ds-at="1"]')),
+    'waffle-chart': async (pane) => hoverAt(pane.locator('[data-shot-hover] [data-ds-chart-piece="1"]').nth(12)),
+    'activity-rings': async (pane) => hoverAt(pane.locator('[data-shot-hover] [data-ds-chart-mark][data-ds-at="1"]')),
+    'slope-chart': async (pane) => hoverAt(pane.locator('[data-shot-hover] [data-ds-chart-mark][data-ds-at="1"][data-ds-in="2"]')),
     // A click no press began, as a screen reader sends one: it arms.
     'hold-button': async (pane) =>
         pane.locator('[data-shot-press]').dispatchEvent('click', { bubbles: false }),

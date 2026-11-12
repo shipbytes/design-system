@@ -230,4 +230,120 @@ final class DataComponentsTest extends TestCase
             $this->assertSame('true', $marker->getAttribute('aria-hidden'));
         }
     }
+
+    #[Test]
+    public function a_split_bar_is_an_image_of_segments_whose_shares_add_to_a_hundred(): void
+    {
+        $html = Blade::render('<x-ds::split-bar label="Storage" :total="500" :table="true" :format="[\'suffix\' => \' GB\']" :data="[\'Photos\' => 150, \'Video\' => 96, \'Mail\' => 0.4, \'Empty\' => 0]" :interactive="false" />');
+
+        $plot = $this->first($html, '//*[@role="img"]');
+        $this->assertSame('Storage: 4 parts, 246.4 GB of 500 GB; the largest is Photos at 30%.', $plot->getAttribute('aria-label'));
+        // A zero draws no segment; the rest of the track is one.
+        $this->assertSame(4, $plot->childNodes->length - $this->xpath($html)->query('//*[@role="img"]/text()')->length);
+        $this->assertStringContainsString('flex: 0 1 0.08%', $html);
+        $rows = array_map(fn ($tr) => trim(preg_replace('/\s+/', ' ', $tr->textContent)), iterator_to_array($this->xpath($html)->query('//table//tbody/tr')));
+        $this->assertSame(['Photos 150 GB 30%', 'Video 96 GB 19%', 'Mail 0.4 GB <1%', 'Empty 0 GB 0%', 'Remaining 253.6 GB 51%', 'Total 500 GB 100%'], $rows);
+    }
+
+    #[Test]
+    public function a_split_bar_names_inline_what_fits_and_the_rest_below_by_container_query(): void
+    {
+        $html = Blade::render('<x-ds::split-bar legend="inline" :data="[\'Wide part\' => 90, \'Tiny\' => 10]" :interactive="false" />');
+
+        $inline = $this->xpath($html)->query('//div[contains(@class, "text-meta")]/div/span');
+        $this->assertSame(2, $inline->length);
+        $fallback = $this->xpath($html)->query('//ul/li');
+        $this->assertSame(2, $fallback->length);
+        // Each part's two places are exact opposites, so it is named once.
+        foreach ([0, 1] as $i) {
+            $shown = preg_match('/@max-([a-z0-9]+):hidden/', $inline->item($i)->getAttribute('class'), $a);
+            $this->assertSame(1, $shown);
+            $this->assertStringContainsString('@'.$a[1].':hidden', $fallback->item($i)->getAttribute('class'));
+        }
+    }
+
+    #[Test]
+    public function a_split_bar_throws_on_a_negative_part(): void
+    {
+        $this->expectExceptionMessage('[Refunds] is -3');
+        Blade::render('<x-ds::split-bar :data="[\'Sales\' => 5, \'Refunds\' => -3]" />');
+    }
+
+    #[Test]
+    public function a_waffle_is_one_image_of_every_cell_with_one_mark_per_part(): void
+    {
+        $html = Blade::render('<x-ds::waffle-chart label="Seats" :data="[\'Free\' => 62, \'Pro\' => 30, \'Team\' => 8]" />');
+
+        $plot = $this->first($html, '//*[@data-ds-chart-plot]');
+        $this->assertSame('img', $plot->getAttribute('role'));
+        $this->assertSame('Seats: 3 parts, total 100; the largest is Free at 62%.', $plot->getAttribute('aria-label'));
+        $this->assertSame(100, $this->xpath($html)->query('//*[@data-ds-chart-plot]/span')->length);
+        $this->assertSame(3, $this->xpath($html)->query('//*[@data-ds-chart-mark]')->length);
+        $this->assertSame(29, $this->xpath($html)->query('//*[@data-ds-chart-piece="1"]')->length);
+        // Nothing inside is announced: the cells carry no names of their own.
+        $this->assertSame(3, $this->xpath($html)->query('//*[@data-ds-chart-plot]//*[@aria-label]')->length);
+    }
+
+    #[Test]
+    public function a_waffle_of_one_number_is_a_share_of_a_hundred(): void
+    {
+        $plot = $this->first(Blade::render('<x-ds::waffle-chart label="Answered" :data="37" :interactive="false" />'), '//*[@role="img"]');
+
+        $this->assertSame('Answered: 37 of 100 (37%).', $plot->getAttribute('aria-label'));
+        $this->assertStringContainsString('repeat(10, max-content)', $plot->getAttribute('style'));
+    }
+
+    #[Test]
+    public function activity_rings_say_every_ring_and_a_goal_passed_in_figures(): void
+    {
+        $html = Blade::render('<x-ds::activity-rings label="Today" :table="true" :rings="[[\'label\' => \'Move\', \'value\' => 420, \'max\' => 600, \'format\' => [\'suffix\' => \' kcal\']], [\'label\' => \'Stand\', \'value\' => 14, \'max\' => 12]]" />');
+
+        $this->assertSame('Today: Move 420 kcal of 600 kcal (70%), Stand 14 of 12 (117%).', $this->first($html, '//svg')->getAttribute('aria-label'));
+        // Past the goal is a full circle, no further.
+        $this->assertSame(1, $this->xpath($html)->query('//circle[@stroke-linecap="round" and @stroke-dashoffset="0"]')->length);
+        $this->assertSame('Stand: 14 of 12 (117%)', $this->xpath($html)->query('//*[@data-ds-chart-mark]')->item(1)->getAttribute('aria-label'));
+        $this->assertSame('117%', trim($this->xpath($html)->query('//table//tbody/tr[2]/td[3]')->item(0)->textContent));
+    }
+
+    #[Test]
+    public function activity_rings_stop_at_four(): void
+    {
+        $this->expectExceptionMessage('at most 4 rings, and was given 5');
+        Blade::render('<x-ds::activity-rings :rings="[\'a\' => 1, \'b\' => 2, \'c\' => 3, \'d\' => 4, \'e\' => 5]" />');
+    }
+
+    #[Test]
+    public function activity_rings_refuse_a_goal_of_nothing(): void
+    {
+        $this->expectExceptionMessage('[Move] has a max of 0');
+        Blade::render('<x-ds::activity-rings :rings="[[\'label\' => \'Move\', \'value\' => 1, \'max\' => 0]]" />');
+    }
+
+    #[Test]
+    public function a_slope_chart_writes_the_change_on_every_right_label_and_mutes_what_is_not_highlighted(): void
+    {
+        $html = Blade::render('<x-ds::slope-chart label="Price" fromLabel="2024" toLabel="2025" colourBy="direction" highlight="Oslo" :table="true" :data="[\'Oslo\' => [10, 22], \'Rome\' => [15, 11]]" />');
+
+        $this->assertSame("Price: 2024 to 2025, 1 up and 1 down; the largest rise is Oslo (+12), the largest fall Rome (\u{2212}4).", $this->first($html, '//svg')->getAttribute('aria-label'));
+        $right = $this->xpath($html)->query('//text[@x="100%" and @dx="10"]');
+        $this->assertSame(['22+12Oslo', "11\u{2212}4Rome"], [trim($right->item(0)->textContent), trim($right->item(1)->textContent)]);
+        $this->assertStringContainsString('text-success', $this->xpath($html)->query('//line[@x2="100%" and @stroke-linecap]')->item(1)->getAttribute('class'));
+        $this->assertStringContainsString('text-fg-subtle', $this->xpath($html)->query('//line[@x2="100%" and @stroke-linecap]')->item(0)->getAttribute('class'));
+        $this->assertSame('Rome, 2025: 11 (−4)', $this->xpath($html)->query('//*[@data-ds-chart-mark]')->item(3)->getAttribute('aria-label'));
+        $this->assertSame(['Item', '2024', '2025', 'Change'], array_map(fn ($th) => $th->textContent, iterator_to_array($this->xpath($html)->query('//thead//th'))));
+    }
+
+    #[Test]
+    public function a_slope_chart_needs_both_column_names(): void
+    {
+        $this->expectExceptionMessage('needs fromLabel and toLabel');
+        Blade::render('<x-ds::slope-chart fromLabel="2024" :data="[\'a\' => [1, 2]]" />');
+    }
+
+    #[Test]
+    public function a_slope_chart_by_series_stops_at_eight_items(): void
+    {
+        $this->expectExceptionMessage('Use colourBy="direction"');
+        Blade::render('<x-ds::slope-chart fromLabel="a" toLabel="b" :data="array_fill_keys(range(1, 9), [1, 2])" />');
+    }
 }
