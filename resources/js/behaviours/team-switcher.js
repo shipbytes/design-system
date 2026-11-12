@@ -15,13 +15,9 @@
  * (data-ds-team-empty). Opening, closing, Escape, focus in and back out are
  * the popover's; focus starts on the field, or on the current team.
  *
- *   - ArrowDown and ArrowUp move between the options shown, wrapping, and
- *     Home and End go to the ends; ArrowDown from the field enters the list,
- *     ArrowUp from its first option goes back to the field. Enter or Space
- *     chooses; Enter in the field chooses the first match
- *   - typing in the field filters, ranked as the command palette ranks
- *     (shared/rank.js): the name, then the meta just below it. The options
- *     are ordered by CSS `order`, so the DOM stays as rendered for a morph
+ *   - the keys, the filter and Enter in the field are the shared picker's
+ *     (shared/picker.js); the filter ranks as the command palette ranks
+ *     (shared/rank.js): the name, then the meta just below it
  *   - choosing a link follows it. Choosing any other team sets the select
  *     to its id, moves aria-selected and the trigger's face to it, closes
  *     the panel with focus back on the trigger, dispatches `change` with
@@ -34,6 +30,7 @@
  * The scope exposes `dsReady` and nothing else.
  */
 import { fold, rank } from '../shared/rank.js';
+import { picker } from '../shared/picker.js';
 
 export function teamSwitcher(Alpine) {
     Alpine.data('dsTeamSwitcher', (options = {}) => {
@@ -46,32 +43,11 @@ export function teamSwitcher(Alpine) {
                 const root = this.$el;
                 const find = (selector) => root.querySelector(selector);
                 const all = () => [...root.querySelectorAll('[data-ds-team-option]')];
-                const item = (option) => option.closest('li') ?? option;
-                const order = (option) => Number(item(option).style.order || 0);
-                const shown = () => all().filter((o) => !item(o).hidden).sort((a, b) => order(a) - order(b));
 
                 const close = () => {
                     const popover = find('[data-ds-popover]');
                     if (popover) Alpine.$data(popover).dsOpen = false;
                 };
-
-                function filter() {
-                    const field = find('[data-ds-team-search]');
-                    const q = fold((field?.value ?? '').trim());
-                    const scored = all().map((o, i) => {
-                        const name = rank(fold(o.dataset.dsLabel ?? ''), q) * 2;
-                        const meta = rank(fold(o.dataset.dsKeywords ?? ''), q) * 2 - 1;
-                        return [o, q ? Math.max(name, meta) : 1, i];
-                    });
-                    scored.sort((a, b) => b[1] - a[1] || a[2] - b[2]);
-                    scored.forEach(([o, score], i) => {
-                        item(o).hidden = score <= 0;
-                        if (q) item(o).style.setProperty('order', String(i + 1));
-                        else item(o).style.removeProperty('order');
-                    });
-                    const empty = find('[data-ds-team-empty]');
-                    if (empty) empty.hidden = scored.some(([, score]) => score > 0);
-                }
 
                 function choose(option) {
                     if (option.matches('a[href]')) {
@@ -104,53 +80,25 @@ export function teamSwitcher(Alpine) {
                     if (options.submit === true) select.form?.requestSubmit();
                 }
 
-                const onClick = (event) => {
-                    const option = event.target.closest('[data-ds-team-option]');
-                    if (option && root.contains(option)) choose(option);
-                    // Each opening starts from the whole list.
-                    if (event.target.closest('[data-ds-team-trigger]')) {
-                        const field = find('[data-ds-team-search]');
-                        if (field) field.value = '';
-                        filter();
-                    }
-                };
+                const list = picker(root, {
+                    option: '[data-ds-team-option]',
+                    search: '[data-ds-team-search]',
+                    empty: '[data-ds-team-empty]',
+                    score: (o, q) => Math.max(rank(fold(o.dataset.dsLabel ?? ''), q) * 2, rank(fold(o.dataset.dsKeywords ?? ''), q) * 2 - 1),
+                    choose,
+                });
 
-                const onKeyDown = (event) => {
-                    const field = find('[data-ds-team-search]');
-                    const list = shown();
-                    if (event.target === field) {
-                        if (event.key === 'ArrowDown' && list.length) {
-                            event.preventDefault();
-                            list[0].focus();
-                        } else if (event.key === 'Enter') {
-                            event.preventDefault();
-                            list[0]?.click();
-                        }
-                        return;
-                    }
-                    const at = list.indexOf(event.target);
-                    if (at < 0) return;
-                    if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        list[at].click();
-                        return;
-                    }
-                    const keys = { Home: 0, End: list.length - 1, ArrowDown: (at + 1) % list.length, ArrowUp: at - 1 };
-                    if (!(event.key in keys)) return;
-                    event.preventDefault();
-                    const to = keys[event.key];
-                    (to < 0 ? field ?? list[list.length - 1] : list[to]).focus();
+                // Each opening starts from the whole list.
+                const onClick = (event) => {
+                    if (event.target.closest('[data-ds-team-trigger]')) list.reset();
                 };
 
                 root.addEventListener('click', onClick);
-                root.addEventListener('keydown', onKeyDown);
-                root.addEventListener('input', filter);
                 this.dsReady = true;
 
                 teardown = () => {
+                    list.teardown();
                     root.removeEventListener('click', onClick);
-                    root.removeEventListener('keydown', onKeyDown);
-                    root.removeEventListener('input', filter);
                 };
             },
 

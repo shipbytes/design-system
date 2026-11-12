@@ -46,8 +46,8 @@
  * The scope exposes `dsOpen` and nothing else.
  */
 import { fold, rank } from '../shared/rank.js';
+import { EDITABLE, parse, matches } from '../shared/shortcut.js';
 
-const EDITABLE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
 const SEARCH_DELAY = 200;
 
 export function commandPalette(Alpine) {
@@ -276,29 +276,4 @@ function wire(root, options, api) {
 function order(nodes, score, q) {
     const ranked = nodes.map((node, i) => [node, score(node), i]).sort((a, b) => b[1] - a[1] || a[2] - b[2]);
     ranked.forEach(([node], i) => (q ? node.style.setProperty('order', String(i + 1)) : node.style.removeProperty('order')));
-}
-
-function parse(shortcut) {
-    if (!shortcut) return null;
-    const parts = String(shortcut).toLowerCase().split('+').map((p) => p.trim()).filter(Boolean);
-    const key = parts.pop();
-    if (!key) return null;
-    const mac = /mac|iphone|ipad|ipod/i.test(navigator.userAgentData?.platform ?? navigator.platform ?? '');
-    const want = { key, ctrl: false, meta: false, alt: false, shift: false };
-    for (const part of parts) {
-        if (part === 'mod') want[mac ? 'meta' : 'ctrl'] = true;
-        else if (part === 'cmd' || part === 'meta') want.meta = true;
-        else if (part === 'ctrl' || part === 'control') want.ctrl = true;
-        else if (part === 'alt' || part === 'option') want.alt = true;
-        else if (part === 'shift') want.shift = true;
-    }
-    want.chord = want.ctrl || want.meta;
-    return want;
-}
-
-// Shift is only compared for a letter or a named key: "?" is typed with it.
-function matches(combo, event) {
-    if (String(event.key).toLowerCase() !== combo.key) return false;
-    if (event.ctrlKey !== combo.ctrl || event.metaKey !== combo.meta || event.altKey !== combo.alt) return false;
-    return combo.key.length === 1 && !/[a-z]/.test(combo.key) ? true : event.shiftKey === combo.shift;
 }
