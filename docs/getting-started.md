@@ -323,6 +323,9 @@ the classes were chosen before the browser ever saw the markup. Affected props:
 | `button` | `variant`, `size` |
 | `tab` | `active` |
 | `modal`, `drawer` | `size` |
+| `progress` | `value`, `tone`, `size`, `variant` — bind `--ds-progress` instead, see [progress](components/progress.md#driving-it-live) |
+| `usage-meter` | all of them; re-render it from the server |
+| `step` | `status` |
 
 Two ways out.
 

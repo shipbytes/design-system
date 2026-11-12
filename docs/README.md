@@ -1,6 +1,6 @@
 # Shipbytes Blade UI — documentation
 
-Forty-one Blade components for Laravel, plus two pagination views. Presentation
+Forty-six Blade components for Laravel, plus two pagination views. Presentation
 only: no state, no framework assumptions beyond Blade itself.
 
 **New here?** Start with [Getting started](getting-started.md) — install, three
@@ -35,6 +35,8 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Accordion](components/accordion.md) | Sections that expand one at a time — needs Alpine |
 | [Empty state](components/empty-state.md) | What a region says when it has nothing |
 | [Skeleton](components/skeleton.md) | A picture of content that is still loading |
+| [Progress](components/progress.md) | How far along a task is, as a bar or a ring |
+| [Usage meter](components/usage-meter.md) | An allowance and what fills it |
 
 ### Navigation
 
@@ -44,6 +46,7 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Bottom nav](components/bottom-nav.md) | The phone's primary navigation |
 | [Tabs](components/tabs.md) | One row, several views |
 | [Breadcrumb](components/breadcrumb.md) | Where this page sits |
+| [Stepper](components/stepper.md) | Where someone is in an ordered flow |
 | [Pagination](components/pagination.md) | Two Laravel paginator views, each with a Livewire variant |
 
 ### Overlays
@@ -63,6 +66,7 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 |---|---|
 | [Icon](components/icon.md) | A Heroicon, sized by the system |
 | [Avatar](components/avatar.md) | A person or a thing, at a glance |
+| [Avatar group](components/avatar-group.md) | A few faces from a larger set, overlapping |
 | [Badge](components/badge.md) | A small label that annotates |
 | [Alert](components/alert.md) | Something about the page you are on |
 

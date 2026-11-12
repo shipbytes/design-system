@@ -46,6 +46,9 @@ config/           blade-ui.php — icon aliases, default icon size
 resources/views/  the Blade components + the two pagination views and
                   their two Livewire variants
                   (everything here SHIPS to consumers — keep it lean)
+  partials/bar.blade.php        the track and fill progress and usage-meter
+                                share; a partial, not a component, because it
+                                carries no role or value of its own
 resources/js/     the shared script's source: plain ES modules, hand-edited
   blade-ui.js       the Alpine plugin; lists every behaviour
   global.js         the classic-script entry ds::scripts inlines
@@ -485,15 +488,15 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 41 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 46 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
-accordion, accordion-item, alert, avatar, badge, bottom-nav, bottom-nav-item,
-breadcrumb, breadcrumb-item, button, checkbox, combobox, date-picker, drawer,
-dropdown, dropdown-item, empty-state, file-upload, icon, input, modal, nav-item,
-panel, panel-row, radio, radio-group, select, sheet, sheet-item, skeleton,
-stat-tile, switch, tab, tab-panel, table, table-cell, table-row, tabs, toast,
-toast-region, tooltip.
+accordion, accordion-item, alert, avatar, avatar-group, badge, bottom-nav,
+bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, combobox,
+date-picker, drawer, dropdown, dropdown-item, empty-state, file-upload, icon,
+input, modal, nav-item, panel, panel-row, progress, radio, radio-group, select,
+sheet, sheet-item, skeleton, stat-tile, step, stepper, switch, tab, tab-panel,
+table, table-cell, table-row, tabs, toast, toast-region, tooltip, usage-meter.
 
 **Every built component has a spec.**
 
