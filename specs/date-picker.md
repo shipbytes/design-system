@@ -26,6 +26,20 @@ is both correct and correctly *ordered*, which is what the range logic needs.
 `Date.UTC` appears only for calendar arithmetic — how many days in a month, what
 weekday the first falls on — where the timezone is irrelevant.
 
+**Today is the server's day** (`today`, `now()` in the app's timezone by
+default), never the browser's clock.
+
+## One grid: the calendar's
+
+Since 2.0 the calendar in the popover is the one [calendar.md](calendar.md)
+describes: `partials/calendar-grid.blade.php`, drawn by `Support\Calendar` and
+redrawn by `dsCalendar` in the package's script. The 1.x inline-Alpine grid
+was retired in batch 18 (the owner's decision), so the date picker **needs the
+script**. What a consumer relies on is pinned by `DatePickerContractTest`: the
+props, the posted names and values, the trigger, the popover's role, the label
+and the error and help wiring. Upgrade notes are in
+[getting started](../docs/getting-started.md#from-1x-to-20).
+
 ## Anatomy
 
 ```
@@ -54,34 +68,61 @@ The calendar opens below the trigger, 4px off it, start-aligned. It is about
 above when there is no room below, shifts it along the edge to stay 8px inside
 the viewport, and caps its height with a scroll when neither side fits. With
 room it lands where `absolute mt-1` puts it; the behaviour suite measures both.
-The anchor is an **enhancement**: the absolute classes are the no-script
-placement, as in 1.x.
+The absolute classes are the placement before the script places it.
 
 ## What posts
 
-`Y-m-d`, through hidden inputs, which is what a database column and
-`Carbon::parse` both want.
+`Y-m-d`, which is what a database column and `Carbon::parse` both want.
 
 A range posts **two fields** — `{name}_start` and `{name}_end`. Two dates are two
 values, and squeezing them into one string means every consumer writing the same
 parser and getting the separator wrong.
 
-Rendered by PHP and bound for Alpine, so the field carries its value before the
-JS runs.
+## Without the script
+
+The names post from **native date fields** (`<input type="date">`, two for a
+range with an en dash between), rendered with the value, `min` and `max`, and
+labelled by the label (and "Start" / "End"). `dsCalendar` turns those same
+inputs into hidden ones, hides their row and shows the trigger, so the names
+are identical either way. A disabled picker's fields are `readonly`, not
+`disabled`, so they still post, as the 1.x hidden inputs did.
+
+The trigger is rendered `hidden` and shown by the script, as the colour and
+time pickers swap their native fields: without the script there is no button
+that opens nothing. The cost is that the native field shows until Alpine
+starts. With Alpine and no script the console names the missing include
+(`dsCalendar is not registered: add <x-ds::scripts />…`).
 
 ## Range behaviour
 
 First click sets the start and clears the end. Second click sets the end and
-closes.
+closes (unless `confirm`).
 
-**A second click *before* the start re-opens the range from there** rather than
-producing a backwards range the reader then has to undo. That is the one
-interaction people get wrong when they misread the calendar, and it should cost
-them nothing.
+**A second click *before* the start swaps the ends** rather than producing a
+backwards range the reader then has to undo: the earlier day becomes the start.
+(1.x started the range again from there.)
 
-While a range is half-made, hovering previews it — `hovered` feeds the same
-`isBetween` test the committed range uses, so the preview cannot disagree with
-the result.
+While a range is half-made, the day under the pointer or the focus previews it,
+through the same test the committed range uses, so the preview cannot disagree
+with the result.
+
+## Months, presets, minDays, maxDays, confirm
+
+`months` is two side by side (one on a phone, whose next button is on the
+first month). `minDays` / `maxDays` (with `range`) disable the ends that would
+break them once a start is chosen, counted inclusively. `confirm` makes picks a
+draft: Apply commits and closes, Cancel or Escape drops it, and nothing closes
+the popover by itself.
+
+Presets: `true` is Today, Yesterday, Last 7 days, Last 30 days, This month
+(the 1st to today), Last month (the whole month) and This year (1 January to
+today), counted from `today`, the server's day (`now()` in the app's
+timezone), never the browser's clock. PHP works them out for the first paint
+(`Support\Calendar::presets`) and the script again from the same `today`
+(`shared/dates.js`); both are held to `tests/Fixtures/dates.json`. A host's
+own `label => [from, to]` carries its dates. The preset equal to the range is
+`aria-pressed`. The list is a `group` named "Presets", beside the grid from
+`sm`, wrapping above it below.
 
 ## Locale
 
@@ -97,14 +138,16 @@ arithmetically from it rather than being a second list that can fall out of step
 
 - The popover is `role="dialog"`, opened by a button with `aria-haspopup="dialog"`
   and a live `aria-expanded`.
-- The grid is `role="grid"` with `columnheader`s and `gridcell`s.
-- **Arrow keys move a day, PageUp/PageDown a month, Home/End the ends of it.** A
+- The grid is `role="grid"` with `columnheader`s, `row`s and `gridcell`s, each
+  cell carrying `aria-selected`; every day is named by its full date.
+- **Arrow keys move a day or a week, PageUp/PageDown a month (Shift: a year),
+  Home/End the start and end of the week**, the ARIA date grid's keys. A
   calendar that only answers to Tab makes a keyboard reader press it thirty
   times to reach the end of the month.
 - Moving past the edge of the month **follows the grid** — it changes month and
   keeps focus on the day it landed on.
-- The month label is `aria-live="polite"`, because pressing an arrow changes the
-  grid the reader is standing in and nothing else announces it.
+- A polite live region says the month when it changes, because pressing an
+  arrow changes the grid the reader is standing in and nothing else announces it.
 - Today carries `aria-current="date"`.
 - Only one day is in the tab order; the arrows do the rest.
 - `min`/`max` disable days rather than hiding them, so the shape of the month
