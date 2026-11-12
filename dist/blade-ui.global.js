@@ -511,6 +511,130 @@ highlight.hidden = true;
 }
 return { glide };
 })();
+const __ds_behaviours_hover_card = (() => {
+const OPEN_DELAY = 500;
+const CLOSE_DELAY = 300;
+function hoverCard(Alpine) {
+Alpine.data('dsHoverCard', () => {
+let control = null;
+return {
+dsOpen: false,
+init() {
+control = wire(this.$el, {
+isOpen: () => this.dsOpen,
+setOpen: (open) => {
+this.dsOpen = open;
+},
+});
+this.$watch('dsOpen', (open) => control.changed(open));
+},
+destroy() {
+control?.teardown();
+},
+};
+});
+}
+function wire(root, api) {
+const own = (selector) => [...root.querySelectorAll(selector)].find((el) => el.closest('[data-ds-hover-card]') === root) ?? null;
+const trigger = own('[data-ds-hover-card-trigger]');
+const panel = own('[data-ds-hover-card-panel]');
+let openTimer = 0;
+let closeTimer = 0;
+const inTrigger = (node) => Boolean(node && trigger?.contains(node));
+const inPanel = (node) => Boolean(node && panel?.contains(node));
+const within = (node) => inTrigger(node) || inPanel(node);
+function cancel() {
+clearTimeout(openTimer);
+clearTimeout(closeTimer);
+openTimer = 0;
+closeTimer = 0;
+}
+function openSoon() {
+clearTimeout(closeTimer);
+closeTimer = 0;
+if (api.isOpen() || openTimer) return;
+openTimer = setTimeout(() => {
+openTimer = 0;
+api.setOpen(true);
+}, OPEN_DELAY);
+}
+function closeSoon() {
+clearTimeout(openTimer);
+openTimer = 0;
+if (!api.isOpen() || closeTimer) return;
+closeTimer = setTimeout(() => {
+closeTimer = 0;
+if (inPanel(document.activeElement)) return;
+api.setOpen(false);
+}, CLOSE_DELAY);
+}
+function closeNow() {
+cancel();
+api.setOpen(false);
+}
+function onPointerOver(event) {
+if (event.pointerType === 'touch' || !within(event.target)) return;
+if (inTrigger(event.target)) openSoon();
+else {
+clearTimeout(closeTimer);
+closeTimer = 0;
+}
+}
+function onPointerOut(event) {
+if (event.pointerType === 'touch' || within(event.relatedTarget)) return;
+closeSoon();
+}
+function onPointerDown(event) {
+if (inTrigger(event.target)) {
+clearTimeout(openTimer);
+openTimer = 0;
+}
+}
+function onFocusIn(event) {
+if (inPanel(event.target)) {
+clearTimeout(closeTimer);
+closeTimer = 0;
+return;
+}
+if (inTrigger(event.target) && event.target.matches(':focus-visible')) openSoon();
+}
+function onFocusOut(event) {
+if (within(event.relatedTarget)) return;
+if (root.matches(':hover')) return;
+closeNow();
+}
+function onKeyDown(event) {
+if (event.key !== 'Escape' || (!api.isOpen() && !openTimer)) return;
+const ours = root.contains(document.activeElement);
+closeNow();
+if (ours) event.stopPropagation();
+}
+function changed(open) {
+if (open) document.addEventListener('keydown', onKeyDown, true);
+else if (!openTimer) document.removeEventListener('keydown', onKeyDown, true);
+}
+root.addEventListener('pointerover', onPointerOver);
+root.addEventListener('pointerout', onPointerOut);
+root.addEventListener('pointerdown', onPointerDown);
+root.addEventListener('focusin', onFocusIn);
+root.addEventListener('focusout', onFocusOut);
+root.addEventListener('keydown', onKeyDown);
+return {
+changed,
+teardown() {
+cancel();
+document.removeEventListener('keydown', onKeyDown, true);
+root.removeEventListener('pointerover', onPointerOver);
+root.removeEventListener('pointerout', onPointerOut);
+root.removeEventListener('pointerdown', onPointerDown);
+root.removeEventListener('focusin', onFocusIn);
+root.removeEventListener('focusout', onFocusOut);
+root.removeEventListener('keydown', onKeyDown);
+},
+};
+}
+return { hoverCard };
+})();
 const __ds_behaviours_number_field = (() => {
 const HOLD_DELAY = 400;
 const HOLD_EVERY = 75;
@@ -1407,6 +1531,7 @@ const __ds_blade_ui = (() => {
 const { anchorDirective } = __ds_behaviours_anchor;
 const { clipboard } = __ds_behaviours_clipboard;
 const { glide } = __ds_behaviours_glide;
+const { hoverCard } = __ds_behaviours_hover_card;
 const { numberField } = __ds_behaviours_number_field;
 const { otp } = __ds_behaviours_otp;
 const { password } = __ds_behaviours_password;
@@ -1414,7 +1539,7 @@ const { popover } = __ds_behaviours_popover;
 const { tagInput } = __ds_behaviours_tag_input;
 const { toggleGroup } = __ds_behaviours_toggle_group;
 const { toolbar } = __ds_behaviours_toolbar;
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard];
 const REGISTERED = Symbol.for('shipbytes.blade-ui');
 function bladeUi(Alpine) {
 if (!Alpine || Alpine[REGISTERED]) return;

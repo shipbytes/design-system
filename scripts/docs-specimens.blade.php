@@ -762,6 +762,33 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── hover-card
+     Opened the way a reader opens it, by resting the pointer on the name:
+     build-docs.mjs operates it and waits out the delay. --}}
+<div data-shot="hover-card" class="shot shot-tall">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <p class="text-body text-fg-body">
+                Assigned to
+                <x-ds::hover-card>
+                    <x-slot:trigger>
+                        <a href="#" data-shot-hover class="font-medium text-fg underline decoration-border-strong underline-offset-4">Ada Lovelace</a>
+                    </x-slot:trigger>
+                    <span class="flex items-center gap-3">
+                        <x-ds::avatar name="Ada Lovelace" />
+                        <span class="min-w-0">
+                            <span class="block font-medium text-fg">Ada Lovelace</span>
+                            <span class="block text-meta text-fg-muted">Analyst, Engines team</span>
+                        </span>
+                    </span>
+                    <span class="mt-3 block text-meta">Owns the quarterly revenue and churn reports. Usually replies within a day.</span>
+                </x-ds::hover-card>
+                since Monday.
+            </p>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── tooltip --}}
 <div data-shot="tooltip" class="shot">
     @foreach ($themes as $t)

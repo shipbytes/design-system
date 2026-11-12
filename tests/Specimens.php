@@ -814,6 +814,27 @@ final class Specimens
                 <x-ds::popover label="t" placement="right-end"><x-slot:trigger><button type="button">T</button></x-slot:trigger> Body </x-ds::popover>
                 BLADE,
 
+            'hover-card/all' => <<<'BLADE'
+                <p>
+                    Assigned to
+                    <x-ds::hover-card>
+                        <x-slot:trigger><a href="/people/ada">Ada Lovelace</a></x-slot:trigger>
+                        <span class="block font-medium text-fg">Ada Lovelace</span>
+                        <span class="block text-meta text-fg-muted">Analyst, Engines team</span>
+                        <a href="/people/ada" class="mt-2 block text-meta">View profile</a>
+                    </x-ds::hover-card>
+                    since Monday.
+                </p>
+                <x-ds::hover-card placement="top" width="sm">
+                    <x-slot:trigger><a href="/r/42">Q3 revenue</a></x-slot:trigger>
+                    Ready, £12,400
+                </x-ds::hover-card>
+                <x-ds::hover-card placement="right-end" width="lg" id="hc-named">
+                    <x-slot:trigger><a href="/r/43">Churn</a></x-slot:trigger>
+                    Running
+                </x-ds::hover-card>
+                BLADE,
+
             // Not a visual component, but it renders inside a host's layout and
             // so inside a Livewire render too; this puts it through the markers
             // test with everything else.

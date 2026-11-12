@@ -153,7 +153,7 @@ const page = await context.newPage();
 const LARAVEL = 'http://localhost';
 const fromLaravel = [];
 
-await context.route(`${LARAVEL}/**`, async (route) => {
+const serveFromLaravel = async (route) => {
     const request = route.request();
     const headers = {};
     const etag = await request.headerValue('if-none-match');
@@ -168,7 +168,9 @@ await context.route(`${LARAVEL}/**`, async (route) => {
     fromLaravel.push({ path: new URL(request.url()).pathname, status: response.status, headers: response.headers, cookies: response.cookies });
 
     await route.fulfill({ status: response.status, headers: response.headers, body: Buffer.from(response.body, 'base64') });
-});
+};
+
+await context.route(`${LARAVEL}/**`, serveFromLaravel);
 
 const jsErrors = [];
 page.on('pageerror', (e) => jsErrors.push('uncaught: ' + e.message));
@@ -1900,6 +1902,128 @@ await check('with reduced motion it appears at once (no transition)', async () =
     return (r.duration === '0s' && r.opacity === '1') || JSON.stringify(r);
 });
 
+// ---------------------------------------------------------------- hover card
+
+const cardShown = () => shownById('hc-card');
+
+/** The pointer somewhere that is neither the trigger nor the card. */
+const pointerAway = async () => {
+    const box = await page.locator('#hc-away').boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 4 });
+};
+
+group('hover card (dsHoverCard, x-ds-anchor)');
+
+await page.evaluate(() => document.getElementById('hc-prose').scrollIntoView({ block: 'center' }));
+await pointerAway();
+await settle(100);
+
+await check('hidden on load, and the trigger keeps its own semantics', async () => {
+    if (await cardShown()) return 'visible on load';
+    const r = await page.evaluate(() => {
+        const a = document.getElementById('hc-trigger');
+        return ['aria-expanded', 'aria-describedby', 'aria-haspopup', 'aria-controls', 'role'].filter((n) => a.hasAttribute(n));
+    });
+    return !r.length || `the trigger gained ${r.join(', ')}`;
+});
+
+await check('a pointer passing over opens nothing', async () => {
+    await page.hover('#hc-trigger');
+    await settle(200);
+    await pointerAway();
+    await settle(600);
+    return (await cardShown()) === false || 'opened on a pass';
+});
+
+await check('a pointer resting on the trigger opens it after the delay, not before', async () => {
+    await page.hover('#hc-trigger');
+    await settle(250);
+    if (await cardShown()) return 'open at 250 ms: no delay';
+    await settle(500);
+    return (await cardShown()) || 'not open after 750 ms';
+});
+
+await check('the pointer can travel from the trigger into the card', async () => {
+    const card = await page.locator('#hc-card').boundingBox();
+    await page.mouse.move(card.x + card.width / 2, card.y + card.height / 2, { steps: 6 });
+    await settle(500);
+    return (await cardShown()) || 'it closed on the way';
+});
+
+await check('leaving both closes it, after a short delay', async () => {
+    await pointerAway();
+    await settle(100);
+    if (!(await cardShown())) return 'closed at once: no time to cross the gap';
+    await settle(450);
+    return (await cardShown()) === false || 'still open';
+});
+
+await check('Escape dismisses a card shown by hover, the pointer still on it (WCAG 1.4.13)', async () => {
+    await page.hover('#hc-trigger');
+    await settle(750);
+    if (!(await cardShown())) return 'did not open';
+    await page.keyboard.press('Escape');
+    await settle(200);
+    const shut = (await cardShown()) === false;
+    await pointerAway();
+    await settle(400);
+    return shut || 'still open';
+});
+
+await check('keyboard focus opens it, after the same delay', async () => {
+    await page.focus('#hc-before');
+    await page.keyboard.press('Tab');
+    if ((await active()) !== 'hc-trigger') return `Tab went to ${await active()}`;
+    await settle(250);
+    if (await cardShown()) return 'open at 250 ms';
+    await settle(500);
+    return (await cardShown()) || 'not open after 750 ms';
+});
+
+await check('Tab moves into the card\'s link, and the card stays open', async () => {
+    await page.keyboard.press('Tab');
+    await settle(150);
+    if ((await active()) !== 'hc-link') return `Tab went to ${await active()}`;
+    return (await cardShown()) || 'closed when focus went in';
+});
+
+await check('Tab on past it closes it: nothing is trapped', async () => {
+    await page.keyboard.press('Tab');
+    await settle(250);
+    if ((await active()) !== 'hc-after') return `focus on ${await active()}`;
+    return (await cardShown()) === false || 'still open';
+});
+
+await check('a mouse click on the trigger (focus without :focus-visible) does not open it by focus', async () => {
+    await page.evaluate(() => document.getElementById('hc-trigger').addEventListener('click', (e) => e.preventDefault(), { once: true }));
+    await page.click('#hc-trigger');
+    await pointerAway();
+    await settle(750);
+    return (await cardShown()) === false || 'opened from the focus a click left behind';
+});
+
+group('hover card on a touch screen');
+{
+    const touch = await browser.newContext({ viewport: { width: 1200, height: 1000 }, hasTouch: true, isMobile: true });
+    await touch.route(`${LARAVEL}/**`, serveFromLaravel);
+    const tab = await touch.newPage();
+    await tab.goto('file://' + join(TMP, 'page.html'), { waitUntil: 'networkidle' });
+    await tab.waitForTimeout(400);
+
+    await check('a tap runs the trigger\'s own link and opens no card', async () => {
+        await tab.evaluate(() => document.getElementById('hc-trigger').scrollIntoView({ block: 'center' }));
+        await tab.tap('#hc-trigger');
+        await tab.waitForTimeout(800);
+        const r = await tab.evaluate(() => ({
+            hash: location.hash,
+            shown: getComputedStyle(document.getElementById('hc-card')).display !== 'none',
+        }));
+        if (r.hash !== '#ada') return `the link did not run (hash ${r.hash})`;
+        return r.shown === false || 'a card opened on touch';
+    });
+    await touch.close();
+}
+
 // ---------------------------------------------------------------- segmented control
 
 group('segmented control (radios and CSS; x-ds-glide when the script is there)');
@@ -2492,6 +2616,12 @@ const anchored = [
     }, async () => {
         await page.keyboard.press('Escape');
     }],
+    ['hover card', 'hc-edge-trigger', 'hc-edge', async () => {
+        await page.hover('#hc-edge-trigger');
+    }, async () => {
+        await page.keyboard.press('Escape');
+        await page.mouse.move(5, 5);
+    }],
 ];
 
 for (const [name, triggerId, panelId, open, close] of anchored) {
@@ -2648,7 +2778,7 @@ group('host setup (b): Alpine bundled by the host, Alpine.plugin(bladeUi)');
     await check('the plugin works', () => copiesOn(tab));
     await check('plugin twice plus the include: each name registered exactly once', async () => {
         const names = await tab.evaluate(() => window.dsRegistered);
-        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover'];
+        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard'];
         return JSON.stringify(names) === JSON.stringify(expected) || `registered ${JSON.stringify(names)}`;
     });
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));

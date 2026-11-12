@@ -1209,6 +1209,33 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Hover card --}}
+<section class="ds-spec" id="hover-card">
+    <header class="ds-spec-head">
+        <h2>Hover card</h2>
+        <p>A look at where a link goes, on hover or keyboard focus, after half a second. Supplementary by contract: the trigger is untouched, a tap still follows it, and nothing in the card is only in the card.</p>
+    </header>
+
+    <div class="ds-note">With <em>no Alpine</em> here the cards stay closed; the triggers are your own links, unchanged. The open card is in the documentation screenshot.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">In running text <span>&middot; spans throughout, so it can sit inside a paragraph</span></div>
+        <p class="text-body text-fg-body">
+            Assigned to
+            <x-ds::hover-card>
+                <x-slot:trigger><a href="#hover-card" class="font-medium text-fg underline underline-offset-4">Ada Lovelace</a></x-slot:trigger>
+                <span class="block font-medium text-fg">Ada Lovelace</span>
+                <span class="block text-meta text-fg-muted">Analyst, Engines team</span>
+            </x-ds::hover-card>
+            and reviewed by
+            <x-ds::hover-card placement="top" width="sm">
+                <x-slot:trigger><a href="#hover-card" class="font-medium text-fg underline underline-offset-4">Grace Hopper</a></x-slot:trigger>
+                <span class="block font-medium text-fg">Grace Hopper</span>
+            </x-ds::hover-card>.
+        </p>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Avatar --}}
 <section class="ds-spec" id="avatar">
     <header class="ds-spec-head">

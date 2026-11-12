@@ -454,6 +454,31 @@
         </x-ds::popover>
     </div>
 
+    {{-- ── hover card (dsHoverCard, x-ds-anchor) ──
+         Inside running text, as a name in a sentence, with a link in the
+         card for Tab to reach; and one at the right edge of a clipping box,
+         for the edge check at the end of the run. --}}
+    <div class="mt-6">
+        <button type="button" id="hc-before">before</button>
+        <p id="hc-prose" class="mt-2">
+            Assigned to
+            <x-ds::hover-card id="hc-card">
+                <x-slot:trigger><a href="#ada" id="hc-trigger">Ada Lovelace</a></x-slot:trigger>
+                <span class="block font-medium text-fg">Ada Lovelace</span>
+                <a href="#ada-profile" id="hc-link" class="text-meta">View profile</a>
+            </x-ds::hover-card>
+            since Monday. <a href="#after" id="hc-after">After</a>
+        </p>
+        <button type="button" id="hc-away" class="mt-16">elsewhere</button>
+    </div>
+
+    <div class="mt-6 flex h-10 justify-end overflow-hidden border border-border">
+        <x-ds::hover-card id="hc-edge" width="lg">
+            <x-slot:trigger><a href="#edge" id="hc-edge-trigger">Edge person</a></x-slot:trigger>
+            <span class="block h-40">A tall card.</span>
+        </x-ds::hover-card>
+    </div>
+
     {{-- ── dsClipboard, from the shared script ──
          No component uses it yet, so this is the markup a component would
          emit, through the same helper. --}}
