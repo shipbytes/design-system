@@ -23,14 +23,19 @@ import { dismiss } from './behaviours/dismiss.js';
 import { hold } from './behaviours/hold.js';
 import { inlineConfirm } from './behaviours/confirm.js';
 import { inlineEdit } from './behaviours/inline-edit.js';
+import { kbdShortcut } from './behaviours/kbd-shortcut.js';
 import { glide } from './behaviours/glide.js';
 import { hoverCard } from './behaviours/hover-card.js';
+import { moneyInput } from './behaviours/money-input.js';
 import { numberField } from './behaviours/number-field.js';
 import { otp } from './behaviours/otp.js';
 import { password } from './behaviours/password.js';
+import { phoneInput } from './behaviours/phone-input.js';
 import { popover } from './behaviours/popover.js';
 import { roll } from './behaviours/roll.js';
 import { scrollShadows } from './behaviours/scroll-shadows.js';
+import { search } from './behaviours/search.js';
+import { shortcutInput } from './behaviours/shortcut-input.js';
 import { slider } from './behaviours/slider.js';
 import { sortable } from './behaviours/sortable.js';
 import { split } from './behaviours/split.js';
@@ -43,7 +48,7 @@ import { toggleGroup } from './behaviours/toggle-group.js';
 import { toolbar } from './behaviours/toolbar.js';
 import { tree } from './behaviours/tree.js';
 
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split, swap, teamSwitcher];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split, swap, teamSwitcher, moneyInput, phoneInput, search, kbdShortcut, shortcutInput];
 
 // Symbol.for, not a module-level flag. Two copies of this script, say the
 // inlined one AND a Vite import, are two separate modules with two separate

@@ -115,7 +115,7 @@ group, so it starts no session and sets no cookie, and it works under
 
 **A page that cannot reach the route** (a static export, an HTML email
 preview, a host whose routing will not take a package's) can carry the script
-in the page instead, about 139 kB (34 kB compressed), uncached:
+in the page instead, about 168 kB (41 kB compressed), uncached:
 
 ```blade
 <x-ds::scripts inline />
@@ -214,10 +214,15 @@ use the component.
 | `dsSplit` | Behind `ds::split`. Drags a divider under capture with a shield over the page (so an iframe cannot take the pointer), moves it by the arrow keys (Shift for 10%), Home and End, folds a collapsible pane on Enter or a double-click, keeps each divider's `aria-valuenow` in step, and dispatches `resize` while dragging and `resized` after with `{ name, sizes }`. |
 | `dsSwap` | Behind `ds::swap-button`. Swaps the button's face on a press, on a window event, or both; swaps it back after `revert` ms (0 keeps it, a toggle with `aria-pressed`); keeps `data-ds-swapped`, `aria-hidden` and `inert` on the faces in step; and announces the face now showing through a polite status region. |
 | `dsTeamSwitcher` | Behind `ds::team-switcher`, inside its `dsPopover`. Shows the trigger and the listbox in place of the no-script select or links; filters and ranks the teams as the command palette does (CSS `order`, the DOM untouched); moves between them with the arrow keys, Home and End; on a choice follows the link, or sets the select, dispatches `change` with `{ id }` and, with `action`, submits the form. |
+| `dsMoneyInput` | Behind `ds::money-input`. Groups the amount for the locale as it is typed with the caret kept, takes either decimal separator and pasted amounts with symbols, pads and checks `min`, `max` and `step` on leaving, and posts the amount as digits from a hidden input (integer minor units with `minor`). |
+| `dsPhoneInput` | Behind `ds::phone-input`, with a `dsPopover` for the country. Shows the searchable country list in place of the no-script select, formats the number with the country's mask, chooses the country from a typed or pasted `+…`, drops the trunk 0 and posts E.164 from a hidden input. Checks length only. |
+| `dsShortcutInput` | Behind `ds::shortcut-input`. Records the next key combination pressed on its button as `mod+shift+k`, refuses bare keys and the browser's reserved shortcuts, warns on `conflicts`, never takes Tab, and dispatches `change` with `{ value, previous }`. |
+| `dsSearch` | Behind `ds::input`'s `expanding`. Escape clears, then collapses with focus on the icon button; the button and a key typed on it go to the field; `shortcut` opens it from anywhere. |
 | `dsTree` | Behind `ds::tree`. One Tab stop for the tree; the arrow keys, Home, End, type-ahead and `*`; opens and closes folders (dispatching `expand` and `collapse`), selects or checks rows with tri-state parents, keeps the posted inputs in step, and binds `wire:model` / `x-model` both ways. |
 | `x-ds-roll` | A directive, behind `ds::counter` when its value comes from the server. Rolls the digits when a re-render (a Livewire morph) changes the number; with `.in`, rolls up from zero the first time the counter is half in view. Instant under reduced motion. |
 | `x-ds-scroll-shadows` | A directive, behind `ds::scroll-area`. Where the browser cannot draw the edge shadows from CSS (no scroll-driven animations), marks each edge that has more content past it, on scroll and on resize. Does nothing where CSS can. |
 | `x-ds-chart` | A directive, behind `ds::bar-chart`, `ds::line-chart`, `ds::donut-chart`, `ds::split-bar`, `ds::waffle-chart`, `ds::activity-rings`, `ds::slope-chart`, `ds::funnel-chart`, `ds::radar-chart` and `ds::treemap` when `interactive` (the default). Shows a readout (label, value, series) beside the mark under the pointer or keyboard focus; makes the marks reachable through one Tab stop per chart, the arrow keys moving along a series and across to the next, Home and End to the ends, Escape putting the readout away; and, on a chart with several series, turns the legend's entries into buttons that show and hide their series without re-scaling anything. |
+| `x-ds-shortcut` | A directive, behind `ds::kbd`'s `shortcut` (and so `ds::shortcut-input`'s keys). Redraws a stored shortcut for a Mac, ⌘⇧K in place of Ctrl + Shift + K, with words for screen readers, and again when its `data-ds-shortcut` changes. An enhancement: without it the server's words form stands. |
 
 ### When it is missing
 
@@ -293,13 +298,14 @@ lets them choose light, dark or system, and remembers it:
 `illuminate/view` and `blade-heroicons`, and nothing else. Every component works
 in a plain Blade view.
 
-Thirty-six need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
+Thirty-nine need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
 framework: **modal, drawer, sheet, dropdown, select, combobox, date-picker,
 accordion, file-upload, tooltip, sub-nav, user-menu, otp-input, tag-input, number-field,
 password-strength, copy-button, toolbar, toggle-group, popover, hover-card,
 context-menu, theme-switcher, confirm-button, hold-button, confirm-popover,
 tree, expandable-text, slider, time-picker, inline-edit, command-palette,
-sortable-list, split, swap-button, team-switcher**.
+sortable-list, split, swap-button, team-switcher, money-input, phone-input,
+shortcut-input**.
 `sub-nav` only to open and close: without Alpine, the section holding the
 current page is open and the rest are closed, as the server rendered them.
 `tree` likewise draws its folders, selection and links from PHP and posts
@@ -312,12 +318,17 @@ inside its form. `command-palette` stays closed and inert without them,
 and `split` keeps its panes fixed at their first sizes. `swap-button` shows the
 face the server drew and is an ordinary button that still submits or links;
 `team-switcher` is a native select in a form with a submit button, or a list of
-links when every team has one. `user-menu` is a dropdown, and so needs Alpine
+links when every team has one. `money-input` is a text field posting what
+was typed, `phone-input` a select of dial codes and a tel field posting
+`name[country]` and `name[number]` rather than E.164, and `shortcut-input` a
+text field holding the string. `user-menu` is a dropdown, and so needs Alpine
 alone.
 
-Seven more use it for **optional props**, and work without them otherwise:
+Eight more use it for **optional props**, and work without them otherwise:
 `checkbox`'s `indeterminate`, `nav-item`'s `collapsedWhen`, `toast`'s
-`dismiss`, `input`'s `reveal` and `clearable`, `panel`'s `collapsible`,
+`dismiss`, `input`'s `reveal`, `clearable` and `expanding` (which opens and
+closes from CSS; Escape and its `shortcut` are the script's), `kbd`'s
+`shortcut` (drawn for a Mac), `panel`'s `collapsible`,
 `filter-bar`'s `collapsible`, and `announcement-bar`'s `dismissible` (and
 `dismissKey`, which implies it). `code-block`'s copy button, on by default,
 and its `expandable` need it too; without them the code still shows and
@@ -359,11 +370,12 @@ the top on a page change, and get it from Livewire.
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
 ```
 
-Twenty-four of them, **otp-input, tag-input, number-field, password-strength,
+Twenty-seven of them, **otp-input, tag-input, number-field, password-strength,
 copy-button, toolbar, toggle-group, popover, hover-card, context-menu,
 theme-switcher, confirm-button, hold-button, confirm-popover, tree,
 expandable-text, slider, time-picker, inline-edit, command-palette,
-sortable-list, split, swap-button and team-switcher**, and
+sortable-list, split, swap-button, team-switcher, money-input, phone-input
+and shortcut-input**, and
 `input`'s `reveal` and `announcement-bar`'s dismissal, need Alpine **and** [`<x-ds::scripts />`](#3-add-the-script)
 above it, and say so on their page.
 

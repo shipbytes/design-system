@@ -741,17 +741,17 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 112 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 115 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
 accordion, accordion-item, activity-heatmap, activity-rings, alert, announcement-bar, avatar, avatar-group, badge, bar-chart, bottom-nav,
 bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, chip,
 button-group, chip-group, code-block, combobox, command-group, command-item, command-palette, confirm-button, confirm-popover, copy-button, counter, date-picker, donut-chart, drawer, dropdown,
 context-menu, dropdown-item, empty-state, expandable-text, file-upload, filter-bar, filter-chip, funnel-chart, gauge, hold-button, hover-card, icon, icon-swap,
-inline-edit, input, kbd, line-chart, modal,
-nav-item, number-field, otp-input, panel, panel-row, password-strength,
+inline-edit, input, kbd, line-chart, modal, money-input,
+nav-item, number-field, otp-input, panel, panel-row, password-strength, phone-input,
 popover, progress, radar-chart, radio, radio-card, radio-cards, radio-group, rating,
-scroll-area, segment, segmented-control, select, sheet, sheet-item, skeleton, slider, slope-chart, sortable-item, sortable-list, sparkline, split, split-bar, split-pane, stat-tile,
+scroll-area, segment, segmented-control, select, sheet, sheet-item, shortcut-input, skeleton, slider, slope-chart, sortable-item, sortable-list, sparkline, split, split-bar, split-pane, stat-tile,
 step, stepper, sub-nav, swap-button, switch, tab,
 tab-panel, table, table-cell, table-row, tabs, tag-input, team-switcher, theme-switcher,
 time-picker, timeline, timeline-group, timeline-item,
@@ -771,13 +771,16 @@ toolbar-separator), toggle-group (with toggle), popover, hover-card, context-men
 confirm-button, hold-button, confirm-popover, tree (with tree-item),
 expandable-text, slider, time-picker, inline-edit, command-palette (with
 command-group and command-item), sortable-list (with sortable-item), split
-(with split-pane), swap-button, team-switcher, user-menu (a dropdown), sub-nav —
+(with split-pane), swap-button, team-switcher, money-input, phone-input,
+shortcut-input, user-menu (a dropdown), sub-nav —
 always (sub-nav only to toggle: its open state is rendered from PHP; tree's
 structure, selection and open folders are rendered from PHP too). Plus ONE optional prop each on
 checkbox (`indeterminate`), nav-item (`collapsedWhen`), toast (`dismiss`),
 panel (`collapsible`, inline Alpine), filter-bar (`collapsible`) and
 announcement-bar (`dismissible`, and `dismissKey`, which
-implies it), TWO on input (`reveal`, `clearable`), code-block's copy button
+implies it), THREE on input (`reveal`, `clearable`, and `expanding`, whose
+opening is CSS and whose Escape and `shortcut` are the script's), kbd's
+`shortcut` (its Mac drawing only), code-block's copy button
 (on by default) and `expandable`, counter when its `value` is bound to Alpine state (`::value`; its
 roll is otherwise an enhancement), and the pagination views' Livewire variants, whose scroll to
 the top is an `x-on:click` that Livewire's bundled Alpine runs. Everything else
@@ -804,9 +807,17 @@ inline-edit (`dsInlineEdit`), command-palette (`dsCommandPalette`, in the
 modal recipe's layer), sortable-list (`dsSortable`), split (`dsSplit`),
 swap-button (`dsSwap`; copy-button shares its face recipe, partials/swap.php,
 and its timer, shared/flag.js) and team-switcher (`dsTeamSwitcher`, on
-`dsPopover`; its ranking is the command palette's, shared/rank.js). icon-swap
+`dsPopover`; its ranking is the command palette's, shared/rank.js, its list
+keys shared/picker.js), money-input (`dsMoneyInput`; amounts as digit strings
+in shared/money.js, mirrored by Support\Money; the caret in shared/caret.js),
+phone-input (`dsPhoneInput`, on `dsPopover` and shared/picker.js; country data
+in resources/data/countries.php, read by Support\Phone), shortcut-input
+(`dsShortcutInput`, `x-ds-shortcut`; shared/shortcut.js, mirrored by
+Support\Shortcut, also holds the palette's parse and match) and input's
+`expanding` (`dsSearch`, partials/input-expanding.blade.php). icon-swap
 and button-group's `expanding` are plain Blade and CSS; user-menu is a
-dropdown, with the script as an enhancement only. kbd and
+dropdown, with the script as an enhancement only. kbd (but for `shortcut`, whose
+`x-ds-shortcut` is an enhancement only) and
 filter-chip are plain Blade and CSS; a chip's `remove` and the bar's `reset`
 are plain inline `onclick` dispatches.
 `<x-ds::theme-script />` is a class component like

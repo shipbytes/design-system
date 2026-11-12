@@ -220,7 +220,7 @@ async function bladeFiles(dir) {
   directive costs the readout and the keyboard and nothing else:
   test-behaviour.mjs renders the three charts on a page with no include.
 */
-const ENHANCEMENTS = new Set(['ds-glide', 'ds-anchor', 'ds-roll', 'ds-chart', 'ds-scroll-shadows']);
+const ENHANCEMENTS = new Set(['ds-glide', 'ds-anchor', 'ds-roll', 'ds-chart', 'ds-scroll-shadows', 'ds-shortcut']);
 
 const used = new Map(); // "data:dsX" -> [files]
 const rawData = [];
@@ -261,6 +261,64 @@ const orphans = [...counts.keys()].filter((key) => {
 });
 expect(!orphans.length, 'every registered behaviour is used by a component or documented in docs/getting-started.md',
     `registered, used by nothing and documented nowhere: ${orphans.join(', ')}`);
+
+/*
+  The shared helpers that do arithmetic on what someone typed, run here in
+  Node rather than only through a page, so every case is spelled out. The
+  money cases are tests/MoneyTest.php's, so the browser and the server are
+  held to the same answers.
+*/
+head('shared helpers: amounts as digits, shortcuts as strings');
+{
+    const money = await import(pathToFileURL(join(ROOT, 'resources/js/shared/money.js')).href);
+    const out = (value, decimals = 2, minor = false, givenMinor = false) =>
+        money.machine(money.round(money.given(value, decimals, givenMinor), decimals), decimals, minor);
+    const cases = [
+        [out(0.1 + 0.2), '0.30', '0.1 + 0.2 is 0.30, not 0.30000000000000004'],
+        [out('0.1') === '0.10' && out('0.2') === '0.20' && money.check('0.3', { step: '0.1' }) === '', true, 'a step of 0.1 takes 0.3 (in floating point 0.3 % 0.1 is not 0)'],
+        [money.check('0.35', { step: '0.1' }), 'step', '0.35 is off a 0.1 step'],
+        [out('12345678901234567890.129'), '12345678901234567890.13', 'a twenty-digit amount keeps every digit'],
+        [out('12345678901234567890.129', 2, true), '1234567890123456789013', 'and in minor units'],
+        [out(123450, 2, false, true), '1234.50', 'minor units read back'],
+        [out('9.995'), '10.00', 'rounding carries through the units'],
+        [out('-1.005'), '-1.01', 'half away from zero, below zero too'],
+        [out('-0.001'), '0.00', 'no negative zero'],
+        [out('1234', 0), '1234', 'no places for JPY'],
+        [out('1.2345', 3), '1.235', 'three for KWD'],
+        [out(1e21), '1000000000000000000000.00', 'a number past 1e21 is digits, not an exponent'],
+        [out(0.0000001, 8), '0.00000010', 'and a tiny one'],
+        [out('$1,234.56'), '1234.56', 'a paste with a symbol and grouping'],
+        [money.machine(money.read('1.234,56 €', ','), 2), '1234.56', 'German grouping and point'],
+        [money.machine(money.read('1,234', '.'), 2), '1234.00', 'one comma and three digits after is grouping'],
+        [money.machine(money.read('1,5', '.'), 2), '1.50', 'one comma and one digit after is the point, whatever the locale'],
+        [money.machine(money.read('(12.00)', '.'), 2), '-12.00', 'accounting brackets are a minus'],
+        [money.group('1234567', money.shape('en-IN')), '12,34,567', 'Indian grouping'],
+        [money.write(money.typed('1234567.5', '.'), money.shape('en-IN'), 2, true), '12,34,567.50', 'written for en-IN, places filled'],
+        [money.write(money.typed('12.', '.'), money.shape('en'), 2), '12.', 'a point just typed stays while typing'],
+        [money.check('9.99', { min: '10.00' }), 'min', 'below min'],
+        [money.check('100000.01', { max: '100000' }), 'max', 'above max'],
+        [money.check('10.00', { min: '10', max: '10.00' }), '', 'on both bounds'],
+    ];
+    for (const [got, want, what] of cases) expect(got === want, what, `${what}: got ${JSON.stringify(got)}, wanted ${JSON.stringify(want)}`);
+
+    const sc = await import(pathToFileURL(join(ROOT, 'resources/js/shared/shortcut.js')).href);
+    const key = (k, mods = {}, code = '') => ({ key: k, code, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...mods });
+    const shortcuts = [
+        [sc.normalise('Shift+Mod+K'), 'mod+shift+k', 'modifiers in a fixed order, lower case'],
+        [sc.normalise('cmd+option+p'), 'meta+alt+p', 'cmd and option are meta and alt'],
+        [sc.record(key('K', { ctrlKey: true, shiftKey: true })), 'mod+shift+k', 'Ctrl+Shift+K off a Mac records mod+shift+k'],
+        [sc.record(key('k', { ctrlKey: true }), { portable: false }), 'ctrl+k', 'not portable, it is ctrl'],
+        [sc.record(key('?', { ctrlKey: true, shiftKey: true })), 'mod+?', 'a character Shift typed does not repeat the Shift'],
+        [sc.record(key('Shift', { shiftKey: true })), null, 'a modifier alone completes nothing'],
+        [sc.record(key('ø', { altKey: true }, 'KeyO'), { by: 'code' }), 'alt+o', 'by code, the key where it is'],
+        [sc.record(key(' ', { ctrlKey: true })), 'mod+space', 'space is written space'],
+        [sc.same('mod+w', 'ctrl+w', false) && !sc.same('mod+w', 'ctrl+w', true), true, 'mod+w is ctrl+w off a Mac and not on one'],
+        [sc.caps('mod+shift+k', true).map((c) => c.cap).join(''), '⌘⇧K', 'symbols on a Mac'],
+        [sc.caps('mod+shift+k', false).map((c) => c.word).join(' '), 'Control Shift K', 'words elsewhere, and always to be read'],
+        [sc.caps('alt+arrowup', true).map((c) => `${c.cap}/${c.word}`).join(' '), '⌥/Option ↑/Up Arrow', 'a named key has a symbol and a word'],
+    ];
+    for (const [got, want, what] of shortcuts) expect(got === want, what, `${what}: got ${JSON.stringify(got)}, wanted ${JSON.stringify(want)}`);
+}
 
 finish();
 

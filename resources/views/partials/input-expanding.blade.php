@@ -31,10 +31,11 @@
     $wide = 'has-[input:focus]:w-64 has-[input:not(:placeholder-shown)]:w-64';
 
     $box = implode(' ', [
-        'group/search flex w-11 max-w-[calc(100vw-2rem)] sm:w-9',
+        'flex w-11 max-w-[calc(100vw-2rem)] sm:w-9',
         $wide,
+        // Every timing is motion-safe: a duration alone transitions `all`.
         'motion-safe:transition-[width] motion-safe:duration-popover-leave motion-safe:ease-leave',
-        'has-[input:focus]:duration-popover-enter has-[input:focus]:ease-enter',
+        'motion-safe:has-[input:focus]:duration-popover-enter motion-safe:has-[input:focus]:ease-enter',
         // Overlay: anchored at the end of a square that keeps its place in
         // the row, growing over what is before it.
         $overlay ? 'absolute end-0 top-0 z-20' : 'relative',

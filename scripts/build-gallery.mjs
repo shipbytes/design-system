@@ -382,6 +382,10 @@ table.ref .samp { color: var(--g-ink); font-family: Inter, ui-sans-serif, system
       <a href="#file-upload">Upload</a>
       <a href="#slider">Slider</a>
       <a href="#time-picker">Time</a>
+      <a href="#money-input">Money</a>
+      <a href="#phone-input">Phone</a>
+      <a href="#shortcut-input">Shortcut</a>
+      <a href="#input-expanding">Expanding search</a>
       <a href="#inline-edit">Inline edit</a>
       <a href="#scroll-area">Scroll area</a>
       <a href="#command-palette">Command palette</a>

@@ -129,7 +129,7 @@ when the prop is set, so without it the markup is byte for byte the 1.x field
 ```
 div[data-ds-search][x-data=dsSearch]          push: w-fit; overlay: a fixed square, relative
 ├─ label.sr-only[for=id]
-└─ span.group/search                           the width: w-11 (sm:w-9), w-64 open; overlay: absolute end-0
+└─ span                                        the width: w-11 (sm:w-9), w-64 open; overlay: absolute end-0
    ├─ button[tabindex=-1][aria-label][aria-controls][data-ds-search-button]
    └─ span (field shell, z above the button)
       ├─ input[type=search][enterkeyhint=search][data-ds-search-input]

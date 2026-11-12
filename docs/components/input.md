@@ -124,6 +124,8 @@ Use it on a search or a filter, not on an ordinary form field.
 
 ## A search that expands
 
+![An expanding search, collapsed and open](../images/input-expanding.png)
+
 ```blade
 <form role="search" action="{{ route('search') }}" class="flex items-center gap-2">
     <x-ds::input name="q" label="Search" :expanding="true" :clearable="true" shortcut="/" />

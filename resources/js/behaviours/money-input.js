@@ -72,6 +72,10 @@ function wire(root, o, report) {
     const serverInvalid = field.getAttribute('aria-invalid') === 'true';
     let decimals = Number.isInteger(o.decimals) ? o.decimals : 2;
     let committed = posted.value;
+    // The last amount this script posted. A hidden input's value is its
+    // attribute, so a morph writing the server's amount shows up as a change
+    // to it that is not this one.
+    let mine = posted.value;
 
     const keep = (ch) => /\d/.test(ch) || ch === s.decimal || ch === '-' || ch === '−';
     const amount = () => typed(field.value, s.decimal);
@@ -90,7 +94,7 @@ function wire(root, o, report) {
 
     function post(value) {
         if (posted.value === value) return;
-        posted.value = value;
+        posted.value = mine = value;
         report(value);
         posted.dispatchEvent(new Event('input', { bubbles: true }));
     }
@@ -180,7 +184,7 @@ function wire(root, o, report) {
         const a = round(given(value, decimals, minor), decimals);
         const next = machine(a, decimals, minor);
         if (next !== posted.value) {
-            posted.value = next;
+            posted.value = mine = next;
             committed = next;
             field.value = write(a, s, decimals, true);
             validate(next);
@@ -204,10 +208,21 @@ function wire(root, o, report) {
     if (currency && !o.fixed) decimals = Number(currency.selectedOptions[0]?.dataset.dsDecimals ?? decimals);
     field.value = write(round(given(posted.value, decimals, minor), decimals), s, decimals, true);
 
+    const observer = new MutationObserver(() => {
+        if (posted.value === mine) return;
+        const a = round(given(posted.value, decimals, minor), decimals);
+        posted.value = mine = committed = machine(a, decimals, minor);
+        field.value = write(a, s, decimals, true);
+        validate(mine);
+        report(mine);
+    });
+    observer.observe(posted, { attributes: true, attributeFilter: ['value'] });
+
     return {
         value: () => posted.value,
         set,
         teardown() {
+            observer.disconnect();
             for (const [el, type, fn] of listeners) el?.removeEventListener(type, fn);
         },
     };
