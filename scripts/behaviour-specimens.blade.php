@@ -469,6 +469,23 @@
         </x-ds::table>
     </div>
 
+    {{-- ── sub-nav (inline Alpine) ──
+         A rail the test can collapse: one section holding the current page,
+         one that starts closed. --}}
+    <nav id="sub-rail" aria-label="Sub-nav specimen" class="mt-6 w-56" x-data="{ subRailCollapsed: false }">
+        <x-ds::sub-nav id="sub-reports" label="Reports" collapsedWhen="subRailCollapsed">
+            <x-slot:icon><x-ds::icon name="chart-bar" /></x-slot:icon>
+            <x-ds::nav-item href="#sub-revenue" label="Revenue" collapsedWhen="subRailCollapsed" />
+            <x-ds::nav-item href="#sub-churn" label="Churn" :active="true" collapsedWhen="subRailCollapsed" />
+        </x-ds::sub-nav>
+        <x-ds::sub-nav id="sub-settings" label="Settings" collapsedWhen="subRailCollapsed">
+            <x-slot:icon><x-ds::icon name="cog" /></x-slot:icon>
+            <x-ds::nav-item href="#sub-profile" label="Profile" collapsedWhen="subRailCollapsed" />
+            <x-ds::nav-item href="#sub-billing" label="Billing" collapsedWhen="subRailCollapsed" />
+        </x-ds::sub-nav>
+        <button type="button" id="sub-rail-toggle" @click="subRailCollapsed = ! subRailCollapsed">Collapse the rail</button>
+    </nav>
+
     {{-- ── hover card (dsHoverCard, x-ds-anchor) ──
          Inside running text, as a name in a sentence, with a link in the
          card for Tab to reach; and one at the right edge of a clipping box,

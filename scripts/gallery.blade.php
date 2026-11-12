@@ -961,6 +961,47 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Sub-nav --}}
+<section class="ds-spec" id="sub-nav">
+    <header class="ds-spec-head">
+        <h2>Sub-nav</h2>
+        <p>A rail item that holds the pages belonging to it. The children are ordinary nav items, indented under a guide line.</p>
+    </header>
+
+    <div class="ds-note">Two different facts, two different marks: the page you are on is the raised card; the section it sits in is drawn at full strength, no card. The open and closed states are rendered by the server, which is why this page shows them without Alpine.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Expanded <span>&middot; the current page&rsquo;s section open, another closed</span></div>
+        <div class="max-w-64 rounded-panel bg-surface p-2">
+            <x-ds::nav-item href="#sub-nav" label="Home">
+                <x-slot:icon><x-ds::icon name="home" /></x-slot:icon>
+            </x-ds::nav-item>
+            <x-ds::sub-nav label="Reports">
+                <x-slot:icon><x-ds::icon name="chart-bar" /></x-slot:icon>
+                <x-ds::nav-item href="#sub-nav" label="Revenue" />
+                <x-ds::nav-item href="#sub-nav" label="Churn" :active="true" />
+                <x-ds::nav-item href="#sub-nav" label="Usage" />
+            </x-ds::sub-nav>
+            <x-ds::sub-nav label="Settings">
+                <x-slot:icon><x-ds::icon name="cog" /></x-slot:icon>
+                <x-ds::nav-item href="#sub-nav" label="Profile" />
+                <x-ds::nav-item href="#sub-nav" label="Billing" />
+            </x-ds::sub-nav>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Chipped <span>&middot; the admin rail, opened with <code>:open="true"</code> though nothing in it is current</span></div>
+        <div class="max-w-64 rounded-panel bg-surface p-2">
+            <x-ds::sub-nav label="Users" :chip="true" :open="true">
+                <x-slot:icon><x-ds::icon name="users" size="3" /></x-slot:icon>
+                <x-ds::nav-item href="#sub-nav" label="Members" />
+                <x-ds::nav-item href="#sub-nav" label="Invitations" />
+            </x-ds::sub-nav>
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Bottom nav item --}}
 <section class="ds-spec" id="bottom-nav-item">
     <header class="ds-spec-head">

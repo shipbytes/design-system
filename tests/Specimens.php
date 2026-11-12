@@ -413,6 +413,22 @@ final class Specimens
                 </x-ds::nav-item>
                 BLADE,
 
+            'sub-nav/all' => <<<'BLADE'
+                <x-ds::sub-nav label="Reports">
+                    <x-slot:icon><x-ds::icon name="chart-bar" /></x-slot:icon>
+                    <x-ds::nav-item href="/reports/revenue" label="Revenue" />
+                    <x-ds::nav-item href="/reports/churn" label="Churn" :active="true" />
+                </x-ds::sub-nav>
+                <x-ds::sub-nav label="Settings" :chip="true" collapsedWhen="railCollapsed">
+                    <x-slot:icon><x-ds::icon name="cog" /></x-slot:icon>
+                    <x-ds::nav-item href="/settings/profile" label="Profile" collapsedWhen="railCollapsed" />
+                    <x-ds::nav-item href="/settings/billing" label="Billing" collapsedWhen="railCollapsed" />
+                </x-ds::sub-nav>
+                <x-ds::sub-nav label="Team" :open="true" href="/team">
+                    <x-ds::nav-item href="/team/members" label="Members" />
+                </x-ds::sub-nav>
+                BLADE,
+
             'sheet/all' => <<<'BLADE'
                 <x-ds::sheet open="sheetOpen" title="More">
                     <x-ds::sheet-item href="/a" label="Projects" description="All of them">

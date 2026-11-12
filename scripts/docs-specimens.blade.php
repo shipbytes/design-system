@@ -638,6 +638,37 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── sub-nav
+     The same rail twice: expanded, with the current page's section open and
+     another closed, and collapsed to icons, where each section is a link. --}}
+<div data-shot="sub-nav" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }} flex items-start gap-4">
+            @foreach ([false, true] as $collapsed)
+                <div x-data="{ railCollapsed: @js($collapsed) }" @class(['rounded-panel border border-border bg-surface p-2', 'w-56' => ! $collapsed])>
+                    <x-ds::nav-item href="#" label="Dashboard" collapsedWhen="railCollapsed">
+                        <x-slot:icon><x-ds::icon name="home" /></x-slot:icon>
+                    </x-ds::nav-item>
+                    <x-ds::sub-nav label="Reports" collapsedWhen="railCollapsed">
+                        <x-slot:icon><x-ds::icon name="chart-bar" /></x-slot:icon>
+                        <x-ds::nav-item href="#" label="Revenue" collapsedWhen="railCollapsed" />
+                        <x-ds::nav-item href="#" label="Churn" :active="true" collapsedWhen="railCollapsed" />
+                        <x-ds::nav-item href="#" label="Usage" collapsedWhen="railCollapsed" />
+                    </x-ds::sub-nav>
+                    <x-ds::sub-nav label="Settings" collapsedWhen="railCollapsed">
+                        <x-slot:icon><x-ds::icon name="cog" /></x-slot:icon>
+                        <x-ds::nav-item href="#" label="Profile" collapsedWhen="railCollapsed" />
+                        <x-ds::nav-item href="#" label="Billing" collapsedWhen="railCollapsed" />
+                    </x-ds::sub-nav>
+                    <x-ds::nav-item href="#" label="Team" collapsedWhen="railCollapsed">
+                        <x-slot:icon><x-ds::icon name="users" /></x-slot:icon>
+                    </x-ds::nav-item>
+                </div>
+            @endforeach
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── empty-state --}}
 <div data-shot="empty-state" class="shot">
     @foreach ($themes as $t)

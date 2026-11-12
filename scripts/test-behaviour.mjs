@@ -2070,6 +2070,84 @@ await check('a press asks for the other direction on the sorted column, ascendin
     return (second === '#sort-total-asc' && first === '#sort-name-asc') || `went to ${second} and ${first}`;
 });
 
+// ---------------------------------------------------------------- sub-nav
+
+group('sub-nav (inline Alpine)');
+
+const subNav = (id) => page.evaluate((id) => {
+    const root = document.getElementById(id);
+    const button = root.querySelector(':scope > button');
+    const pages = root.querySelector(':scope > [role="group"]');
+    const link = root.querySelector(':scope > a');
+    // The button's own child: the section's icon is an svg too, in a span.
+    const chevron = button.querySelector(':scope > svg');
+    return {
+        expanded: button.getAttribute('aria-expanded'),
+        controls: button.getAttribute('aria-controls') === pages.id,
+        buttonShown: button.offsetParent !== null,
+        pagesShown: pages.offsetParent !== null,
+        linkShown: link ? link.offsetParent !== null : null,
+        linkHref: link ? link.getAttribute('href') : null,
+        rotated: getComputedStyle(chevron).rotate,
+    };
+}, id);
+
+await page.evaluate(() => document.getElementById('sub-rail').scrollIntoView({ block: 'center' }));
+await settle(100);
+
+await check('the section holding the current page is open; the other is closed', async () => {
+    const [reports, settings] = [await subNav('sub-reports'), await subNav('sub-settings')];
+    if (!reports.controls || !settings.controls) return 'aria-controls does not name the pages';
+    if (reports.expanded !== 'true' || !reports.pagesShown) return `Reports ${JSON.stringify(reports)}`;
+    if (settings.expanded !== 'false' || settings.pagesShown) return `Settings ${JSON.stringify(settings)}`;
+    const current = await page.evaluate(() => [...document.querySelectorAll('#sub-rail [aria-current]')].map((a) => a.textContent.trim()));
+    return JSON.stringify(current) === '["Churn"]' || `aria-current on ${JSON.stringify(current)}`;
+});
+
+await check('a closed section\'s pages are out of the tab order', async () => {
+    await page.focus('#sub-settings > button');
+    await page.keyboard.press('Tab');
+    return (await page.evaluate(() => document.activeElement.id)) === 'sub-rail-toggle' || `Tab went to ${await active()}`;
+});
+
+await check('Enter opens it, the chevron turns, and Tab then reaches its pages', async () => {
+    await page.focus('#sub-settings > button');
+    await page.keyboard.press('Enter');
+    await settle(250);
+    const s = await subNav('sub-settings');
+    if (s.expanded !== 'true' || !s.pagesShown) return `after Enter ${JSON.stringify(s)}`;
+    if (s.rotated !== '180deg') return `chevron rotate ${s.rotated}`;
+    await page.keyboard.press('Tab');
+    return (await page.evaluate(() => document.activeElement.getAttribute('href'))) === '#sub-profile' || `Tab went to ${await active()}`;
+});
+
+await check('a click closes it again', async () => {
+    await page.click('#sub-settings > button');
+    await settle(250);
+    const s = await subNav('sub-settings');
+    return (s.expanded === 'false' && !s.pagesShown && s.rotated !== '180deg') || JSON.stringify(s);
+});
+
+await check('collapsed, each section is a link to its first page and no pages show', async () => {
+    await page.click('#sub-rail-toggle');
+    await settle(100);
+    const [reports, settings] = [await subNav('sub-reports'), await subNav('sub-settings')];
+    for (const [name, s, href] of [['Reports', reports, '#sub-revenue'], ['Settings', settings, '#sub-profile']]) {
+        if (s.buttonShown || s.pagesShown || !s.linkShown) return `${name} ${JSON.stringify(s)}`;
+        if (s.linkHref !== href) return `${name} links to ${s.linkHref}`;
+    }
+    const named = await page.evaluate(() => document.querySelector('#sub-reports > a').getAttribute('title'));
+    return named === 'Reports' || `the collapsed link's title is ${named}`;
+});
+
+await check('expanded again, each section is as it was left', async () => {
+    await page.click('#sub-rail-toggle');
+    await settle(100);
+    const [reports, settings] = [await subNav('sub-reports'), await subNav('sub-settings')];
+    if (reports.linkShown || settings.linkShown) return 'a collapsed link is still showing';
+    return (reports.pagesShown && !settings.pagesShown) || `Reports ${reports.pagesShown}, Settings ${settings.pagesShown}`;
+});
+
 // ---------------------------------------------------------------- segmented control
 
 group('segmented control (radios and CSS; x-ds-glide when the script is there)');
