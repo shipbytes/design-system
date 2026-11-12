@@ -40,29 +40,30 @@
     $button = $attributes->merge(array_filter([
         'x-on:click' => "copy().then((ok) => ok || \$dispatch('copy-failed'))",
         'aria-label' => $iconOnly ? $label : null,
-    ], fn ($v) => $v !== null));
+        // Which face shows is the swap recipe's, read from this attribute.
+        'x-bind:data-ds-swapped' => "copied ? '' : null",
+    ], fn ($v) => $v !== null))->class('group/swap');
 
-    // The two faces of each part share one grid cell, so the button is as wide
-    // as the wider of them from the first paint and does not jump on a copy.
-    // The hidden face is `invisible`, which also takes it out of the button's
-    // accessible name.
-    $face = 'col-start-1 row-start-1';
+    // The two faces of each part share one grid cell, so the button is as
+    // wide as the wider of them from the first paint and does not jump on a
+    // copy: the swap recipe, which ds::swap-button draws with too.
+    $swap = \Shipbytes\BladeUi\Support\Swap::recipe();
 @endphp
 
 {{-- `contents`: the wrapper only holds the scope, so the button lays out in
      the host's row as a ds::button would. --}}
 <span x-data="{{ $state }}" class="contents">
     <x-ds::button :variant="$variant" :size="$size" :iconOnly="$iconOnly" :attributes="$button">
-        <span class="grid shrink-0 place-items-center" aria-hidden="true">
-            <span class="{{ $face }} flex" x-bind:class="{ 'invisible': copied }"><x-ds::icon name="clipboard-document" size="4" /></span>
-            <span class="{{ $face }} flex invisible" x-bind:class="{ 'invisible': ! copied }"><x-ds::icon name="check" size="4" /></span>
+        <span class="{{ $swap['stack'] }} shrink-0 place-items-center" aria-hidden="true">
+            <span class="{{ $swap['rest'] }} flex"><x-ds::icon name="clipboard-document" size="4" /></span>
+            <span class="{{ $swap['swapped'] }} flex"><x-ds::icon name="check" size="4" /></span>
         </span>
         @if (! $iconOnly)
             {{-- text-start: a button centres its text, which would centre the
                  shorter face in the cell and open a gap after the icon. --}}
-            <span class="grid text-start">
-                <span class="{{ $face }}" x-bind:class="{ 'invisible': copied }">{{ $label }}</span>
-                <span class="{{ $face }} invisible" x-bind:class="{ 'invisible': ! copied }">{{ $copiedLabel }}</span>
+            <span class="{{ $swap['stack'] }} text-start">
+                <span class="{{ $swap['rest'] }}" x-bind:aria-hidden="copied ? 'true' : null" x-bind:inert="copied">{{ $label }}</span>
+                <span class="{{ $swap['swapped'] }}" aria-hidden="true" inert x-bind:aria-hidden="copied ? null : 'true'" x-bind:inert="! copied">{{ $copiedLabel }}</span>
             </span>
         @endif
     </x-ds::button>

@@ -77,6 +77,12 @@ numbers look odd. Keep it — it is what makes `primary` and `secondary` line up
   reads as "refused" rather than "working", and those mean opposite things. It
   does not replace the label with "Loading…", which makes the button jump.
 
+## Icon
+
+`icon` names a ds::icon drawn before the label (after the loading spinner, which
+replaces it while `loading`). It is what an expanding button group needs: the
+icon that stays, and the slot that folds (see button-group.md).
+
 ## Icon-only
 
 Square: width equals the size's height. Always needs an accessible name —

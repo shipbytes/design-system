@@ -16,8 +16,8 @@ A ds::button that copies a value and confirms in place.
   plain ds::button would.
 - **Button**: ds::button with the host's `variant` (default `secondary`),
   `size`, `iconOnly`, and every host attribute.
-- **Icon cell**: `clipboard-document` and `check`, stacked in one grid cell,
-  the hidden one `invisible`.
+- **Icon cell**: `clipboard-document` and `check`, stacked in one grid cell by
+  the swap recipe (`partials/swap.php`), which ds::swap-button shares.
 - **Label cell**: `label` and `copiedLabel`, stacked the same way. The cell is
   as wide as the longer one, so a copy never changes the button's width.
 - **Live region**: `sr-only`, `aria-live="polite"`, empty until a copy, then
@@ -32,8 +32,12 @@ A ds::button that copies a value and confirms in place.
 | failed | Unchanged; `copy-failed` dispatched from the button, bubbling |
 | disabled, hover, focus | As ds::button |
 
-The faces swap by Alpine's object form of `:class` on `invisible`, which
-removes the server-rendered class rather than adding beside it. No motion.
+The faces swap by the swap recipe: the button is `group/swap` and carries
+`data-ds-swapped` while `copied`, bound from the scope; each face's classes read
+it (`group-data-ds-swapped/swap:`), so the script adds no class. They crossfade
+with a short slide, `motion-safe:` over `duration-popover-enter`; with reduced
+motion they change at once. The 1.5 s is `shared/flag.js` `timedFlag`, the
+timer ds::swap-button uses too.
 
 ## Behaviour (`dsClipboard`)
 
@@ -55,8 +59,8 @@ button, so a listener written on the component tag hears it.
 | Keyboard | Enter and Space, as any button |
 | Focus | Stays on the button through the copy and the swap back; the fallback copy hands focus back after borrowing it |
 
-The hidden face is `visibility: hidden`, which takes it out of the accessible
-name, so the name is never "Copy Copied".
+The hidden label face is `aria-hidden` and `inert`, and `visibility: hidden`
+once faded, so the name is never "Copy Copied", even mid-fade.
 
 ## Do not
 

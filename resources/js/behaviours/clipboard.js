@@ -21,6 +21,8 @@
  * the closure: a host with its own `text` keeps it.
  */
 
+import { timedFlag } from '../shared/flag.js';
+
 // Long enough to read "Copied" at a glance, short enough that a second copy a
 // moment later does not look like it is still showing the first one.
 const COPIED_FOR = 1500;
@@ -30,7 +32,7 @@ export function clipboard(Alpine) {
         const fallback = options.text ?? '';
         const target = options.target ?? null;
         const showFor = options.for ?? COPIED_FOR;
-        let timer = null;
+        let flag = null;
 
         return {
             copied: false,
@@ -39,26 +41,18 @@ export function clipboard(Alpine) {
                 const text = value !== undefined ? String(value ?? '') : target !== null ? read(target) : fallback;
                 const ok = text !== null && (await write(text));
 
-                if (!ok) {
-                    clearTimeout(timer);
-                    this.copied = false;
-                    return false;
-                }
-
-                // Restarted rather than stacked: two quick copies keep the flag
-                // up for the full time after the SECOND one, not for what is
-                // left of the first.
-                clearTimeout(timer);
-                this.copied = true;
-                timer = setTimeout(() => {
-                    this.copied = false;
+                // Restarted rather than stacked (shared/flag.js): two quick
+                // copies keep the flag up for the full time after the SECOND.
+                flag ??= timedFlag((on) => {
+                    this.copied = on;
                 }, showFor);
+                flag.set(ok);
 
-                return true;
+                return ok;
             },
 
             destroy() {
-                clearTimeout(timer);
+                flag?.stop();
             },
         };
     });

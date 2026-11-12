@@ -566,33 +566,45 @@ return () => button.removeEventListener('click', onClick);
 }
 return { clear };
 })();
+const __ds_shared_flag = (() => {
+function timedFlag(write, ms) {
+let timer = null;
+return {
+set(on) {
+clearTimeout(timer);
+timer = null;
+write(on);
+if (on && ms > 0) timer = setTimeout(() => write(false), ms);
+},
+stop() {
+clearTimeout(timer);
+},
+};
+}
+return { timedFlag };
+})();
 const __ds_behaviours_clipboard = (() => {
+const { timedFlag } = __ds_shared_flag;
 const COPIED_FOR = 1500;
 function clipboard(Alpine) {
 Alpine.data('dsClipboard', (options = {}) => {
 const fallback = options.text ?? '';
 const target = options.target ?? null;
 const showFor = options.for ?? COPIED_FOR;
-let timer = null;
+let flag = null;
 return {
 copied: false,
 async copy(value) {
 const text = value !== undefined ? String(value ?? '') : target !== null ? read(target) : fallback;
 const ok = text !== null && (await write(text));
-if (!ok) {
-clearTimeout(timer);
-this.copied = false;
-return false;
-}
-clearTimeout(timer);
-this.copied = true;
-timer = setTimeout(() => {
-this.copied = false;
+flag ??= timedFlag((on) => {
+this.copied = on;
 }, showFor);
-return true;
+flag.set(ok);
+return ok;
 },
 destroy() {
-clearTimeout(timer);
+flag?.stop();
 },
 };
 });
@@ -642,7 +654,28 @@ return ok;
 }
 return { clipboard };
 })();
+const __ds_shared_rank = (() => {
+function fold(text) {
+return String(text).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
+}
+function rank(text, q) {
+let at = text.indexOf(q);
+if (at === 0) return 4;
+const inside = at > 0;
+while (at > 0) {
+if (!/[\p{L}\p{N}]/u.test(text[at - 1])) return 3;
+at = text.indexOf(q, at + 1);
+}
+if (inside) return 2;
+const letters = q.replace(/ /g, '');
+let i = 0;
+for (const ch of text) if (ch === letters[i] && ++i === letters.length) return 1;
+return 0;
+}
+return { fold, rank };
+})();
 const __ds_behaviours_command_palette = (() => {
+const { fold, rank } = __ds_shared_rank;
 const EDITABLE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
 const SEARCH_DELAY = 200;
 function commandPalette(Alpine) {
@@ -823,23 +856,6 @@ window.removeEventListener('open-command-palette', onOpen);
 window.removeEventListener('close-command-palette', onClose);
 },
 };
-}
-function fold(text) {
-return String(text).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
-}
-function rank(text, q) {
-let at = text.indexOf(q);
-if (at === 0) return 4;
-const inside = at > 0;
-while (at > 0) {
-if (!/[\p{L}\p{N}]/u.test(text[at - 1])) return 3;
-at = text.indexOf(q, at + 1);
-}
-if (inside) return 2;
-const letters = q.replace(/ /g, '');
-let i = 0;
-for (const ch of text) if (ch === letters[i] && ++i === letters.length) return 1;
-return 0;
 }
 function order(nodes, score, q) {
 const ranked = nodes.map((node, i) => [node, score(node), i]).sort((a, b) => b[1] - a[1] || a[2] - b[2]);
@@ -3428,6 +3444,47 @@ root.removeEventListener('pointercancel', onPointerUp);
 }
 return { split };
 })();
+const __ds_behaviours_swap = (() => {
+const { timedFlag } = __ds_shared_flag;
+function swap(Alpine) {
+Alpine.data('dsSwap', (options = {}) => {
+const revert = Number.isFinite(options.revert) ? options.revert : 2000;
+const event = typeof options.event === 'string' && options.event !== '' ? options.event : null;
+let teardown = null;
+return {
+dsSwapped: options.swapped === true,
+init() {
+const root = this.$el;
+const button = root.querySelector('[data-ds-swap-button]');
+const faces = root.querySelectorAll('[data-ds-swap-face]');
+const status = root.querySelector('[data-ds-swap-status]');
+const flag = timedFlag((on) => {
+this.dsSwapped = on;
+}, revert);
+this.$watch('dsSwapped', (on) => {
+if (status) status.textContent = (faces[on ? 1 : 0]?.textContent ?? '').trim();
+});
+const onClick = (e) => {
+if (button?.contains(e.target)) flag.set(revert > 0 || !this.dsSwapped);
+};
+const onEvent = () => flag.set(true);
+if (this.dsSwapped && revert > 0) flag.set(true);
+if (options.click === true) root.addEventListener('click', onClick);
+if (event) window.addEventListener(event, onEvent);
+teardown = () => {
+flag.stop();
+root.removeEventListener('click', onClick);
+if (event) window.removeEventListener(event, onEvent);
+};
+},
+destroy() {
+teardown?.();
+},
+};
+});
+}
+return { swap };
+})();
 const __ds_behaviours_tag_input = (() => {
 function tagInput(Alpine) {
 Alpine.data('dsTagInput', (options = {}) => {
@@ -3656,6 +3713,119 @@ for (const c of splitters) parts = parts.flatMap((part) => part.split(c));
 return parts;
 }
 return { tagInput };
+})();
+const __ds_behaviours_team_switcher = (() => {
+const { fold, rank } = __ds_shared_rank;
+function teamSwitcher(Alpine) {
+Alpine.data('dsTeamSwitcher', (options = {}) => {
+let teardown = null;
+return {
+dsReady: false,
+init() {
+const root = this.$el;
+const find = (selector) => root.querySelector(selector);
+const all = () => [...root.querySelectorAll('[data-ds-team-option]')];
+const item = (option) => option.closest('li') ?? option;
+const order = (option) => Number(item(option).style.order || 0);
+const shown = () => all().filter((o) => !item(o).hidden).sort((a, b) => order(a) - order(b));
+const close = () => {
+const popover = find('[data-ds-popover]');
+if (popover) Alpine.$data(popover).dsOpen = false;
+};
+function filter() {
+const field = find('[data-ds-team-search]');
+const q = fold((field?.value ?? '').trim());
+const scored = all().map((o, i) => {
+const name = rank(fold(o.dataset.dsLabel ?? ''), q) * 2;
+const meta = rank(fold(o.dataset.dsKeywords ?? ''), q) * 2 - 1;
+return [o, q ? Math.max(name, meta) : 1, i];
+});
+scored.sort((a, b) => b[1] - a[1] || a[2] - b[2]);
+scored.forEach(([o, score], i) => {
+item(o).hidden = score <= 0;
+if (q) item(o).style.setProperty('order', String(i + 1));
+else item(o).style.removeProperty('order');
+});
+const empty = find('[data-ds-team-empty]');
+if (empty) empty.hidden = scored.some(([, score]) => score > 0);
+}
+function choose(option) {
+if (option.matches('a[href]')) {
+close();
+return;
+}
+const id = option.dataset.value;
+for (const o of all()) {
+o.setAttribute('aria-selected', o === option ? 'true' : 'false');
+if (!find('[data-ds-team-search]')) o.toggleAttribute('data-ds-autofocus', o === option);
+}
+const face = find('[data-ds-team-trigger]');
+for (const part of ['name', 'meta']) {
+const to = face?.querySelector(`[data-ds-team-${part}]`);
+if (to) to.textContent = option.querySelector(`[data-ds-team-${part}]`)?.textContent ?? '';
+}
+face?.querySelector('[data-ds-team-avatar]')?.replaceWith(option.querySelector('[data-ds-team-avatar]').cloneNode(true));
+close();
+const select = find('[data-ds-team-select]');
+if (!select) return;
+select.value = id;
+const change = new Event('change', { bubbles: true });
+change.detail = { id };
+select.dispatchEvent(change);
+if (options.submit === true) select.form?.requestSubmit();
+}
+const onClick = (event) => {
+const option = event.target.closest('[data-ds-team-option]');
+if (option && root.contains(option)) choose(option);
+if (event.target.closest('[data-ds-team-trigger]')) {
+const field = find('[data-ds-team-search]');
+if (field) field.value = '';
+filter();
+}
+};
+const onKeyDown = (event) => {
+const field = find('[data-ds-team-search]');
+const list = shown();
+if (event.target === field) {
+if (event.key === 'ArrowDown' && list.length) {
+event.preventDefault();
+list[0].focus();
+} else if (event.key === 'Enter') {
+event.preventDefault();
+list[0]?.click();
+}
+return;
+}
+const at = list.indexOf(event.target);
+if (at < 0) return;
+if (event.key === 'Enter' || event.key === ' ') {
+event.preventDefault();
+list[at].click();
+return;
+}
+const keys = { Home: 0, End: list.length - 1, ArrowDown: (at + 1) % list.length, ArrowUp: at - 1 };
+if (!(event.key in keys)) return;
+event.preventDefault();
+const to = keys[event.key];
+(to < 0 ? field ?? list[list.length - 1] : list[to]).focus();
+};
+root.addEventListener('click', onClick);
+root.addEventListener('keydown', onKeyDown);
+root.addEventListener('input', filter);
+this.dsReady = true;
+teardown = () => {
+root.removeEventListener('click', onClick);
+root.removeEventListener('keydown', onKeyDown);
+root.removeEventListener('input', filter);
+};
+},
+destroy() {
+teardown?.();
+},
+};
+});
+}
+return { teamSwitcher };
 })();
 const __ds_behaviours_theme = (() => {
 const CHOICES = ['light', 'dark', 'system'];
@@ -4395,13 +4565,15 @@ const { scrollShadows } = __ds_behaviours_scroll_shadows;
 const { slider } = __ds_behaviours_slider;
 const { sortable } = __ds_behaviours_sortable;
 const { split } = __ds_behaviours_split;
+const { swap } = __ds_behaviours_swap;
 const { tagInput } = __ds_behaviours_tag_input;
+const { teamSwitcher } = __ds_behaviours_team_switcher;
 const { theme } = __ds_behaviours_theme;
 const { timePicker } = __ds_behaviours_time_picker;
 const { toggleGroup } = __ds_behaviours_toggle_group;
 const { toolbar } = __ds_behaviours_toolbar;
 const { tree } = __ds_behaviours_tree;
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split, swap, teamSwitcher];
 const REGISTERED = Symbol.for('shipbytes.blade-ui');
 function bladeUi(Alpine) {
 if (!Alpine || Alpine[REGISTERED]) return;

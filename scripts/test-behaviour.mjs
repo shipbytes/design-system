@@ -196,6 +196,17 @@ const b12MorphBefore = await render(join(TMP, 'b12-morph-a.blade.php'));
 await writeFile(join(TMP, 'b12-morph-b.blade.php'), b12Blade('cab', ['One', 'Two']));
 const b12MorphAfter = await render(join(TMP, 'b12-morph-b.blade.php'));
 
+// The team switcher and a swap toggle as a Livewire re-render brings them
+// back after a switch: the same list, another current team.
+const b15Teams = "[['id' => 1, 'name' => 'Acme Inc'], ['id' => 2, 'name' => 'Globex'], ['id' => 3, 'name' => 'Initech']]";
+const b15Blade = (current) => '<div id="b15-morph">'
+    + `<x-ds::team-switcher id="tsm" :teams="${b15Teams}" current="${current}" name="team" />`
+    + '<x-ds::swap-button id="swm" :revert="0">Follow<x-slot:swapped>Following</x-slot:swapped></x-ds::swap-button></div>';
+await writeFile(join(TMP, 'b15-morph-a.blade.php'), b15Blade(1));
+const b15MorphBefore = await render(join(TMP, 'b15-morph-a.blade.php'));
+await writeFile(join(TMP, 'b15-morph-b.blade.php'), b15Blade(2));
+const b15MorphAfter = await render(join(TMP, 'b15-morph-b.blade.php'));
+
 await writeFile(
     join(TMP, 'in.css'),
     `@import "tailwindcss";
@@ -980,6 +991,8 @@ await check('without the async clipboard API it falls back, copies, and gives fo
 
 group('copy button (on dsClipboard)');
 
+// 200 ms rather than 100 after a press: the face going away keeps its
+// visibility until its 150 ms fade is over.
 const copyLook = (id) => page.evaluate((buttonId) => {
     const button = document.getElementById(buttonId);
     const shown = (el) => el && getComputedStyle(el).visibility !== 'hidden';
@@ -997,7 +1010,7 @@ const copyLook = (id) => page.evaluate((buttonId) => {
 await check('copies its value; label and icon swap, and the change is announced', async () => {
     const before = await copyLook('copy-value');
     await page.click('#copy-value');
-    await settle(100);
+    await settle(200);
     const after = await copyLook('copy-value');
     if ((await clipboardText()) !== 'sk_live_42') return `the clipboard holds ${JSON.stringify(await clipboardText())}`;
     if (before.label !== 'Copy' || after.label !== 'Copied') return `label ${before.label} → ${after.label}`;
@@ -1014,14 +1027,14 @@ await check('and goes back on its own, with the live region emptied', async () =
 
 await check('target by id copies the element\'s text, trimmed', async () => {
     await page.click('#copy-text');
-    await settle(100);
+    await settle(200);
     return (await clipboardText()) === 'sk_live_77' || `the clipboard holds ${JSON.stringify(await clipboardText())}`;
 });
 
 await check('target by selector copies a field\'s value as it is now, not as rendered', async () => {
     await page.fill('#key-field', 'edited since');
     await page.click('#copy-field');
-    await settle(100);
+    await settle(200);
     return (await clipboardText()) === 'edited since' || `the clipboard holds ${JSON.stringify(await clipboardText())}`;
 });
 
@@ -1033,7 +1046,7 @@ await check('icon-only keeps its name; the live region carries the news', async 
 await check('a target not on the page: no false "Copied", and copy-failed reaches the tag and the window', async () => {
     await page.evaluate(() => { window.copyFailedHere = 0; window.copyFailedWindow = 0; });
     await page.click('#copy-missing');
-    await settle(100);
+    await settle(200);
     const look = await copyLook('copy-missing');
     const heard = await page.evaluate(() => [window.copyFailedHere, window.copyFailedWindow]);
     if (look.label !== 'Copy' || look.live !== '') return `it claims success: ${JSON.stringify(look)}`;
@@ -1049,7 +1062,7 @@ await check('a clipboard that refuses: no false "Copied", and copy-failed is dis
         document.execCommand = () => false;
     });
     await page.click('#copy-value');
-    await settle(100);
+    await settle(200);
     const look = await copyLook('copy-value');
     const heard = await page.evaluate(() => window.copyFailedWindow);
     await page.evaluate(() => {
@@ -5688,6 +5701,323 @@ group('split (dsSplit)');
     });
 }
 
+// ---------------------------------------------------------------- batch 15
+
+group('swap button (dsSwap, on the swap recipe)');
+{
+    const swapLook = (id) => page.evaluate((buttonId) => {
+        const button = document.getElementById(buttonId);
+        const faces = [...button.querySelectorAll('[data-ds-swap-face]')];
+        const shown = faces.filter((f) => getComputedStyle(f).visibility !== 'hidden');
+        return {
+            width: Math.round(button.getBoundingClientRect().width * 10) / 10,
+            shown: shown.map((f) => f.textContent.trim()).join('|'),
+            hidden: faces.filter((f) => f.getAttribute('aria-hidden') === 'true' && f.inert).map((f) => f.textContent.trim()).join('|'),
+            pressed: button.getAttribute('aria-pressed'),
+            status: button.closest('[data-ds-swap]').querySelector('[role=status]').textContent,
+        };
+    }, id);
+
+    await check('at rest: one face shows, the other is aria-hidden and inert, nothing is announced', async () => {
+        const r = await swapLook('sw-click');
+        return (r.shown === 'Save' && r.hidden === 'Saved to your library' && r.status === '' && r.pressed === null) || JSON.stringify(r);
+    });
+    await check('a press swaps the face and announces it, at the width the wider face reserved', async () => {
+        const before = await swapLook('sw-click');
+        await page.click('#sw-click');
+        await settle(250);
+        const after = await swapLook('sw-click');
+        if (after.shown !== 'Saved to your library' || after.hidden !== 'Save') return JSON.stringify(after);
+        if (after.status !== 'Saved to your library') return `announced ${JSON.stringify(after.status)}`;
+        return before.width === after.width || `the button went from ${before.width}px to ${after.width}px`;
+    });
+    await check('and it swaps back by itself after `revert`, 2 s by default', async () => {
+        await page.waitForTimeout(2000);
+        const r = await swapLook('sw-click');
+        return (r.shown === 'Save' && r.status === 'Save') || JSON.stringify(r);
+    });
+    await check('revert 0 is a toggle: aria-pressed follows each press, and the name stays "Follow"', async () => {
+        const seen = [(await swapLook('sw-toggle')).pressed];
+        for (let i = 0; i < 2; i++) {
+            await page.click('#sw-toggle');
+            await settle(250);
+            seen.push((await swapLook('sw-toggle')).pressed);
+        }
+        await page.click('#sw-toggle');
+        await settle(250);
+        const named = await page.getByRole('button', { name: 'Follow', exact: true, pressed: true }).count();
+        const look = await swapLook('sw-toggle');
+        await page.click('#sw-toggle');
+        await settle(250);
+        return (seen.join() === 'false,true,false' && named === 1 && look.shown === 'Following') || JSON.stringify({ seen, named, look });
+    });
+    await check('`event`: a press leaves it alone, the window event swaps it, and it reverts', async () => {
+        await page.click('#sw-event');
+        await settle(250);
+        const pressed = (await swapLook('sw-event')).shown;
+        await page.evaluate(() => window.dispatchEvent(new CustomEvent('b15-saved')));
+        await settle(250);
+        const heard = await swapLook('sw-event');
+        await page.waitForTimeout(700);
+        const back = (await swapLook('sw-event')).shown;
+        return (pressed === 'Save changes' && heard.shown === 'Saved' && heard.status === 'Saved' && back === 'Save changes') || JSON.stringify({ pressed, heard, back });
+    });
+    await check('rendered swapped by the server: swapped and pressed from the first paint, and a press undoes it', async () => {
+        const first = await swapLook('sw-server');
+        await page.click('#sw-server');
+        await settle(250);
+        const after = await swapLook('sw-server');
+        await page.click('#sw-server');
+        await settle(250);
+        return (first.shown === 'Starred' && first.pressed === 'true' && first.status === '' && after.shown === 'Star' && after.pressed === 'false') || JSON.stringify({ first, after });
+    });
+    await check('reduced motion: the faces change with no transition', async () => {
+        const duration = () => page.evaluate(() => getComputedStyle(document.querySelector('#sw-click [data-ds-swap-face]')).transitionDuration);
+        const normal = await duration();
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        const reduced = await duration();
+        await page.emulateMedia({ reducedMotion: 'no-preference' });
+        return (normal !== '0s' && reduced === '0s') || `${normal} normally, ${reduced} reduced`;
+    });
+}
+
+group('expanding button group (CSS, no script)');
+{
+    const look = () => page.evaluate(() => {
+        const box = (id) => document.getElementById(id).getBoundingClientRect();
+        return {
+            bold: Math.round(box('exp-bold').width), italic: Math.round(box('exp-italic').width),
+            under: Math.round(box('exp-under').width), height: Math.round(box('exp-italic').height),
+            after: Math.round(box('exp-after').left),
+        };
+    });
+    await page.mouse.move(0, 0);
+    await settle(300);
+    const rest = await look();
+
+    await check('the pressed button is open; the others are squares', async () =>
+        (rest.bold > rest.height + 20 && Math.abs(rest.italic - rest.height) <= 1 && Math.abs(rest.under - rest.height) <= 1) || JSON.stringify(rest));
+    await check('every button keeps its label as its name, though only one shows it', async () => {
+        const names = [];
+        for (const name of ['Bold', 'Italic', 'Underline']) names.push(await page.locator('#exp').getByRole('button', { name, exact: true }).count());
+        return names.join() === '1,1,1' || `found ${names.join()}`;
+    });
+    await check('hover opens a label, and what sits beside the group does not move', async () => {
+        await page.hover('#exp-italic');
+        await settle(350);
+        const r = await look();
+        await page.mouse.move(0, 0);
+        await settle(350);
+        return (r.italic > r.height + 20 && r.after === rest.after) || JSON.stringify({ rest, hovered: r });
+    });
+    await check('keyboard focus opens it as hover does', async () => {
+        await page.focus('#exp-bold');
+        await page.keyboard.press('Tab');
+        await settle(350);
+        const r = await look();
+        const focus = await active();
+        await page.focus('#exp-after').catch(() => {});
+        await page.evaluate(() => document.activeElement.blur());
+        await settle(350);
+        return (focus === 'exp-italic' && r.italic > r.height + 20 && Math.abs(r.under - r.height) <= 1) || JSON.stringify({ focus, r });
+    });
+}
+
+group('icon swap (CSS, reading the state of its button)');
+{
+    const faces = (id) => page.evaluate((i) => [...document.getElementById(i).children].map((f) => Number(getComputedStyle(f).opacity)), id);
+
+    await check('decorative: aria-hidden, the button keeps the name', async () => {
+        const hidden = await page.getAttribute('#is-icon', 'aria-hidden');
+        const named = await page.locator('#is-btn').locator('..').getByRole('button', { name: 'Menu', exact: true, expanded: false }).count();
+        return (hidden === 'true' && named === 1) || `aria-hidden ${hidden}, ${named} buttons named Menu at rest`;
+    });
+    await check('aria-expanded on the button turns it: `from` shows, then `to`', async () => {
+        const before = await faces('is-icon');
+        await page.click('#is-btn');
+        await settle(400);
+        const after = await faces('is-icon');
+        await page.click('#is-btn');
+        await settle(400);
+        const back = await faces('is-icon');
+        return (before.join() === '1,0' && after.join() === '0,1' && back.join() === '1,0') || JSON.stringify({ before, after, back });
+    });
+    await check('the menu preset is a cross under an expanded button: the middle bar gone, the outer two crossed', async () => {
+        const r = await page.evaluate(() => [...document.getElementById('is-bars').children].map((b) => [getComputedStyle(b).rotate, getComputedStyle(b).opacity]));
+        return (r[0][0] === '45deg' && r[1][1] === '0' && r[2][0] === '-45deg') || JSON.stringify(r);
+    });
+    await check('`active` from the server turns it with no button around it', async () =>
+        (await faces('is-active')).join() === '0,1' || JSON.stringify(await faces('is-active')));
+    await check('reduced motion: it switches with no transition', async () => {
+        const duration = () => page.evaluate(() => getComputedStyle(document.getElementById('is-icon').children[0]).transitionDuration);
+        const normal = await duration();
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        const reduced = await duration();
+        await page.emulateMedia({ reducedMotion: 'no-preference' });
+        return (normal !== '0s' && reduced === '0s') || `${normal} normally, ${reduced} reduced`;
+    });
+}
+
+group('user menu (on ds::dropdown)');
+{
+    const trigger = '#um [data-ds-user-menu-trigger]';
+    const open = async () => {
+        await page.click(trigger);
+        await settle(250);
+    };
+    const focused = () => page.evaluate(() => {
+        const el = document.activeElement;
+        return `${el.getAttribute('role')}:${el.getAttribute('aria-label') ?? el.textContent.trim()}`;
+    });
+
+    await check('the trigger opens it; the panel is named by whose it is, and focus is on the first item', async () => {
+        await open();
+        const r = await page.evaluate(() => ({
+            shown: document.querySelector('#um [role=menu]').checkVisibility(),
+            expanded: document.querySelector('#um [data-ds-user-menu-trigger]').getAttribute('aria-expanded'),
+            focus: document.activeElement.id,
+        }));
+        // The avatar's letters are aria-hidden, so the name is the words.
+        r.named = await page.locator('#um [role=menu]').getByRole('group', { name: 'Ada Lovelace ada@example.com Pro', exact: true }).count();
+        return (r.shown && r.expanded === 'true' && r.named === 1 && r.focus === 'um-profile') || JSON.stringify(r);
+    });
+    await check('the arrows walk every item, the theme row and sign-out included, and wrap', async () => {
+        const seen = [];
+        for (let i = 0; i < 8; i++) {
+            await page.keyboard.press('ArrowDown');
+            seen.push(await focused());
+        }
+        const want = ['menuitem:Settings', 'menuitem:Documentation', 'menuitemradio:Light', 'menuitemradio:Dark', 'menuitemradio:System', 'menuitem:Sign out', 'menuitem:Profile', 'menuitem:Settings'];
+        return JSON.stringify(seen) === JSON.stringify(want) || seen.join(' → ');
+    });
+    await check('a theme is a menuitemradio: choosing Dark checks it, darkens the page and closes the menu', async () => {
+        await page.keyboard.press('End');
+        for (let i = 0; i < 2; i++) await page.keyboard.press('ArrowUp');
+        await page.keyboard.press('Enter');
+        await settle(250);
+        const r = await page.evaluate(() => ({
+            checked: [...document.querySelectorAll('#um-theme [role=menuitemradio]')].map((b) => b.getAttribute('aria-checked')).join(),
+            dark: document.documentElement.classList.contains('dark'),
+            open: document.querySelector('#um [role=menu]').checkVisibility(),
+        }));
+        await open();
+        await page.click('#um-theme [data-ds-theme-choice="system"]');
+        await settle(250);
+        await page.evaluate(() => localStorage.removeItem('b15-theme'));
+        const restored = await page.evaluate(() => document.documentElement.classList.contains('dark'));
+        return (r.checked === 'false,true,false' && r.dark && !r.open && !restored) || JSON.stringify({ ...r, restored });
+    });
+    await check('sign-out is a real POST form, not a link', async () => {
+        await open();
+        await page.evaluate(() => { window.b15Sent = []; });
+        await page.getByRole('menuitem', { name: 'Sign out' }).click();
+        await settle(100);
+        const sent = await page.evaluate(() => window.b15Sent);
+        return (sent.length === 1 && sent[0].form === 'sign-out' && sent[0].method === 'post' && sent[0].action === '/sign-out') || JSON.stringify(sent);
+    });
+    await check('Escape closes it and puts focus back on the trigger', async () => {
+        await open();
+        await page.keyboard.press('Escape');
+        await settle(250);
+        const r = await page.evaluate(() => ({ open: document.querySelector('#um [role=menu]').checkVisibility(), focus: document.activeElement.matches('[data-ds-user-menu-trigger]') }));
+        return (!r.open && r.focus) || JSON.stringify(r);
+    });
+    await check('compact: the avatar alone, named by the person', async () =>
+        (await page.locator('#um-compact').getByRole('button', { name: 'Grace Hopper', exact: true }).count()) === 1 || 'no button named Grace Hopper');
+}
+
+group('team switcher (dsTeamSwitcher, on dsPopover)');
+{
+    const look = (id) => page.evaluate((i) => {
+        const root = document.getElementById(i);
+        return {
+            fallback: root.querySelector('[data-ds-team-fallback]').checkVisibility(),
+            trigger: root.querySelector('[data-ds-team-trigger]').checkVisibility(),
+            name: root.querySelector('[data-ds-team-trigger] [data-ds-team-name]').textContent.trim(),
+            selected: [...root.querySelectorAll('[aria-selected=true]')].map((o) => o.dataset.value).join(),
+            select: root.querySelector('[data-ds-team-select]')?.value ?? null,
+            open: root.querySelector('[data-ds-team-list]').checkVisibility(),
+        };
+    }, id);
+    const focusedTeam = () => page.evaluate(() => document.activeElement.dataset.value ?? (document.activeElement.matches('[data-ds-team-search]') ? 'search' : document.activeElement.tagName));
+    const shownTeams = (id) => page.evaluate((i) => [...document.querySelectorAll(`#${i} [data-ds-team-option]`)]
+        .filter((o) => !o.closest('li').hidden)
+        .sort((a, b) => Number(a.closest('li').style.order || 0) - Number(b.closest('li').style.order || 0))
+        .map((o) => o.dataset.dsLabel).join('|'), id);
+
+    await check('with the script the select is hidden and a trigger shows the current team', async () => {
+        const r = await look('tsw');
+        return (!r.fallback && r.trigger && r.name === 'Globex' && r.selected === '2' && r.select === '2' && !r.open) || JSON.stringify(r);
+    });
+    await check('opening puts focus on the current team; the arrows move and wrap', async () => {
+        await page.click('#tsw [data-ds-team-trigger]');
+        await settle(250);
+        const seen = [await focusedTeam()];
+        for (const key of ['ArrowDown', 'ArrowDown', 'ArrowUp', 'Home', 'End']) {
+            await page.keyboard.press(key);
+            seen.push(await focusedTeam());
+        }
+        return seen.join() === '2,3,1,3,1,3' || seen.join();
+    });
+    await check('the footer slot is in the panel', async () => page.isVisible('#tsw-create') || 'no Create team button');
+    await check('Enter chooses: the trigger, the tick, the select and x-model move, change says { id }, focus returns', async () => {
+        await page.evaluate(() => { window.b15Changes = []; });
+        await page.keyboard.press('Home');
+        await page.keyboard.press('Enter');
+        await settle(250);
+        const r = await look('tsw');
+        const extra = await page.evaluate(() => ({ changes: window.b15Changes, model: document.getElementById('tsw-model').textContent, focus: document.activeElement.matches('#tsw [data-ds-team-trigger]') }));
+        return (r.name === 'Acme Inc' && r.selected === '1' && r.select === '1' && !r.open && extra.model === '1' && JSON.stringify(extra.changes) === '["1"]' && extra.focus) || JSON.stringify({ ...r, ...extra });
+    });
+    await check('past `searchFrom` a search field leads, and takes the focus', async () => {
+        await page.click('#tsf [data-ds-team-trigger]');
+        await settle(250);
+        return (await focusedTeam()) === 'search' || `focus on ${await focusedTeam()}`;
+    });
+    await check('typing filters and ranks: the name first, the meta below it', async () => {
+        await page.keyboard.type('glo');
+        await settle(50);
+        return (await shownTeams('tsf')) === 'Globex|Cyberdyne' || await shownTeams('tsf');
+    });
+    await check('nothing matching says so; ArrowDown enters the list and ArrowUp from its top goes back to the field', async () => {
+        await page.keyboard.type('zz');
+        const empty = await page.isVisible('#tsf [data-ds-team-empty]');
+        await page.keyboard.press('Control+A');
+        await page.keyboard.press('Backspace');
+        await page.keyboard.press('ArrowDown');
+        const into = await focusedTeam();
+        await page.keyboard.press('ArrowUp');
+        const back = await focusedTeam();
+        const changes = await page.evaluate(() => window.b15Changes.length);
+        return (empty && into === '1' && back === 'search' && changes === 1) || JSON.stringify({ empty, into, back, changes });
+    });
+    await check('Enter in the field chooses the first match, and the form posts it, spoofed to PUT', async () => {
+        await page.evaluate(() => { window.b15Sent = []; });
+        await page.keyboard.type('hoo');
+        await page.keyboard.press('Enter');
+        await settle(250);
+        const sent = await page.evaluate(() => window.b15Sent);
+        const r = await look('tsf');
+        return (sent.length === 1 && sent[0].method === 'post' && sent[0].action === '/teams/switch' && sent[0].data._method === 'PUT' && sent[0].data.team === '5' && r.name === 'Hooli' && !r.open) || JSON.stringify({ sent, r });
+    });
+    await check('each opening starts from the whole list', async () => {
+        await page.click('#tsf [data-ds-team-trigger]');
+        await settle(250);
+        const r = { value: await page.inputValue('#tsf [data-ds-team-search]'), count: (await shownTeams('tsf')).split('|').length };
+        await page.keyboard.press('Escape');
+        await settle(250);
+        return (r.value === '' && r.count === 8) || JSON.stringify(r);
+    });
+    await check('every team a link: choosing one goes there', async () => {
+        await page.click('#tsl [data-ds-team-trigger]');
+        await settle(250);
+        await page.click('#tsl [data-ds-team-option][data-value="1"]');
+        await settle(250);
+        const r = { hash: await page.evaluate(() => location.hash), open: (await look('tsl')).open };
+        return (r.hash === '#team-1' && !r.open) || JSON.stringify(r);
+    });
+}
+
 // ---------------------------------------------------------------- focus indicators
 
 /*
@@ -5850,6 +6180,9 @@ const overlays = [
     ['confirm button, asking', '[data-focus=confirm-button] [data-ds-confirm-trigger]', 'Enter', 'Tab', 2],
     ['confirm popover content', '#f-cp', 'Enter', 'Tab', 2],
     ['context menu items', '#f-cm-row', 'Shift+F10', 'ArrowDown', 2],
+    ['user menu items, the theme row and sign-out', '#f-um [data-ds-user-menu-trigger]', 'Enter', 'ArrowDown', 5],
+    ['team switcher options', '#f-ts [data-ds-team-trigger]', 'Enter', 'ArrowDown', 3],
+    ['team switcher, its search field', '#f-ts-search [data-ds-team-trigger]', 'Enter', 'ArrowDown', 1],
     ['modal, round the trap', '#f-modal-open', 'Enter', 'Tab', 4],
     ['drawer, round the trap', '#f-drawer-open', 'Enter', 'Tab', 3],
     // Tab cannot leave the field, the only stop; Escape closes it, so the
@@ -5950,6 +6283,7 @@ const listsMarkup = [
 ].join('');
 const inputsCMarkup = specimens.match(/<div class="mt-6 w-\[640px\]" id="inputs-c"[\s\S]*?<!-- \/inputs-c -->/)?.[0];
 const b12Markup = specimens.match(/<div class="mt-6 w-\[640px\]" id="b12"[\s\S]*?<!-- \/b12 -->/)?.[0];
+const b15Markup = specimens.match(/<div class="mt-6 w-\[640px\]" id="b15"[\s\S]*?<!-- \/b15 -->/)?.[0];
 const clipMarkup = specimens.match(/<div class="mt-6" id="clip"[\s\S]*?<\/span>\s*<\/div>/)?.[0];
 
 const hostPages = {
@@ -6038,6 +6372,19 @@ ${include}
     'b12-static.html': `<!doctype html><html><head><meta charset="utf-8">
 <style>${css}</style>
 </head><body>${b12Markup}</body></html>`,
+
+    // Batch 15 with no Alpine at all: a select that posts, links, server faces.
+    'b15-static.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+</head><body>${b15Markup}</body></html>`,
+
+    'b15-morph.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+${include}
+</head><body>${b15MorphBefore}
+<script>window.b15MorphNext = ${JSON.stringify(b15MorphAfter)};</script>
+<script src="livewire.js"></script>
+</body></html>`,
 
     'b12-morph.html': `<!doctype html><html><head><meta charset="utf-8">
 <style>${css}</style>
@@ -6185,7 +6532,7 @@ group('host setup (b): Alpine bundled by the host, Alpine.plugin(bladeUi)');
     await check('the plugin works', () => copiesOn(tab));
     await check('plugin twice plus the include: each name registered exactly once', async () => {
         const names = await tab.evaluate(() => window.dsRegistered);
-        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme', 'dsDismiss', 'dsConfirm', 'dsHold', 'dsConfirmDialog', 'dsRoll', 'dsClamp', 'dsClear', 'dsTree', 'dsSlider', 'dsTimePicker', 'dsInlineEdit', 'dsCommandPalette', 'dsSortable', 'dsSplit'];
+        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme', 'dsDismiss', 'dsConfirm', 'dsHold', 'dsConfirmDialog', 'dsRoll', 'dsClamp', 'dsClear', 'dsTree', 'dsSlider', 'dsTimePicker', 'dsInlineEdit', 'dsCommandPalette', 'dsSortable', 'dsSplit', 'dsSwap', 'dsTeamSwitcher'];
         return JSON.stringify(names) === JSON.stringify(expected) || `registered ${JSON.stringify(names)}`;
     });
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
@@ -6205,7 +6552,7 @@ group('host setup (c): Livewire\'s bundled Alpine, include loaded twice');
     await tab.close();
 }
 
-group('wire:model on otp-input, tag-input, chip-group, radio-cards, segmented-control, toggle-group, slider, time-picker and inline-edit, in a real Livewire component');
+group('wire:model on otp-input, tag-input, chip-group, radio-cards, segmented-control, toggle-group, slider, time-picker, inline-edit and team-switcher, in a real Livewire component');
 {
     const { tab, errors } = await openHost('_ds/livewire', LARAVEL);
     const wire = (name) => tab.evaluate((n) => JSON.parse(JSON.stringify(window.Livewire.first()[n])), name);
@@ -6340,6 +6687,18 @@ group('wire:model on otp-input, tag-input, chip-group, radio-cards, segmented-co
         await tab.waitForTimeout(100);
         const shown = await tab.evaluate(() => document.querySelector('[data-ds-inline-edit]:has(#lw-title) [data-ds-inline-text]').textContent.trim());
         return (saved === 'Q4 roadmap' && shown === 'Renamed') || JSON.stringify({ saved, shown });
+    });
+
+    await check('team switcher: the team chosen reaches $wire.team as its id', async () => {
+        const before = await wire('team');
+        await tab.click('#lw-team [data-ds-team-trigger]');
+        await tab.waitForTimeout(250);
+        await tab.keyboard.press('ArrowDown');
+        await tab.keyboard.press('Enter');
+        await tab.waitForTimeout(100);
+        const after = await wire('team');
+        const face = await tab.locator('#lw-team [data-ds-team-trigger] [data-ds-team-name]').innerText();
+        return (before === '2' && after === '3' && face === 'Initech') || JSON.stringify({ before, after, face });
     });
 
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
@@ -7119,6 +7478,101 @@ group('sortable list, command palette and split re-rendered by a morph (Livewire
         await tab.keyboard.press('Escape');
         await tab.keyboard.press('Escape');
         return (r.open && r.value === 'on' && r.focus && r.active === 'One') || JSON.stringify(r);
+    });
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+
+group('team switcher, swap button and user menu with no Alpine at all (the script is an enhancement)');
+{
+    const { tab, errors } = await openHost('b15-static.html');
+
+    await check('the markup reached the page', async () =>
+        (await tab.locator('#tsw, #tsf, #tsl, #sw-server, #um').count()) === 5 || 'a specimen was not found in the rendered page');
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await check('a team switcher with `action` is a native select and a Switch button, posting the id spoofed to PUT', async () => {
+        const r = await tab.evaluate(() => {
+            const root = document.getElementById('tsf');
+            const form = root.querySelector('form');
+            return {
+                select: root.querySelector('select[data-ds-team-select]').checkVisibility(),
+                trigger: root.querySelector('[data-ds-team-trigger]').checkVisibility(),
+                button: [...root.querySelectorAll('button[type=submit]')].filter((b) => b.checkVisibility()).map((b) => b.textContent.trim()).join(),
+                posts: Object.fromEntries(new FormData(form)),
+                method: form.method,
+            };
+        });
+        return (r.select && !r.trigger && r.button === 'Switch' && r.posts.team === '1' && r.posts._method === 'PUT' && r.method === 'post') || JSON.stringify(r);
+    });
+    await check('every team a link: a list of links, the current one aria-current', async () => {
+        const r = {
+            links: await tab.locator('#tsl nav a:visible').count(),
+            current: await tab.locator('#tsl nav').getByRole('link', { name: 'Initech', exact: true }).getAttribute('aria-current'),
+        };
+        return (r.links === 3 && r.current === 'page') || JSON.stringify(r);
+    });
+    await check('a swap button shows the server\'s face, and the toggle says it is pressed', async () => {
+        const r = await tab.evaluate(() => {
+            const b = document.getElementById('sw-server');
+            return { shown: [...b.querySelectorAll('[data-ds-swap-face]')].filter((f) => getComputedStyle(f).visibility !== 'hidden').map((f) => f.textContent.trim()).join('|'), pressed: b.getAttribute('aria-pressed') };
+        });
+        return (r.shown === 'Starred' && r.pressed === 'true') || JSON.stringify(r);
+    });
+    await check('the expanding group and the icon swap need no script', async () => {
+        const r = await tab.evaluate(() => ({
+            bold: document.getElementById('exp-bold').getBoundingClientRect().width,
+            italic: document.getElementById('exp-italic').getBoundingClientRect().width,
+            bars: getComputedStyle(document.getElementById('is-bars').children[0]).rotate,
+        }));
+        return (r.bold > r.italic + 20 && r.bars === '45deg') || JSON.stringify(r);
+    });
+    await tab.close();
+}
+
+group('team switcher and swap button re-rendered by a morph (Livewire\'s Alpine.morph)');
+{
+    const { tab, errors } = await openHost('b15-morph.html');
+    const state = () => tab.evaluate(() => {
+        const root = document.getElementById('tsm');
+        const toggle = document.getElementById('swm');
+        return {
+            fallback: root.querySelector('[data-ds-team-fallback]').checkVisibility(),
+            trigger: root.querySelector('[data-ds-team-trigger]').checkVisibility(),
+            name: root.querySelector('[data-ds-team-trigger] [data-ds-team-name]').textContent.trim(),
+            selected: [...root.querySelectorAll('[aria-selected=true]')].map((o) => o.dataset.value).join(),
+            select: root.querySelector('[data-ds-team-select]').value,
+            pressed: toggle.getAttribute('aria-pressed'),
+        };
+    });
+    const morph = async () => {
+        await tab.evaluate(() => window.Alpine.morph(document.getElementById('b15-morph'), window.b15MorphNext));
+        await tab.waitForTimeout(200);
+    };
+
+    await check('before: the trigger on Acme Inc, the select hidden', async () => {
+        const s = await state();
+        return (!s.fallback && s.trigger && s.name === 'Acme Inc' && s.selected === '1' && s.select === '1') || JSON.stringify(s);
+    });
+    await check('after a morph to Globex: still the trigger, now on Globex, ticked and selected', async () => {
+        await morph();
+        const s = await state();
+        return (!s.fallback && s.trigger && s.name === 'Globex' && s.selected === '2' && s.select === '2') || JSON.stringify(s);
+    });
+    await check('and it still opens and chooses from the keyboard', async () => {
+        await tab.click('#tsm [data-ds-team-trigger]');
+        await tab.waitForTimeout(250);
+        const start = await tab.evaluate(() => document.activeElement.dataset.value);
+        await tab.keyboard.press('ArrowDown');
+        await tab.keyboard.press('Enter');
+        await tab.waitForTimeout(250);
+        const s = await state();
+        return (start === '2' && s.name === 'Initech' && s.select === '3') || JSON.stringify({ start, ...s });
+    });
+    await check('a swap toggle still toggles after a morph', async () => {
+        await tab.click('#swm');
+        await tab.waitForTimeout(250);
+        const s = await state();
+        return s.pressed === 'true' || JSON.stringify(s);
     });
     await check('nothing in the console', async () => !errors.length || errors.join(' | '));
     await tab.close();

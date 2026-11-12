@@ -14,6 +14,12 @@
     'size' => null,
     /** Render as a link. Anything that navigates should be an `a` element, not a button. */
     'href' => null,
+    /**
+     * Heroicon name for a leading icon, drawn at the label's size. A spinner
+     * takes its place while `loading`. Inside a ds::button-group with
+     * `expanding` it is required: it is what stays when the label folds away.
+     */
+    'icon' => null,
     /** Square, no label. Requires an accessible name via aria-label or title. */
     'iconOnly' => false,
     /**
@@ -42,6 +48,15 @@
     $variant ??= $group['variant'] ?? 'primary';
     $size ??= $group['size'] ?? 'md';
 
+    // In an expanding group the label folds to nothing and the icon is the
+    // whole button at rest, so a button there without one would be blank.
+    $expanding = (bool) ($group['expanding'] ?? false);
+    if ($expanding && blank($icon)) {
+        throw new \InvalidArgumentException(
+            'A ds::button inside ds::button-group with `expanding` needs an `icon`: it is what stays on screen while the label is folded away.'
+        );
+    }
+
     // Padding is calc(step - 1px) so the always-present 1px border is absorbed
     // and a `primary` sits exactly where a `secondary` would. Removing the calc
     // makes filled and outlined buttons disagree by 2px.
@@ -62,6 +77,17 @@
         // it is this component rather than a separate one — same fill, same
         // hover, same focus ring.
         'fab' => 'size-control-fab',
+    ];
+
+    /*
+     * An expanding group's button: as tall as any other, and square while its
+     * label is folded, so the padding is half of (height - icon) less the
+     * border. The label brings its own gap, which folds with it.
+     */
+    $expandSizes = [
+        'sm' => 'h-control-sm px-[calc(--spacing(2)-1px)] text-meta',
+        'md' => 'h-control-lg px-[calc(--spacing(3.5)-1px)] text-body-touch sm:h-control-md sm:px-[calc(--spacing(2.5)-1px)] sm:text-body',
+        'lg' => 'h-control-lg px-[calc(--spacing(3.5)-1px)] text-body-touch',
     ];
 
     $variants = [
@@ -90,7 +116,9 @@
     $classes = implode(' ', [
         // `isolate` keeps the focus ring from being clipped by a parent stacking
         // context, which is why it is on the base and not the focus state.
-        'relative isolate inline-flex items-center justify-center gap-2',
+        // An expanding group's folded label carries its own gap, so the icon
+        // sits alone in a square while it is folded.
+        $expanding ? 'relative isolate inline-flex items-center justify-center' : 'relative isolate inline-flex items-center justify-center gap-2',
         /*
          * In a group the corners come from the group: custom properties it sets
          * on each of its children, zero where this button meets a neighbour. A
@@ -117,9 +145,27 @@
         // A loading button carries the disabled attribute to stop double
         // submits, so the disabled: styles would otherwise fade it too.
         $loading ? 'cursor-wait' : 'disabled:opacity-50 disabled:cursor-not-allowed',
-        $sizes[$size] ?? $sizes['md'],
+        $expanding
+            ? 'group/expand min-w-0 '.($expandSizes[$size] ?? $expandSizes['md'])
+            : ($sizes[$size] ?? $sizes['md']),
         $variantClasses,
     ]);
+
+    /*
+     * The folded label stays in the DOM, so it stays the button's name: only
+     * its column narrows, 0fr to 1fr, which is a length a transition can run
+     * between. Open while hovered, while focused from the keyboard, and for
+     * good while pressed or current. Tailwind's hover only matches a pointer
+     * that can hover, so on a touch screen only the pressed one is open.
+     */
+    $fold = 'grid min-w-0 grid-cols-[0fr] motion-safe:transition-[grid-template-columns] motion-safe:duration-popover-enter motion-safe:ease-enter '
+        .'group-hover/expand:grid-cols-[1fr] group-focus-visible/expand:grid-cols-[1fr] group-aria-pressed/expand:grid-cols-[1fr] '
+        .'group-aria-[current=page]/expand:grid-cols-[1fr] group-aria-[current=true]/expand:grid-cols-[1fr]';
+
+    // Echoed on either side of the slot, and empty outside an expanding
+    // group, so every other button renders byte for byte as before.
+    $foldOpen = $expanding ? '<span class="'.$fold.'"><span class="min-w-0 overflow-hidden"><span class="block truncate ps-1.5 pe-0.5">' : '';
+    $foldClose = $expanding ? '</span></span></span>' : '';
 
     $tag = $href ? 'a' : 'button';
 @endphp
@@ -145,6 +191,8 @@
              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
             <path d="M12 3a9 9 0 1 0 9 9" />
         </svg>
+    @elseif ($icon)
+        <x-ds::icon :name="$icon" size="4" />
     @endif
-    {{ $slot }}
+    {!! $foldOpen !!}{{ $slot }}{!! $foldClose !!}
 </{{ $tag }}>

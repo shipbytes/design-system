@@ -1037,4 +1037,76 @@
     </div>
     <!-- /b12 -->
 
+    {{-- ── batch 15: swap button, expanding group, icon swap, user menu,
+         team switcher. The block marked #b15 is also cut out for a host page
+         with no Alpine at all, by its id and the closing comment. Each form
+         records its submit rather than leaving the page. ── --}}
+    @php
+        $b15Teams = [
+            ['id' => 1, 'name' => 'Acme Inc', 'meta' => 'Pro plan'],
+            ['id' => 2, 'name' => 'Globex', 'meta' => 'Team plan'],
+            ['id' => 3, 'name' => 'Initech', 'meta' => 'Free'],
+        ];
+        $b15Many = array_merge($b15Teams, [
+            ['id' => 4, 'name' => 'Umbrella Labs', 'meta' => 'Pro plan'],
+            ['id' => 5, 'name' => 'Hooli', 'meta' => 'Enterprise'],
+            ['id' => 6, 'name' => 'Stark Industries', 'meta' => 'Team plan'],
+            ['id' => 7, 'name' => 'Wayne Enterprises', 'meta' => 'Free'],
+            ['id' => 8, 'name' => 'Cyberdyne', 'meta' => 'Globally distributed'],
+        ]);
+        $b15Links = array_map(fn ($t) => $t + ['href' => '#team-'.$t['id']], $b15Teams);
+    @endphp
+    <div class="mt-6 w-[640px]" id="b15" onsubmit="event.preventDefault(); (window.b15Sent ??= []).push({ form: event.target.dataset.dsUserMenuSignOut !== undefined ? 'sign-out' : event.target.id || 'team', method: event.target.method, action: event.target.getAttribute('action'), data: Object.fromEntries(new FormData(event.target)) })">
+        <div class="flex items-center gap-3" x-on:b15-saved.window="window.b15Heard = (window.b15Heard ?? 0) + 1">
+            <x-ds::swap-button id="sw-click">Save<x-slot:swapped><x-ds::icon name="check" /> Saved to your library</x-slot:swapped></x-ds::swap-button>
+            <x-ds::swap-button id="sw-toggle" :revert="0" variant="primary"><x-ds::icon name="plus" /> Follow<x-slot:swapped><x-ds::icon name="check" /> Following</x-slot:swapped></x-ds::swap-button>
+            <x-ds::swap-button id="sw-event" event="b15-saved" :revert="600">Save changes<x-slot:swapped>Saved</x-slot:swapped></x-ds::swap-button>
+            <x-ds::swap-button id="sw-server" :swapped="true" :revert="0"><x-ds::icon name="star" /> Star<x-slot:swapped><x-ds::icon name="star" variant="solid" /> Starred</x-slot:swapped></x-ds::swap-button>
+        </div>
+
+        <div class="mt-4 flex w-[480px] items-center gap-3">
+            <div class="w-64">
+                <x-ds::button-group id="exp" label="Text style" expanding>
+                    <x-ds::button id="exp-bold" icon="bold" aria-pressed="true">Bold</x-ds::button>
+                    <x-ds::button id="exp-italic" icon="italic" aria-pressed="false">Italic</x-ds::button>
+                    <x-ds::button id="exp-under" icon="underline" aria-pressed="false">Underline</x-ds::button>
+                </x-ds::button-group>
+            </div>
+            <span id="exp-after">after the group</span>
+        </div>
+
+        <div class="mt-4 flex items-center gap-3" x-data="{ menu: false }">
+            <x-ds::button id="is-btn" iconOnly aria-label="Menu" x-bind:aria-expanded="menu ? 'true' : 'false'" aria-expanded="false" @click="menu = ! menu"><x-ds::icon-swap id="is-icon" from="bars-3" to="x-mark" preset="rotate" /></x-ds::button>
+            <x-ds::button id="is-bars-btn" iconOnly aria-label="Menu" aria-expanded="true"><x-ds::icon-swap id="is-bars" preset="menu" /></x-ds::button>
+            <span id="is-alone"><x-ds::icon-swap id="is-active" from="sun" to="moon" :active="true" /></span>
+        </div>
+
+        <div class="mt-4 flex justify-end">
+            <x-ds::user-menu id="um" name="Ada Lovelace" email="ada@example.com" plan="Pro" signOutAction="/sign-out">
+                <div role="group" aria-label="Account">
+                    <x-ds::dropdown-item id="um-profile" href="#profile">Profile</x-ds::dropdown-item>
+                    <x-ds::dropdown-item id="um-settings" href="#settings">Settings</x-ds::dropdown-item>
+                </div>
+                <div role="group" aria-label="Help">
+                    <x-ds::dropdown-item id="um-docs" href="#docs">Documentation</x-ds::dropdown-item>
+                </div>
+                <x-slot:theme><x-ds::theme-switcher id="um-theme" variant="menu" storageKey="b15-theme" /></x-slot:theme>
+            </x-ds::user-menu>
+            <x-ds::user-menu id="um-compact" name="Grace Hopper" :compact="true" />
+        </div>
+
+        <div class="mt-4 grid grid-cols-2 gap-4">
+            <div x-data="{ team: '2' }">
+                <x-ds::team-switcher id="tsw" :teams="$b15Teams" current="2" name="team" x-model="team"
+                    x-on:change="(window.b15Changes ??= []).push($event.detail?.id ?? null)">
+                    <x-slot:footer><x-ds::button id="tsw-create" variant="ghost" size="sm" icon="plus">Create team</x-ds::button></x-slot:footer>
+                </x-ds::team-switcher>
+                <output id="tsw-model" x-text="team">2</output>
+            </div>
+            <x-ds::team-switcher id="tsf" :teams="$b15Many" current="1" name="team" action="/teams/switch" method="PUT" label="Switch workspace" />
+            <x-ds::team-switcher id="tsl" :teams="$b15Links" current="3" />
+        </div>
+    </div>
+    <!-- /b15 -->
+
 </div>

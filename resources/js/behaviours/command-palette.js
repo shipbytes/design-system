@@ -45,6 +45,7 @@
  *
  * The scope exposes `dsOpen` and nothing else.
  */
+import { fold, rank } from '../shared/rank.js';
 
 const EDITABLE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
 const SEARCH_DELAY = 200;
@@ -263,30 +264,6 @@ function wire(root, options, api) {
             window.removeEventListener('close-command-palette', onClose);
         },
     };
-}
-
-// Lower case, accents off, one space: "Café  Menu" finds "cafe m".
-function fold(text) {
-    return String(text).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
-}
-
-/*
- * 4 the text starts with the query, 3 a word in it does, 2 it is somewhere
- * inside, 1 its letters are there in order, 0 no match.
- */
-function rank(text, q) {
-    let at = text.indexOf(q);
-    if (at === 0) return 4;
-    const inside = at > 0;
-    while (at > 0) {
-        if (!/[\p{L}\p{N}]/u.test(text[at - 1])) return 3;
-        at = text.indexOf(q, at + 1);
-    }
-    if (inside) return 2;
-    const letters = q.replace(/ /g, '');
-    let i = 0;
-    for (const ch of text) if (ch === letters[i] && ++i === letters.length) return 1;
-    return 0;
 }
 
 /*

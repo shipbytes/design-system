@@ -34,14 +34,16 @@ import { scrollShadows } from './behaviours/scroll-shadows.js';
 import { slider } from './behaviours/slider.js';
 import { sortable } from './behaviours/sortable.js';
 import { split } from './behaviours/split.js';
+import { swap } from './behaviours/swap.js';
 import { tagInput } from './behaviours/tag-input.js';
+import { teamSwitcher } from './behaviours/team-switcher.js';
 import { theme } from './behaviours/theme.js';
 import { timePicker } from './behaviours/time-picker.js';
 import { toggleGroup } from './behaviours/toggle-group.js';
 import { toolbar } from './behaviours/toolbar.js';
 import { tree } from './behaviours/tree.js';
 
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split, swap, teamSwitcher];
 
 // Symbol.for, not a module-level flag. Two copies of this script, say the
 // inlined one AND a Vite import, are two separate modules with two separate

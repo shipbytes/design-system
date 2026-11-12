@@ -29,12 +29,13 @@ Theme                                       ╭───╮
 
 ## Variants
 
-Two of the three candidates.
+Two of the three candidates, and a third shape for inside a menu.
 
 | Variant | For | Why |
 |---|---|---|
 | `segmented` (default) | settings pages, an account menu with room | All three choices visible, the current one plain to see, any of them one press away. It is radios, so it is the segmented control, with its keys and its focus ring |
 | `button` | a header, a toolbar | One square. It steps light → dark → system → light; the icon shows the current choice and the name says it |
+| `menu` | a row in a menu: ds::user-menu's `theme` slot | A `role=group` named by `label`, the label shown aria-hidden, then three `button[role=menuitemradio][tabindex=-1]` icon buttons with `aria-label` and `aria-checked`. The menu's arrow keys stop on each; a press sets the theme and closes the menu like any item |
 
 **Not a dropdown.** It hides three short choices behind a press, costs two
 presses where the others cost one, and puts a menu, with a menu's keyboard

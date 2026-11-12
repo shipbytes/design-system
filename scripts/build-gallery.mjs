@@ -354,10 +354,12 @@ table.ref .samp { color: var(--g-ink); font-family: Inter, ui-sans-serif, system
       <a href="#input">Input</a>
       <a href="#otp-input">OTP</a>
       <a href="#copy-button">Copy</a>
+      <a href="#swap-button">Swap</a>
       <a href="#rating">Rating</a>
       <a href="#chip-group">Chips</a>
       <a href="#segmented-control">Segmented</a>
       <a href="#button-group">Button group</a>
+      <a href="#icon-swap">Icon swap</a>
       <a href="#toolbar">Toolbar</a>
       <a href="#toggle-group">Toggles</a>
       <a href="#radio-cards">Cards</a>
@@ -367,6 +369,8 @@ table.ref .samp { color: var(--g-ink); font-family: Inter, ui-sans-serif, system
       <a href="#alert">Alert</a>
       <a href="#modal">Modal</a>
       <a href="#dropdown">Dropdown</a>
+      <a href="#user-menu">User menu</a>
+      <a href="#team-switcher">Team switcher</a>
       <a href="#popover">Popover</a>
       <a href="#hover-card">Hover card</a>
       <a href="#drawer">Drawer</a>

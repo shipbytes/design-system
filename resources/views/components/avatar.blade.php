@@ -3,6 +3,11 @@
     'src' => null,
     /** The person or thing. Supplies both the initials and the accessible name. */
     'name' => null,
+    /**
+     * The letters to show instead of the two taken from `name`: a team that
+     * goes by "AC", a person known by one initial. Shown as given, upper-cased.
+     */
+    'initials' => null,
     /** xs | sm | md | lg */
     'size' => 'md',
     /**
@@ -37,6 +42,7 @@
      * takes the first GRAPHEME rather than the first byte, so an emoji or an
      * accented letter survives.
      */
+    $given = $initials;
     $initials = '';
 
     if ($name !== null && trim($name) !== '') {
@@ -44,6 +50,10 @@
         $first = mb_substr($words[0], 0, 1);
         $last = count($words) > 1 ? mb_substr($words[count($words) - 1], 0, 1) : '';
         $initials = mb_strtoupper($first.$last);
+    }
+
+    if ($given !== null && trim((string) $given) !== '') {
+        $initials = mb_strtoupper(trim((string) $given));
     }
 
     $shape = $square ? 'rounded-control' : 'rounded-full';

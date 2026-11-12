@@ -21,6 +21,7 @@ Does something, or goes somewhere.
 | `size` | `sm` `md` `lg` `fab` | `md` | See sizes below. |
 | `href` | string | — | Renders an `<a>` instead of a `<button>`. |
 | `iconOnly` | bool | `false` | Square, no label. Needs `aria-label`. |
+| `icon` | string | — | An [icon](icon.md) name, drawn before the label. Required in an [expanding button group](button-group.md#expanding), where the label folds away beside it. |
 | `loading` | bool | `false` | Spinner, and blocks re-clicks. |
 | `disabled` | bool | `false` | |
 | `pill` | bool | `false` | Fully rounded. |

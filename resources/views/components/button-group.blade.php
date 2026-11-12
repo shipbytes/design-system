@@ -1,7 +1,7 @@
 {{--
     ds::button-group. Its props are the constructor of
     Shipbytes\BladeUi\View\Components\ButtonGroup (label, size, variant,
-    orientation), which also hands the buttons inside their settings: see that
+    orientation, expanding), which also hands the buttons inside their settings: see that
     class for why this one component is not anonymous.
 
     The joins are custom properties set on each DIRECT child and read by the
@@ -19,7 +19,13 @@
     $filled = in_array($variant, ['primary', 'danger'], true);
 
     $classes = implode(' ', [
-        'inline-flex max-w-full',
+        /*
+         * Expanding, the group is a block as wide as its container (or the
+         * width a class gives it) and the buttons sit at its start: a label
+         * opening takes room the group already has, so nothing after it on
+         * the line moves. The buttons inside slide along, which is the effect.
+         */
+        $expanding ? 'flex w-full min-w-0' : 'inline-flex max-w-full',
         $vertical ? 'flex-col items-stretch' : 'items-stretch',
         // `*:` rather than an arbitrary `[&>*]:` variant: an ampersand or an
         // angle bracket in a class is written out as an entity in the page,

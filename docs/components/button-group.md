@@ -61,6 +61,39 @@ The trigger needs no extra prop: it takes the group's size, variant and end
 corners through the dropdown that wraps it. The menu needs Alpine, as every
 dropdown does; the group does not.
 
+### Expanding
+
+A row of icon buttons where the one under the pointer, the one with keyboard
+focus, and the pressed or current one open to show their labels:
+
+![Expanding button group](../images/button-group-expanding.png)
+
+```blade
+<x-ds::button-group label="Text style" expanding>
+    <x-ds::button icon="bold" :aria-pressed="$bold ? 'true' : 'false'">Bold</x-ds::button>
+    <x-ds::button icon="italic" :aria-pressed="$italic ? 'true' : 'false'">Italic</x-ds::button>
+    <x-ds::button icon="underline" aria-pressed="false">Underline</x-ds::button>
+</x-ds::button-group>
+
+<x-ds::button-group label="Views" expanding variant="ghost">
+    <x-ds::button icon="home" :href="route('home')" aria-current="page">Home</x-ds::button>
+    <x-ds::button icon="inbox" :href="route('inbox')">Inbox</x-ds::button>
+</x-ds::button-group>
+```
+
+Every button needs `icon`; its slot is the label that folds away. No script:
+the labels open with CSS, animating the grid track, and only with motion
+allowed.
+
+- **The group fills its container.** The width a label opens into is already
+  the group's, so nothing beside it moves. Put it in a box of the width you
+  want it to have.
+- **On a touch screen** there is no hover, so only the pressed or current
+  button is open; the others open while focused from a keyboard.
+- **Every button keeps its label as its accessible name.** The label is there,
+  only collapsed to no width, never `display: none`.
+- Horizontal only. `orientation="vertical"` with `expanding` throws.
+
 ## Props
 
 | Prop | Type | Default | What it does |
@@ -69,6 +102,7 @@ dropdown does; the group does not.
 | `size` | string | — | `sm`, `md` or `lg` for every button inside that does not set its own. Unset, buttons keep their `md` default. |
 | `variant` | string | `secondary` | `primary`, `secondary`, `ghost` or `danger` for every button inside that does not set its own. |
 | `orientation` | string | `horizontal` | `horizontal` or `vertical`: which way the buttons run and the joins fall. |
+| `expanding` | bool | `false` | Icon buttons whose labels open on hover, focus, and while pressed or current. Every button needs `icon`. Horizontal only. |
 
 `id`, `class` and anything else go on the group's `div`.
 

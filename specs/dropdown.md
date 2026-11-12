@@ -132,6 +132,11 @@ on `focus-visible:` as well, but the fill alone was the only indicator until
 batch 06, and `surface-subtle` on `surface` is about 1.04:1 in light, which is
 no indicator at all.
 
+A `menuitemradio` (theme-switcher `variant="menu"`) is an item too: the arrow
+keys move over every `[role^="menuitem"]` that is not `aria-disabled`, in the
+order they are in the page (partials/menu.php), so a row of radio items inside a
+group is walked like any other.
+
 ## Accessibility
 
 - `role="menu"` + `aria-orientation="vertical"` on the menu, `role="menuitem"` on
@@ -155,8 +160,9 @@ no indicator at all.
 ## Do not
 
 - **Build a select out of it.** See the top of this file.
-- **Put a form inside it.** Click-outside and Escape will discard input the reader
-  typed, with no warning and no way back.
+- **Put a form with fields inside it.** Click-outside and Escape will discard
+  input the reader typed, with no warning and no way back. A form whose only
+  control is its submit item (ds::user-menu's sign-out) has nothing to lose.
 - **Nest a submenu.** There is no hover intent, no timing grace, and no way back
   out with a keyboard. If a menu needs a second level, it needs a modal or a page.
 - **Use it for navigation between pages of the app.** That is `nav-item`; a menu

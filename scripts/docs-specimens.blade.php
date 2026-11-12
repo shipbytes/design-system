@@ -216,6 +216,37 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── swap-button
+     Each pair is one button at rest and the same button swapped, drawn so
+     by the server (`swapped`, never reverting), so the picture shows both
+     faces at the one width the wider reserves. --}}
+<div data-shot="swap-button" class="shot">
+    @foreach ($themes as $t)
+        <div class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col items-start gap-4">
+                <div class="flex items-center gap-2">
+                    <x-ds::swap-button variant="primary" :revert="0">
+                        <x-ds::icon name="plus" /> Follow
+                        <x-slot:swapped><x-ds::icon name="check" /> Following</x-slot:swapped>
+                    </x-ds::swap-button>
+                    <x-ds::swap-button variant="secondary" :revert="0" :swapped="true">
+                        <x-ds::icon name="plus" /> Follow
+                        <x-slot:swapped><x-ds::icon name="check" /> Following</x-slot:swapped>
+                    </x-ds::swap-button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <x-ds::swap-button event="docs-never" variant="secondary">Save changes<x-slot:swapped><x-ds::icon name="check" /> Saved</x-slot:swapped></x-ds::swap-button>
+                    <x-ds::swap-button event="docs-never" variant="secondary" :revert="0" :swapped="true">Save changes<x-slot:swapped><x-ds::icon name="check" /> Saved</x-slot:swapped></x-ds::swap-button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <x-ds::swap-button variant="ghost" size="sm" :revert="0"><x-ds::icon name="star" /> Star<x-slot:swapped><x-ds::icon name="star" variant="solid" class="text-warning" /> Starred</x-slot:swapped></x-ds::swap-button>
+                    <x-ds::swap-button variant="ghost" size="sm" :revert="0" :swapped="true"><x-ds::icon name="star" /> Star<x-slot:swapped><x-ds::icon name="star" variant="solid" class="text-warning" /> Starred</x-slot:swapped></x-ds::swap-button>
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── rating --}}
 <div data-shot="rating" class="shot">
     @foreach ($themes as $t)
@@ -344,6 +375,58 @@
                         <x-ds::button iconOnly aria-label="Next page"><x-ds::icon name="chevron-right" /></x-ds::button>
                     </x-ds::button-group>
                 </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── button-group-expanding
+     The pressed and current buttons, which stay open; hover and keyboard
+     focus open the others the same way. --}}
+<div data-shot="button-group-expanding" class="shot">
+    @foreach ($themes as $t)
+        <div class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col items-start gap-4">
+                <x-ds::button-group label="Text style" expanding class="w-72">
+                    <x-ds::button icon="bold" aria-pressed="true">Bold</x-ds::button>
+                    <x-ds::button icon="italic" aria-pressed="false">Italic</x-ds::button>
+                    <x-ds::button icon="underline" aria-pressed="false">Underline</x-ds::button>
+                    <x-ds::button icon="strikethrough" aria-pressed="false">Strikethrough</x-ds::button>
+                </x-ds::button-group>
+                <x-ds::button-group label="Views" expanding variant="ghost" class="w-72">
+                    <x-ds::button icon="home" href="#home" aria-current="page">Home</x-ds::button>
+                    <x-ds::button icon="inbox" href="#inbox">Inbox</x-ds::button>
+                    <x-ds::button icon="calendar" href="#calendar">Calendar</x-ds::button>
+                    <x-ds::button icon="cog-6-tooth" href="#settings">Settings</x-ds::button>
+                </x-ds::button-group>
+                <x-ds::button-group label="Reply" expanding variant="primary" size="sm" class="w-72">
+                    <x-ds::button icon="arrow-uturn-left" aria-pressed="true">Reply</x-ds::button>
+                    <x-ds::button icon="arrow-uturn-right">Forward</x-ds::button>
+                    <x-ds::button icon="archive-box">Archive</x-ds::button>
+                </x-ds::button-group>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── icon-swap
+     Each control twice: at rest, and in the state its button says it is in
+     (aria-expanded, aria-pressed, data-state), which is all the swap reads. --}}
+<div data-shot="icon-swap" class="shot">
+    @foreach ($themes as $t)
+        <div class="pane bg-surface-sunken {{ $t }}">
+            <div class="grid grid-cols-[auto_auto_auto] items-center justify-start gap-x-3 gap-y-3 text-meta text-fg-body">
+                @foreach ([false, true] as $on)
+                    <span>{{ $on ? 'On' : 'At rest' }}</span>
+                    <div class="flex items-center gap-2">
+                        <x-ds::button variant="secondary" iconOnly aria-label="Menu" aria-expanded="{{ $on ? 'true' : 'false' }}"><x-ds::icon-swap preset="menu" /></x-ds::button>
+                        <x-ds::button variant="secondary" iconOnly aria-label="Menu" aria-expanded="{{ $on ? 'true' : 'false' }}"><x-ds::icon-swap from="bars-3" to="x-mark" /></x-ds::button>
+                        <x-ds::button variant="secondary" iconOnly aria-label="Play" aria-pressed="{{ $on ? 'true' : 'false' }}"><x-ds::icon-swap from="play" to="pause" preset="rotate" variant="solid" size="4" /></x-ds::button>
+                        <x-ds::button variant="secondary" iconOnly aria-label="Add" data-state="{{ $on ? 'open' : 'closed' }}"><x-ds::icon-swap from="plus" to="x-mark" preset="rotate" /></x-ds::button>
+                        <x-ds::button variant="secondary" iconOnly aria-label="Dark mode" aria-pressed="{{ $on ? 'true' : 'false' }}"><x-ds::icon-swap from="sun" to="moon" preset="flip" /></x-ds::button>
+                    </div>
+                    <x-ds::button variant="secondary" size="sm" aria-expanded="{{ $on ? 'true' : 'false' }}">Filters <x-ds::icon-swap from="chevron-down" preset="rotate" size="4" class="text-fg-muted" /></x-ds::button>
+                @endforeach
             </div>
         </div>
     @endforeach
@@ -1341,6 +1424,54 @@
                 </x-ds::hover-card>
                 since Monday.
             </p>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── user-menu
+     Open from the server's state, the way a host's `open` holds it. --}}
+<div data-shot="user-menu" class="shot shot-calendar">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex items-start justify-between gap-4">
+                <x-ds::user-menu open="shown" align="start" name="Ada Lovelace" email="ada@example.com" plan="Pro" signOutAction="#sign-out" class="w-56">
+                    <div role="group" aria-label="Account">
+                        <x-ds::dropdown-item href="#profile" icon="user-circle">Profile</x-ds::dropdown-item>
+                        <x-ds::dropdown-item href="#settings" icon="cog-6-tooth">Settings</x-ds::dropdown-item>
+                        <x-ds::dropdown-item href="#billing" icon="credit-card">Billing</x-ds::dropdown-item>
+                    </div>
+                    <div role="group" aria-label="Help">
+                        <x-ds::dropdown-item href="#docs" icon="book-open">Documentation</x-ds::dropdown-item>
+                    </div>
+                    <x-slot:theme><x-ds::theme-switcher variant="menu" storageKey="docs-shot-theme" /></x-slot:theme>
+                </x-ds::user-menu>
+                <x-ds::user-menu name="Grace Hopper" email="grace@example.com" :compact="true" signOutAction="#sign-out" />
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── team-switcher
+     Open from the server's state; Globex is the current team. --}}
+<div data-shot="team-switcher" class="shot shot-calendar">
+    @foreach ($themes as $t)
+        @php
+            $docsTeams = [
+                ['id' => 1, 'name' => 'Acme Inc', 'meta' => 'Pro plan · 12 members'],
+                ['id' => 2, 'name' => 'Globex', 'meta' => 'Team plan · 48 members'],
+                ['id' => 3, 'name' => 'Initech', 'meta' => 'Free'],
+                ['id' => 4, 'name' => 'Umbrella Labs', 'meta' => 'Pro plan · 3 members', 'initials' => 'UL'],
+            ];
+        @endphp
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex items-start gap-4">
+                <div class="w-60">
+                    <x-ds::team-switcher open="shown" :teams="$docsTeams" current="2" name="team">
+                        <x-slot:footer><x-ds::button variant="ghost" size="sm" icon="plus">Create team</x-ds::button></x-slot:footer>
+                    </x-ds::team-switcher>
+                </div>
+                <x-ds::team-switcher :teams="$docsTeams" current="2" name="team" :compact="true" class="ml-auto" />
+            </div>
         </div>
     @endforeach
 </div>

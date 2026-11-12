@@ -71,6 +71,7 @@ src/              the service provider
                                 `highlight` ranges (CodeTest)
   Support/Listbox.php           reads the listbox recipe (partials/listbox.php)
   Support/Modal.php             reads the modal recipe (partials/modal.php)
+  Support/Swap.php              reads the swap recipe (partials/swap.php)
 config/           blade-ui.php — icon aliases, default icon size
 resources/views/  the Blade components + the two pagination views and
                   their two Livewire variants
@@ -96,7 +97,14 @@ resources/views/  the Blade components + the two pagination views and
                                 anchor overrides), read through Support\Popover
   partials/menu.php             the menu recipe dropdown and context-menu
                                 share (panel, transition, the arrow-key
-                                handler), read through Support\Menu
+                                handler over every [role^=menuitem], so a
+                                menuitemradio is walked too), read through
+                                Support\Menu
+  partials/swap.php             the swap recipe: two faces in one grid cell,
+                                chosen by data-ds-swapped on a group/swap
+                                ancestor, crossfading; copy-button and
+                                swap-button draw with it, read through
+                                Support\Swap
   partials/listbox.php          the listbox recipe combobox and time-picker
                                 share (panel, option, empty, the arrow-key
                                 handler), read through Support\Listbox; and
@@ -127,7 +135,10 @@ resources/js/     the shared script's source: plain ES modules, hand-edited
                     confirm.js: the swallow, announce and bfcache-restore
                     helpers the three confirmation behaviours share;
                     format.js: the number formatter roll and slider use,
-                    mirroring Support\Chart::format)
+                    mirroring Support\Chart::format;
+                    flag.js: the timed flag dsClipboard and dsSwap raise
+                    and let fall; rank.js: fold and rank, the matching the
+                    command palette and team switcher sort by)
                   (export-ignored: consumers get dist/, not the modules)
 
 tokens/           DTCG source. Edited by hand, like resources/js/.
@@ -730,23 +741,23 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 108 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 112 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
 accordion, accordion-item, activity-heatmap, activity-rings, alert, announcement-bar, avatar, avatar-group, badge, bar-chart, bottom-nav,
 bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, chip,
 button-group, chip-group, code-block, combobox, command-group, command-item, command-palette, confirm-button, confirm-popover, copy-button, counter, date-picker, donut-chart, drawer, dropdown,
-context-menu, dropdown-item, empty-state, expandable-text, file-upload, filter-bar, filter-chip, funnel-chart, gauge, hold-button, hover-card, icon,
+context-menu, dropdown-item, empty-state, expandable-text, file-upload, filter-bar, filter-chip, funnel-chart, gauge, hold-button, hover-card, icon, icon-swap,
 inline-edit, input, kbd, line-chart, modal,
 nav-item, number-field, otp-input, panel, panel-row, password-strength,
 popover, progress, radar-chart, radio, radio-card, radio-cards, radio-group, rating,
 scroll-area, segment, segmented-control, select, sheet, sheet-item, skeleton, slider, slope-chart, sortable-item, sortable-list, sparkline, split, split-bar, split-pane, stat-tile,
-step, stepper, sub-nav, switch, tab,
-tab-panel, table, table-cell, table-row, tabs, tag-input, theme-switcher,
+step, stepper, sub-nav, swap-button, switch, tab,
+tab-panel, table, table-cell, table-row, tabs, tag-input, team-switcher, theme-switcher,
 time-picker, timeline, timeline-group, timeline-item,
 toast, toast-region,
 toggle, toggle-group, toolbar, toolbar-button, toolbar-separator, tooltip,
-tree, tree-item, treemap, usage-meter, waffle-chart.
+tree, tree-item, treemap, usage-meter, user-menu, waffle-chart.
 
 **Every built component has a spec.**
 
@@ -760,7 +771,7 @@ toolbar-separator), toggle-group (with toggle), popover, hover-card, context-men
 confirm-button, hold-button, confirm-popover, tree (with tree-item),
 expandable-text, slider, time-picker, inline-edit, command-palette (with
 command-group and command-item), sortable-list (with sortable-item), split
-(with split-pane), sub-nav —
+(with split-pane), swap-button, team-switcher, user-menu (a dropdown), sub-nav —
 always (sub-nav only to toggle: its open state is rendered from PHP; tree's
 structure, selection and open folders are rendered from PHP too). Plus ONE optional prop each on
 checkbox (`indeterminate`), nav-item (`collapsedWhen`), toast (`dismiss`),
@@ -790,7 +801,12 @@ expandable-text and code-block's `expandable` (`dsClamp`), code-block's copy
 `x-ds-anchor`), counter when bound to Alpine state (`dsRoll`), slider
 (`dsSlider`), time-picker (`dsTimePicker`, `dsClear`, `x-ds-anchor`),
 inline-edit (`dsInlineEdit`), command-palette (`dsCommandPalette`, in the
-modal recipe's layer), sortable-list (`dsSortable`) and split (`dsSplit`). kbd and
+modal recipe's layer), sortable-list (`dsSortable`), split (`dsSplit`),
+swap-button (`dsSwap`; copy-button shares its face recipe, partials/swap.php,
+and its timer, shared/flag.js) and team-switcher (`dsTeamSwitcher`, on
+`dsPopover`; its ranking is the command palette's, shared/rank.js). icon-swap
+and button-group's `expanding` are plain Blade and CSS; user-menu is a
+dropdown, with the script as an enhancement only. kbd and
 filter-chip are plain Blade and CSS; a chip's `remove` and the bar's `reset`
 are plain inline `onclick` dispatches.
 `<x-ds::theme-script />` is a class component like
