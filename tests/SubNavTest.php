@@ -147,4 +147,15 @@ final class SubNavTest extends TestCase
         $this->assertSame($a[1], $b[1]);
         $this->assertStringStartsWith('ds-sub-nav-', $a[1]);
     }
+
+    #[Test]
+    public function a_passed_id_names_the_section_and_its_parts(): void
+    {
+        $html = $this->render('id="rail-reports"');
+
+        $this->assertMatchesRegularExpression('/<div x-data="[^"]*" id="rail-reports">/', $html);
+        $this->assertStringContainsString('aria-controls="rail-reports-pages"', $this->button($html));
+        $this->assertStringContainsString('id="rail-reports-button"', $this->button($html));
+        $this->assertStringContainsString('id="rail-reports-pages"', $this->group($html));
+    }
 }

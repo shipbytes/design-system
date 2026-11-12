@@ -41,7 +41,9 @@
         );
     }
 
-    $id = 'ds-sub-nav-'.substr(md5($label.$children), 0, 8);
+    // Stable across renders, but the same for two identical sections: a rail
+    // drawn twice on one page (desktop and phone) passes an id to each.
+    $id = $attributes->get('id') ?? 'ds-sub-nav-'.substr(md5($label.$children), 0, 8);
 
     // "Contains the current page" is the label and icon at full strength and
     // nothing more. The raised card stays the one mark of "you are here"; a
@@ -63,7 +65,7 @@
         id="{{ $id }}-button"
         aria-expanded="{{ $open ? 'true' : 'false' }}"
         :aria-expanded="dsSubNavOpen ? 'true' : 'false'"
-        aria-controls="{{ $id }}"
+        aria-controls="{{ $id }}-pages"
         @click="dsSubNavOpen = ! dsSubNavOpen"
         @if ($collapsedWhen) x-show="!({{ $collapsedWhen }})" @endif
         class="group {{ $base }} w-full gap-3 px-2 py-2"
@@ -119,7 +121,7 @@
         not the line.
     --}}
     <div
-        id="{{ $id }}"
+        id="{{ $id }}-pages"
         role="group"
         aria-labelledby="{{ $id }}-button"
         x-show="dsSubNavOpen{{ $collapsedWhen ? ' && !('.$collapsedWhen.')' : '' }}"

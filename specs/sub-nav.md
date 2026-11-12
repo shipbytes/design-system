@@ -21,7 +21,11 @@ the current page" belongs here. This is that.
 ```
 
 - **Root**: `div`, `x-data="{ dsSubNavOpen: <bool> }"`. Attributes passed to
-  the component land here.
+  the component land here, `id` included; the button is `<id>-button` and the
+  pages `<id>-pages`. Without an `id` the base is `ds-sub-nav-` and a hash of
+  the label and pages, stable across renders but the same for two identical
+  sections, so a rail drawn twice on one page (a desktop rail and a phone
+  sheet) gives each sub-nav an `id`.
 - **Button**: `button[type=button]` with the nav-item's row classes (`w-full
   gap-3 px-2 py-2`, `rounded-control`, `text-section font-medium`), the icon
   slot, the label and a `chevron-down` mini icon that turns 180° when open,

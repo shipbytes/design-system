@@ -42,6 +42,10 @@ do not tell it.
 
 The icon is a **slot**, `<x-slot:icon>`, as on nav-item.
 
+Drawing the same rail twice on one page, say in the sidebar and in a phone
+sheet? Give each sub-nav an `id`. The button and its pages are named from it,
+and two identical sections would otherwise share theirs.
+
 ## The section and the page are marked differently
 
 The page you are on is the raised card, on its own row. The section it sits
