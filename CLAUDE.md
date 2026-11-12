@@ -42,6 +42,7 @@ package.json      @shipbytes/design-tokens   Composer reads composer.json from
 src/              the service provider
   View/Components/Scripts.php   ds::scripts, the include (a class, not a view)
   Support/Behaviour.php         the x-data expression for a shared behaviour
+  Support/Field.php             reads the field recipe (partials/field.php)
 config/           blade-ui.php — icon aliases, default icon size
 resources/views/  the Blade components + the two pagination views and
                   their two Livewire variants
@@ -49,6 +50,13 @@ resources/views/  the Blade components + the two pagination views and
   partials/bar.blade.php        the track and fill progress and usage-meter
                                 share; a partial, not a component, because it
                                 carries no role or value of its own
+  partials/field.php            the field recipe: ds::input's class strings
+                                (shell, control, label, help, error), which
+                                otp-input, tag-input and number-field draw
+                                with too. Plain PHP under resources/views so a
+                                consumer's Tailwind scans it; ds::input's 1.x
+                                output is held byte for byte by
+                                InputUnchangedTest
 resources/js/     the shared script's source: plain ES modules, hand-edited
   blade-ui.js       the Alpine plugin; lists every behaviour
   global.js         the classic-script entry ds::scripts inlines
@@ -418,7 +426,8 @@ inline and the package shipped no JavaScript.
   one entry in `BEHAVIOURS`. Nothing else in here.
 - `resources/js/global.js` — the classic entry. Do not add behaviour to it.
 - `scripts/build-js.mjs` turns those into `dist/blade-ui.js` (ESM, readable)
-  and `dist/blade-ui.global.js` (classic, whole-line comments stripped). It
+  and `dist/blade-ui.global.js` (classic, whole-line comments and leading
+  indentation stripped, safe because no string spans lines). It
   accepts a deliberately small set of module shapes — `import { a } from
   './x.js'`, `import x from './x.js'`, `export function`, `export default
   function`, `export const` — and refuses anything else by name. Relative
@@ -461,8 +470,10 @@ that has to be right before Alpine boots is PHP, not either of these.
 script element, read once per process. Inline was chosen over a package route
 (which has to survive route caching, subdirectory installs and the host's
 middleware) and over a published asset (which goes stale on `composer update`,
-silently — the old behaviour keeps running). It costs ~3 kB per page, uncached;
-revisit with a route-served, versioned URL if it grows past roughly 25 kB. The
+silently — the old behaviour keeps running). It costs ~19 kB per page (~6 kB
+compressed), uncached, since batch 02; revisit with a route-served, versioned
+URL if it grows past roughly 25 kB, which the next two or three behaviours will
+reach. The
 `nonce` prop sets a CSP nonce, defaulting to the one given to
 `Vite::useCspNonce()`. It renders through an `HtmlString`, never through Blade,
 so a `{{` or an `@` in the JavaScript cannot be compiled. It is a class
@@ -488,15 +499,16 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 46 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 50 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
 accordion, accordion-item, alert, avatar, avatar-group, badge, bottom-nav,
 bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, combobox,
 date-picker, drawer, dropdown, dropdown-item, empty-state, file-upload, icon,
-input, modal, nav-item, panel, panel-row, progress, radio, radio-group, select,
-sheet, sheet-item, skeleton, stat-tile, step, stepper, switch, tab, tab-panel,
-table, table-cell, table-row, tabs, toast, toast-region, tooltip, usage-meter.
+input, modal, nav-item, number-field, otp-input, panel, panel-row,
+password-strength, progress, radio, radio-group, select, sheet, sheet-item,
+skeleton, stat-tile, step, stepper, switch, tab, tab-panel, table, table-cell,
+table-row, tabs, tag-input, toast, toast-region, tooltip, usage-meter.
 
 **Every built component has a spec.**
 
@@ -504,17 +516,30 @@ Verified end to end: `composer require` from GitHub into a fresh Laravel app,
 three lines of CSS, every component rendering styled in light and dark.
 
 **Needs Alpine:** modal, drawer, sheet, dropdown, select, combobox, date-picker,
-accordion (with accordion-item), file-upload, tooltip — always. Plus ONE
-optional prop each on checkbox (`indeterminate`), nav-item (`collapsedWhen`) and
-toast (`dismiss`), and the pagination views' Livewire variants, whose scroll to
+accordion (with accordion-item), file-upload, tooltip, otp-input, tag-input,
+number-field, password-strength — always. Plus ONE optional prop each on
+checkbox (`indeterminate`), nav-item (`collapsedWhen`), toast (`dismiss`) and
+input (`reveal`), and the pagination views' Livewire variants, whose scroll to
 the top is an `x-on:click` that Livewire's bundled Alpine runs. Everything else
 is plain Blade and CSS (stat-tile's count-up is a plain script it pushes to a
 `scripts` stack), and nothing anywhere needs Livewire; the pagination views'
 Livewire variants are opt-in. Counted from the directives in the views on
 `next-2.0`, not from the docs.
 
-**Needs the shared script:** none yet. It registers `dsClipboard`, which the
+**Needs the shared script:** otp-input (`dsOtp`), tag-input (`dsTagInput`),
+number-field (`dsNumberField`), password-strength (`dsPasswordStrength`), and
+input's `reveal` (`dsPassword`). It also registers `dsClipboard`, which the
 copy button will build on.
+
+**How those behaviours are written** (batch 02 set the pattern): the Blade view
+renders the whole correct state, value and disabled flags included, and marks
+the parts with `data-ds-*` hooks; the behaviour finds them in `init()`, wires
+its listeners on `this.$el` and removes them in `destroy()`, and exposes
+nothing else. The script never adds a class: a consumer's Tailwind only sees
+classes in resources/views, so visual state travels as an attribute
+(`hidden`, `aria-pressed`, `data-level`) that a variant in the view reads, and
+a cloned `template` carries any markup the script has to create. The strings a
+behaviour speaks are passed in from the view, in English.
 
 The alert's dismiss used to be Alpine's `@click` and is now a plain `onclick`:
 nothing else in that component needs JavaScript, and with `@click` the ✕
@@ -579,7 +604,8 @@ Moving them over is a restyle of existing components, which batch 00 was told
 not to do. The skeleton's pulse and the stat tile's count-up already honour it.
 
 **4a. The include is not cached across pages.** Inlining means every page
-carries the script. Fine at ~3 kB; see The shared script for when to revisit.
+carries the script. ~19 kB (6 kB compressed) after batch 02, under the
+~25 kB line; see The shared script for when to revisit.
 
 **5. The gallery cannot show `sheet` or `bottom-nav`.** Both are `lg:hidden`, and
 the gallery is a page a person opens on a desktop, so at that viewport they
@@ -643,7 +669,8 @@ Rules the conversion imposes on the Markdown:
   from `npm run build:docs`.
 - A callout `> **Needs Alpine.** See [getting started](../getting-started.md#alpine).`
   on every page of the ten Alpine components, and "— needs Alpine" in that
-  component's row in `docs/README.md`.
+  component's row in `docs/README.md` ("— needs Alpine and the script" for the
+  four that use the shared script, whose callout is the one above).
 
 **Merging to master rebuilds the site automatically** (GitHub push webhook → the
 rebuild Worker → the site's deploy workflow, ~2 minutes; branches and tags are

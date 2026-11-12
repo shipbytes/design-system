@@ -6,81 +6,641 @@
 (function () {
 'use strict';
 const __ds_behaviours_clipboard = (() => {
-    const COPIED_FOR = 1500;
-    function clipboard(Alpine) {
-        Alpine.data('dsClipboard', (options = {}) => {
-            const fallback = options.text ?? '';
-            const showFor = options.for ?? COPIED_FOR;
-            let timer = null;
-            return {
-                copied: false,
-                async copy(value = fallback) {
-                    const ok = await write(String(value ?? ''));
-                    if (!ok) {
-                        clearTimeout(timer);
-                        this.copied = false;
-                        return false;
-                    }
-                    clearTimeout(timer);
-                    this.copied = true;
-                    timer = setTimeout(() => {
-                        this.copied = false;
-                    }, showFor);
-                    return true;
-                },
-                destroy() {
-                    clearTimeout(timer);
-                },
-            };
-        });
-    }
-    async function write(text) {
-        if (window.isSecureContext && navigator.clipboard?.writeText) {
-            try {
-                await navigator.clipboard.writeText(text);
-                return true;
-            } catch {
-            }
-        }
-        return legacyCopy(text);
-    }
-    function legacyCopy(text) {
-        const area = document.createElement('textarea');
-        const focused = document.activeElement;
-        area.value = text;
-        area.setAttribute('readonly', '');
-        area.style.position = 'fixed';
-        area.style.top = '-1000px';
-        area.style.opacity = '0';
-        document.body.appendChild(area);
-        area.select();
-        let ok = false;
-        try {
-            ok = document.execCommand('copy');
-        } catch {
-            ok = false;
-        }
-        area.remove();
-        focused?.focus?.();
-        return ok;
-    }
-    return { clipboard };
+const COPIED_FOR = 1500;
+function clipboard(Alpine) {
+Alpine.data('dsClipboard', (options = {}) => {
+const fallback = options.text ?? '';
+const showFor = options.for ?? COPIED_FOR;
+let timer = null;
+return {
+copied: false,
+async copy(value = fallback) {
+const ok = await write(String(value ?? ''));
+if (!ok) {
+clearTimeout(timer);
+this.copied = false;
+return false;
+}
+clearTimeout(timer);
+this.copied = true;
+timer = setTimeout(() => {
+this.copied = false;
+}, showFor);
+return true;
+},
+destroy() {
+clearTimeout(timer);
+},
+};
+});
+}
+async function write(text) {
+if (window.isSecureContext && navigator.clipboard?.writeText) {
+try {
+await navigator.clipboard.writeText(text);
+return true;
+} catch {
+}
+}
+return legacyCopy(text);
+}
+function legacyCopy(text) {
+const area = document.createElement('textarea');
+const focused = document.activeElement;
+area.value = text;
+area.setAttribute('readonly', '');
+area.style.position = 'fixed';
+area.style.top = '-1000px';
+area.style.opacity = '0';
+document.body.appendChild(area);
+area.select();
+let ok = false;
+try {
+ok = document.execCommand('copy');
+} catch {
+ok = false;
+}
+area.remove();
+focused?.focus?.();
+return ok;
+}
+return { clipboard };
+})();
+const __ds_behaviours_number_field = (() => {
+const HOLD_DELAY = 400;
+const HOLD_EVERY = 75;
+function numberField(Alpine) {
+Alpine.data('dsNumberField', () => {
+let teardown = null;
+return {
+init() {
+teardown = wire(this.$el);
+},
+destroy() {
+teardown?.();
+},
+};
+});
+}
+function wire(root) {
+const input = root.querySelector('[data-ds-number-input]');
+const buttons = [...root.querySelectorAll('[data-ds-step]')];
+let press = null;
+let moved = false;
+const limit = (name) => {
+const raw = input.getAttribute(name);
+return raw === null || raw === '' || Number.isNaN(Number(raw)) ? null : Number(raw);
+};
+function refresh() {
+const value = input.value === '' ? null : Number(input.value);
+for (const button of buttons) {
+const up = button.dataset.dsStep === 'up';
+const bound = limit(up ? 'max' : 'min');
+button.disabled = input.disabled
+|| (value !== null && bound !== null && (up ? value >= bound : value <= bound));
+}
+}
+function step(direction) {
+const before = input.value;
+try {
+if (direction > 0) input.stepUp();
+else input.stepDown();
+} catch {
+const min = limit('min');
+const max = limit('max');
+let next = (input.value === '' ? 0 : Number(input.value)) + direction;
+if (max !== null) next = Math.min(next, max);
+if (min !== null) next = Math.max(next, min);
+input.value = String(next);
+}
+if (input.value === before) return false;
+input.dispatchEvent(new Event('input', { bubbles: true }));
+moved = true;
+return true;
+}
+function end() {
+if (press) {
+clearTimeout(press.delay);
+clearInterval(press.repeat);
+press.listeners.abort();
+press = null;
+}
+if (moved) {
+moved = false;
+input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+}
+function onPointerDown(event) {
+const button = event.target.closest('[data-ds-step]');
+if (!button || button.disabled || event.button !== 0) return;
+event.preventDefault();
+end();
+const direction = button.dataset.dsStep === 'up' ? 1 : -1;
+step(direction);
+const listeners = new AbortController();
+press = {
+listeners,
+repeat: null,
+delay: setTimeout(() => {
+press.repeat = setInterval(() => {
+if (!step(direction)) end();
+}, HOLD_EVERY);
+}, HOLD_DELAY),
+};
+window.addEventListener('pointerup', end, { signal: listeners.signal });
+window.addEventListener('pointercancel', end, { signal: listeners.signal });
+button.addEventListener('pointerleave', end, { signal: listeners.signal });
+}
+function onClick(event) {
+const button = event.target.closest('[data-ds-step]');
+if (!button || button.disabled) return;
+if (event.detail !== 0) return;
+step(button.dataset.dsStep === 'up' ? 1 : -1);
+end();
+}
+function onMouseDown(event) {
+if (event.target.closest('[data-ds-step]')) event.preventDefault();
+}
+function onContextMenu(event) {
+if (event.target.closest('[data-ds-step]')) event.preventDefault();
+}
+const listeners = [
+['pointerdown', onPointerDown],
+['mousedown', onMouseDown],
+['click', onClick],
+['contextmenu', onContextMenu],
+['input', refresh],
+['change', refresh],
+];
+for (const [type, fn] of listeners) root.addEventListener(type, fn);
+refresh();
+return () => {
+end();
+for (const [type, fn] of listeners) root.removeEventListener(type, fn);
+};
+}
+return { numberField };
+})();
+const __ds_behaviours_otp = (() => {
+const DIGIT = /^[0-9]$/;
+const ALPHANUMERIC = /^[A-Za-z0-9]$/;
+function otp(Alpine) {
+Alpine.data('dsOtp', (options = {}) => {
+const allowed = options.numeric === false ? ALPHANUMERIC : DIGIT;
+let teardown = null;
+return {
+init() {
+teardown = wire(this.$el, allowed);
+},
+destroy() {
+teardown?.();
+},
+};
+});
+}
+function wire(root, allowed) {
+const boxes = [...root.querySelectorAll('[data-ds-otp-box]')];
+const field = root.querySelector('[data-ds-otp-value]');
+const held = boxes.map((box) => box.value);
+const accept = (text) => [...text].filter((c) => allowed.test(c));
+const indexOf = (el) => boxes.indexOf(el);
+function focusBox(i) {
+const box = boxes[Math.max(0, Math.min(i, boxes.length - 1))];
+box.focus();
+box.select();
+}
+function write(from, chars) {
+let at = from;
+for (const c of chars) {
+if (at >= boxes.length) break;
+boxes[at].value = c;
+held[at] = c;
+at++;
+}
+return at - 1;
+}
+function distribute(from, chars) {
+const last = write(chars.length >= boxes.length ? 0 : from, chars);
+sync();
+focusBox(last);
+}
+function sync() {
+const value = boxes.map((box) => box.value).join('');
+if (value === field.value) return;
+field.value = value;
+field.dispatchEvent(new Event('input', { bubbles: true }));
+field.dispatchEvent(new Event('change', { bubbles: true }));
+if (boxes.every((box) => box.value !== '')) {
+field.dispatchEvent(new CustomEvent('complete', { bubbles: true, detail: { value } }));
+}
+}
+function onInput(event) {
+const box = event.target;
+const i = indexOf(box);
+if (i < 0) return;
+const typed = event.inputType === 'insertText' && event.data ? event.data : box.value;
+const chars = accept(typed);
+if (!chars.length) {
+box.value = String(event.inputType ?? '').startsWith('delete') ? '' : held[i];
+held[i] = box.value;
+sync();
+return;
+}
+if (chars.length === 1) {
+box.value = chars[0];
+held[i] = chars[0];
+sync();
+if (i < boxes.length - 1) focusBox(i + 1);
+return;
+}
+distribute(i, chars);
+}
+function onPaste(event) {
+const i = indexOf(event.target);
+if (i < 0) return;
+event.preventDefault();
+const chars = accept(event.clipboardData?.getData('text') ?? '');
+if (chars.length) distribute(i, chars);
+}
+function onKeydown(event) {
+const box = event.target;
+const i = indexOf(box);
+if (i < 0 || event.ctrlKey || event.metaKey || event.altKey) return;
+switch (event.key) {
+case 'Backspace':
+if (box.value === '' && i > 0) {
+event.preventDefault();
+boxes[i - 1].value = '';
+held[i - 1] = '';
+sync();
+focusBox(i - 1);
+}
+return;
+case 'ArrowLeft':
+event.preventDefault();
+focusBox(i - 1);
+return;
+case 'ArrowRight':
+event.preventDefault();
+focusBox(i + 1);
+return;
+case 'Home':
+event.preventDefault();
+focusBox(0);
+return;
+case 'End':
+event.preventDefault();
+focusBox(boxes.length - 1);
+return;
+}
+}
+function onFocus(event) {
+if (indexOf(event.target) >= 0) event.target.select();
+}
+const listeners = [
+['input', onInput],
+['paste', onPaste],
+['keydown', onKeydown],
+['focusin', onFocus],
+];
+for (const [type, fn] of listeners) root.addEventListener(type, fn);
+return () => {
+for (const [type, fn] of listeners) root.removeEventListener(type, fn);
+};
+}
+return { otp };
+})();
+const __ds_behaviours_password = (() => {
+function password(Alpine) {
+Alpine.data('dsPassword', () => {
+let teardown = null;
+return {
+init() {
+teardown = reveal(this.$el);
+},
+destroy() {
+teardown?.();
+},
+};
+});
+Alpine.data('dsPasswordStrength', (options = {}) => {
+let teardown = null;
+return {
+init() {
+teardown = meter(this.$el, options);
+},
+destroy() {
+teardown?.();
+},
+};
+});
+}
+function reveal(button) {
+const input = () => document.getElementById(button.getAttribute('aria-controls'));
+function show(visible) {
+const field = input();
+if (!field) return;
+const focused = document.activeElement === field;
+const { selectionStart, selectionEnd, selectionDirection } = field;
+field.type = visible ? 'text' : 'password';
+button.setAttribute('aria-pressed', String(visible));
+if (focused && selectionStart !== null) {
+field.setSelectionRange(selectionStart, selectionEnd, selectionDirection ?? 'none');
+}
+}
+const onClick = () => show(button.getAttribute('aria-pressed') !== 'true');
+const onMouseDown = (event) => {
+if (document.activeElement === input()) event.preventDefault();
+};
+const onSubmit = (event) => {
+const field = input();
+if (field && event.target.contains(field)) show(false);
+};
+button.addEventListener('click', onClick);
+button.addEventListener('mousedown', onMouseDown);
+document.addEventListener('submit', onSubmit, true);
+return () => {
+button.removeEventListener('click', onClick);
+button.removeEventListener('mousedown', onMouseDown);
+document.removeEventListener('submit', onSubmit, true);
+};
+}
+function meter(root, options) {
+const target = String(options.for ?? '');
+const minLength = Number.isInteger(options.minLength) ? options.minLength : 8;
+const labels = Array.isArray(options.labels) ? options.labels : [];
+const words = root.querySelector('[data-ds-strength-text]');
+let level = null;
+function update(value) {
+const next = score(value, minLength);
+if (next === level) return;
+level = next;
+root.dataset.level = String(next);
+words.textContent = next ? String(labels[next - 1] ?? '') : '';
+}
+const onInput = (event) => {
+if (event.target?.id === target) update(event.target.value ?? '');
+};
+document.addEventListener('input', onInput);
+update(document.getElementById(target)?.value ?? '');
+return () => document.removeEventListener('input', onInput);
+}
+function score(value, minLength) {
+if (!value) return 0;
+if (value.length < minLength || isCommon(value)) return 1;
+let points = 1;
+if (value.length >= 12) points++;
+if (value.length >= 16) points++;
+if (value.length >= 20) points++;
+const kinds = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((kind) => kind.test(value)).length;
+if (kinds >= 3) points++;
+if (kinds === 4) points++;
+if (/(.)\1\1/.test(value)) points--;
+if (hasRun(value.toLowerCase())) points--;
+if (new Set(value).size < Math.min(value.length / 2, 6)) points--;
+return Math.max(1, Math.min(4, points));
+}
+const RUNS = ['abcdefghijklmnopqrstuvwxyz', '01234567890', 'qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+function hasRun(value) {
+for (let i = 0; i + 4 <= value.length; i++) {
+const piece = value.slice(i, i + 4);
+const backwards = [...piece].reverse().join('');
+if (RUNS.some((run) => run.includes(piece) || run.includes(backwards))) return true;
+}
+return false;
+}
+const COMMON = new Set([
+'password', 'passw0rd', 'password1', 'qwerty', 'qwertyuiop', 'asdfghjkl', 'letmein', 'welcome',
+'iloveyou', 'admin', 'administrator', 'login', 'monkey', 'dragon', 'football', 'baseball',
+'master', 'shadow', 'sunshine', 'princess', 'superman', 'batman', 'trustno1', 'starwars',
+'whatever', 'freedom', 'hello', 'secret', 'changeme', 'default', 'abc123', 'qazwsx',
+'zaq12wsx', '1q2w3e4r', '1qaz2wsx', '123456', '1234567', '12345678', '123456789',
+'1234567890', '111111', '000000', '123123', '654321', '666666', '121212', 'michael',
+'jennifer', 'charlie', 'jordan', 'thomas', 'summer', 'internet', 'computer',
+]);
+const SWAPS = { 0: 'o', 1: 'i', 3: 'e', 4: 'a', 5: 's', 7: 't', '@': 'a', $: 's', '!': 'i' };
+function isCommon(value) {
+const lower = value.toLowerCase();
+if (COMMON.has(lower)) return true;
+const trim = (text) => text.replace(/^[^a-z]+|[^a-z]+$/g, '');
+const plain = (text) => [...text].map((c) => SWAPS[c] ?? c).join('');
+return [trim(lower), plain(trim(lower)), trim(plain(lower))]
+.some((candidate) => candidate.length >= 4 && COMMON.has(candidate));
+}
+return { password };
+})();
+const __ds_behaviours_tag_input = (() => {
+function tagInput(Alpine) {
+Alpine.data('dsTagInput', (options = {}) => {
+let teardown = null;
+return {
+init() {
+teardown = wire(this.$el, settings(options));
+},
+destroy() {
+teardown?.();
+},
+};
+});
+}
+function settings(options) {
+const separators = options.separators ?? ['Enter', ','];
+return {
+enter: separators.includes('Enter'),
+characters: separators.filter((s) => s !== 'Enter' && s.length === 1),
+unique: options.unique !== false,
+max: Number.isInteger(options.max) ? options.max : null,
+validate: options.validate ?? null,
+messages: options.messages ?? {},
+};
+}
+function wire(root, s) {
+const text = root.querySelector('[data-ds-tag-text]');
+const list = root.querySelector('[data-ds-tag-list]');
+const template = root.querySelector('[data-ds-tag-template]');
+const note = root.querySelector('[data-ds-tag-note]');
+const noteText = note.querySelector('[data-ds-tag-note-text]');
+const help = root.querySelector('[data-ds-tag-help]');
+const status = root.querySelector('[data-ds-tag-status]');
+const invalid = text.getAttribute('aria-invalid');
+const first = s.characters[0];
+const joiner = !first || first === ' ' ? ' ' : first + ' ';
+let showing = null;
+const probe = document.createElement('input');
+probe.type = 'email';
+const say = (key, tag = '') =>
+String(s.messages[key] ?? '').replaceAll(':tag', tag).replaceAll(':max', String(s.max ?? ''));
+const chips = () => [...list.querySelectorAll('[data-ds-tag]')];
+const valueOf = (chip) => chip.querySelector('[data-ds-tag-value]').value;
+const removeButton = (chip) => chip?.querySelector('[data-ds-tag-remove]');
+function announce(message) {
+status.textContent = message;
+}
+function tell(message, kind = null) {
+showing = message ? kind : null;
+noteText.textContent = message;
+note.hidden = !message;
+if (help) help.hidden = Boolean(message);
+if (message) text.setAttribute('aria-invalid', 'true');
+else if (invalid === null) text.removeAttribute('aria-invalid');
+else text.setAttribute('aria-invalid', invalid);
+}
+function problem(value) {
+if (s.max !== null && chips().length >= s.max) return ['max', say('max', value)];
+if (s.validate === 'email') {
+probe.value = value;
+if (!probe.checkValidity()) return ['invalid', say('invalid', value)];
+}
+const lower = value.toLowerCase();
+if (s.unique && chips().some((chip) => valueOf(chip).toLowerCase() === lower)) {
+return ['duplicate', say('duplicate', value)];
+}
+return null;
+}
+function add(value) {
+const chip = template.content.firstElementChild.cloneNode(true);
+chip.querySelector('[data-ds-tag-label]').textContent = value;
+removeButton(chip).setAttribute('aria-label', say('remove', value));
+chip.querySelector('[data-ds-tag-value]').value = value;
+list.append(chip);
+list.hidden = false;
+announce(say('added', value));
+}
+function remove(chip) {
+const value = valueOf(chip);
+chip.remove();
+list.hidden = chips().length === 0;
+announce(say('removed', value));
+if (showing === 'max') tell('');
+text.focus();
+}
+function commit(raw, splitters = s.characters, tail = '') {
+const kept = [];
+let wrong = null;
+for (const part of split(raw, splitters)) {
+const value = part.trim();
+if (!value) continue;
+const why = problem(value);
+if (why) {
+kept.push(value);
+wrong ??= why;
+} else {
+add(value);
+}
+}
+if (tail) kept.push(tail);
+text.value = kept.join(joiner);
+tell(wrong?.[1] ?? '', wrong?.[0]);
+}
+function onTextKeydown(event) {
+if (event.isComposing) return;
+const caretAtStart = text.selectionStart === 0 && text.selectionEnd === 0;
+if (event.key === 'Enter' && s.enter) {
+if (!text.value.trim()) return;
+event.preventDefault();
+commit(text.value);
+return;
+}
+if (s.characters.includes(event.key)) {
+event.preventDefault();
+commit(text.value);
+return;
+}
+const back = event.key === 'Backspace' ? text.value === '' : event.key === 'ArrowLeft';
+if (back && caretAtStart && chips().length) {
+event.preventDefault();
+removeButton(chips().at(-1)).focus();
+}
+}
+function onChipKeydown(event, chip) {
+const all = chips();
+const at = all.indexOf(chip);
+switch (event.key) {
+case 'Backspace':
+case 'Delete':
+event.preventDefault();
+remove(chip);
+return;
+case 'ArrowLeft':
+event.preventDefault();
+if (at > 0) removeButton(all[at - 1]).focus();
+return;
+case 'ArrowRight':
+event.preventDefault();
+if (at < all.length - 1) removeButton(all[at + 1]).focus();
+else text.focus();
+return;
+}
+}
+function onKeydown(event) {
+if (event.target === text) return onTextKeydown(event);
+const chip = event.target.closest('[data-ds-tag-remove]')?.closest('[data-ds-tag]');
+if (chip) onChipKeydown(event, chip);
+}
+function onInput(event) {
+if (event.target !== text) return;
+if (text.value.trim() === '' && !note.hidden) tell('');
+const at = Math.max(...s.characters.map((c) => text.value.lastIndexOf(c)));
+if (at < 0) return;
+commit(text.value.slice(0, at), s.characters, text.value.slice(at + 1).trimStart());
+}
+function onPaste(event) {
+if (event.target !== text) return;
+const pasted = event.clipboardData?.getData('text') ?? '';
+if (!/[\r\n]/.test(pasted) && !s.characters.some((c) => pasted.includes(c))) return;
+event.preventDefault();
+const whole = text.value.slice(0, text.selectionStart) + pasted + text.value.slice(text.selectionEnd);
+commit(whole, [...s.characters, '\n', '\r']);
+}
+function onClick(event) {
+const button = event.target.closest('[data-ds-tag-remove]');
+if (button) {
+remove(button.closest('[data-ds-tag]'));
+return;
+}
+if (event.target.closest('[data-ds-tag-field]') && !text.disabled) text.focus();
+}
+function onFocusOut(event) {
+if (event.target === text && text.value.trim()) commit(text.value);
+}
+const listeners = [
+['keydown', onKeydown],
+['input', onInput],
+['paste', onPaste],
+['click', onClick],
+['focusout', onFocusOut],
+];
+for (const [type, fn] of listeners) root.addEventListener(type, fn);
+return () => {
+for (const [type, fn] of listeners) root.removeEventListener(type, fn);
+};
+}
+function split(raw, splitters) {
+let parts = [raw];
+for (const c of splitters) parts = parts.flatMap((part) => part.split(c));
+return parts;
+}
+return { tagInput };
 })();
 const __ds_blade_ui = (() => {
-    const { clipboard } = __ds_behaviours_clipboard;
-    const BEHAVIOURS = [clipboard];
-    const REGISTERED = Symbol.for('shipbytes.blade-ui');
-    function bladeUi(Alpine) {
-        if (!Alpine || Alpine[REGISTERED]) return;
-        Alpine[REGISTERED] = true;
-        for (const register of BEHAVIOURS) register(Alpine);
-    }
-    return { default: bladeUi };
+const { clipboard } = __ds_behaviours_clipboard;
+const { numberField } = __ds_behaviours_number_field;
+const { otp } = __ds_behaviours_otp;
+const { password } = __ds_behaviours_password;
+const { tagInput } = __ds_behaviours_tag_input;
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password];
+const REGISTERED = Symbol.for('shipbytes.blade-ui');
+function bladeUi(Alpine) {
+if (!Alpine || Alpine[REGISTERED]) return;
+Alpine[REGISTERED] = true;
+for (const register of BEHAVIOURS) register(Alpine);
+}
+return { default: bladeUi };
 })();
 const __ds_global = (() => {
-    const bladeUi = __ds_blade_ui.default;
-    if (window.Alpine) bladeUi(window.Alpine);
-    document.addEventListener('alpine:init', () => bladeUi(window.Alpine));
-    return {};
+const bladeUi = __ds_blade_ui.default;
+if (window.Alpine) bladeUi(window.Alpine);
+document.addEventListener('alpine:init', () => bladeUi(window.Alpine));
+return {};
 })();
 })();

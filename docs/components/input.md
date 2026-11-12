@@ -4,6 +4,10 @@ A text field, a textarea, or a native select. One component, three shapes.
 
 ![Input](../images/input.png)
 
+> `reveal` is the one prop here that needs [Alpine](../getting-started.md#alpine)
+> and the package's [script](../getting-started.md#3-add-the-script). Everything
+> else on this page works in a plain Blade view with no JavaScript at all.
+
 ## Use it
 
 ```blade
@@ -26,6 +30,7 @@ A text field, a textarea, or a native select. One component, three shapes.
 | `error` | string | — | Validation message. Styles the control and sets `aria-invalid`. |
 | `icon` | string | — | Heroicon inside the control, before the value. |
 | `rows` | int | `3` | Textarea only. |
+| `reveal` | bool | `false` | `type="password"` only: a button in the field that shows the password and hides it again. Needs Alpine and the script. |
 | `disabled` | bool | `false` | |
 | `readonly` | attribute | — | Not a prop: pass it like any HTML attribute. The field looks fixed (subtle fill, muted text, no hover) but stays focusable and is submitted. Ignored for `as="select"`, as the browser ignores it there. |
 
@@ -80,6 +85,21 @@ It looks fixed, with the subtle fill and muted text, and no hover border, so it
 does not invite typing. Unlike `disabled` it stays in the tab order, its text can
 be selected, and it is **submitted with the form**. A disabled field is left out
 of the request entirely, which is how a reset form ends up posting no email.
+
+## Show the password
+
+```blade
+<x-ds::input type="password" name="password" label="Password" autocomplete="current-password" :reveal="true" />
+```
+
+`reveal` adds an eye button at the end of a password field. It is a toggle,
+named "Show password" with `aria-pressed` saying whether the password is
+showing; it never submits the form, keeps the caret where it was, and hides the
+password again when the form submits. Ignored on every other type. Without the
+attribute, the field's markup is exactly what it was before the prop existed.
+
+For a new password, pair it with the
+[password strength](password-strength.md) meter.
 
 ## The select here is the native one
 

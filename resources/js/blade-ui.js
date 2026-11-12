@@ -11,8 +11,12 @@
  * BEHAVIOURS below. The conventions are in CLAUDE.md under "The shared script".
  */
 import { clipboard } from './behaviours/clipboard.js';
+import { numberField } from './behaviours/number-field.js';
+import { otp } from './behaviours/otp.js';
+import { password } from './behaviours/password.js';
+import { tagInput } from './behaviours/tag-input.js';
 
-const BEHAVIOURS = [clipboard];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password];
 
 // Symbol.for, not a module-level flag. Two copies of this script, say the
 // inlined one AND a Vite import, are two separate modules with two separate

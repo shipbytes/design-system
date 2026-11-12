@@ -838,6 +838,476 @@ await check('an indeterminate bar sweeps, and under reduced motion stands still 
         || `reduced motion: sweep display ${still.sweep}, stripes display ${still.stripes}`;
 });
 
+// ---------------------------------------------------------------- otp input
+
+/*
+ * dsOtp, from the shared script. Everything is checked against what the form
+ * would POST, not against what the boxes show: one field, named by the
+ * component, carrying the joined code. The boxes carry no name of their own.
+ */
+group('otp input (dsOtp)');
+
+const otpBox = (n) => `#otp-${n}`;
+const otpPosted = async () => (await posted()).otp;
+
+await check('renders the value from PHP into the boxes and the posted field', async () => {
+    const boxes = await page.evaluate(() =>
+        [...document.querySelectorAll('[id^="otp-"][data-ds-otp-box]')].map((b) => b.value));
+    if (JSON.stringify(boxes) !== '["1","2","","","",""]') return `boxes hold ${JSON.stringify(boxes)}`;
+    return JSON.stringify(await otpPosted()) === '["12"]' || `posted ${JSON.stringify(await otpPosted())}`;
+});
+
+await check('the boxes post nothing themselves: one field, one value', async () => {
+    const named = await page.evaluate(() =>
+        [...document.querySelectorAll('[data-ds-otp-box]')].filter((b) => b.name).length);
+    return named === 0 || `${named} boxes carry a name and would post alongside the code`;
+});
+
+await check('named for the job: a group labelled by the label, each box "Digit n of 6"', async () => {
+    const a11y = await page.evaluate(() => {
+        const group = document.getElementById('otp-1').closest('[role=group]');
+        return {
+            group: document.getElementById(group?.getAttribute('aria-labelledby'))?.textContent.trim(),
+            second: document.getElementById('otp-2').getAttribute('aria-label'),
+            first: document.getElementById('otp-1').getAttribute('autocomplete'),
+            rest: document.getElementById('otp-2').getAttribute('autocomplete'),
+            mode: document.getElementById('otp-1').getAttribute('inputmode'),
+        };
+    });
+    if (a11y.group !== 'Verification code') return `the group is named ${JSON.stringify(a11y.group)}`;
+    if (a11y.second !== 'Digit 2 of 6') return `box 2 is named ${JSON.stringify(a11y.second)}`;
+    if (a11y.first !== 'one-time-code' || a11y.rest !== 'off') return `autocomplete is ${a11y.first} / ${a11y.rest}`;
+    return a11y.mode === 'numeric' || `inputmode is ${a11y.mode}`;
+});
+
+await check('typing a digit fills the box and moves on', async () => {
+    await page.focus(otpBox(3));
+    await page.keyboard.type('3');
+    if ((await active()) !== 'otp-4') return `focus is on ${await active()}`;
+    return JSON.stringify(await otpPosted()) === '["123"]' || `posted ${JSON.stringify(await otpPosted())}`;
+});
+
+await check('a character the field does not take is ignored, and focus stays', async () => {
+    await page.keyboard.type('x');
+    const value = await page.locator(otpBox(4)).inputValue();
+    if (value !== '') return `box 4 holds ${JSON.stringify(value)}`;
+    return (await active()) === 'otp-4' || `focus moved to ${await active()}`;
+});
+
+await check('typing into a filled box replaces its digit', async () => {
+    await page.focus(otpBox(1));
+    await page.keyboard.type('9');
+    const value = await page.locator(otpBox(1)).inputValue();
+    if (value !== '9') return `box 1 holds ${JSON.stringify(value)}`;
+    return JSON.stringify(await otpPosted()) === '["923"]' || `posted ${JSON.stringify(await otpPosted())}`;
+});
+
+await check('…and does so with the caret after the digit, not only with it selected', async () => {
+    await page.focus(otpBox(2));
+    await page.evaluate(() => document.getElementById('otp-2').setSelectionRange(1, 1));
+    await page.keyboard.type('5');
+    const value = await page.locator(otpBox(2)).inputValue();
+    return (value === '5' && JSON.stringify(await otpPosted()) === '["953"]')
+        || `box 2 holds ${JSON.stringify(value)}, posted ${JSON.stringify(await otpPosted())}`;
+});
+
+await check('Backspace on an empty box steps back and clears the one before', async () => {
+    await page.focus(otpBox(4));
+    await page.keyboard.press('Backspace');
+    if ((await active()) !== 'otp-3') return `focus is on ${await active()}`;
+    const value = await page.locator(otpBox(3)).inputValue();
+    return (value === '' && JSON.stringify(await otpPosted()) === '["95"]')
+        || `box 3 holds ${JSON.stringify(value)}, posted ${JSON.stringify(await otpPosted())}`;
+});
+
+await check('Left and Right move between boxes', async () => {
+    await page.keyboard.press('ArrowLeft');
+    const left = await active();
+    await page.keyboard.press('ArrowRight');
+    const right = await active();
+    return (left === 'otp-2' && right === 'otp-3') || `Left went to ${left}, Right to ${right}`;
+});
+
+const paste = (selector, text) => page.evaluate(([sel, value]) => {
+    const target = document.querySelector(sel);
+    target.focus();
+    const data = new DataTransfer();
+    data.setData('text/plain', value);
+    target.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+}, [selector, text]);
+
+await check('a whole code pasted into any box fills from the first, separators dropped', async () => {
+    await paste(otpBox(3), '123 456');
+    if (JSON.stringify(await otpPosted()) !== '["123456"]') return `posted ${JSON.stringify(await otpPosted())}`;
+    return (await active()) === 'otp-6' || `focus is on ${await active()}, not the last filled box`;
+});
+
+await check('filling every box dispatches `complete`, heard on the component tag', async () => {
+    const heard = await page.evaluate(() => window.otpHeard);
+    return JSON.stringify(heard) === '["123456"]' || `heard ${JSON.stringify(heard)}`;
+});
+
+await check('x-model on the tag follows the code', async () =>
+    (await page.locator('#otp-mirror').innerText()) === '123456'
+    || `the host's state reads ${await page.locator('#otp-mirror').innerText()}`);
+
+await check('a shorter paste fills from the box it lands in, and a new whole code completes again', async () => {
+    await paste(otpBox(5), '78');
+    if (JSON.stringify(await otpPosted()) !== '["123478"]') return `posted ${JSON.stringify(await otpPosted())}`;
+    const heard = await page.evaluate(() => window.otpHeard);
+    return JSON.stringify(heard) === '["123456","123478"]' || `heard ${JSON.stringify(heard)}`;
+});
+
+await check('the browser\'s one-time-code autofill, which writes the whole code into one box, is spread out', async () => {
+    await page.evaluate(() => {
+        const first = document.getElementById('otp-1');
+        first.focus();
+        first.value = '654321';
+        first.dispatchEvent(new InputEvent('input', { inputType: 'insertReplacementText', bubbles: true }));
+    });
+    return JSON.stringify(await otpPosted()) === '["654321"]' || `posted ${JSON.stringify(await otpPosted())}`;
+});
+
+await check('masked: a PIN shows dots', async () => {
+    const types = await page.evaluate(() =>
+        [...document.querySelectorAll('[id^="pin-"][data-ds-otp-box]')].map((b) => b.type));
+    return types.every((t) => t === 'password') && types.length === 4 || `box types ${JSON.stringify(types)}`;
+});
+
+await check('numeric=false takes letters, refuses the rest, and names its boxes characters', async () => {
+    await page.focus('#ref-1');
+    await page.keyboard.type('a-B');
+    const name = await page.locator('#ref-1').getAttribute('aria-label');
+    if (name !== 'Character 1 of 5') return `box 1 is named ${JSON.stringify(name)}`;
+    return JSON.stringify((await posted()).ref) === '["aB"]' || `posted ${JSON.stringify((await posted()).ref)}`;
+});
+
+// ---------------------------------------------------------------- tag input
+
+group('tag input (dsTagInput)');
+
+const tags = async () => (await posted())['emails[]'] ?? [];
+const tagNote = () => page.evaluate(() => {
+    const note = document.querySelector('[data-ds-tag-note]');
+    return note.hidden ? null : note.textContent.trim();
+});
+const tagStatus = () => page.locator('[data-ds-tag-status]').innerText();
+
+await check('renders the initial chips from PHP, each posting its own value', async () =>
+    JSON.stringify(await tags()) === '["maya@example.com"]' || `posted ${JSON.stringify(await tags())}`);
+
+await check('Enter commits, and the addition is announced', async () => {
+    await page.focus('#emails');
+    await page.keyboard.type('ada@example.com');
+    await page.keyboard.press('Enter');
+    if (JSON.stringify(await tags()) !== '["maya@example.com","ada@example.com"]') return `posted ${JSON.stringify(await tags())}`;
+    if ((await page.locator('#emails').inputValue()) !== '') return 'the text box was not emptied';
+    return (await tagStatus()) === 'Added ada@example.com.' || `the live region says ${JSON.stringify(await tagStatus())}`;
+});
+
+await check('a comma commits', async () => {
+    await page.keyboard.type('bo@example.com,');
+    return JSON.stringify(await tags()) === '["maya@example.com","ada@example.com","bo@example.com"]'
+        || `posted ${JSON.stringify(await tags())}`;
+});
+
+await check('an invalid entry stays in the box with a message, and is not posted', async () => {
+    await page.keyboard.type('nope');
+    await page.keyboard.press('Enter');
+    const left = await page.locator('#emails').inputValue();
+    if (left !== 'nope') return `the box holds ${JSON.stringify(left)} — the entry was dropped`;
+    if ((await tags()).includes('nope')) return 'it was posted anyway';
+    const note = await tagNote();
+    if (note !== 'nope is not an email address.') return `the message reads ${JSON.stringify(note)}`;
+    return (await page.locator('#emails').getAttribute('aria-invalid')) === 'true' || 'the box is not marked invalid';
+});
+
+await check('the message takes the help line\'s place, and goes when the box is cleared', async () => {
+    const helpHidden = await page.evaluate(() => document.querySelector('[data-ds-tag-help]').hidden);
+    if (!helpHidden) return 'help and message are stacked';
+    await page.fill('#emails', '');
+    const note = await tagNote();
+    const helpBack = await page.evaluate(() => !document.querySelector('[data-ds-tag-help]').hidden);
+    return (note === null && helpBack) || `message ${JSON.stringify(note)}, help shown ${helpBack}`;
+});
+
+await check('a duplicate, in any case, stays in the box with a message', async () => {
+    await page.keyboard.type('Maya@Example.com');
+    await page.keyboard.press('Enter');
+    const note = await tagNote();
+    return (note === 'Maya@Example.com is already in the list.' && (await tags()).length === 3)
+        || `message ${JSON.stringify(note)}, posted ${JSON.stringify(await tags())}`;
+});
+
+await check('a pasted list commits every good entry and keeps the bad one', async () => {
+    await page.fill('#emails', '');
+    await paste('#emails', 'cy@example.com\ndee@example.com, nope2');
+    const list = await tags();
+    if (JSON.stringify(list.slice(3)) !== '["cy@example.com","dee@example.com"]') return `posted ${JSON.stringify(list)}`;
+    const left = await page.locator('#emails').inputValue();
+    return left === 'nope2' || `the box holds ${JSON.stringify(left)}`;
+});
+
+await check('past `max`, an entry stays in the box with a message', async () => {
+    await page.fill('#emails', 'eve@example.com');
+    await page.keyboard.press('Enter');
+    const note = await tagNote();
+    return (note === 'No more than 5 can be added.' && (await tags()).length === 5)
+        || `message ${JSON.stringify(note)}, posted ${(await tags()).length}`;
+});
+
+await check('each chip\'s remove button is named for its tag', async () =>
+    (await page.locator('[data-ds-tag-remove]').first().getAttribute('aria-label')) === 'Remove maya@example.com'
+    || `named ${JSON.stringify(await page.locator('[data-ds-tag-remove]').first().getAttribute('aria-label'))}`);
+
+await check('removing one takes its value out, says so, clears "too many", and keeps focus in the field', async () => {
+    await page.locator('[data-ds-tag-remove]').first().click();
+    const list = await tags();
+    if (list.includes('maya@example.com')) return `still posted: ${JSON.stringify(list)}`;
+    if ((await tagStatus()) !== 'Removed maya@example.com.') return `the live region says ${JSON.stringify(await tagStatus())}`;
+    if ((await tagNote()) !== null) return `the "too many" message is still up: ${await tagNote()}`;
+    return (await active()) === 'emails' || `focus fell to ${await active()}`;
+});
+
+await check('Backspace in an empty box focuses the last chip, and a second press removes it', async () => {
+    await page.fill('#emails', '');
+    await page.keyboard.press('Backspace');
+    const focused = await page.evaluate(() => document.activeElement.getAttribute('aria-label'));
+    if (focused !== 'Remove dee@example.com') return `first press focused ${JSON.stringify(focused)}`;
+    if ((await tags()).length !== 4) return 'the first press already removed it';
+    await page.keyboard.press('Backspace');
+    if ((await tags()).includes('dee@example.com')) return 'the second press did not remove it';
+    return (await active()) === 'emails' || `focus is on ${await active()}`;
+});
+
+await check('leaving the field commits what was typed', async () => {
+    await page.keyboard.type('gus@example.com');
+    await page.keyboard.press('Tab');
+    return (await tags()).includes('gus@example.com') || `posted ${JSON.stringify(await tags())}`;
+});
+
+await check('a comma that arrives as text, as a phone keyboard sends it, commits too', async () => {
+    await page.fill('#emails', 'hal@example.com,');
+    const left = await page.locator('#emails').inputValue();
+    return ((await tags()).includes('hal@example.com') && left === '')
+        || `posted ${JSON.stringify(await tags())}, the box holds ${JSON.stringify(left)}`;
+});
+
+await check('Enter in an empty box is left alone, so it still submits the form', async () => {
+    await page.fill('#emails', '');
+    const prevented = await page.evaluate(() => {
+        const press = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+        document.getElementById('emails').dispatchEvent(press);
+        return press.defaultPrevented;
+    });
+    return prevented === false || 'Enter was swallowed with nothing to commit';
+});
+
+await check('a chip added by the script is the same markup the server renders', async () => {
+    const shape = await page.evaluate(() => [...document.querySelectorAll('[data-ds-tag]')]
+        .map((chip) => [chip.className, chip.querySelector('[data-ds-tag-remove]').className].join('|')));
+    return new Set(shape).size === 1 || 'server-rendered and script-added chips differ';
+});
+
+// ---------------------------------------------------------------- number field
+
+group('number field (dsNumberField)');
+
+const seats = () => page.locator('#seats').inputValue();
+const seatButton = (step) => page.locator(`#seats ~ span [data-ds-step="${step}"]`);
+
+await page.evaluate(() => {
+    window.seatEvents = { input: 0, change: 0 };
+    const field = document.getElementById('seats');
+    field.addEventListener('input', () => window.seatEvents.input++);
+    field.addEventListener('change', () => window.seatEvents.change++);
+});
+const seatEvents = () => page.evaluate(() => ({ ...window.seatEvents }));
+const resetSeatEvents = () => page.evaluate(() => { window.seatEvents = { input: 0, change: 0 }; });
+
+await check('the buttons are named, never submit, and stay out of the tab order', async () => {
+    const attrs = await page.evaluate(() =>
+        [...document.querySelectorAll('#seats ~ span [data-ds-step]')].map((b) =>
+            [b.getAttribute('aria-label'), b.type, b.getAttribute('tabindex')].join('/')));
+    return JSON.stringify(attrs) === '["Decrease Seats/button/-1","Increase Seats/button/-1"]' || `got ${JSON.stringify(attrs)}`;
+});
+
+await check('+ steps up, dispatches input and change once each, and leaves focus in the field', async () => {
+    await page.focus('#seats');
+    await resetSeatEvents();
+    await seatButton('up').click();
+    const events = await seatEvents();
+    if ((await seats()) !== '3') return `value is ${await seats()}`;
+    if (events.input !== 1 || events.change !== 1) return `dispatched ${JSON.stringify(events)}`;
+    return (await active()) === 'seats' || `focus moved to ${await active()}`;
+});
+
+await check('− down to the minimum, where it disables itself', async () => {
+    await seatButton('down').click();
+    await seatButton('down').click();
+    if ((await seats()) !== '1') return `value is ${await seats()}`;
+    return (await seatButton('down').isDisabled()) && !(await seatButton('up').isDisabled())
+        || `− disabled ${await seatButton('down').isDisabled()}, + disabled ${await seatButton('up').isDisabled()}`;
+});
+
+await check('holding + repeats after a delay, and stops when released', async () => {
+    await resetSeatEvents();
+    await seatButton('up').scrollIntoViewIfNeeded();
+    const box = await seatButton('up').boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(560);
+    await page.mouse.up();
+    const released = Number(await seats());
+    await page.waitForTimeout(400);
+    const later = Number(await seats());
+    const events = await seatEvents();
+    if (released < 3) return `only reached ${released}: it never repeated`;
+    if (later !== released) return `kept going after release, ${released} → ${later}`;
+    return events.change === 1 || `one press dispatched change ${events.change} times`;
+});
+
+await check('held to the maximum, it stops there and disables +', async () => {
+    await seatButton('up').scrollIntoViewIfNeeded();
+    const box = await seatButton('up').boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(900);
+    await page.mouse.up();
+    if ((await seats()) !== '5') return `value is ${await seats()}`;
+    return (await seatButton('up').isDisabled()) || '+ is still enabled at the maximum';
+});
+
+await check('the native arrow keys still work, and the buttons follow them', async () => {
+    await page.focus('#seats');
+    await page.keyboard.press('ArrowDown');
+    if ((await seats()) !== '4') return `ArrowDown left ${await seats()}`;
+    return !(await seatButton('up').isDisabled()) || '+ stayed disabled after the value left the maximum';
+});
+
+await check('a press with no pointer, as a screen reader sends it, steps once', async () => {
+    await resetSeatEvents();
+    await page.evaluate(() => document.querySelector('#seats ~ span [data-ds-step="down"]').click());
+    const events = await seatEvents();
+    return ((await seats()) === '3' && events.input === 1 && events.change === 1)
+        || `value ${await seats()}, dispatched ${JSON.stringify(events)}`;
+});
+
+await check('posts the stepped value', async () =>
+    JSON.stringify((await posted()).seats) === '["3"]' || `posted ${JSON.stringify((await posted()).seats)}`);
+
+// ---------------------------------------------------------------- password
+
+group('password: reveal (dsPassword) and strength (dsPasswordStrength)');
+
+const revealButton = page.locator('#password ~ button[aria-controls="password"]');
+
+await check('the reveal is a named toggle button that never submits', async () => {
+    const a = await revealButton.evaluate((b) => [b.type, b.getAttribute('aria-pressed'), b.getAttribute('aria-label')]);
+    return JSON.stringify(a) === '["button","false","Show password"]' || `got ${JSON.stringify(a)}`;
+});
+
+await check('pressing it shows the password, says so, and keeps focus and caret in the field', async () => {
+    await page.fill('#password', 'abcdef');
+    await page.evaluate(() => document.getElementById('password').setSelectionRange(2, 2));
+    await revealButton.click();
+    const state = await page.evaluate(() => {
+        const field = document.getElementById('password');
+        return { type: field.type, caret: field.selectionStart, focus: document.activeElement.id };
+    });
+    if (state.type !== 'text') return `the field is type=${state.type}`;
+    if ((await revealButton.getAttribute('aria-pressed')) !== 'true') return 'aria-pressed did not flip';
+    if (state.focus !== 'password') return `focus moved to ${state.focus}`;
+    return state.caret === 2 || `the caret moved to ${state.caret}`;
+});
+
+await check('the icon swaps with it', async () => {
+    const shown = await revealButton.evaluate((b) => [...b.querySelectorAll('svg')].map((s) => getComputedStyle(s).display));
+    return JSON.stringify(shown) === '["none","block"]' || `icon display ${JSON.stringify(shown)}`;
+});
+
+await check('the name stays "Show password": aria-pressed carries the state', async () =>
+    (await revealButton.getAttribute('aria-label')) === 'Show password'
+    || `renamed to ${await revealButton.getAttribute('aria-label')}`);
+
+await check('pressing again hides it', async () => {
+    await revealButton.click();
+    return (await page.locator('#password').getAttribute('type')) === 'password'
+        && (await revealButton.getAttribute('aria-pressed')) === 'false'
+        || 'still showing';
+});
+
+await check('submitting the form hides it again', async () => {
+    await revealButton.click();
+    await page.evaluate(() => {
+        const form = document.getElementById('form');
+        form.addEventListener('submit', (e) => e.preventDefault(), { once: true });
+        form.requestSubmit();
+    });
+    return (await page.locator('#password').getAttribute('type')) === 'password' || 'submitted as plain text';
+});
+
+const strength = () => page.evaluate(() => {
+    const root = document.getElementById('strength');
+    return {
+        level: root.dataset.level,
+        words: root.querySelector('[aria-live]').textContent.replace(/\s+/g, ' ').trim(),
+    };
+});
+
+await check('says nothing until something is typed', async () => {
+    await page.fill('#password', '');
+    const s = await strength();
+    return (s.level === '0' && s.words === 'Password strength:') || `level ${s.level}, reads "${s.words}"`;
+});
+
+for (const [typed, level, word] of [
+    ['abc', '1', 'Weak'],
+    ['P@ssw0rd!', '1', 'Weak'],
+    ['aaaaaaaa1', '1', 'Weak'],
+    ['Sunflower7', '2', 'Fair'],
+    ['Tr0ub4dor&3', '3', 'Good'],
+    ['correct horse battery staple', '4', 'Strong'],
+]) {
+    await check(`"${typed}" scores ${word}, in words a screen reader hears`, async () => {
+        await page.fill('#password', typed);
+        const s = await strength();
+        return (s.level === level && s.words === `Password strength: ${word}`)
+            || `level ${s.level}, reads "${s.words}"`;
+    });
+}
+
+await check('the bars light up to the level', async () => {
+    await page.fill('#password', 'Tr0ub4dor&3');
+    // The colour transitions, so it is read once the bars have arrived.
+    await settle(300);
+    const lit = await page.evaluate(() => {
+        const bars = [...document.querySelectorAll('#strength [aria-hidden] > span')];
+        const off = getComputedStyle(bars[3]).backgroundColor;
+        return bars.filter((bar) => getComputedStyle(bar).backgroundColor !== off).length;
+    });
+    return lit === 3 || `${lit} bars lit for Good`;
+});
+
+await check('the live region changes only when the level does, not on every key', async () => {
+    await page.fill('#password', '');
+    const changes = await page.evaluate(async () => {
+        const words = document.querySelector('#strength [data-ds-strength-text]');
+        let n = 0;
+        const watch = new MutationObserver((m) => { n += m.length; });
+        watch.observe(words, { childList: true, characterData: true, subtree: true });
+        const field = document.getElementById('password');
+        for (const c of 'abcdefg') {
+            field.value += c;
+            field.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        await new Promise((r) => setTimeout(r, 0));
+        watch.disconnect();
+        return n;
+    });
+    return changes === 1 || `the region changed ${changes} times for seven keys at one level`;
+});
+
 // ---------------------------------------------------------------- x-cloak
 
 /*
@@ -1016,7 +1486,8 @@ group('host setup (b): Alpine bundled by the host, Alpine.plugin(bladeUi)');
     await check('the plugin works', () => copiesOn(tab));
     await check('plugin twice plus the include: each name registered exactly once', async () => {
         const names = await tab.evaluate(() => window.dsRegistered);
-        return JSON.stringify(names) === '["dsClipboard"]' || `registered ${JSON.stringify(names)}`;
+        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength'];
+        return JSON.stringify(names) === JSON.stringify(expected) || `registered ${JSON.stringify(names)}`;
     });
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
     await tab.close();

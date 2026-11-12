@@ -218,6 +218,104 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── OTP input --}}
+<section class="ds-spec" id="otp-input">
+    <header class="ds-spec-head">
+        <h2>OTP input</h2>
+        <p>A one-time code, one box per character, posted as <em>one</em> field. Every box is drawn from the input&rsquo;s own recipe.</p>
+    </header>
+
+    <div class="ds-note">The boxes carry no name. A hidden input carries the joined code, so the form posts <code>code=482193</code> and nothing else. Typing, pasting and the browser&rsquo;s autofill need the package&rsquo;s script; the gallery loads none, so what is here is the server&rsquo;s render.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">States <span>&middot; rendered from <code>value</code> before any script runs</span></div>
+        <div class="grid gap-6 sm:grid-cols-2">
+            <x-ds::otp-input name="g-otp-a" label="Verification code" help="We sent a six-digit code to your phone." />
+            <x-ds::otp-input name="g-otp-b" label="Verification code" value="4821" />
+            <x-ds::otp-input name="g-otp-c" label="Verification code" value="123456" error="That code has expired. Request a new one." />
+            <x-ds::otp-input name="g-otp-d" label="Verification code" :disabled="true" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Modes <span>&middot; a masked PIN, and a code that takes letters</span></div>
+        <div class="grid gap-6 sm:grid-cols-2">
+            <x-ds::otp-input name="g-otp-e" label="PIN" :length="4" value="12" :masked="true" />
+            <x-ds::otp-input name="g-otp-f" label="Reference" :length="8" :numeric="false" value="AB12" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Tag input --}}
+<section class="ds-spec" id="tag-input">
+    <header class="ds-spec-head">
+        <h2>Tag input</h2>
+        <p>Short values typed into a field and kept as removable chips. Each chip carries the hidden input it posts, so what is on screen and what is submitted cannot disagree.</p>
+    </header>
+
+    <div class="ds-note">An entry that cannot be added stays in the box with a message under it, in the help line&rsquo;s place. Nothing typed is ever dropped. The gallery loads no script, so the chips here are the server&rsquo;s.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">States</div>
+        <div class="grid gap-6 sm:grid-cols-2">
+            <x-ds::tag-input name="g-tag-a" label="Tags" placeholder="Add a tag" help="Press Enter or comma after each tag." />
+            <x-ds::tag-input name="g-tag-b" label="Invite by email" :value="['maya@example.com', 'ada@example.com', 'grace@example.com']" validate="email" placeholder="Add an address" />
+            <x-ds::tag-input name="g-tag-c" label="Tags" :value="['billing', 'urgent', 'security']" error="Choose at most two tags." />
+            <x-ds::tag-input name="g-tag-d" label="Locked" :value="['billing', 'security']" :disabled="true" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Number field --}}
+<section class="ds-spec" id="number-field">
+    <header class="ds-spec-head">
+        <h2>Number field</h2>
+        <p>A native <code>type=number</code> with decrease and increase buttons. The arrow keys and typing are the browser&rsquo;s; the buttons add a press, a hold that repeats, and a stop at each bound.</p>
+    </header>
+
+    <div class="ds-note">The buttons are out of the tab order on purpose: a keyboard already has the arrow keys. A button at its bound is disabled by the server&rsquo;s render, before any script runs.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">States <span>&middot; the bound buttons are disabled from PHP</span></div>
+        <div class="grid gap-6 sm:grid-cols-3">
+            <x-ds::number-field name="g-num-a" label="Seats" :value="3" :min="1" :max="10" help="Up to ten on this plan." />
+            <x-ds::number-field name="g-num-b" label="Seats" :value="1" :min="1" :max="10" />
+            <x-ds::number-field name="g-num-c" label="Seats" :value="10" :min="1" :max="10" error="This plan has ten seats." />
+            <x-ds::number-field name="g-num-d" label="Weight (kg)" :value="1.5" :min="0" :step="0.5" />
+            <x-ds::number-field name="g-num-e" label="Locked" :value="3" :disabled="true" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Sizes <span>&middot; md is the input&rsquo;s own, sm is 32px for a table row</span></div>
+        <div class="{{ $row }}">
+            <x-ds::number-field name="g-num-f" aria-label="Quantity" :value="2" :min="0" class="w-40" />
+            <x-ds::number-field name="g-num-g" aria-label="Quantity" :value="2" :min="0" size="sm" class="w-28" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Password --}}
+<section class="ds-spec" id="password-strength">
+    <header class="ds-spec-head">
+        <h2>Password: reveal and strength</h2>
+        <p><code>reveal</code> on <code>ds::input</code> adds a show/hide toggle; <code>ds::password-strength</code> is a meter bound to the field by its id. The score is a hint for the person typing, not a security control.</p>
+    </header>
+
+    <div class="ds-note">The level is spoken in words through a polite live region and shown by how many bars are lit, never by colour alone. The gallery loads no script, so the meter here is empty; the documentation image shows it scored.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Reveal and meter</div>
+        <div class="grid gap-6 sm:grid-cols-2">
+            <div>
+                <x-ds::input type="password" id="g-pw" name="g-pw" label="New password" :reveal="true" value="correct horse" />
+                <x-ds::password-strength for="g-pw" />
+            </div>
+            <x-ds::input type="password" name="g-pw-b" label="Password" :reveal="true" error="That password is not right." />
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Alert --}}
 <section class="ds-spec" id="alert">
     <header class="ds-spec-head">

@@ -26,7 +26,7 @@ independent implementations the same component rather than three lookalikes.
 |---|---|
 | [color.md](color.md) | Token selection and the accessibility rules |
 | [button.md](button.md) | Button, icon button, the FAB |
-| [input.md](input.md) | Input, select, textarea, and the two-layer construction |
+| [input.md](input.md) | Input, select, textarea, the two-layer construction, and `reveal` |
 | [panel.md](panel.md) | Bordered card, header, action, divided rows |
 | [stat-tile.md](stat-tile.md) | Metric tile, delta, caption |
 | [table.md](table.md) | Table, row, cell, alignment and density |
@@ -59,6 +59,10 @@ independent implementations the same component rather than three lookalikes.
 | [icon.md](icon.md) | Icon, sizes, the v1 name bridge, the a11y default |
 | [bottom-nav.md](bottom-nav.md) | Bottom bar, items, the safe area |
 | [pagination.md](pagination.md) | Both paginator views |
+| [otp-input.md](otp-input.md) | One box per character, one posted field, the `complete` event |
+| [tag-input.md](tag-input.md) | Free-text chips, refusals that stay, separators |
+| [number-field.md](number-field.md) | Native number input, step buttons, press-and-hold |
+| [password-strength.md](password-strength.md) | The four-level hint and its heuristic |
 
 Sub-components are covered by their parent: `table-cell` and `table-row` in
 table.md, `panel-row` in panel.md, `sheet-item` in sheet.md, `dropdown-item` in

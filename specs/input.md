@@ -67,6 +67,31 @@ Checkbox, radio and switch are separate specs. The rule between them: a
 **switch commits immediately**, a **checkbox waits for Save**. Picking the wrong
 one lies to the user about whether their change persisted.
 
+## Reveal
+
+`reveal` on `type="password"` adds a 44px-wide button (36px above `sm`) at the
+trailing edge, inside the shell, and reserves that width as right padding so
+the dots never run under it. Off every other type and off by default, and when
+it is off the markup is byte for byte the 1.x field (`InputUnchangedTest`
+holds it to a fixture).
+
+| | |
+|---|---|
+| Role | `button`, `type="button"`, so Enter in the field still submits |
+| Name | "Show password", constant; `aria-pressed` carries the state; `aria-controls` the field |
+| Icon | `eye` while hidden, `eye-slash` while shown, swapped by CSS off `aria-pressed` |
+| Keyboard | Tab reaches it after the field; Enter or Space toggles |
+| Focus | A pointer press does not move focus out of the field, and the selection is kept across the type change |
+| Submit | The field goes back to `type="password"` when its form submits, so the browser's save-password prompt sees a password field |
+
+**The name does not change with the state.** APG's toggle-button pattern: a
+name that flips to "Hide password" while `aria-pressed` is also true reads as
+"Hide password, pressed", which answers the question twice and contradicts
+itself on the way. The icon carries the visual change.
+
+Needs Alpine and the package's script (`dsPassword`). Without them the button
+throws a named error on init and the field stays a working password field.
+
 ## Accessibility
 
 - Every field has a real `<label for>`. Placeholder is not a label — it vanishes
@@ -79,6 +104,12 @@ one lies to the user about whether their change persisted.
   the 3:1 WCAG 1.4.11 asks of a component boundary. Inherited from Catalyst,
   where affordance comes from the fill and shadow. The focus ring does pass, on
   every surface. Recorded in [color.md](color.md) so it stays a decision.
+
+## Do not
+
+- **Do not reveal by default.** Shoulder-surfing is the reason the field masks.
+- **Do not use it for a PIN.** A short fixed-length code is
+  [otp-input.md](otp-input.md), with `masked`.
 
 ## Porting note
 

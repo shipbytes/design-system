@@ -349,6 +349,10 @@ table.ref .samp { color: var(--g-ink); font-family: Inter, ui-sans-serif, system
       <a href="#badge">Badge</a>
       <a href="#icon">Icon</a>
       <a href="#input">Input</a>
+      <a href="#otp-input">OTP</a>
+      <a href="#tag-input">Tags</a>
+      <a href="#number-field">Number</a>
+      <a href="#password-strength">Password</a>
       <a href="#alert">Alert</a>
       <a href="#modal">Modal</a>
       <a href="#dropdown">Dropdown</a>

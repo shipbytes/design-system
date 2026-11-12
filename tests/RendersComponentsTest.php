@@ -253,11 +253,16 @@ final class RendersComponentsTest extends TestCase
             $propsOf[$name] = $declared[1];
 
             // Variables the template renders that are not props, minus Blade's
-            // own. Those are the slots.
+            // own and the ones it assigns itself. Those are the slots. A local
+            // is not a slot even when it shares an attribute's name: the input
+            // computes `$id`, and `id="…"` on it is the plainest attribute there
+            // is.
             preg_match_all('/\$([a-zA-Z][a-zA-Z0-9]*)/', $source, $used);
+            preg_match_all('/\$([a-zA-Z][a-zA-Z0-9]*)\s*=(?![=>])/', $source, $assigned);
             $slotsOf[$name] = array_values(array_diff(
                 array_unique($used[1]),
                 $declared[1],
+                $assigned[1],
                 ['attributes', 'slot', 'loop', 'errors', 'component', 'el', 'event', 'nextTick'],
             ));
         }
