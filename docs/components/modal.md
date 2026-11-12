@@ -103,6 +103,10 @@ ask in place, beside its button, or by being held: see
 
 Give a field `autofocus` and focus lands there instead of the panel.
 
+Opened over another overlay, it stacks: the one below scales back and dims,
+Escape closes only the top one, and the page stays locked until the last one
+closes. See [Stacking overlays](../getting-started.md#stacking-overlays).
+
 ## Sizes
 
 `sm` through `xl` cover what a dialog is usually for: a confirm, a short form.
@@ -131,9 +135,9 @@ better one.
 
 - **Don't give `open` a comparison.** `open="mode === 'confirm'"` opens and then
   ignores every way of closing. See above.
-- **Don't nest a modal in a modal.** Two blocking layers give the reader no way to
-  know what Escape means.
-- **Don't open a modal and a sheet together.** They share `z-50`.
+- **Don't stack more than two.** A modal over a modal, a drawer or a sheet
+  works (see [Stacking overlays](../getting-started.md#stacking-overlays)); a
+  third layer is a page.
 - **Don't hold a workflow in one.** More than one decision belongs on a page.
 - **Don't put a form's only validation errors in a modal that closes on submit.**
 

@@ -4,40 +4,54 @@
     x-cloak
     x-effect="    if (a) {
         $el._returnFocusTo = document.activeElement;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)].filter((n) =&gt; n !== $el);
+        $el.dataset.dsLayer = others.length ? Math.max(...others.map((n) =&gt; +n.dataset.dsLayer)) + 1 : 0;
+        $el.toggleAttribute(&#039;data-ds-stacked&#039;, others.length &gt; 0);
+        $el.style.zIndex = others.length ? Math.max(...others.map((n) =&gt; +getComputedStyle(n).zIndex || 0)) + 1 : &#039;&#039;;
         document.body.classList.add(&#039;overflow-hidden&#039;);
         $nextTick(() =&gt; {
             const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
             (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
         });
     } else {
-        document.body.classList.remove(&#039;overflow-hidden&#039;);
-        $el._returnFocusTo?.focus();
+        const was = $el.dataset.dsLayer;
+        delete $el.dataset.dsLayer;
+        $el.removeAttribute(&#039;data-ds-stacked&#039;);
+        $el.style.zIndex = &#039;&#039;;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+        others.forEach((n) =&gt; $el.contains(n._returnFocusTo) &amp;&amp; (n._returnFocusTo = $el._returnFocusTo));
+        if (!others.length) document.body.classList.remove(&#039;overflow-hidden&#039;);
+        if (!others.some((n) =&gt; +n.dataset.dsLayer &gt; was)) $el._returnFocusTo?.focus();
+    }
+    const layers = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+    const top = Math.max(...layers.map((n) =&gt; +n.dataset.dsLayer));
+    for (const n of new Set([$el, ...layers])) {
+        const covered = n.hasAttribute(&#039;data-ds-layer&#039;) &amp;&amp; +n.dataset.dsLayer &lt; top;
+        const panel = n.querySelector(&#039;[role=dialog]&#039;);
+        const back = covered &amp;&amp; !layers.some((o) =&gt; o !== n &amp;&amp; n.contains(o)) &amp;&amp; !matchMedia(&#039;(prefers-reduced-motion: reduce)&#039;).matches;
+        n.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        panel?.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        if (!panel || (panel.style.scale !== &#039;&#039;) === back) continue;
+        panel.style.transition = &#039;scale var(--ds-motion-duration-dialog-enter) var(--ds-motion-ease-enter)&#039;;
+        panel.style.scale = back ? &#039;0.94&#039; : &#039;&#039;;
+        clearTimeout(panel._dsLayerTimer);
+        panel._dsLayerTimer = setTimeout(() =&gt; (panel.style.transition = &#039;&#039;), 300);
     }"
-            @keydown.escape.window="if (a) a = false"
+            @keydown.escape.window="if (a &amp;&amp; !$event.dsLayer &amp;&amp; !$el.hasAttribute(&#039;data-ds-covered&#039;)) { $event.dsLayer = true; a = false }"
         
     class="fixed inset-0 z-50 flex items-center justify-center p-4"
 >
     <div
         x-show="a"
-         @click="a = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
-        
-        class="absolute inset-0 bg-scrim"
+         @click="a = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+        class="absolute inset-0 bg-scrim in-data-ds-stacked:opacity-0"
     ></div>
 
     <div
         x-show="a"
-        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0 scale-95"
-        x-transition:enter-end="opacity-100 scale-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100 scale-100"
-        x-transition:leave-end="opacity-0 scale-95"
-        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    if ($el.closest(&#039;[data-ds-layer]&#039;)?.hasAttribute(&#039;data-ds-covered&#039;)) return;
+    const focusable = [...$el.querySelectorAll(
         &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
     )].filter((node) =&gt; node.offsetParent !== null);
     if (!focusable.length) return;
@@ -47,7 +61,7 @@
         data-ds-modal-panel
         
         tabindex="-1"
-        class="relative flex w-full max-w-sm flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full"
+        class="relative flex w-full max-w-sm flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden after:pointer-events-none after:absolute after:inset-0 after:bg-scrim after:opacity-0 data-ds-covered:after:opacity-50 motion-safe:after:transition-opacity motion-safe:after:duration-dialog-enter motion-safe:after:ease-enter max-h-full"
         role="dialog"
         aria-modal="true"
          aria-labelledby="ds-modal-62c7a0a5-title"          aria-describedby="ds-modal-62c7a0a5-desc"     >
@@ -89,40 +103,54 @@
     x-cloak
     x-effect="    if (b) {
         $el._returnFocusTo = document.activeElement;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)].filter((n) =&gt; n !== $el);
+        $el.dataset.dsLayer = others.length ? Math.max(...others.map((n) =&gt; +n.dataset.dsLayer)) + 1 : 0;
+        $el.toggleAttribute(&#039;data-ds-stacked&#039;, others.length &gt; 0);
+        $el.style.zIndex = others.length ? Math.max(...others.map((n) =&gt; +getComputedStyle(n).zIndex || 0)) + 1 : &#039;&#039;;
         document.body.classList.add(&#039;overflow-hidden&#039;);
         $nextTick(() =&gt; {
             const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
             (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
         });
     } else {
-        document.body.classList.remove(&#039;overflow-hidden&#039;);
-        $el._returnFocusTo?.focus();
+        const was = $el.dataset.dsLayer;
+        delete $el.dataset.dsLayer;
+        $el.removeAttribute(&#039;data-ds-stacked&#039;);
+        $el.style.zIndex = &#039;&#039;;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+        others.forEach((n) =&gt; $el.contains(n._returnFocusTo) &amp;&amp; (n._returnFocusTo = $el._returnFocusTo));
+        if (!others.length) document.body.classList.remove(&#039;overflow-hidden&#039;);
+        if (!others.some((n) =&gt; +n.dataset.dsLayer &gt; was)) $el._returnFocusTo?.focus();
+    }
+    const layers = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+    const top = Math.max(...layers.map((n) =&gt; +n.dataset.dsLayer));
+    for (const n of new Set([$el, ...layers])) {
+        const covered = n.hasAttribute(&#039;data-ds-layer&#039;) &amp;&amp; +n.dataset.dsLayer &lt; top;
+        const panel = n.querySelector(&#039;[role=dialog]&#039;);
+        const back = covered &amp;&amp; !layers.some((o) =&gt; o !== n &amp;&amp; n.contains(o)) &amp;&amp; !matchMedia(&#039;(prefers-reduced-motion: reduce)&#039;).matches;
+        n.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        panel?.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        if (!panel || (panel.style.scale !== &#039;&#039;) === back) continue;
+        panel.style.transition = &#039;scale var(--ds-motion-duration-dialog-enter) var(--ds-motion-ease-enter)&#039;;
+        panel.style.scale = back ? &#039;0.94&#039; : &#039;&#039;;
+        clearTimeout(panel._dsLayerTimer);
+        panel._dsLayerTimer = setTimeout(() =&gt; (panel.style.transition = &#039;&#039;), 300);
     }"
-            @keydown.escape.window="if (b) b = false"
+            @keydown.escape.window="if (b &amp;&amp; !$event.dsLayer &amp;&amp; !$el.hasAttribute(&#039;data-ds-covered&#039;)) { $event.dsLayer = true; b = false }"
         
     class="fixed inset-0 z-50 flex items-center justify-center p-4"
 >
     <div
         x-show="b"
-         @click="b = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
-        
-        class="absolute inset-0 bg-scrim"
+         @click="b = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+        class="absolute inset-0 bg-scrim in-data-ds-stacked:opacity-0"
     ></div>
 
     <div
         x-show="b"
-        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0 scale-95"
-        x-transition:enter-end="opacity-100 scale-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100 scale-100"
-        x-transition:leave-end="opacity-0 scale-95"
-        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    if ($el.closest(&#039;[data-ds-layer]&#039;)?.hasAttribute(&#039;data-ds-covered&#039;)) return;
+    const focusable = [...$el.querySelectorAll(
         &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
     )].filter((node) =&gt; node.offsetParent !== null);
     if (!focusable.length) return;
@@ -132,7 +160,7 @@
         data-ds-modal-panel
         
         tabindex="-1"
-        class="relative flex w-full max-w-md flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full"
+        class="relative flex w-full max-w-md flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden after:pointer-events-none after:absolute after:inset-0 after:bg-scrim after:opacity-0 data-ds-covered:after:opacity-50 motion-safe:after:transition-opacity motion-safe:after:duration-dialog-enter motion-safe:after:ease-enter max-h-full"
         role="dialog"
         aria-modal="true"
          aria-labelledby="ds-modal-5ec761ac-title"             >
@@ -165,40 +193,54 @@
     x-cloak
     x-effect="    if (c) {
         $el._returnFocusTo = document.activeElement;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)].filter((n) =&gt; n !== $el);
+        $el.dataset.dsLayer = others.length ? Math.max(...others.map((n) =&gt; +n.dataset.dsLayer)) + 1 : 0;
+        $el.toggleAttribute(&#039;data-ds-stacked&#039;, others.length &gt; 0);
+        $el.style.zIndex = others.length ? Math.max(...others.map((n) =&gt; +getComputedStyle(n).zIndex || 0)) + 1 : &#039;&#039;;
         document.body.classList.add(&#039;overflow-hidden&#039;);
         $nextTick(() =&gt; {
             const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
             (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
         });
     } else {
-        document.body.classList.remove(&#039;overflow-hidden&#039;);
-        $el._returnFocusTo?.focus();
+        const was = $el.dataset.dsLayer;
+        delete $el.dataset.dsLayer;
+        $el.removeAttribute(&#039;data-ds-stacked&#039;);
+        $el.style.zIndex = &#039;&#039;;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+        others.forEach((n) =&gt; $el.contains(n._returnFocusTo) &amp;&amp; (n._returnFocusTo = $el._returnFocusTo));
+        if (!others.length) document.body.classList.remove(&#039;overflow-hidden&#039;);
+        if (!others.some((n) =&gt; +n.dataset.dsLayer &gt; was)) $el._returnFocusTo?.focus();
+    }
+    const layers = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+    const top = Math.max(...layers.map((n) =&gt; +n.dataset.dsLayer));
+    for (const n of new Set([$el, ...layers])) {
+        const covered = n.hasAttribute(&#039;data-ds-layer&#039;) &amp;&amp; +n.dataset.dsLayer &lt; top;
+        const panel = n.querySelector(&#039;[role=dialog]&#039;);
+        const back = covered &amp;&amp; !layers.some((o) =&gt; o !== n &amp;&amp; n.contains(o)) &amp;&amp; !matchMedia(&#039;(prefers-reduced-motion: reduce)&#039;).matches;
+        n.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        panel?.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        if (!panel || (panel.style.scale !== &#039;&#039;) === back) continue;
+        panel.style.transition = &#039;scale var(--ds-motion-duration-dialog-enter) var(--ds-motion-ease-enter)&#039;;
+        panel.style.scale = back ? &#039;0.94&#039; : &#039;&#039;;
+        clearTimeout(panel._dsLayerTimer);
+        panel._dsLayerTimer = setTimeout(() =&gt; (panel.style.transition = &#039;&#039;), 300);
     }"
-            @keydown.escape.window="if (c) c = false"
+            @keydown.escape.window="if (c &amp;&amp; !$event.dsLayer &amp;&amp; !$el.hasAttribute(&#039;data-ds-covered&#039;)) { $event.dsLayer = true; c = false }"
         
     class="fixed inset-0 z-50 flex items-center justify-center p-4"
 >
     <div
         x-show="c"
-         @click="c = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
-        
-        class="absolute inset-0 bg-scrim"
+         @click="c = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+        class="absolute inset-0 bg-scrim in-data-ds-stacked:opacity-0"
     ></div>
 
     <div
         x-show="c"
-        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0 scale-95"
-        x-transition:enter-end="opacity-100 scale-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100 scale-100"
-        x-transition:leave-end="opacity-0 scale-95"
-        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    if ($el.closest(&#039;[data-ds-layer]&#039;)?.hasAttribute(&#039;data-ds-covered&#039;)) return;
+    const focusable = [...$el.querySelectorAll(
         &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
     )].filter((node) =&gt; node.offsetParent !== null);
     if (!focusable.length) return;
@@ -208,7 +250,7 @@
         data-ds-modal-panel
         
         tabindex="-1"
-        class="relative flex w-full max-w-lg flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full"
+        class="relative flex w-full max-w-lg flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden after:pointer-events-none after:absolute after:inset-0 after:bg-scrim after:opacity-0 data-ds-covered:after:opacity-50 motion-safe:after:transition-opacity motion-safe:after:duration-dialog-enter motion-safe:after:ease-enter max-h-full"
         role="dialog"
         aria-modal="true"
          aria-labelledby="ds-modal-6ee75bc2-title"             >
@@ -241,40 +283,54 @@
     x-cloak
     x-effect="    if (d) {
         $el._returnFocusTo = document.activeElement;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)].filter((n) =&gt; n !== $el);
+        $el.dataset.dsLayer = others.length ? Math.max(...others.map((n) =&gt; +n.dataset.dsLayer)) + 1 : 0;
+        $el.toggleAttribute(&#039;data-ds-stacked&#039;, others.length &gt; 0);
+        $el.style.zIndex = others.length ? Math.max(...others.map((n) =&gt; +getComputedStyle(n).zIndex || 0)) + 1 : &#039;&#039;;
         document.body.classList.add(&#039;overflow-hidden&#039;);
         $nextTick(() =&gt; {
             const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
             (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
         });
     } else {
-        document.body.classList.remove(&#039;overflow-hidden&#039;);
-        $el._returnFocusTo?.focus();
+        const was = $el.dataset.dsLayer;
+        delete $el.dataset.dsLayer;
+        $el.removeAttribute(&#039;data-ds-stacked&#039;);
+        $el.style.zIndex = &#039;&#039;;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+        others.forEach((n) =&gt; $el.contains(n._returnFocusTo) &amp;&amp; (n._returnFocusTo = $el._returnFocusTo));
+        if (!others.length) document.body.classList.remove(&#039;overflow-hidden&#039;);
+        if (!others.some((n) =&gt; +n.dataset.dsLayer &gt; was)) $el._returnFocusTo?.focus();
+    }
+    const layers = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+    const top = Math.max(...layers.map((n) =&gt; +n.dataset.dsLayer));
+    for (const n of new Set([$el, ...layers])) {
+        const covered = n.hasAttribute(&#039;data-ds-layer&#039;) &amp;&amp; +n.dataset.dsLayer &lt; top;
+        const panel = n.querySelector(&#039;[role=dialog]&#039;);
+        const back = covered &amp;&amp; !layers.some((o) =&gt; o !== n &amp;&amp; n.contains(o)) &amp;&amp; !matchMedia(&#039;(prefers-reduced-motion: reduce)&#039;).matches;
+        n.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        panel?.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        if (!panel || (panel.style.scale !== &#039;&#039;) === back) continue;
+        panel.style.transition = &#039;scale var(--ds-motion-duration-dialog-enter) var(--ds-motion-ease-enter)&#039;;
+        panel.style.scale = back ? &#039;0.94&#039; : &#039;&#039;;
+        clearTimeout(panel._dsLayerTimer);
+        panel._dsLayerTimer = setTimeout(() =&gt; (panel.style.transition = &#039;&#039;), 300);
     }"
-            @keydown.escape.window="if (d) d = false"
+            @keydown.escape.window="if (d &amp;&amp; !$event.dsLayer &amp;&amp; !$el.hasAttribute(&#039;data-ds-covered&#039;)) { $event.dsLayer = true; d = false }"
         
     class="fixed inset-0 z-50 flex items-center justify-center p-4"
 >
     <div
         x-show="d"
-         @click="d = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
-        
-        class="absolute inset-0 bg-scrim"
+         @click="d = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+        class="absolute inset-0 bg-scrim in-data-ds-stacked:opacity-0"
     ></div>
 
     <div
         x-show="d"
-        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0 scale-95"
-        x-transition:enter-end="opacity-100 scale-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100 scale-100"
-        x-transition:leave-end="opacity-0 scale-95"
-        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    if ($el.closest(&#039;[data-ds-layer]&#039;)?.hasAttribute(&#039;data-ds-covered&#039;)) return;
+    const focusable = [...$el.querySelectorAll(
         &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
     )].filter((node) =&gt; node.offsetParent !== null);
     if (!focusable.length) return;
@@ -284,7 +340,7 @@
         data-ds-modal-panel
         
         tabindex="-1"
-        class="relative flex w-full max-w-xl flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full"
+        class="relative flex w-full max-w-xl flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden after:pointer-events-none after:absolute after:inset-0 after:bg-scrim after:opacity-0 data-ds-covered:after:opacity-50 motion-safe:after:transition-opacity motion-safe:after:duration-dialog-enter motion-safe:after:ease-enter max-h-full"
         role="dialog"
         aria-modal="true"
          aria-labelledby="ds-modal-fd2ef35b-title"             >
@@ -317,40 +373,54 @@
     x-cloak
     x-effect="    if (g) {
         $el._returnFocusTo = document.activeElement;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)].filter((n) =&gt; n !== $el);
+        $el.dataset.dsLayer = others.length ? Math.max(...others.map((n) =&gt; +n.dataset.dsLayer)) + 1 : 0;
+        $el.toggleAttribute(&#039;data-ds-stacked&#039;, others.length &gt; 0);
+        $el.style.zIndex = others.length ? Math.max(...others.map((n) =&gt; +getComputedStyle(n).zIndex || 0)) + 1 : &#039;&#039;;
         document.body.classList.add(&#039;overflow-hidden&#039;);
         $nextTick(() =&gt; {
             const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
             (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
         });
     } else {
-        document.body.classList.remove(&#039;overflow-hidden&#039;);
-        $el._returnFocusTo?.focus();
+        const was = $el.dataset.dsLayer;
+        delete $el.dataset.dsLayer;
+        $el.removeAttribute(&#039;data-ds-stacked&#039;);
+        $el.style.zIndex = &#039;&#039;;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+        others.forEach((n) =&gt; $el.contains(n._returnFocusTo) &amp;&amp; (n._returnFocusTo = $el._returnFocusTo));
+        if (!others.length) document.body.classList.remove(&#039;overflow-hidden&#039;);
+        if (!others.some((n) =&gt; +n.dataset.dsLayer &gt; was)) $el._returnFocusTo?.focus();
+    }
+    const layers = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+    const top = Math.max(...layers.map((n) =&gt; +n.dataset.dsLayer));
+    for (const n of new Set([$el, ...layers])) {
+        const covered = n.hasAttribute(&#039;data-ds-layer&#039;) &amp;&amp; +n.dataset.dsLayer &lt; top;
+        const panel = n.querySelector(&#039;[role=dialog]&#039;);
+        const back = covered &amp;&amp; !layers.some((o) =&gt; o !== n &amp;&amp; n.contains(o)) &amp;&amp; !matchMedia(&#039;(prefers-reduced-motion: reduce)&#039;).matches;
+        n.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        panel?.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        if (!panel || (panel.style.scale !== &#039;&#039;) === back) continue;
+        panel.style.transition = &#039;scale var(--ds-motion-duration-dialog-enter) var(--ds-motion-ease-enter)&#039;;
+        panel.style.scale = back ? &#039;0.94&#039; : &#039;&#039;;
+        clearTimeout(panel._dsLayerTimer);
+        panel._dsLayerTimer = setTimeout(() =&gt; (panel.style.transition = &#039;&#039;), 300);
     }"
-            @keydown.escape.window="if (g) g = false"
+            @keydown.escape.window="if (g &amp;&amp; !$event.dsLayer &amp;&amp; !$el.hasAttribute(&#039;data-ds-covered&#039;)) { $event.dsLayer = true; g = false }"
         
     class="fixed inset-0 z-50 flex items-center justify-center p-4"
 >
     <div
         x-show="g"
-         @click="g = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
-        
-        class="absolute inset-0 bg-scrim"
+         @click="g = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+        class="absolute inset-0 bg-scrim in-data-ds-stacked:opacity-0"
     ></div>
 
     <div
         x-show="g"
-        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0 scale-95"
-        x-transition:enter-end="opacity-100 scale-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100 scale-100"
-        x-transition:leave-end="opacity-0 scale-95"
-        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    if ($el.closest(&#039;[data-ds-layer]&#039;)?.hasAttribute(&#039;data-ds-covered&#039;)) return;
+    const focusable = [...$el.querySelectorAll(
         &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
     )].filter((node) =&gt; node.offsetParent !== null);
     if (!focusable.length) return;
@@ -360,7 +430,7 @@
         data-ds-modal-panel
         
         tabindex="-1"
-        class="relative flex w-full max-w-2xl flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full"
+        class="relative flex w-full max-w-2xl flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden after:pointer-events-none after:absolute after:inset-0 after:bg-scrim after:opacity-0 data-ds-covered:after:opacity-50 motion-safe:after:transition-opacity motion-safe:after:duration-dialog-enter motion-safe:after:ease-enter max-h-full"
         role="dialog"
         aria-modal="true"
          aria-labelledby="ds-modal-ab560bf6-title"             >
@@ -393,40 +463,54 @@
     x-cloak
     x-effect="    if (h) {
         $el._returnFocusTo = document.activeElement;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)].filter((n) =&gt; n !== $el);
+        $el.dataset.dsLayer = others.length ? Math.max(...others.map((n) =&gt; +n.dataset.dsLayer)) + 1 : 0;
+        $el.toggleAttribute(&#039;data-ds-stacked&#039;, others.length &gt; 0);
+        $el.style.zIndex = others.length ? Math.max(...others.map((n) =&gt; +getComputedStyle(n).zIndex || 0)) + 1 : &#039;&#039;;
         document.body.classList.add(&#039;overflow-hidden&#039;);
         $nextTick(() =&gt; {
             const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
             (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
         });
     } else {
-        document.body.classList.remove(&#039;overflow-hidden&#039;);
-        $el._returnFocusTo?.focus();
+        const was = $el.dataset.dsLayer;
+        delete $el.dataset.dsLayer;
+        $el.removeAttribute(&#039;data-ds-stacked&#039;);
+        $el.style.zIndex = &#039;&#039;;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+        others.forEach((n) =&gt; $el.contains(n._returnFocusTo) &amp;&amp; (n._returnFocusTo = $el._returnFocusTo));
+        if (!others.length) document.body.classList.remove(&#039;overflow-hidden&#039;);
+        if (!others.some((n) =&gt; +n.dataset.dsLayer &gt; was)) $el._returnFocusTo?.focus();
+    }
+    const layers = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+    const top = Math.max(...layers.map((n) =&gt; +n.dataset.dsLayer));
+    for (const n of new Set([$el, ...layers])) {
+        const covered = n.hasAttribute(&#039;data-ds-layer&#039;) &amp;&amp; +n.dataset.dsLayer &lt; top;
+        const panel = n.querySelector(&#039;[role=dialog]&#039;);
+        const back = covered &amp;&amp; !layers.some((o) =&gt; o !== n &amp;&amp; n.contains(o)) &amp;&amp; !matchMedia(&#039;(prefers-reduced-motion: reduce)&#039;).matches;
+        n.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        panel?.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        if (!panel || (panel.style.scale !== &#039;&#039;) === back) continue;
+        panel.style.transition = &#039;scale var(--ds-motion-duration-dialog-enter) var(--ds-motion-ease-enter)&#039;;
+        panel.style.scale = back ? &#039;0.94&#039; : &#039;&#039;;
+        clearTimeout(panel._dsLayerTimer);
+        panel._dsLayerTimer = setTimeout(() =&gt; (panel.style.transition = &#039;&#039;), 300);
     }"
-            @keydown.escape.window="if (h) h = false"
+            @keydown.escape.window="if (h &amp;&amp; !$event.dsLayer &amp;&amp; !$el.hasAttribute(&#039;data-ds-covered&#039;)) { $event.dsLayer = true; h = false }"
         
     class="fixed inset-0 z-50 flex items-center justify-center p-4"
 >
     <div
         x-show="h"
-         @click="h = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
-        
-        class="absolute inset-0 bg-scrim"
+         @click="h = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+        class="absolute inset-0 bg-scrim in-data-ds-stacked:opacity-0"
     ></div>
 
     <div
         x-show="h"
-        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0 scale-95"
-        x-transition:enter-end="opacity-100 scale-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100 scale-100"
-        x-transition:leave-end="opacity-0 scale-95"
-        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    if ($el.closest(&#039;[data-ds-layer]&#039;)?.hasAttribute(&#039;data-ds-covered&#039;)) return;
+    const focusable = [...$el.querySelectorAll(
         &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
     )].filter((node) =&gt; node.offsetParent !== null);
     if (!focusable.length) return;
@@ -436,7 +520,7 @@
         data-ds-modal-panel
         
         tabindex="-1"
-        class="relative flex w-full max-w-3xl flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full"
+        class="relative flex w-full max-w-3xl flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden after:pointer-events-none after:absolute after:inset-0 after:bg-scrim after:opacity-0 data-ds-covered:after:opacity-50 motion-safe:after:transition-opacity motion-safe:after:duration-dialog-enter motion-safe:after:ease-enter max-h-full"
         role="dialog"
         aria-modal="true"
          aria-labelledby="ds-modal-9a7a73d6-title"             >
@@ -469,40 +553,54 @@
     x-cloak
     x-effect="    if (i) {
         $el._returnFocusTo = document.activeElement;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)].filter((n) =&gt; n !== $el);
+        $el.dataset.dsLayer = others.length ? Math.max(...others.map((n) =&gt; +n.dataset.dsLayer)) + 1 : 0;
+        $el.toggleAttribute(&#039;data-ds-stacked&#039;, others.length &gt; 0);
+        $el.style.zIndex = others.length ? Math.max(...others.map((n) =&gt; +getComputedStyle(n).zIndex || 0)) + 1 : &#039;&#039;;
         document.body.classList.add(&#039;overflow-hidden&#039;);
         $nextTick(() =&gt; {
             const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
             (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
         });
     } else {
-        document.body.classList.remove(&#039;overflow-hidden&#039;);
-        $el._returnFocusTo?.focus();
+        const was = $el.dataset.dsLayer;
+        delete $el.dataset.dsLayer;
+        $el.removeAttribute(&#039;data-ds-stacked&#039;);
+        $el.style.zIndex = &#039;&#039;;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+        others.forEach((n) =&gt; $el.contains(n._returnFocusTo) &amp;&amp; (n._returnFocusTo = $el._returnFocusTo));
+        if (!others.length) document.body.classList.remove(&#039;overflow-hidden&#039;);
+        if (!others.some((n) =&gt; +n.dataset.dsLayer &gt; was)) $el._returnFocusTo?.focus();
+    }
+    const layers = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+    const top = Math.max(...layers.map((n) =&gt; +n.dataset.dsLayer));
+    for (const n of new Set([$el, ...layers])) {
+        const covered = n.hasAttribute(&#039;data-ds-layer&#039;) &amp;&amp; +n.dataset.dsLayer &lt; top;
+        const panel = n.querySelector(&#039;[role=dialog]&#039;);
+        const back = covered &amp;&amp; !layers.some((o) =&gt; o !== n &amp;&amp; n.contains(o)) &amp;&amp; !matchMedia(&#039;(prefers-reduced-motion: reduce)&#039;).matches;
+        n.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        panel?.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        if (!panel || (panel.style.scale !== &#039;&#039;) === back) continue;
+        panel.style.transition = &#039;scale var(--ds-motion-duration-dialog-enter) var(--ds-motion-ease-enter)&#039;;
+        panel.style.scale = back ? &#039;0.94&#039; : &#039;&#039;;
+        clearTimeout(panel._dsLayerTimer);
+        panel._dsLayerTimer = setTimeout(() =&gt; (panel.style.transition = &#039;&#039;), 300);
     }"
-            @keydown.escape.window="if (i) i = false"
+            @keydown.escape.window="if (i &amp;&amp; !$event.dsLayer &amp;&amp; !$el.hasAttribute(&#039;data-ds-covered&#039;)) { $event.dsLayer = true; i = false }"
         
     class="fixed inset-0 z-50 flex items-center justify-center p-4"
 >
     <div
         x-show="i"
-         @click="i = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
-        
-        class="absolute inset-0 bg-scrim"
+         @click="i = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+        class="absolute inset-0 bg-scrim in-data-ds-stacked:opacity-0"
     ></div>
 
     <div
         x-show="i"
-        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0 scale-95"
-        x-transition:enter-end="opacity-100 scale-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100 scale-100"
-        x-transition:leave-end="opacity-0 scale-95"
-        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    if ($el.closest(&#039;[data-ds-layer]&#039;)?.hasAttribute(&#039;data-ds-covered&#039;)) return;
+    const focusable = [...$el.querySelectorAll(
         &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
     )].filter((node) =&gt; node.offsetParent !== null);
     if (!focusable.length) return;
@@ -512,7 +610,7 @@
         data-ds-modal-panel
         
         tabindex="-1"
-        class="relative flex w-full max-w-4xl flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full"
+        class="relative flex w-full max-w-4xl flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden after:pointer-events-none after:absolute after:inset-0 after:bg-scrim after:opacity-0 data-ds-covered:after:opacity-50 motion-safe:after:transition-opacity motion-safe:after:duration-dialog-enter motion-safe:after:ease-enter max-h-full"
         role="dialog"
         aria-modal="true"
          aria-labelledby="ds-modal-27d5197a-title"             >
@@ -546,40 +644,54 @@
     x-cloak
     x-effect="    if (j) {
         $el._returnFocusTo = document.activeElement;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)].filter((n) =&gt; n !== $el);
+        $el.dataset.dsLayer = others.length ? Math.max(...others.map((n) =&gt; +n.dataset.dsLayer)) + 1 : 0;
+        $el.toggleAttribute(&#039;data-ds-stacked&#039;, others.length &gt; 0);
+        $el.style.zIndex = others.length ? Math.max(...others.map((n) =&gt; +getComputedStyle(n).zIndex || 0)) + 1 : &#039;&#039;;
         document.body.classList.add(&#039;overflow-hidden&#039;);
         $nextTick(() =&gt; {
             const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
             (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
         });
     } else {
-        document.body.classList.remove(&#039;overflow-hidden&#039;);
-        $el._returnFocusTo?.focus();
+        const was = $el.dataset.dsLayer;
+        delete $el.dataset.dsLayer;
+        $el.removeAttribute(&#039;data-ds-stacked&#039;);
+        $el.style.zIndex = &#039;&#039;;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+        others.forEach((n) =&gt; $el.contains(n._returnFocusTo) &amp;&amp; (n._returnFocusTo = $el._returnFocusTo));
+        if (!others.length) document.body.classList.remove(&#039;overflow-hidden&#039;);
+        if (!others.some((n) =&gt; +n.dataset.dsLayer &gt; was)) $el._returnFocusTo?.focus();
+    }
+    const layers = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+    const top = Math.max(...layers.map((n) =&gt; +n.dataset.dsLayer));
+    for (const n of new Set([$el, ...layers])) {
+        const covered = n.hasAttribute(&#039;data-ds-layer&#039;) &amp;&amp; +n.dataset.dsLayer &lt; top;
+        const panel = n.querySelector(&#039;[role=dialog]&#039;);
+        const back = covered &amp;&amp; !layers.some((o) =&gt; o !== n &amp;&amp; n.contains(o)) &amp;&amp; !matchMedia(&#039;(prefers-reduced-motion: reduce)&#039;).matches;
+        n.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        panel?.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        if (!panel || (panel.style.scale !== &#039;&#039;) === back) continue;
+        panel.style.transition = &#039;scale var(--ds-motion-duration-dialog-enter) var(--ds-motion-ease-enter)&#039;;
+        panel.style.scale = back ? &#039;0.94&#039; : &#039;&#039;;
+        clearTimeout(panel._dsLayerTimer);
+        panel._dsLayerTimer = setTimeout(() =&gt; (panel.style.transition = &#039;&#039;), 300);
     }"
-            @keydown.escape.window="if (j) j = false"
+            @keydown.escape.window="if (j &amp;&amp; !$event.dsLayer &amp;&amp; !$el.hasAttribute(&#039;data-ds-covered&#039;)) { $event.dsLayer = true; j = false }"
         
     class="fixed inset-0 z-50 flex items-center justify-center p-4"
 >
     <div
         x-show="j"
-         @click="j = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
-        
-        class="absolute inset-0 bg-scrim"
+         @click="j = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+        class="absolute inset-0 bg-scrim in-data-ds-stacked:opacity-0"
     ></div>
 
     <div
         x-show="j"
-        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0 scale-95"
-        x-transition:enter-end="opacity-100 scale-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100 scale-100"
-        x-transition:leave-end="opacity-0 scale-95"
-        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    if ($el.closest(&#039;[data-ds-layer]&#039;)?.hasAttribute(&#039;data-ds-covered&#039;)) return;
+    const focusable = [...$el.querySelectorAll(
         &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
     )].filter((node) =&gt; node.offsetParent !== null);
     if (!focusable.length) return;
@@ -589,7 +701,7 @@
         data-ds-modal-panel
         
         tabindex="-1"
-        class="relative flex w-full max-w-[96rem] flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full"
+        class="relative flex w-full max-w-[96rem] flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden after:pointer-events-none after:absolute after:inset-0 after:bg-scrim after:opacity-0 data-ds-covered:after:opacity-50 motion-safe:after:transition-opacity motion-safe:after:duration-dialog-enter motion-safe:after:ease-enter max-h-full"
         role="dialog"
         aria-modal="true"
          aria-labelledby="ds-modal-08945411-title"             >
@@ -622,39 +734,53 @@
     x-cloak
     x-effect="    if (e) {
         $el._returnFocusTo = document.activeElement;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)].filter((n) =&gt; n !== $el);
+        $el.dataset.dsLayer = others.length ? Math.max(...others.map((n) =&gt; +n.dataset.dsLayer)) + 1 : 0;
+        $el.toggleAttribute(&#039;data-ds-stacked&#039;, others.length &gt; 0);
+        $el.style.zIndex = others.length ? Math.max(...others.map((n) =&gt; +getComputedStyle(n).zIndex || 0)) + 1 : &#039;&#039;;
         document.body.classList.add(&#039;overflow-hidden&#039;);
         $nextTick(() =&gt; {
             const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
             (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
         });
     } else {
-        document.body.classList.remove(&#039;overflow-hidden&#039;);
-        $el._returnFocusTo?.focus();
+        const was = $el.dataset.dsLayer;
+        delete $el.dataset.dsLayer;
+        $el.removeAttribute(&#039;data-ds-stacked&#039;);
+        $el.style.zIndex = &#039;&#039;;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+        others.forEach((n) =&gt; $el.contains(n._returnFocusTo) &amp;&amp; (n._returnFocusTo = $el._returnFocusTo));
+        if (!others.length) document.body.classList.remove(&#039;overflow-hidden&#039;);
+        if (!others.some((n) =&gt; +n.dataset.dsLayer &gt; was)) $el._returnFocusTo?.focus();
+    }
+    const layers = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+    const top = Math.max(...layers.map((n) =&gt; +n.dataset.dsLayer));
+    for (const n of new Set([$el, ...layers])) {
+        const covered = n.hasAttribute(&#039;data-ds-layer&#039;) &amp;&amp; +n.dataset.dsLayer &lt; top;
+        const panel = n.querySelector(&#039;[role=dialog]&#039;);
+        const back = covered &amp;&amp; !layers.some((o) =&gt; o !== n &amp;&amp; n.contains(o)) &amp;&amp; !matchMedia(&#039;(prefers-reduced-motion: reduce)&#039;).matches;
+        n.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        panel?.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        if (!panel || (panel.style.scale !== &#039;&#039;) === back) continue;
+        panel.style.transition = &#039;scale var(--ds-motion-duration-dialog-enter) var(--ds-motion-ease-enter)&#039;;
+        panel.style.scale = back ? &#039;0.94&#039; : &#039;&#039;;
+        clearTimeout(panel._dsLayerTimer);
+        panel._dsLayerTimer = setTimeout(() =&gt; (panel.style.transition = &#039;&#039;), 300);
     }"
         
     class="fixed inset-0 z-50 flex items-center justify-center p-4"
 >
     <div
         x-show="e"
-                x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
-        
-        class="absolute inset-0 bg-scrim"
+                x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+        class="absolute inset-0 bg-scrim in-data-ds-stacked:opacity-0"
     ></div>
 
     <div
         x-show="e"
-        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0 scale-95"
-        x-transition:enter-end="opacity-100 scale-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100 scale-100"
-        x-transition:leave-end="opacity-0 scale-95"
-        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    if ($el.closest(&#039;[data-ds-layer]&#039;)?.hasAttribute(&#039;data-ds-covered&#039;)) return;
+    const focusable = [...$el.querySelectorAll(
         &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
     )].filter((node) =&gt; node.offsetParent !== null);
     if (!focusable.length) return;
@@ -664,7 +790,7 @@
         data-ds-modal-panel
         
         tabindex="-1"
-        class="relative flex w-full max-w-md flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full"
+        class="relative flex w-full max-w-md flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden after:pointer-events-none after:absolute after:inset-0 after:bg-scrim after:opacity-0 data-ds-covered:after:opacity-50 motion-safe:after:transition-opacity motion-safe:after:duration-dialog-enter motion-safe:after:ease-enter max-h-full"
         role="dialog"
         aria-modal="true"
          aria-labelledby="ds-modal-00045c25-title"             >
@@ -688,40 +814,54 @@
     x-cloak
     x-effect="    if (f) {
         $el._returnFocusTo = document.activeElement;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)].filter((n) =&gt; n !== $el);
+        $el.dataset.dsLayer = others.length ? Math.max(...others.map((n) =&gt; +n.dataset.dsLayer)) + 1 : 0;
+        $el.toggleAttribute(&#039;data-ds-stacked&#039;, others.length &gt; 0);
+        $el.style.zIndex = others.length ? Math.max(...others.map((n) =&gt; +getComputedStyle(n).zIndex || 0)) + 1 : &#039;&#039;;
         document.body.classList.add(&#039;overflow-hidden&#039;);
         $nextTick(() =&gt; {
             const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
             (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
         });
     } else {
-        document.body.classList.remove(&#039;overflow-hidden&#039;);
-        $el._returnFocusTo?.focus();
+        const was = $el.dataset.dsLayer;
+        delete $el.dataset.dsLayer;
+        $el.removeAttribute(&#039;data-ds-stacked&#039;);
+        $el.style.zIndex = &#039;&#039;;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+        others.forEach((n) =&gt; $el.contains(n._returnFocusTo) &amp;&amp; (n._returnFocusTo = $el._returnFocusTo));
+        if (!others.length) document.body.classList.remove(&#039;overflow-hidden&#039;);
+        if (!others.some((n) =&gt; +n.dataset.dsLayer &gt; was)) $el._returnFocusTo?.focus();
+    }
+    const layers = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+    const top = Math.max(...layers.map((n) =&gt; +n.dataset.dsLayer));
+    for (const n of new Set([$el, ...layers])) {
+        const covered = n.hasAttribute(&#039;data-ds-layer&#039;) &amp;&amp; +n.dataset.dsLayer &lt; top;
+        const panel = n.querySelector(&#039;[role=dialog]&#039;);
+        const back = covered &amp;&amp; !layers.some((o) =&gt; o !== n &amp;&amp; n.contains(o)) &amp;&amp; !matchMedia(&#039;(prefers-reduced-motion: reduce)&#039;).matches;
+        n.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        panel?.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        if (!panel || (panel.style.scale !== &#039;&#039;) === back) continue;
+        panel.style.transition = &#039;scale var(--ds-motion-duration-dialog-enter) var(--ds-motion-ease-enter)&#039;;
+        panel.style.scale = back ? &#039;0.94&#039; : &#039;&#039;;
+        clearTimeout(panel._dsLayerTimer);
+        panel._dsLayerTimer = setTimeout(() =&gt; (panel.style.transition = &#039;&#039;), 300);
     }"
-            @keydown.escape.window="if (f) f = false"
+            @keydown.escape.window="if (f &amp;&amp; !$event.dsLayer &amp;&amp; !$el.hasAttribute(&#039;data-ds-covered&#039;)) { $event.dsLayer = true; f = false }"
         
     class="fixed inset-0 z-50 flex items-center justify-center p-4"
 >
     <div
         x-show="f"
-         @click="f = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
-        
-        class="absolute inset-0 bg-scrim"
+         @click="f = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+        class="absolute inset-0 bg-scrim in-data-ds-stacked:opacity-0"
     ></div>
 
     <div
         x-show="f"
-        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0 scale-95"
-        x-transition:enter-end="opacity-100 scale-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100 scale-100"
-        x-transition:leave-end="opacity-0 scale-95"
-        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    if ($el.closest(&#039;[data-ds-layer]&#039;)?.hasAttribute(&#039;data-ds-covered&#039;)) return;
+    const focusable = [...$el.querySelectorAll(
         &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
     )].filter((node) =&gt; node.offsetParent !== null);
     if (!focusable.length) return;
@@ -731,7 +871,7 @@
         data-ds-modal-panel
         
         tabindex="-1"
-        class="relative flex w-full max-w-md flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full"
+        class="relative flex w-full max-w-md flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden after:pointer-events-none after:absolute after:inset-0 after:bg-scrim after:opacity-0 data-ds-covered:after:opacity-50 motion-safe:after:transition-opacity motion-safe:after:duration-dialog-enter motion-safe:after:ease-enter max-h-full"
         role="dialog"
         aria-modal="true"
                     >
@@ -765,40 +905,54 @@
     x-cloak
     x-effect="    if (show.rename) {
         $el._returnFocusTo = document.activeElement;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)].filter((n) =&gt; n !== $el);
+        $el.dataset.dsLayer = others.length ? Math.max(...others.map((n) =&gt; +n.dataset.dsLayer)) + 1 : 0;
+        $el.toggleAttribute(&#039;data-ds-stacked&#039;, others.length &gt; 0);
+        $el.style.zIndex = others.length ? Math.max(...others.map((n) =&gt; +getComputedStyle(n).zIndex || 0)) + 1 : &#039;&#039;;
         document.body.classList.add(&#039;overflow-hidden&#039;);
         $nextTick(() =&gt; {
             const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
             (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
         });
     } else {
-        document.body.classList.remove(&#039;overflow-hidden&#039;);
-        $el._returnFocusTo?.focus();
+        const was = $el.dataset.dsLayer;
+        delete $el.dataset.dsLayer;
+        $el.removeAttribute(&#039;data-ds-stacked&#039;);
+        $el.style.zIndex = &#039;&#039;;
+        const others = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+        others.forEach((n) =&gt; $el.contains(n._returnFocusTo) &amp;&amp; (n._returnFocusTo = $el._returnFocusTo));
+        if (!others.length) document.body.classList.remove(&#039;overflow-hidden&#039;);
+        if (!others.some((n) =&gt; +n.dataset.dsLayer &gt; was)) $el._returnFocusTo?.focus();
+    }
+    const layers = [...document.querySelectorAll(&#039;[data-ds-layer]&#039;)];
+    const top = Math.max(...layers.map((n) =&gt; +n.dataset.dsLayer));
+    for (const n of new Set([$el, ...layers])) {
+        const covered = n.hasAttribute(&#039;data-ds-layer&#039;) &amp;&amp; +n.dataset.dsLayer &lt; top;
+        const panel = n.querySelector(&#039;[role=dialog]&#039;);
+        const back = covered &amp;&amp; !layers.some((o) =&gt; o !== n &amp;&amp; n.contains(o)) &amp;&amp; !matchMedia(&#039;(prefers-reduced-motion: reduce)&#039;).matches;
+        n.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        panel?.toggleAttribute(&#039;data-ds-covered&#039;, covered);
+        if (!panel || (panel.style.scale !== &#039;&#039;) === back) continue;
+        panel.style.transition = &#039;scale var(--ds-motion-duration-dialog-enter) var(--ds-motion-ease-enter)&#039;;
+        panel.style.scale = back ? &#039;0.94&#039; : &#039;&#039;;
+        clearTimeout(panel._dsLayerTimer);
+        panel._dsLayerTimer = setTimeout(() =&gt; (panel.style.transition = &#039;&#039;), 300);
     }"
-            @keydown.escape.window="if (show.rename) show.rename = false"
+            @keydown.escape.window="if (show.rename &amp;&amp; !$event.dsLayer &amp;&amp; !$el.hasAttribute(&#039;data-ds-covered&#039;)) { $event.dsLayer = true; show.rename = false }"
         
     class="fixed inset-0 z-50 flex items-center justify-center p-4"
 >
     <div
         x-show="show.rename"
-         @click="show.rename = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
-        
-        class="absolute inset-0 bg-scrim"
+         @click="show.rename = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+        class="absolute inset-0 bg-scrim in-data-ds-stacked:opacity-0"
     ></div>
 
     <div
         x-show="show.rename"
-        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
-        x-transition:enter-start="opacity-0 scale-95"
-        x-transition:enter-end="opacity-100 scale-100"
-        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
-        x-transition:leave-start="opacity-100 scale-100"
-        x-transition:leave-end="opacity-0 scale-95"
-        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    if ($el.closest(&#039;[data-ds-layer]&#039;)?.hasAttribute(&#039;data-ds-covered&#039;)) return;
+    const focusable = [...$el.querySelectorAll(
         &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
     )].filter((node) =&gt; node.offsetParent !== null);
     if (!focusable.length) return;
@@ -808,7 +962,7 @@
         data-ds-modal-panel
         
         tabindex="-1"
-        class="relative flex w-full max-w-sm flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full mt-2"
+        class="relative flex w-full max-w-sm flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden after:pointer-events-none after:absolute after:inset-0 after:bg-scrim after:opacity-0 data-ds-covered:after:opacity-50 motion-safe:after:transition-opacity motion-safe:after:duration-dialog-enter motion-safe:after:ease-enter max-h-full mt-2"
         role="dialog"
         aria-modal="true"
          aria-labelledby="ds-modal-42f014f9-title"             >

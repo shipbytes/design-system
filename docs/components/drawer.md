@@ -105,6 +105,9 @@ trapped both ways, Escape closes, the page behind does not scroll, and the
 **body** scrolls while the header and footer stay put — which matters most for a
 long filter list, exactly where losing the Apply button off the bottom hurts.
 
+A modal opened from a drawer stacks over it: see
+[Stacking overlays](../getting-started.md#stacking-overlays).
+
 ## Don't
 
 - **Don't drive several drawers from one variable.** `open="side === 'right'"`

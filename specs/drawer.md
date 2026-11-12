@@ -100,18 +100,18 @@ for the reason given in [modal.md](modal.md#why-the-focus-trap-is-written-out-lo
 Alpine skips a directive it has no handler for, so a missing plugin makes
 `x-trap` nothing at all while `aria-modal="true"` keeps claiming otherwise.
 
-### Why it is duplicated rather than shared
+### The modal's layer, shared (2.0)
 
-The trap and the focus management are byte-identical to the modal's, and they are
-copied rather than extracted.
+The trap, the focus management, the backdrop and Escape are the modal's layer
+recipe (`partials/modal.php`, read through `Support\Modal::recipe()`), the same
+strings the modal and the command palette use.
 
-A Blade partial shared between the two would be included into both components'
-attribute context, and the thing being shared is a *string of JavaScript* built
-in `@php` — the include would have to pass the open-state expression through,
-which is exactly the multi-line attribute-bag shape that makes Blade emit the tag
-as literal text. Two copies of ten lines, each next to the component it belongs
-to, is cheaper than that indirection. **If a third overlay appears, extract
-then.**
+In 1.x they were copied, not shared, with a note to extract them when a third
+overlay appeared. The command palette was the third (batch 12, which made the
+recipe a PHP file returning strings, not a Blade partial, so the open-state
+expression is a function argument and never an attribute bag). The overlay
+stack (batch 19) was the reason to move the drawer onto it too: one stack
+needs every layer to keep it the same way.
 
 
 ### `open` must be assignable

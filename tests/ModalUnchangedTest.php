@@ -17,6 +17,12 @@ use PHPUnit\Framework\Attributes\Test;
  * The fixture was written from the view before the recipe existed: the
  * specimen, plus one with a footer and an autofocus field, and one opened
  * through a nested reference.
+ *
+ * It has been rewritten once, deliberately, in batch 19, when the modal took
+ * its place in the overlay stack (the recipe's `focus`, `escape`, `trap`,
+ * `backdrop` and `covered`): that commit's diff of the fixture is exactly
+ * what the stack added to a modal, and nothing else. A modal with nothing
+ * stacked on it behaves as it did.
  */
 final class ModalUnchangedTest extends TestCase
 {
@@ -35,7 +41,7 @@ final class ModalUnchangedTest extends TestCase
     }
 
     #[Test]
-    public function every_modal_renders_exactly_as_before_the_recipe(): void
+    public function every_modal_renders_exactly_as_it_did(): void
     {
         $fixture = __DIR__.'/Fixtures/modal-1x.html';
         $rendered = '';

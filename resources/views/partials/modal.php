@@ -18,7 +18,7 @@ return [
      * `scrim` stays dark in both themes. Deriving it from `fg` would make it
      * white in dark, lighting the page up instead of pushing it back.
      */
-    'backdrop' => 'absolute inset-0 bg-scrim',
+    'backdrop' => 'absolute inset-0 bg-scrim in-data-ds-stacked:opacity-0',
 
     'backdropTransition' => [
         'x-transition:enter' => 'motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter',
@@ -46,8 +46,13 @@ return [
      * silently does not exist, and `aria-modal="true"` becomes a lie a screen
      * reader believes. Ten lines inline depend on nothing. Bound to Tab with
      * `.prevent`, on the panel.
+     *
+     * A layer with another open above it leaves Tab alone: a dialog written
+     * inside another one's body hears every Tab of the one on top as well,
+     * and two traps moving focus in turn would skip a stop each press.
      */
     'trap' => <<<'JS'
+            if ($el.closest('[data-ds-layer]')?.hasAttribute('data-ds-covered')) return;
             const focusable = [...$el.querySelectorAll(
                 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
             )].filter((node) => node.offsetParent !== null);
@@ -56,6 +61,22 @@ return [
             const step = $event.shiftKey ? -1 : 1;
             focusable[(at + step + focusable.length) % focusable.length].focus();
         JS,
+
+    /*
+     * Escape, on the window, for the open-state expression: only the layer on
+     * top closes. The event is marked as it is used, because the layer below
+     * stops being covered the moment the top one's state changes, and a real
+     * key press runs Alpine's effects between one listener and the next.
+     */
+    'escape' => fn (string $open) => "if ({$open} && !\$event.dsLayer && !\$el.hasAttribute('data-ds-covered')) { \$event.dsLayer = true; {$open} = false }",
+
+    /*
+     * On the panel: the dim a layer takes while another is open above it,
+     * drawn by a pseudo-element over its content. Not a filter and not the
+     * backdrop: a filter makes the panel the containing block of a dialog
+     * written inside it, and the backdrop is under the panel, not over it.
+     */
+    'covered' => 'after:pointer-events-none after:absolute after:inset-0 after:bg-scrim after:opacity-0 data-ds-covered:after:opacity-50 motion-safe:after:transition-opacity motion-safe:after:duration-dialog-enter motion-safe:after:ease-enter',
 
     /*
      * The x-effect on the layer's root, given the open state's expression,
@@ -69,18 +90,55 @@ return [
      * one feels broken.
      * Close: put focus back where it came from, or the reader is returned to
      * the top of the document with no idea where they were.
+     *
+     * The stack, kept in the DOM so there is one of it whichever overlays
+     * are on the page and whether or not the package's script is: an open
+     * layer's root carries data-ds-layer, its order of opening. The highest
+     * is on top. The others are data-ds-covered (root and panel: the panel's
+     * dim, Escape and Tab read it) and, unless the reader asked for less
+     * motion or one holds another in its markup, scaled back. One opened over
+     * another is data-ds-stacked, which drops its own backdrop (the page is
+     * dimmed once) and is lifted one z-index above the highest below it, so
+     * the order on screen is the order of opening, not of the source. Closing
+     * a layer that is not on top moves nobody's focus, and hands what it
+     * would have returned to on to the layer that was going to return into
+     * it. The scroll lock goes with the last one.
      */
     'focus' => fn (string $open, string $panel = '[data-ds-modal-panel]', string $first = '[autofocus]') => <<<JS
             if ({$open}) {
                 \$el._returnFocusTo = document.activeElement;
+                const others = [...document.querySelectorAll('[data-ds-layer]')].filter((n) => n !== \$el);
+                \$el.dataset.dsLayer = others.length ? Math.max(...others.map((n) => +n.dataset.dsLayer)) + 1 : 0;
+                \$el.toggleAttribute('data-ds-stacked', others.length > 0);
+                \$el.style.zIndex = others.length ? Math.max(...others.map((n) => +getComputedStyle(n).zIndex || 0)) + 1 : '';
                 document.body.classList.add('overflow-hidden');
                 \$nextTick(() => {
                     const panel = \$el.querySelector('{$panel}');
                     (panel.querySelector('{$first}') ?? panel).focus();
                 });
             } else {
-                document.body.classList.remove('overflow-hidden');
-                \$el._returnFocusTo?.focus();
+                const was = \$el.dataset.dsLayer;
+                delete \$el.dataset.dsLayer;
+                \$el.removeAttribute('data-ds-stacked');
+                \$el.style.zIndex = '';
+                const others = [...document.querySelectorAll('[data-ds-layer]')];
+                others.forEach((n) => \$el.contains(n._returnFocusTo) && (n._returnFocusTo = \$el._returnFocusTo));
+                if (!others.length) document.body.classList.remove('overflow-hidden');
+                if (!others.some((n) => +n.dataset.dsLayer > was)) \$el._returnFocusTo?.focus();
+            }
+            const layers = [...document.querySelectorAll('[data-ds-layer]')];
+            const top = Math.max(...layers.map((n) => +n.dataset.dsLayer));
+            for (const n of new Set([\$el, ...layers])) {
+                const covered = n.hasAttribute('data-ds-layer') && +n.dataset.dsLayer < top;
+                const panel = n.querySelector('[role=dialog]');
+                const back = covered && !layers.some((o) => o !== n && n.contains(o)) && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+                n.toggleAttribute('data-ds-covered', covered);
+                panel?.toggleAttribute('data-ds-covered', covered);
+                if (!panel || (panel.style.scale !== '') === back) continue;
+                panel.style.transition = 'scale var(--ds-motion-duration-dialog-enter) var(--ds-motion-ease-enter)';
+                panel.style.scale = back ? '0.94' : '';
+                clearTimeout(panel._dsLayerTimer);
+                panel._dsLayerTimer = setTimeout(() => (panel.style.transition = ''), 300);
             }
         JS,
 ];

@@ -36,11 +36,11 @@
     // than being assembled from a `side` string at three separate points.
     $sides = [
         'right' => [
-            'position' => 'right-0 border-l',
+            'position' => 'right-0 origin-right border-l',
             'from' => 'translate-x-full',
         ],
         'left' => [
-            'position' => 'left-0 border-r',
+            'position' => 'left-0 origin-left border-r',
             'from' => '-translate-x-full',
         ],
     ];
@@ -66,30 +66,14 @@
     $id = 'ds-drawer-'.substr(md5($title.$open.$side), 0, 8);
     $labelledBy = $title ? "{$id}-title" : null;
 
-    // Identical to the modal's, and deliberately not shared: see specs/drawer.md.
-    $focusTrap = <<<'JS'
-        const focusable = [...$el.querySelectorAll(
-            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        )].filter((node) => node.offsetParent !== null);
-        if (!focusable.length) return;
-        const at = focusable.indexOf(document.activeElement);
-        const step = $event.shiftKey ? -1 : 1;
-        focusable[(at + step + focusable.length) % focusable.length].focus();
-    JS;
-
-    $focusManagement = <<<JS
-        if ({$open}) {
-            \$el._returnFocusTo = document.activeElement;
-            document.body.classList.add('overflow-hidden');
-            \$nextTick(() => {
-                const panel = \$el.querySelector('[data-ds-drawer-panel]');
-                (panel.querySelector('[autofocus]') ?? panel).focus();
-            });
-        } else {
-            document.body.classList.remove('overflow-hidden');
-            \$el._returnFocusTo?.focus();
-        }
-    JS;
+    // The modal's layer (partials/modal.php): the same trap, focus in and
+    // back out and scroll lock, and its place in the overlay stack. It was
+    // a copy until the stack, which only works if every overlay keeps it
+    // the same way: see specs/drawer.md.
+    $layer = \Shipbytes\BladeUi\Support\Modal::recipe();
+    $focusTrap = $layer['trap'];
+    $focusManagement = $layer['focus']($open, '[data-ds-drawer-panel]');
+    $escape = $layer['escape']($open);
 @endphp
 
 <div
@@ -97,7 +81,7 @@
     x-cloak
     x-effect="{{ $focusManagement }}"
     @if ($dismissible)
-        @keydown.escape.window="if ({{ $open }}) {{ $open }} = false"
+        @keydown.escape.window="{{ $escape }}"
     @endif
     class="fixed inset-0 z-50"
 >
@@ -110,7 +94,7 @@
         x-transition:leave="motion-safe:transition motion-safe:duration-slide-leave motion-safe:ease-leave"
         x-transition:leave-start="opacity-100"
         x-transition:leave-end="opacity-0"
-        class="absolute inset-0 bg-scrim"
+        class="{{ $layer['backdrop'] }}"
     ></div>
 
     <div
@@ -128,7 +112,7 @@
         tabindex="-1"
         {{ $attributes->merge([
             'class' => "absolute inset-y-0 {$s['position']} flex w-full {$width} flex-col "
-                .'border-border bg-surface shadow-overlay outline-hidden',
+                .'border-border bg-surface shadow-overlay outline-hidden '.$layer['covered'],
         ]) }}
         role="dialog"
         aria-modal="true"
