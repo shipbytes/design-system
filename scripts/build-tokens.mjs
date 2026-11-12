@@ -443,6 +443,40 @@ ${heatUtilities}
   }
 }
 
+/*
+  ds::code-block's colours, as variables a host's highlighter can be pointed
+  at: the package highlights nothing itself. Each is an existing text token,
+  so each is already held to AA on the code's ground (surface-subtle) in both
+  themes by test-tokens.mjs. The names follow the token classes highlighters
+  have in common; a highlighter theme written in CSS variables (Shiki's and
+  Phiki's css-variables theme) maps one line each, see docs/components/
+  code-block.md. :where() so a host's own rule of any weight replaces one.
+*/
+:where([data-ds-code]) {
+  --ds-code-fg: var(--ds-fg);
+  --ds-code-bg: var(--ds-surface-subtle);
+  --ds-code-comment: var(--ds-fg-muted);
+  --ds-code-keyword: var(--ds-on-danger-tint);
+  --ds-code-string: var(--ds-on-success-tint);
+  --ds-code-constant: var(--ds-on-accent-tint);
+  --ds-code-function: var(--ds-on-warning-tint);
+  --ds-code-parameter: var(--ds-fg-body);
+  --ds-code-punctuation: var(--ds-fg-muted);
+  --ds-code-link: var(--ds-accent);
+  --ds-code-highlight: var(--ds-accent-wash);
+  --ds-code-highlight-edge: var(--ds-accent);
+}
+
+/*
+  ds::input's \`clearable\` draws its own ✕, so the browser's on a
+  type=search field would be a second one. It survives appearance: none on
+  the field, so it is turned off by name.
+*/
+[data-ds-clearable]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 @theme {
 ${themeLines.join('\n')}
 }
