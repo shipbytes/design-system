@@ -22,7 +22,22 @@
      * Needs Alpine and the package's script.
      */
     'clearable' => false,
+    /**
+     * A search icon button that grows into the field while it has focus or
+     * holds text, and shrinks back when left empty. Implies type=search;
+     * `label` names it and is visually hidden. CSS without the script; with
+     * it, Escape and `shortcut`. See docs/components/input.md.
+     */
+    'expanding' => false,
+    /** With `expanding`: push the content beside it along, or grow over it (overlay). */
+    'mode' => 'push',
+    /** With `expanding`: a key that opens it from anywhere on the page, such as `/` or `mod+k`. */
+    'shortcut' => null,
 ])
+
+@if ($expanding)
+@include('ds::partials.input-expanding')
+@else
 
 @php
     // Stable under wire:model, random otherwise: see Support\ControlId.
@@ -165,3 +180,4 @@
         <p id="{{ $id }}-help" class="{{ $field['help'] }}">{{ $help }}</p>
     @endif
 </div>
+@endif

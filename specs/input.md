@@ -119,6 +119,40 @@ Escape does not clear. A search field's Escape is the browser's own, and
 inside a popover or a modal Escape closes it: taking the key here would make it
 mean two things depending on where the field is.
 
+## Expanding
+
+`expanding` turns a search field into an icon button that grows into the
+field: `resources/views/partials/input-expanding.blade.php`, included only
+when the prop is set, so without it the markup is byte for byte the 1.x field
+(`InputUnchangedTest` also renders `expanding` false).
+
+```
+div[data-ds-search][x-data=dsSearch]          push: w-fit; overlay: a fixed square, relative
+├─ label.sr-only[for=id]
+└─ span.group/search                           the width: w-11 (sm:w-9), w-64 open; overlay: absolute end-0
+   ├─ button[tabindex=-1][aria-label][aria-controls][data-ds-search-button]
+   └─ span (field shell, z above the button)
+      ├─ input[type=search][enterkeyhint=search][data-ds-search-input]
+      ├─ button (dsClear)                        with clearable
+      └─ span (magnifier, pointer-events-none)
+```
+
+| | |
+|---|---|
+| Collapsed | The field is the square: start padding is the icon's, end padding 0, so no text area shows; `cursor-pointer` |
+| Open | `has-[input:focus]` or `has-[input:not(:placeholder-shown)]`: w-64, capped at `100vw - 2rem`. Not `:focus-within`, which the button after Escape would hold open |
+| Motion | `motion-safe:transition-[width]`, popover-enter tokens opening, popover-leave closing |
+| Push / overlay | Push widens in the row; overlay keeps its square in the row and the box grows from the end over what is before it, `z-20`, so the page never shifts |
+| Escape (dsSearch) | With text: clear, `input` and `change`. Empty: focus the button, which collapses it. Stopped only when it did something, so a second Escape from the button reaches a popover or modal |
+| Button (dsSearch) | A press focuses the field; a printable key typed while it has focus goes into the field |
+| shortcut (dsSearch) | `shared/shortcut.js` `parse`/`matches`, as the command palette; a bare key is ignored inside another editable field |
+| Model | `x-model` and `wire:model` go on the native field, as on any input |
+
+The field is the only Tab stop. The button, under it and out of the tab order,
+is what a screen reader's browse mode finds and presses, and where Escape puts
+focus, so the search collapses with focus still in it. `help` and `error` are
+not drawn: an expanding field is a search, not a form field.
+
 ## Accessibility
 
 - Every field has a real `<label for>`. Placeholder is not a label — it vanishes

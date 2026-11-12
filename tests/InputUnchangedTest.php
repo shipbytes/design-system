@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Blade;
 use PHPUnit\Framework\Attributes\Test;
 
 /**
- * `reveal` and `clearable` were added to ds::input in 2.0, and every input that
+ * `reveal`, `clearable` and `expanding` were added to ds::input in 2.0, and every input that
  * does not ask for them must render exactly as it did before: byte for byte,
  * whitespace included.
  *
@@ -37,6 +37,10 @@ final class InputUnchangedTest extends TestCase
             // the prop passed as false, which must change nothing.
             'search' => '<x-ds::input type="search" name="q" label="Search" icon="magnifying-glass" value="invoices" placeholder="Search invoices" />',
             'clearable passed as false' => '<x-ds::input type="search" name="q" label="Search" :clearable="false" />',
+            // Added with `expanding` (batch 16): the prop passed as false, with
+            // the two props that only mean something beside it, must render the
+            // same field as the line above, so its fixture is that line's.
+            'expanding passed as false' => '<x-ds::input type="search" name="q" label="Search" :expanding="false" mode="overlay" shortcut="/" />',
         ];
     }
 

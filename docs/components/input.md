@@ -5,7 +5,8 @@ A text field, a textarea, or a native select. One component, three shapes.
 ![Input](../images/input.png)
 
 > `reveal` and `clearable` are the two props here that need [Alpine](../getting-started.md#alpine)
-> and the package's [script](../getting-started.md#3-add-the-script). Everything
+> and the package's [script](../getting-started.md#3-add-the-script); `expanding`
+> works without them and uses them for Escape and its `shortcut`. Everything
 > else on this page works in a plain Blade view with no JavaScript at all.
 
 ## Use it
@@ -32,6 +33,9 @@ A text field, a textarea, or a native select. One component, three shapes.
 | `rows` | int | `3` | Textarea only. |
 | `reveal` | bool | `false` | `type="password"` only: a button in the field that shows the password and hides it again. Needs Alpine and the script. |
 | `clearable` | bool | `false` | Text, search, email, url and tel: a ✕ in the field, while it has a value, that empties it. Needs Alpine and the script. |
+| `expanding` | bool | `false` | A search that is an icon button until it is used, then grows into the field. See [below](#a-search-that-expands). |
+| `mode` | `push` \| `overlay` | `push` | With `expanding`: the field pushes what follows along, or grows over what is before it. |
+| `shortcut` | string | — | With `expanding`: a key that opens it from anywhere, `/` or `mod+k`. Needs Alpine and the script. |
 | `disabled` | bool | `false` | |
 | `readonly` | attribute | — | Not a prop: pass it like any HTML attribute. The field looks fixed (subtle fill, muted text, no hover) but stays focusable and is submitted. Ignored for `as="select"`, as the browser ignores it there. |
 
@@ -118,6 +122,33 @@ attribute the markup is exactly what it was.
 
 Use it on a search or a filter, not on an ordinary form field.
 
+## A search that expands
+
+```blade
+<form role="search" action="{{ route('search') }}" class="flex items-center gap-2">
+    <x-ds::input name="q" label="Search" :expanding="true" :clearable="true" shortcut="/" />
+</form>
+
+{{-- In a header, growing over the title rather than moving it --}}
+<x-ds::input name="q" label="Search docs" :expanding="true" mode="overlay" />
+```
+
+Collapsed it is a square the size of an icon button, named by `label` (or
+"Search"). A press, a Tab into it or the `shortcut` opens it to 16rem; it stays
+open while it has focus or holds text, and closes when it loses focus empty.
+The width is CSS, `:focus` and `:placeholder-shown`, so it opens and closes
+with no script, and animates only for readers who have not asked for less
+motion. `push` widens it in its row; `overlay` keeps its square in the row and
+grows over what comes before it, so nothing else on the page moves.
+
+With Alpine and the script, **Escape** clears the text, and a second Escape
+closes it with focus on its button; `shortcut` opens it from anywhere outside
+another field. Unlike a plain `clearable` field, it takes Escape: it is the way
+out of a control that has no other edge to leave by. `help` and `error` are not
+drawn in this form; put the search in a `form role="search"` and it submits
+with Enter, as any search field does. Without the prop the markup is exactly
+what it was.
+
 ## The select here is the native one
 
 `as="select"` renders a real `<select>` — the OS control, with the OS popup.
@@ -132,6 +163,9 @@ Use [`x-ds::select`](select.md) when the unstyleable native popup is the problem
 - `error` sets `aria-invalid="true"` and wires `aria-describedby`.
 - The focus ring is drawn **inward**, so the box never changes size on focus and
   nothing below it shifts.
+- Expanding: the field is the one Tab stop; the icon button under it is out
+  of the tab order, named for a screen reader's browse mode, and is where
+  Escape returns focus.
 - Omit `label` only when a visible label elsewhere already names the field — and
   then give the control an `aria-label` yourself.
 
