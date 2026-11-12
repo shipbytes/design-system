@@ -4,7 +4,7 @@ A text field, a textarea, or a native select. One component, three shapes.
 
 ![Input](../images/input.png)
 
-> `reveal` is the one prop here that needs [Alpine](../getting-started.md#alpine)
+> `reveal` and `clearable` are the two props here that need [Alpine](../getting-started.md#alpine)
 > and the package's [script](../getting-started.md#3-add-the-script). Everything
 > else on this page works in a plain Blade view with no JavaScript at all.
 
@@ -31,6 +31,7 @@ A text field, a textarea, or a native select. One component, three shapes.
 | `icon` | string | — | Heroicon inside the control, before the value. |
 | `rows` | int | `3` | Textarea only. |
 | `reveal` | bool | `false` | `type="password"` only: a button in the field that shows the password and hides it again. Needs Alpine and the script. |
+| `clearable` | bool | `false` | Text, search, email, url and tel: a ✕ in the field, while it has a value, that empties it. Needs Alpine and the script. |
 | `disabled` | bool | `false` | |
 | `readonly` | attribute | — | Not a prop: pass it like any HTML attribute. The field looks fixed (subtle fill, muted text, no hover) but stays focusable and is submitted. Ignored for `as="select"`, as the browser ignores it there. |
 
@@ -100,6 +101,22 @@ attribute, the field's markup is exactly what it was before the prop existed.
 
 For a new password, pair it with the
 [password strength](password-strength.md) meter.
+
+## A field you can clear
+
+```blade
+<x-ds::input type="search" name="q" label="Search" icon="magnifying-glass" :clearable="true" />
+```
+
+`clearable` adds a ✕ at the end of the field while it holds something. A press
+empties it, puts focus back in it, and fires `input` and `change`, so
+`wire:model`, `x-model` and your own listeners all hear it. The button is named
+"Clear" and the label ("Clear Search"). The browser's own ✕ on a search field
+is removed, so there is one. Escape does not clear: in a popover or a modal it
+closes them. Ignored on passwords, disabled and read-only fields; without the
+attribute the markup is exactly what it was.
+
+Use it on a search or a filter, not on an ordinary form field.
 
 ## The select here is the native one
 
