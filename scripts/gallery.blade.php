@@ -278,6 +278,35 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Swap button --}}
+<section class="ds-spec" id="swap-button">
+    <header class="ds-spec-head">
+        <h2>Swap button</h2>
+        <p>A button that answers in place: &ldquo;Save&rdquo; becomes &ldquo;Saved&rdquo;, &ldquo;Follow&rdquo; becomes &ldquo;Following&rdquo;. Both faces share one grid cell from the first paint, so the button is as wide as the wider face and never jumps. The copy button runs on the same recipe.</p>
+    </header>
+
+    <div class="ds-note">Swapping needs the package&rsquo;s script; the gallery loads none, so each pair below is the server&rsquo;s render, at rest and with <code>swapped</code> set. <code>revert="0"</code> makes a toggle with <code>aria-pressed</code>; any other value swaps back after that many milliseconds.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Toggle <span>&middot; <code>revert="0"</code>, at rest and swapped</span></div>
+        <div class="{{ $row }} px-4">
+            <x-ds::swap-button variant="primary" :revert="0"><x-ds::icon name="plus" /> Follow<x-slot:swapped><x-ds::icon name="check" /> Following</x-slot:swapped></x-ds::swap-button>
+            <x-ds::swap-button variant="primary" :revert="0" :swapped="true"><x-ds::icon name="plus" /> Follow<x-slot:swapped><x-ds::icon name="check" /> Following</x-slot:swapped></x-ds::swap-button>
+            <x-ds::swap-button variant="ghost" size="sm" :revert="0"><x-ds::icon name="star" /> Star<x-slot:swapped><x-ds::icon name="star" variant="solid" class="text-warning" /> Starred</x-slot:swapped></x-ds::swap-button>
+            <x-ds::swap-button variant="ghost" size="sm" :revert="0" :swapped="true"><x-ds::icon name="star" /> Star<x-slot:swapped><x-ds::icon name="star" variant="solid" class="text-warning" /> Starred</x-slot:swapped></x-ds::swap-button>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Confirmation after a save <span>&middot; <code>event</code> swaps when the host says the save worked, not on the press</span></div>
+        <div class="{{ $row }} px-4">
+            <x-ds::swap-button event="gallery-saved" type="submit">Save changes<x-slot:swapped><x-ds::icon name="check" /> Saved</x-slot:swapped></x-ds::swap-button>
+            <x-ds::swap-button event="gallery-saved" :revert="0" :swapped="true">Save changes<x-slot:swapped><x-ds::icon name="check" /> Saved</x-slot:swapped></x-ds::swap-button>
+            <x-ds::swap-button size="lg" variant="secondary">Send invite<x-slot:swapped><x-ds::icon name="paper-airplane" /> Sent</x-slot:swapped></x-ds::swap-button>
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Rating --}}
 <section class="ds-spec" id="rating">
     <header class="ds-spec-head">
@@ -466,6 +495,51 @@
                 <x-ds::button>Page 2 of 9</x-ds::button>
                 <x-ds::button iconOnly aria-label="Next page"><x-ds::icon name="chevron-right" /></x-ds::button>
             </x-ds::button-group>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Expanding <span>&middot; <code>expanding</code>: icons whose labels open on hover, keyboard focus, and while pressed or current</span></div>
+        <div class="flex flex-col items-start gap-4 px-4">
+            <x-ds::button-group label="Text style" expanding class="w-72">
+                <x-ds::button icon="bold" aria-pressed="true">Bold</x-ds::button>
+                <x-ds::button icon="italic" aria-pressed="false">Italic</x-ds::button>
+                <x-ds::button icon="underline" aria-pressed="false">Underline</x-ds::button>
+                <x-ds::button icon="strikethrough" aria-pressed="false">Strikethrough</x-ds::button>
+            </x-ds::button-group>
+            <x-ds::button-group label="Views" expanding variant="ghost" class="w-72">
+                <x-ds::button icon="home" href="#button-group" aria-current="page">Home</x-ds::button>
+                <x-ds::button icon="inbox" href="#button-group">Inbox</x-ds::button>
+                <x-ds::button icon="calendar" href="#button-group">Calendar</x-ds::button>
+                <x-ds::button icon="cog-6-tooth" href="#button-group">Settings</x-ds::button>
+            </x-ds::button-group>
+        </div>
+        <div class="px-4 pb-4 ds-tick">The group fills its container, so a label opening never moves what sits beside it. Hover the others; Tab to them. On a phone there is no hover, so only the pressed or current one is open, and every button keeps its label as its name.</div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Icon swap --}}
+<section class="ds-spec" id="icon-swap">
+    <header class="ds-spec-head">
+        <h2>Icon swap</h2>
+        <p>Two icons that turn into each other &mdash; menu and close, play and pause, sun and moon &mdash; by crossfading, rotating or flipping two stacked icons, plus a three-bar menu drawn from spans that folds into a cross. No path morphing.</p>
+    </header>
+
+    <div class="ds-note">No script. The swap reads the state of the button around it &mdash; <code>aria-expanded</code>, <code>aria-pressed</code>, <code>aria-checked</code> or <code>data-state</code> &mdash; so a dropdown trigger or a drawer button turns its icon by itself. Each row below is the same buttons with that attribute off, then on. With reduced motion it switches instantly.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Presets <span>&middot; <code>menu</code>, <code>crossfade</code>, <code>rotate</code>, <code>rotate</code>, <code>flip</code>, and a lone chevron that turns</span></div>
+        <div class="flex flex-col items-start gap-3 px-4">
+            @foreach ([false, true] as $on)
+                <div class="{{ $row }}">
+                    <x-ds::button variant="secondary" iconOnly aria-label="Menu" aria-expanded="{{ $on ? 'true' : 'false' }}"><x-ds::icon-swap preset="menu" /></x-ds::button>
+                    <x-ds::button variant="secondary" iconOnly aria-label="Menu" aria-expanded="{{ $on ? 'true' : 'false' }}"><x-ds::icon-swap from="bars-3" to="x-mark" /></x-ds::button>
+                    <x-ds::button variant="secondary" iconOnly aria-label="Play" aria-pressed="{{ $on ? 'true' : 'false' }}"><x-ds::icon-swap from="play" to="pause" preset="rotate" variant="solid" size="4" /></x-ds::button>
+                    <x-ds::button variant="secondary" iconOnly aria-label="Add" data-state="{{ $on ? 'open' : 'closed' }}"><x-ds::icon-swap from="plus" to="x-mark" preset="rotate" /></x-ds::button>
+                    <x-ds::button variant="secondary" iconOnly aria-label="Dark mode" aria-pressed="{{ $on ? 'true' : 'false' }}"><x-ds::icon-swap from="sun" to="moon" preset="flip" /></x-ds::button>
+                    <x-ds::button variant="secondary" size="sm" aria-expanded="{{ $on ? 'true' : 'false' }}">Filters <x-ds::icon-swap from="chevron-down" preset="rotate" size="4" class="text-fg-muted" /></x-ds::button>
+                </div>
+            @endforeach
         </div>
     </div>
 </section>
@@ -1411,6 +1485,7 @@
             <x-ds::theme-switcher variant="button" storageKey="gallery-theme" />
             <x-ds::theme-switcher variant="button" size="sm" storageKey="gallery-theme" />
         </div>
+        <div class="px-4 pb-4 ds-tick">A third shape, <code>variant="menu"</code>, is a row of three radio items for inside a menu; the user menu below shows it.</div>
     </div>
 </section>
 
@@ -1434,6 +1509,61 @@
                 <x-ds::dropdown-item icon="trash" tone="danger" as="button">Delete</x-ds::dropdown-item>
             </x-slot:menu>
         </x-ds::context-menu>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── User menu --}}
+<section class="ds-spec" id="user-menu">
+    <header class="ds-spec-head">
+        <h2>User menu</h2>
+        <p>The account menu in an app shell: an avatar trigger, a header that says who is signed in, the host&rsquo;s groups of items, a theme row, and a sign-out that is a real POST form &mdash; never a link a prefetcher can follow.</p>
+    </header>
+
+    <div class="ds-note">Built on <code>ds::dropdown</code>, so it needs Alpine; the gallery loads none, so only the triggers show here and the docs page has the open panel. On a phone it stays a dropdown, sized to the screen.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Full and compact <span>&middot; name and email beside the avatar, or the avatar alone for a narrow header</span></div>
+        <div class="flex items-start justify-between gap-4 px-4">
+            <x-ds::user-menu align="start" name="Ada Lovelace" email="ada@example.com" plan="Pro" signOutAction="#user-menu" class="w-56">
+                <div role="group" aria-label="Account">
+                    <x-ds::dropdown-item href="#user-menu" icon="user-circle">Profile</x-ds::dropdown-item>
+                    <x-ds::dropdown-item href="#user-menu" icon="cog-6-tooth">Settings</x-ds::dropdown-item>
+                    <x-ds::dropdown-item href="#user-menu" icon="credit-card">Billing</x-ds::dropdown-item>
+                </div>
+                <div role="group" aria-label="Help">
+                    <x-ds::dropdown-item href="#user-menu" icon="book-open">Documentation</x-ds::dropdown-item>
+                </div>
+                <x-slot:theme><x-ds::theme-switcher variant="menu" storageKey="gallery-theme" /></x-slot:theme>
+            </x-ds::user-menu>
+            <x-ds::user-menu name="Grace Hopper" email="grace@example.com" :compact="true" signOutAction="#user-menu" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Team switcher --}}
+@php
+    $galleryTeams = [
+        ['id' => 1, 'name' => 'Acme Inc', 'meta' => 'Pro plan · 12 members'],
+        ['id' => 2, 'name' => 'Globex', 'meta' => 'Team plan · 48 members'],
+        ['id' => 3, 'name' => 'Initech', 'meta' => 'Free'],
+        ['id' => 4, 'name' => 'Umbrella Labs', 'meta' => 'Pro plan · 3 members', 'initials' => 'UL'],
+    ];
+    $galleryTeamLinks = array_map(fn ($t) => $t + ['href' => '#team-switcher'], $galleryTeams);
+@endphp
+<section class="ds-spec" id="team-switcher">
+    <header class="ds-spec-head">
+        <h2>Team switcher</h2>
+        <p>Switch workspace, team or account: a square avatar, the team&rsquo;s name and plan, and a list with a check on the current one. Past six teams it grows a search field ranked like the command palette.</p>
+    </header>
+
+    <div class="ds-note">The gallery loads <em>no Alpine</em>, so what you see is the no-script form, which is a real one: a native select and a Switch button that posts it, or plain links when every team has an <code>href</code>. With the script the same markup becomes a trigger and a listbox; the docs page shows that.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Without the script <span>&middot; a form with <code>action</code>, and links when every row has <code>href</code></span></div>
+        <div class="grid gap-6 px-4 sm:grid-cols-2">
+            <x-ds::team-switcher :teams="$galleryTeams" current="2" name="team" action="#team-switcher" method="PUT" />
+            <x-ds::team-switcher :teams="$galleryTeamLinks" current="2" />
+        </div>
     </div>
 </section>
 

@@ -1335,6 +1335,102 @@ final class Specimens
                 <x-ds::split stackBelow="xl" orientation="nonsense"><x-ds::split-pane size="1.5em">C</x-ds::split-pane><x-ds::split-pane>D</x-ds::split-pane></x-ds::split>
                 BLADE,
 
+            /*
+             * Batch 15. The expanding group and the theme switcher's menu
+             * variant are options on existing components; their specimens
+             * sit here with the four new ones.
+             */
+            'button/icon' => <<<'BLADE'
+                <x-ds::button icon="plus">New report</x-ds::button>
+                <x-ds::button icon="arrow-down-tray" variant="secondary" size="sm" :loading="true">Export</x-ds::button>
+                <x-ds::button icon="trash" variant="ghost" tone="danger" href="/delete">Delete</x-ds::button>
+                BLADE,
+            'button-group/expanding' => <<<'BLADE'
+                <x-ds::button-group label="Text style" expanding>
+                    <x-ds::button icon="bold" aria-pressed="true">Bold</x-ds::button>
+                    <x-ds::button icon="italic" aria-pressed="false">Italic</x-ds::button>
+                    <x-ds::button icon="underline" aria-pressed="false">Underline</x-ds::button>
+                </x-ds::button-group>
+                <x-ds::button-group label="Views" expanding size="sm" variant="ghost">
+                    <x-ds::button icon="home" href="/" aria-current="page">Home</x-ds::button>
+                    <x-ds::button icon="inbox" href="/inbox">Inbox</x-ds::button>
+                    <x-ds::button icon="calendar" href="/calendar" aria-current="true">Calendar</x-ds::button>
+                </x-ds::button-group>
+                <x-ds::button-group label="Actions" expanding size="lg" variant="primary">
+                    <x-ds::button icon="share" :loading="true">Share</x-ds::button>
+                    <x-ds::button icon="star" :disabled="true">Star</x-ds::button>
+                </x-ds::button-group>
+                BLADE,
+            'avatar/initials' => <<<'BLADE'
+                <x-ds::avatar name="Acme Corporation" initials="ac" :square="true" />
+                <x-ds::avatar initials="Q" size="sm" />
+                <x-ds::avatar name="Ada Lovelace" initials="  " />
+                BLADE,
+            'theme-switcher/menu' => <<<'BLADE'
+                <x-ds::dropdown>
+                    <x-slot:trigger><x-ds::button>Menu</x-ds::button></x-slot:trigger>
+                    <x-ds::dropdown-item href="/settings">Settings</x-ds::dropdown-item>
+                    <x-ds::theme-switcher variant="menu" />
+                    <x-ds::theme-switcher variant="menu" label="Appearance" storageKey="app-theme" :transition="false" />
+                </x-ds::dropdown>
+                BLADE,
+            'swap-button/all' => <<<'BLADE'
+                <x-ds::swap-button>Save<x-slot:swapped>Saved</x-slot:swapped></x-ds::swap-button>
+                <x-ds::swap-button :revert="0" variant="primary" size="sm">
+                    <x-ds::icon name="plus" /> Follow
+                    <x-slot:swapped><x-ds::icon name="check" /> Following</x-slot:swapped>
+                </x-ds::swap-button>
+                <x-ds::swap-button :swapped="true" :revert="0" variant="ghost" id="fav">Star<x-slot:swapped>Starred</x-slot:swapped></x-ds::swap-button>
+                <x-ds::swap-button event="saved" type="submit" variant="primary" size="lg" wire:click="save">Save changes<x-slot:swapped>Saved</x-slot:swapped></x-ds::swap-button>
+                <x-ds::swap-button event="invited" :swapOnClick="true" :revert="1500" href="/invite" variant="danger">Invite<x-slot:swapped>Invited</x-slot:swapped></x-ds::swap-button>
+                <x-ds::swap-button :revert="-5" variant="nonsense" size="huge">Odd<x-slot:swapped>Even</x-slot:swapped></x-ds::swap-button>
+                BLADE,
+            'icon-swap/all' => <<<'BLADE'
+                <x-ds::button iconOnly aria-label="Menu" aria-expanded="false"><x-ds::icon-swap from="bars-3" to="x-mark" /></x-ds::button>
+                <x-ds::button iconOnly aria-label="Play" aria-pressed="true"><x-ds::icon-swap from="play" to="pause" preset="rotate" size="4" variant="solid" /></x-ds::button>
+                <x-ds::button iconOnly aria-label="Add" data-state="open"><x-ds::icon-swap from="plus" to="x-mark" preset="flip" size="6" /></x-ds::button>
+                <x-ds::button iconOnly aria-label="Navigation"><x-ds::icon-swap preset="menu" :active="true" /></x-ds::button>
+                <x-ds::button aria-expanded="true">More <x-ds::icon-swap from="chevron-down" preset="rotate" size="4" class="text-fg-muted" /></x-ds::button>
+                <x-ds::icon-swap from="sun" to="moon" preset="nonsense" size="9" />
+                BLADE,
+            'user-menu/all' => <<<'BLADE'
+                <x-ds::user-menu name="Ada Lovelace" email="ada@example.com" plan="Pro" signOutAction="/logout">
+                    <div role="group" aria-label="Account">
+                        <x-ds::dropdown-item href="/profile" icon="user-circle">Profile</x-ds::dropdown-item>
+                        <x-ds::dropdown-item href="/settings" icon="cog-6-tooth">Settings</x-ds::dropdown-item>
+                    </div>
+                    <div role="group" aria-label="Help">
+                        <x-ds::dropdown-item href="/docs" icon="book-open">Documentation</x-ds::dropdown-item>
+                    </div>
+                    <x-slot:theme><x-ds::theme-switcher variant="menu" /></x-slot:theme>
+                </x-ds::user-menu>
+                <x-ds::user-menu name="Grace Hopper" meta="Admin" src="/grace.jpg" :compact="true" align="start" signOutAction="/logout" signOutLabel="Log out" class="ml-auto">
+                    <x-ds::dropdown-item href="/profile">Profile</x-ds::dropdown-item>
+                    <x-slot:csrf><input type="hidden" name="_csrf" value="t0k3n" /></x-slot:csrf>
+                </x-ds::user-menu>
+                <x-ds::user-menu name="Alan Turing" initials="T" align="nonsense" />
+                BLADE,
+            'team-switcher/all' => <<<'BLADE'
+                @php
+                    $few = [
+                        ['id' => 1, 'name' => 'Acme Inc', 'meta' => 'Pro plan'],
+                        ['id' => 2, 'name' => 'Globex', 'meta' => 'Free', 'src' => '/globex.png'],
+                        ['id' => 3, 'name' => 'Initech', 'initials' => 'IT'],
+                    ];
+                    $linked = [
+                        ['id' => 'a', 'name' => 'Acme Inc', 'meta' => 'Owner', 'href' => '/t/acme'],
+                        ['id' => 'b', 'name' => 'Umbrella', 'meta' => 'Member', 'href' => '/t/umbrella'],
+                    ];
+                    $many = array_map(fn ($i) => ['id' => $i, 'name' => "Team {$i}", 'meta' => $i % 2 ? 'Pro' : null], range(1, 8));
+                @endphp
+                <x-ds::team-switcher :teams="$few" current="2" name="team" action="/teams/switch" method="PATCH">
+                    <x-slot:footer><x-ds::button variant="ghost" size="sm" icon="plus" href="/teams/create">Create team</x-ds::button></x-slot:footer>
+                </x-ds::team-switcher>
+                <x-ds::team-switcher :teams="$linked" current="b" :compact="true" label="Switch workspace" />
+                <x-ds::team-switcher :teams="$many" name="team_id" wire:model.live="teamId" :searchFrom="6" placeholder="Search teams" emptyText="Nothing here" />
+                <x-ds::team-switcher :teams="$few" />
+                BLADE,
+
             // Not a visual component, but it renders inside a host's layout and
             // so inside a Livewire render too; this puts it through the markers
             // test with everything else.

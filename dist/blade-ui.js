@@ -970,6 +970,41 @@ const __ds_behaviours_clear = (() => {
     return { clear };
 })();
 
+// shared/flag.js
+const __ds_shared_flag = (() => {
+    /*
+     * A flag that goes up and, `ms` later, comes back down by itself: the
+     * "Copied" of dsClipboard and the swapped face of dsSwap. Registers nothing.
+     *
+     *   const flag = timedFlag((on) => { scope.copied = on; }, 1500);
+     *   flag.set(true);    up, and down again in 1500 ms
+     *   flag.set(false);   down now
+     *   flag.stop();       forget the timer, for destroy()
+     *
+     * Restarted rather than stacked: raised again while up, it stays up for the
+     * whole time after the LATER raise, not for what was left of the first. An
+     * `ms` of 0 or less never comes down by itself.
+     */
+    function timedFlag(write, ms) {
+        let timer = null;
+
+        return {
+            set(on) {
+                clearTimeout(timer);
+                timer = null;
+                write(on);
+                if (on && ms > 0) timer = setTimeout(() => write(false), ms);
+            },
+
+            stop() {
+                clearTimeout(timer);
+            },
+        };
+    }
+
+    return { timedFlag };
+})();
+
 // behaviours/clipboard.js
 const __ds_behaviours_clipboard = (() => {
     /*
@@ -995,6 +1030,8 @@ const __ds_behaviours_clipboard = (() => {
      * the closure: a host with its own `text` keeps it.
      */
 
+    const { timedFlag } = __ds_shared_flag;
+
     // Long enough to read "Copied" at a glance, short enough that a second copy a
     // moment later does not look like it is still showing the first one.
     const COPIED_FOR = 1500;
@@ -1004,7 +1041,7 @@ const __ds_behaviours_clipboard = (() => {
             const fallback = options.text ?? '';
             const target = options.target ?? null;
             const showFor = options.for ?? COPIED_FOR;
-            let timer = null;
+            let flag = null;
 
             return {
                 copied: false,
@@ -1013,26 +1050,18 @@ const __ds_behaviours_clipboard = (() => {
                     const text = value !== undefined ? String(value ?? '') : target !== null ? read(target) : fallback;
                     const ok = text !== null && (await write(text));
 
-                    if (!ok) {
-                        clearTimeout(timer);
-                        this.copied = false;
-                        return false;
-                    }
-
-                    // Restarted rather than stacked: two quick copies keep the flag
-                    // up for the full time after the SECOND one, not for what is
-                    // left of the first.
-                    clearTimeout(timer);
-                    this.copied = true;
-                    timer = setTimeout(() => {
-                        this.copied = false;
+                    // Restarted rather than stacked (shared/flag.js): two quick
+                    // copies keep the flag up for the full time after the SECOND.
+                    flag ??= timedFlag((on) => {
+                        this.copied = on;
                     }, showFor);
+                    flag.set(ok);
 
-                    return true;
+                    return ok;
                 },
 
                 destroy() {
-                    clearTimeout(timer);
+                    flag?.stop();
                 },
             };
         });
@@ -1105,6 +1134,41 @@ const __ds_behaviours_clipboard = (() => {
     return { clipboard };
 })();
 
+// shared/rank.js
+const __ds_shared_rank = (() => {
+    /*
+     * Ranking typed text against a label, shared by dsCommandPalette and
+     * dsTeamSwitcher so the two filters agree on what matches and what comes
+     * first. Registers nothing.
+     */
+
+    // Lower case, accents off, one space: "Café  Menu" finds "cafe m".
+    function fold(text) {
+        return String(text).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
+    }
+
+    /*
+     * 4 the text starts with the query, 3 a word in it does, 2 it is somewhere
+     * inside, 1 its letters are there in order, 0 no match.
+     */
+    function rank(text, q) {
+        let at = text.indexOf(q);
+        if (at === 0) return 4;
+        const inside = at > 0;
+        while (at > 0) {
+            if (!/[\p{L}\p{N}]/u.test(text[at - 1])) return 3;
+            at = text.indexOf(q, at + 1);
+        }
+        if (inside) return 2;
+        const letters = q.replace(/ /g, '');
+        let i = 0;
+        for (const ch of text) if (ch === letters[i] && ++i === letters.length) return 1;
+        return 0;
+    }
+
+    return { fold, rank };
+})();
+
 // behaviours/command-palette.js
 const __ds_behaviours_command_palette = (() => {
     /*
@@ -1154,6 +1218,7 @@ const __ds_behaviours_command_palette = (() => {
      *
      * The scope exposes `dsOpen` and nothing else.
      */
+    const { fold, rank } = __ds_shared_rank;
 
     const EDITABLE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
     const SEARCH_DELAY = 200;
@@ -1372,30 +1437,6 @@ const __ds_behaviours_command_palette = (() => {
                 window.removeEventListener('close-command-palette', onClose);
             },
         };
-    }
-
-    // Lower case, accents off, one space: "Café  Menu" finds "cafe m".
-    function fold(text) {
-        return String(text).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
-    }
-
-    /*
-     * 4 the text starts with the query, 3 a word in it does, 2 it is somewhere
-     * inside, 1 its letters are there in order, 0 no match.
-     */
-    function rank(text, q) {
-        let at = text.indexOf(q);
-        if (at === 0) return 4;
-        const inside = at > 0;
-        while (at > 0) {
-            if (!/[\p{L}\p{N}]/u.test(text[at - 1])) return 3;
-            at = text.indexOf(q, at + 1);
-        }
-        if (inside) return 2;
-        const letters = q.replace(/ /g, '');
-        let i = 0;
-        for (const ch of text) if (ch === letters[i] && ++i === letters.length) return 1;
-        return 0;
     }
 
     /*
@@ -5347,6 +5388,85 @@ const __ds_behaviours_split = (() => {
     return { split };
 })();
 
+// behaviours/swap.js
+const __ds_behaviours_swap = (() => {
+    /*
+     * dsSwap: a button that swaps its face to confirm what it did, "Save" to
+     * "Saved", "Follow" to "Following".
+     *
+     *   x-data="dsSwap({ swapped: false, revert: 2000, click: true, event: 'saved' })"
+     *
+     * Behind ds::swap-button. The view renders both faces in one cell (the swap
+     * recipe, partials/swap.php), the right one showing from the server's
+     * `swapped`, and binds data-ds-swapped, aria-hidden and inert to `dsSwapped`,
+     * and aria-pressed with it when the button is a toggle. It marks the button
+     * data-ds-swap-button, the faces data-ds-swap-face (at rest first), and a
+     * role=status region outside the button data-ds-swap-status.
+     *
+     *   - `click`: a press on the button swaps it. With `revert` 0 a press
+     *     swaps it back again, a toggle; otherwise a press while swapped starts
+     *     the time again. The press goes on to the form or the link untouched
+     *   - `event`: the swap happens when that event reaches the window: a
+     *     Livewire dispatch from a save, or anything bubbling up from the page
+     *   - `revert`: ms until it swaps back by itself; 0 stays swapped
+     *   - every change says the face now showing through the status region,
+     *     politely; the first paint says nothing
+     *
+     * The scope exposes `dsSwapped` and nothing else.
+     */
+    const { timedFlag } = __ds_shared_flag;
+
+    function swap(Alpine) {
+        Alpine.data('dsSwap', (options = {}) => {
+            const revert = Number.isFinite(options.revert) ? options.revert : 2000;
+            const event = typeof options.event === 'string' && options.event !== '' ? options.event : null;
+            let teardown = null;
+
+            return {
+                dsSwapped: options.swapped === true,
+
+                init() {
+                    const root = this.$el;
+                    const button = root.querySelector('[data-ds-swap-button]');
+                    const faces = root.querySelectorAll('[data-ds-swap-face]');
+                    const status = root.querySelector('[data-ds-swap-status]');
+                    const flag = timedFlag((on) => {
+                        this.dsSwapped = on;
+                    }, revert);
+
+                    this.$watch('dsSwapped', (on) => {
+                        if (status) status.textContent = (faces[on ? 1 : 0]?.textContent ?? '').trim();
+                    });
+
+                    const onClick = (e) => {
+                        if (button?.contains(e.target)) flag.set(revert > 0 || !this.dsSwapped);
+                    };
+                    const onEvent = () => flag.set(true);
+
+                    // Rendered swapped by the server, after a save that reloaded the
+                    // page: it still puts itself back.
+                    if (this.dsSwapped && revert > 0) flag.set(true);
+
+                    if (options.click === true) root.addEventListener('click', onClick);
+                    if (event) window.addEventListener(event, onEvent);
+
+                    teardown = () => {
+                        flag.stop();
+                        root.removeEventListener('click', onClick);
+                        if (event) window.removeEventListener(event, onEvent);
+                    };
+                },
+
+                destroy() {
+                    teardown?.();
+                },
+            };
+        });
+    }
+
+    return { swap };
+})();
+
 // behaviours/tag-input.js
 const __ds_behaviours_tag_input = (() => {
     /*
@@ -5691,6 +5811,174 @@ const __ds_behaviours_tag_input = (() => {
     }
 
     return { tagInput };
+})();
+
+// behaviours/team-switcher.js
+const __ds_behaviours_team_switcher = (() => {
+    /*
+     * dsTeamSwitcher: the list behind ds::team-switcher, in a dsPopover panel.
+     *
+     *   x-data="dsTeamSwitcher({ submit: true })"
+     *
+     * The view renders everything from PHP: a fallback (data-ds-team-fallback)
+     * of links, or a native select (data-ds-team-select) inside the form when
+     * there is one, which it binds hidden to `dsReady`; and, hidden until
+     * `dsReady`, a ds::popover whose trigger (data-ds-team-trigger) shows the
+     * current team's avatar, name and meta (data-ds-team-avatar, -name, -meta),
+     * and whose panel holds an optional search field (data-ds-team-search), a
+     * listbox of options (data-ds-team-option, role=option, data-value, the
+     * name in data-ds-label and the meta in data-ds-keywords, aria-selected on
+     * the current one, each in an item of its own) and an empty row
+     * (data-ds-team-empty). Opening, closing, Escape, focus in and back out are
+     * the popover's; focus starts on the field, or on the current team.
+     *
+     *   - ArrowDown and ArrowUp move between the options shown, wrapping, and
+     *     Home and End go to the ends; ArrowDown from the field enters the list,
+     *     ArrowUp from its first option goes back to the field. Enter or Space
+     *     chooses; Enter in the field chooses the first match
+     *   - typing in the field filters, ranked as the command palette ranks
+     *     (shared/rank.js): the name, then the meta just below it. The options
+     *     are ordered by CSS `order`, so the DOM stays as rendered for a morph
+     *   - choosing a link follows it. Choosing any other team sets the select
+     *     to its id, moves aria-selected and the trigger's face to it, closes
+     *     the panel with focus back on the trigger, dispatches `change` with
+     *     { id } from the select, bubbling (wire:model and x-model on it hear
+     *     it), and with `submit` submits the form
+     *
+     * The listeners are on the root and read the DOM on every event, so a
+     * Livewire morph that re-renders the teams changes nothing here.
+     *
+     * The scope exposes `dsReady` and nothing else.
+     */
+    const { fold, rank } = __ds_shared_rank;
+
+    function teamSwitcher(Alpine) {
+        Alpine.data('dsTeamSwitcher', (options = {}) => {
+            let teardown = null;
+
+            return {
+                dsReady: false,
+
+                init() {
+                    const root = this.$el;
+                    const find = (selector) => root.querySelector(selector);
+                    const all = () => [...root.querySelectorAll('[data-ds-team-option]')];
+                    const item = (option) => option.closest('li') ?? option;
+                    const order = (option) => Number(item(option).style.order || 0);
+                    const shown = () => all().filter((o) => !item(o).hidden).sort((a, b) => order(a) - order(b));
+
+                    const close = () => {
+                        const popover = find('[data-ds-popover]');
+                        if (popover) Alpine.$data(popover).dsOpen = false;
+                    };
+
+                    function filter() {
+                        const field = find('[data-ds-team-search]');
+                        const q = fold((field?.value ?? '').trim());
+                        const scored = all().map((o, i) => {
+                            const name = rank(fold(o.dataset.dsLabel ?? ''), q) * 2;
+                            const meta = rank(fold(o.dataset.dsKeywords ?? ''), q) * 2 - 1;
+                            return [o, q ? Math.max(name, meta) : 1, i];
+                        });
+                        scored.sort((a, b) => b[1] - a[1] || a[2] - b[2]);
+                        scored.forEach(([o, score], i) => {
+                            item(o).hidden = score <= 0;
+                            if (q) item(o).style.setProperty('order', String(i + 1));
+                            else item(o).style.removeProperty('order');
+                        });
+                        const empty = find('[data-ds-team-empty]');
+                        if (empty) empty.hidden = scored.some(([, score]) => score > 0);
+                    }
+
+                    function choose(option) {
+                        if (option.matches('a[href]')) {
+                            close();
+                            return;
+                        }
+                        const id = option.dataset.value;
+                        for (const o of all()) {
+                            o.setAttribute('aria-selected', o === option ? 'true' : 'false');
+                            if (!find('[data-ds-team-search]')) o.toggleAttribute('data-ds-autofocus', o === option);
+                        }
+                        const face = find('[data-ds-team-trigger]');
+                        for (const part of ['name', 'meta']) {
+                            const to = face?.querySelector(`[data-ds-team-${part}]`);
+                            if (to) to.textContent = option.querySelector(`[data-ds-team-${part}]`)?.textContent ?? '';
+                        }
+                        face?.querySelector('[data-ds-team-avatar]')?.replaceWith(option.querySelector('[data-ds-team-avatar]').cloneNode(true));
+                        close();
+
+                        const select = find('[data-ds-team-select]');
+                        if (!select) return;
+                        select.value = id;
+                        // A plain Event with a detail, not a CustomEvent: x-model
+                        // (and wire:model, which is built on it) takes a
+                        // CustomEvent's detail AS the value, and would bind
+                        // { id } instead of the id the select now holds.
+                        const change = new Event('change', { bubbles: true });
+                        change.detail = { id };
+                        select.dispatchEvent(change);
+                        if (options.submit === true) select.form?.requestSubmit();
+                    }
+
+                    const onClick = (event) => {
+                        const option = event.target.closest('[data-ds-team-option]');
+                        if (option && root.contains(option)) choose(option);
+                        // Each opening starts from the whole list.
+                        if (event.target.closest('[data-ds-team-trigger]')) {
+                            const field = find('[data-ds-team-search]');
+                            if (field) field.value = '';
+                            filter();
+                        }
+                    };
+
+                    const onKeyDown = (event) => {
+                        const field = find('[data-ds-team-search]');
+                        const list = shown();
+                        if (event.target === field) {
+                            if (event.key === 'ArrowDown' && list.length) {
+                                event.preventDefault();
+                                list[0].focus();
+                            } else if (event.key === 'Enter') {
+                                event.preventDefault();
+                                list[0]?.click();
+                            }
+                            return;
+                        }
+                        const at = list.indexOf(event.target);
+                        if (at < 0) return;
+                        if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            list[at].click();
+                            return;
+                        }
+                        const keys = { Home: 0, End: list.length - 1, ArrowDown: (at + 1) % list.length, ArrowUp: at - 1 };
+                        if (!(event.key in keys)) return;
+                        event.preventDefault();
+                        const to = keys[event.key];
+                        (to < 0 ? field ?? list[list.length - 1] : list[to]).focus();
+                    };
+
+                    root.addEventListener('click', onClick);
+                    root.addEventListener('keydown', onKeyDown);
+                    root.addEventListener('input', filter);
+                    this.dsReady = true;
+
+                    teardown = () => {
+                        root.removeEventListener('click', onClick);
+                        root.removeEventListener('keydown', onKeyDown);
+                        root.removeEventListener('input', filter);
+                    };
+                },
+
+                destroy() {
+                    teardown?.();
+                },
+            };
+        });
+    }
+
+    return { teamSwitcher };
 })();
 
 // behaviours/theme.js
@@ -6800,14 +7088,16 @@ const __ds_blade_ui = (() => {
     const { slider } = __ds_behaviours_slider;
     const { sortable } = __ds_behaviours_sortable;
     const { split } = __ds_behaviours_split;
+    const { swap } = __ds_behaviours_swap;
     const { tagInput } = __ds_behaviours_tag_input;
+    const { teamSwitcher } = __ds_behaviours_team_switcher;
     const { theme } = __ds_behaviours_theme;
     const { timePicker } = __ds_behaviours_time_picker;
     const { toggleGroup } = __ds_behaviours_toggle_group;
     const { toolbar } = __ds_behaviours_toolbar;
     const { tree } = __ds_behaviours_tree;
 
-    const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split];
+    const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split, swap, teamSwitcher];
 
     // Symbol.for, not a module-level flag. Two copies of this script, say the
     // inlined one AND a Vite import, are two separate modules with two separate

@@ -86,6 +86,8 @@ independent implementations the same component rather than three lookalikes.
 | [split.md](split.md) | Sizes as CSS variables for the first paint, the window splitter pattern, which pane a divider controls |
 | [password-strength.md](password-strength.md) | The four-level hint and its heuristic |
 | [copy-button.md](copy-button.md) | Copy, the in-place confirmation, the failure event |
+| [swap-button.md](swap-button.md) | A face that confirms in place, the swap recipe shared with copy, the toggle and its fixed name |
+| [icon-swap.md](icon-swap.md) | Two icons, or three bars, turned by the parent's state through one custom property, no script |
 | [rating.md](rating.md) | Stars over radios, "No rating", the readonly image |
 | [chip-group.md](chip-group.md) | Filter chips, inputs or links, binding through the group |
 | [radio-cards.md](radio-cards.md) | Card-shaped radios, columns, stable ids |
@@ -102,6 +104,8 @@ independent implementations the same component rather than three lookalikes.
 | [context-menu.md](context-menu.md) | The dropdown's menu at the pointer, Shift+F10, the long press |
 | [sub-nav.md](sub-nav.md) | A rail section holding its pages, the indent, the collapsed rail |
 | [theme-switcher.md](theme-switcher.md) | Light, dark or system, the pre-paint script, the view transition |
+| [user-menu.md](user-menu.md) | The account menu on the dropdown, the POST sign-out, the theme row, why it stays a dropdown on phones |
+| [team-switcher.md](team-switcher.md) | A popover listbox over a no-script select or links, ranked search, the change event x-model can read |
 | [tree.md](tree.md) | Navigation, single and checkbox trees, structure counted in PHP, the keyboard model |
 | [filter-bar.md](filter-bar.md) | Search, controls and chips as layout, the collapsible fold rendered once, filter-chip |
 | [code-block.md](code-block.md) | Chrome without a highlighter, the token colours, the indentation trap, lines that copy |

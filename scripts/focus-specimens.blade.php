@@ -21,11 +21,15 @@
 <section data-focus="otp-input"><x-ds::otp-input name="code" label="Code" :length="4" /></section>
 <section data-focus="tag-input" class="max-w-sm"><x-ds::tag-input name="tags" label="Tags" :value="['billing']" /></section>
 <section data-focus="copy-button"><x-ds::copy-button value="x" /></section>
+<section data-focus="swap-button"><x-ds::swap-button :revert="0">Follow<x-slot:swapped>Following</x-slot:swapped></x-ds::swap-button> <x-ds::swap-button>Save<x-slot:swapped>Saved</x-slot:swapped></x-ds::swap-button></section>
 <section data-focus="rating"><x-ds::rating name="score" label="Score" :value="3" /></section>
 <section data-focus="chip"><x-ds::chip-group name="status" label="Status"><x-ds::chip value="open" :checked="true">Open</x-ds::chip><x-ds::chip value="closed">Closed</x-ds::chip></x-ds::chip-group><x-ds::chip-group label="Show"><x-ds::chip href="/t" :active="true">All</x-ds::chip></x-ds::chip-group></section>
 <section data-focus="radio-card"><x-ds::radio-cards name="plan2" label="Plan" :columns="2"><x-ds::radio-card value="free" title="Free" :checked="true" /><x-ds::radio-card value="pro" title="Pro" /></x-ds::radio-cards></section>
 <section data-focus="segment"><x-ds::segmented-control name="view" label="View"><x-ds::segment value="list" :checked="true">List</x-ds::segment><x-ds::segment value="board">Board</x-ds::segment></x-ds::segmented-control><x-ds::segmented-control label="Show"><x-ds::segment href="/t" :active="true">All</x-ds::segment></x-ds::segmented-control></section>
 <section data-focus="button-group"><x-ds::button-group label="Alignment"><x-ds::button>Left</x-ds::button><x-ds::button>Right</x-ds::button></x-ds::button-group></section>
+{{-- The label opens on focus: the ring is measured on the open button. --}}
+<section data-focus="button-group-expanding" class="w-64"><x-ds::button-group label="Style" expanding><x-ds::button icon="bold" aria-pressed="true">Bold</x-ds::button><x-ds::button icon="italic">Italic</x-ds::button></x-ds::button-group></section>
+<section data-focus="icon-swap"><x-ds::button iconOnly aria-label="Menu" aria-expanded="false"><x-ds::icon-swap preset="menu" /></x-ds::button> <x-ds::button size="sm" aria-pressed="false">Filters <x-ds::icon-swap from="chevron-down" preset="rotate" size="4" /></x-ds::button></section>
 <section data-focus="toolbar-button"><x-ds::toolbar label="Formatting"><x-ds::toolbar-button icon="star" label="Star" /><x-ds::toolbar-button label="Share" href="/share" /></x-ds::toolbar></section>
 <section data-focus="toggle"><x-ds::toggle-group label="Alignment" name="align"><x-ds::toggle value="left" label="Left" :pressed="true" /><x-ds::toggle value="center" label="Center" /></x-ds::toggle-group></section>
 <section data-focus="number-field" class="max-w-sm"><x-ds::number-field name="seats" label="Seats" :value="3" :min="1" :max="10" /></section>
@@ -69,6 +73,10 @@
 </x-ds::context-menu>
 </section>
 <section data-focus="theme-switcher"><x-ds::theme-switcher storageKey="focus-page-theme" /> <x-ds::theme-switcher variant="button" storageKey="focus-page-theme" /></section>
+{{-- The triggers here; the items, the theme row and the teams in the overlay walk. --}}
+<section data-focus="user-menu"><x-ds::user-menu id="f-um" name="Ada Lovelace" email="ada@example.com" signOutAction="/out"><x-ds::dropdown-item href="/profile">Profile</x-ds::dropdown-item><x-slot:theme><x-ds::theme-switcher variant="menu" storageKey="focus-page-theme" /></x-slot:theme></x-ds::user-menu> <x-ds::user-menu name="Grace Hopper" :compact="true" /></section>
+@php $focusTeams = [['id' => 1, 'name' => 'Acme Inc', 'meta' => 'Pro'], ['id' => 2, 'name' => 'Globex'], ['id' => 3, 'name' => 'Initech']]; @endphp
+<section data-focus="team-switcher" class="w-64"><x-ds::team-switcher id="f-ts" :teams="$focusTeams" current="1" name="fteam" /><x-ds::team-switcher id="f-ts-search" :teams="$focusTeams" current="2" name="fteam2" :searchFrom="2" :compact="true" /></section>
 <section data-focus="announcement-bar"><x-ds::announcement-bar dismissible href="/status">Maintenance on Saturday.</x-ds::announcement-bar><x-ds::announcement-bar tone="warning" dismissible>Trial ends soon.</x-ds::announcement-bar></section>
 {{-- A short timeout, so the question the walk leaves open is gone before the next walk. --}}
 <section data-focus="confirm-button"><x-ds::confirm-button type="button" :timeout="1" /></section>

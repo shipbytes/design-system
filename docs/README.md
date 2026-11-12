@@ -1,6 +1,6 @@
 # Shipbytes Blade UI — documentation
 
-108 Blade components for Laravel, plus two pagination views. Presentation
+112 Blade components for Laravel, plus two pagination views. Presentation
 only: no state, no framework assumptions beyond Blade itself.
 
 **New here?** Start with [Getting started](getting-started.md) — install, three
@@ -26,13 +26,14 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Sortable list](components/sortable-list.md) | Rows put in order by drag, keyboard or buttons; posts the order — needs Alpine and the script |
 | [Password strength](components/password-strength.md) | A strength hint for a new password, and `reveal` — needs Alpine and the script |
 | [Copy button](components/copy-button.md) | Copies a value and confirms in place — needs Alpine and the script |
+| [Swap button](components/swap-button.md) | A button whose face confirms what it did: Save to Saved, Follow to Following — needs Alpine and the script |
 | [Confirm button](components/confirm-button.md) | A destructive button that asks in place first — needs Alpine and the script |
 | [Hold button](components/hold-button.md) | Confirmed by holding it, or by pressing twice — needs Alpine and the script |
 | [Rating](components/rating.md) | Stars to choose a score, or to show one |
 | [Chip group](components/chip-group.md) | Pressable filter chips, one or many, or links |
 | [Filter bar](components/filter-bar.md) | Search, controls, applied filters as chips, Clear all; folds on a phone |
 | [Segmented control](components/segmented-control.md) | One of a few views or modes, side by side |
-| [Button group](components/button-group.md) | Related buttons joined into one shape, and the split button |
+| [Button group](components/button-group.md) | Related buttons joined into one shape, the split button, and icon buttons that expand to their labels |
 | [Toolbar](components/toolbar.md) | A row of tools that is one Tab stop — needs Alpine and the script |
 | [Toggle group](components/toggle-group.md) | Buttons that stay pressed, one or many — needs Alpine and the script |
 | [Theme switcher](components/theme-switcher.md) | Light, dark or system, remembered, with the pre-paint script — needs Alpine and the script |
@@ -113,6 +114,8 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Stepper](components/stepper.md) | Where someone is in an ordered flow |
 | [Pagination](components/pagination.md) | Two Laravel paginator views, each with a Livewire variant |
 | [Tree](components/tree.md) | Nested items: a file browser, a docs sidebar, a checkbox tree — needs Alpine and the script |
+| [User menu](components/user-menu.md) | The account menu: avatar, who is signed in, your items, theme, a sign-out that POSTs — Alpine |
+| [Team switcher](components/team-switcher.md) | Switch workspace or team, with a search when the list is long — needs Alpine and the script; a select or links without |
 
 ### Overlays
 
@@ -135,6 +138,7 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | | |
 |---|---|
 | [Icon](components/icon.md) | A Heroicon, sized by the system |
+| [Icon swap](components/icon-swap.md) | Two icons that turn into each other with their button's state: menu and close, play and pause |
 | [Avatar](components/avatar.md) | A person or a thing, at a glance |
 | [Avatar group](components/avatar-group.md) | A few faces from a larger set, overlapping |
 | [Badge](components/badge.md) | A small label that annotates |
@@ -157,11 +161,11 @@ plain Blade view. The one opt-in exception is the pagination views' Livewire
 variants, which emit `wire:click` for a component that uses `WithPagination`.
 
 [Alpine](https://alpinejs.dev) — a single 15 kB script, not a framework — is
-needed by thirty-three components, and by nine optional props:
+needed by thirty-six components, and by nine optional props:
 
 | | Needs Alpine |
 |---|---|
-| `modal` `drawer` `sheet` `dropdown` `select` `combobox` `date-picker` `accordion` `file-upload` `tooltip` | **Always.** Their whole behaviour is state the browser has no markup for. |
+| `modal` `drawer` `sheet` `dropdown` `select` `combobox` `date-picker` `accordion` `file-upload` `tooltip` `user-menu` | **Always.** Their whole behaviour is state the browser has no markup for. |
 | `otp-input` `tag-input` `number-field` `password-strength` `copy-button` `toolbar` `toggle-group` `theme-switcher` | **Always, and the package's script too.** Each renders its value from PHP and posts without JavaScript, but its behaviour is the script's. |
 | `popover` `hover-card` `context-menu` | **Always, and the package's script too.** Without them the panel never opens. |
 | `confirm-button` `hold-button` `confirm-popover` | **Always, and the package's script too.** Without them each renders its first face and does nothing, so no single press ever carries out the action. |
@@ -171,6 +175,9 @@ needed by thirty-three components, and by nine optional props:
 | `command-palette` | **Always, and the package's script too.** Without them it stays closed and does nothing; keep a visible route to everything in it. |
 | `sortable-list` | **Always, and the package's script too.** Without them it is a plain list in the server's order, which posts that order, with no handles. |
 | `split` | **Always, and the package's script too.** Without them the panes are fixed at their sizes and the dividers are plain lines. |
+| `swap-button` | **Always, and the package's script too.** Without them it shows the face the server drew and is an ordinary button that still submits or links. |
+| `team-switcher` | **Always, and the package's script too.** Without them it is a native select in a form with a submit button, or a list of links. |
+| `icon-swap` | **Never.** It reads its button's state from CSS. |
 | `scroll-area` | **Never.** It scrolls natively. With Alpine and the package's script it also draws its edge shadows in a browser that cannot from CSS. |
 | `sub-nav` | **Only to open and close.** Without it the section holding the current page is open and the rest are closed, as the server rendered them. |
 | `counter` | **Never**, unless its `value` is bound to Alpine state. With Alpine and the package's script its digits roll; without them it shows the number the server rendered, and a re-render changes it. Bound with `::value`, it needs both. |
@@ -189,7 +196,7 @@ needed by thirty-three components, and by nine optional props:
 
 The package also ships a small script of its own, the behaviours several
 components share, which goes in the layout as `<x-ds::scripts />` above Alpine.
-The twenty-two above that need it, and `input`'s `reveal` and `announcement-bar`'s
+The twenty-four above that need it, and `input`'s `reveal` and `announcement-bar`'s
 dismissal, say so at the top of
 their pages. See [Add the script](getting-started.md#3-add-the-script).
 
