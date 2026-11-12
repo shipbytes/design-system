@@ -291,6 +291,7 @@ const all = () => [...plot.querySelectorAll(MARK)];
 const shown = (mark) => !mark.closest('[data-ds-off]');
 const marks = () => all().filter(shown);
 plot.setAttribute('role', 'group');
+plot.setAttribute('tabindex', '-1');
 for (const mark of all()) mark.setAttribute('role', 'img');
 let active = null;
 let anchored = null;
@@ -418,6 +419,7 @@ key.addEventListener('keydown', onKeyKey);
 return () => {
 hide();
 rove();
+plot.removeAttribute('tabindex');
 plot.removeEventListener('keydown', onKeyDown);
 plot.removeEventListener('focusin', onFocusIn);
 plot.removeEventListener('focusout', onFocusOut);

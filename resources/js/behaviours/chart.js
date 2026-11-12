@@ -77,6 +77,11 @@ function enhance(root) {
     const marks = () => all().filter(shown);
 
     plot.setAttribute('role', 'group');
+    // Chromium makes an svg with a role a sequential tab stop of its own,
+    // ahead of the marks inside it: Tab would land on the whole plot, with
+    // the browser's square ring and no readout. Out of the order, the first
+    // stop is the mark roving chose.
+    plot.setAttribute('tabindex', '-1');
     for (const mark of all()) mark.setAttribute('role', 'img');
 
     let active = null;
@@ -234,6 +239,7 @@ function enhance(root) {
     return () => {
         hide();
         rove();
+        plot.removeAttribute('tabindex');
         plot.removeEventListener('keydown', onKeyDown);
         plot.removeEventListener('focusin', onFocusIn);
         plot.removeEventListener('focusout', onFocusOut);
