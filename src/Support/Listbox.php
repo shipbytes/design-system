@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Shipbytes\BladeUi\Support;
 
 /**
- * The popup list ds::combobox and ds::time-picker are drawn with, from
+ * The popup list ds::combobox and ds::time-picker are drawn with, and the
+ * option ds::command-palette lists, from
  * resources/views/partials/listbox.php: its classes, its options and the
  * arrow-key handler.
  *
@@ -21,6 +22,7 @@ final class Listbox
      * @return array{
      *     panel: string,
      *     option: string,
+ *     activeOption: string,
      *     empty: string,
      *     move: string,
      * }

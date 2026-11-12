@@ -3,7 +3,8 @@
 /*
  * The listbox recipe: the popup list ds::combobox and ds::time-picker open
  * under their text field, its options, and the arrow-key
- * handler that walks it.
+ * handler that walks it; and the option ds::command-palette lists, whose
+ * focus never leaves its field.
  *
  * Read through Support\Listbox::recipe(), never copied. A plain PHP file under
  * resources/views for the reason partials/field.php is: a consumer's Tailwind
@@ -26,6 +27,15 @@ return [
      * inward: the list scrolls, and an outward ring would be cut off by it.
      */
     'option' => 'flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-body text-fg-body motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:bg-surface-subtle focus-visible:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring aria-selected:font-medium aria-selected:text-fg',
+
+    /*
+     * An option in a list whose focus stays in its field (the command
+     * palette): the field names it in aria-activedescendant and it carries
+     * aria-selected, so the ring the option above draws on focus is drawn
+     * here on aria-selected, the same ring in the same place. The text keeps
+     * its weight as the active row moves, unlike a CHOSEN option's.
+     */
+    'activeOption' => 'mx-1.5 flex cursor-pointer items-center gap-3 rounded-control px-2.5 py-2 text-body text-fg-body aria-selected:bg-surface-subtle aria-selected:text-fg aria-selected:outline-2 aria-selected:-outline-offset-2 aria-selected:outline-focus-ring aria-disabled:cursor-not-allowed aria-disabled:opacity-50',
 
     /** The row an empty list shows instead: an empty list with no words reads as a broken control. */
     'empty' => 'px-3 py-2 text-body text-fg-muted',
