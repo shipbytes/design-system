@@ -31,8 +31,10 @@
             </x-slot:footer>
         </x-ds::drawer>
 
-        {{-- ── dropdown ── --}}
-        <div class="mt-6">
+        {{-- ── dropdown ──
+             Centred, so the menu has room on every side and the edge check at
+             the end of the run can prove it opens where its classes put it. --}}
+        <div class="mt-6 flex justify-center">
             <x-ds::dropdown>
                 <x-slot:trigger>
                     <x-ds::button id="menu-trigger" variant="secondary" size="sm">Actions</x-ds::button>
@@ -44,8 +46,8 @@
             </x-ds::dropdown>
         </div>
 
-        {{-- ── tooltip ── --}}
-        <div class="mt-6">
+        {{-- ── tooltip ── centred for the same reason --}}
+        <div class="mt-6 flex justify-center">
             <x-ds::tooltip text="Delete this report permanently">
                 <x-ds::button id="tip-trigger" variant="secondary" size="sm" iconOnly aria-label="Delete">
                     <x-ds::icon name="trash" size="4" />
@@ -509,6 +511,22 @@
             <x-slot:trigger><a href="#edge" id="hc-edge-trigger">Edge person</a></x-slot:trigger>
             <span class="block h-40">A tall card.</span>
         </x-ds::hover-card>
+    </div>
+
+    {{-- ── the overlays that predate x-ds-anchor, now on it ──
+         Each at the right edge of a box that clips with overflow hidden, for
+         the edge check at the end of the run, where each is opened at the
+         bottom right of the window. Their placements prefer the side that
+         has no room there, so each has to flip to stay on screen. --}}
+    <div class="mt-6 flex h-10 justify-end overflow-hidden border border-border">
+        <x-ds::dropdown id="dd-edge" placement="bottom-start">
+            <x-slot:trigger>
+                <x-ds::button id="dd-edge-trigger" size="sm">Edge menu</x-ds::button>
+            </x-slot:trigger>
+            <x-ds::dropdown-item href="#edge-edit">Edit</x-ds::dropdown-item>
+            <x-ds::dropdown-item href="#edge-dup">Duplicate with a longer name</x-ds::dropdown-item>
+            <x-ds::dropdown-item href="#edge-move">Move</x-ds::dropdown-item>
+        </x-ds::dropdown>
     </div>
 
     {{-- ── dsClipboard, from the shared script ──

@@ -79,12 +79,31 @@ try {
 
 await writeFile(join(TMP, 'specimens.html'), specimens);
 
+/*
+  The overlays whose x-ds-anchor is an enhancement, for a page with Alpine and
+  NO include: each must still open, where its absolute classes put it, and
+  say nothing in the console. Rendered here so its classes are compiled into
+  the page's CSS with everything else.
+*/
+await writeFile(join(TMP, 'fallback.blade.php'), `<div class="p-8">
+<div class="mt-6">
+    <x-ds::dropdown id="fb-dropdown">
+        <x-slot:trigger><x-ds::button id="fb-dropdown-trigger" size="sm">Actions</x-ds::button></x-slot:trigger>
+        <x-ds::dropdown-item id="fb-dropdown-first" href="#a">Edit</x-ds::dropdown-item>
+        <x-ds::dropdown-item href="#b">Duplicate</x-ds::dropdown-item>
+    </x-ds::dropdown>
+</div>
+</div>`);
+const fallbackMarkup = await render(join(TMP, 'fallback.blade.php'));
+await writeFile(join(TMP, 'fallback.html'), fallbackMarkup);
+
 await writeFile(
     join(TMP, 'in.css'),
     `@import "tailwindcss";
 @import "${join(ROOT, 'dist/tokens.css')}";
 @import "${join(ROOT, 'dist/theme.css')}";
 @source "${join(TMP, 'specimens.html')}";
+@source "${join(TMP, 'fallback.html')}";
 `,
 );
 
@@ -2688,7 +2707,6 @@ await check('the shipped stylesheet hides a cloaked element', async () => {
 group('overlay edges (reported, not enforced — the overlays not yet on x-ds-anchor)');
 
 const overlays = [
-    ['dropdown', '#menu-trigger', '[role=menu]'],
     ['select', '#plan', '[role=listbox]'],
     ['date-picker', '#period', '[role=dialog][aria-modal="false"]'],
 ];
@@ -2734,31 +2752,83 @@ for (const [name, triggerSelector, popoverSelector] of overlays) {
 */
 group('overlay edges, enforced (the overlays on x-ds-anchor)');
 
+const pressEscape = async () => {
+    await page.keyboard.press('Escape');
+};
+
+/*
+  Each entry: the trigger, the panel, how to open and close it, and the side
+  it must have flipped to. `trigger` is also the reference the panel is
+  measured against unless `reference` names another.
+*/
 const anchored = [
-    ['popover', 'pop-edge-trigger', 'pop-edge', async () => {
-        await page.click('#pop-edge-trigger');
-    }, async () => {
-        await page.keyboard.press('Escape');
-    }],
-    ['hover card', 'hc-edge-trigger', 'hc-edge', async () => {
-        await page.hover('#hc-edge-trigger');
-    }, async () => {
-        await page.keyboard.press('Escape');
-        await page.mouse.move(5, 5);
-    }],
+    {
+        name: 'popover', trigger: '#pop-edge-trigger', panel: '#pop-edge',
+        open: () => page.click('#pop-edge-trigger'), close: pressEscape,
+    },
+    {
+        name: 'hover card', trigger: '#hc-edge-trigger', panel: '#hc-edge',
+        open: () => page.hover('#hc-edge-trigger'),
+        close: async () => {
+            await page.keyboard.press('Escape');
+            await page.mouse.move(5, 5);
+        },
+    },
+    {
+        name: 'dropdown', trigger: '#dd-edge-trigger', panel: '#dd-edge [role=menu]',
+        open: () => page.click('#dd-edge-trigger'), close: pressEscape,
+    },
 ];
 
-for (const [name, triggerId, panelId, open, close] of anchored) {
+/*
+  The other half: with room, an overlay moved onto the anchor must land where
+  its absolute classes put it in 1.x, so nothing a reader sees has moved. The
+  panel is measured as placed, then again with the anchor's inline placement
+  taken off, in the same frame. Half a pixel is the anchor's rounding to whole
+  device pixels.
+*/
+const roomy = [
+    { name: 'dropdown', trigger: '#menu-trigger', panel: '[data-ds-dropdown]:has(#menu-trigger) [role=menu]' },
+];
+
+const PLACED = ['position', 'left', 'top', 'right', 'bottom', 'margin', 'translate', 'width', 'maxHeight', 'overflowY'];
+
+for (const { name, trigger, panel, open, close } of roomy) {
+    await check(`${name}: with room, it opens exactly where its fallback classes put it`, async () => {
+        await page.evaluate((s) => document.querySelector(s).scrollIntoView({ block: 'center' }), trigger);
+        await settle(150);
+        await (open ? open() : page.click(trigger));
+        await settle(400);
+        const r = await page.evaluate(([p, props]) => {
+            const el = document.querySelector(p);
+            const placed = el.getBoundingClientRect();
+            const style = el.getAttribute('style');
+            for (const prop of props) el.style[prop] = '';
+            const fallback = el.getBoundingClientRect();
+            el.setAttribute('style', style);
+            return {
+                anchored: el.style.position === 'fixed',
+                off: Math.max(...['left', 'top', 'width', 'height'].map((k) => Math.abs(placed[k] - fallback[k]))),
+            };
+        }, [panel, PLACED]);
+        await (close ? close() : pressEscape());
+        await settle(250);
+        if (!r.anchored) return 'the anchor never placed it, so this proves nothing';
+        return r.off <= 0.5 || `${r.off.toFixed(2)}px from where its fallback puts it`;
+    });
+}
+
+for (const { name, trigger, reference, panel, open, close, side = 'top' } of anchored) {
     await check(`${name}: at the bottom right of the window, clipped box and all, it stays on screen`, async () => {
-        await page.evaluate((id) => document.getElementById(id).scrollIntoView({ block: 'end', inline: 'end' }), triggerId);
+        await page.evaluate((s) => document.querySelector(s).scrollIntoView({ block: 'end', inline: 'end' }), trigger);
         await settle(150);
         await open();
         await settle(700);
-        const b = await anchorBoxes(`#${panelId}`, `#${triggerId}`);
+        const b = await anchorBoxes(panel, reference ?? trigger);
         await close();
         await settle(350);
         if (!b.shown) return 'it did not open';
-        if (b.side !== 'top') return `data-side is ${b.side}: it did not flip`;
+        if (b.side !== side) return `data-side is ${b.side}: it did not flip to ${side}`;
         if (!b.onTop) return 'something else is painted where it is: clipped';
         return insideViewport(b);
     });
@@ -2860,6 +2930,13 @@ ${include}
 <style>${css}</style>
 <script defer src="alpine.js"></script>
 </head><body><form id="form">${segMarkup}</form></body></html>`,
+
+    // The overlays that take x-ds-anchor as an enhancement, with Alpine and
+    // no include: they open where their absolute classes put them.
+    'anchor-missing.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+<script defer src="alpine.js"></script>
+</head><body>${fallbackMarkup}</body></html>`,
 };
 
 for (const [name, html] of Object.entries(hostPages)) await writeFile(join(TMP, name), html);
@@ -3068,6 +3145,52 @@ group('a segmented control in a host WITHOUT the script (the glide is an enhance
         }));
         return (r.posted === 'month' && r.bg === 'rgb(255, 255, 255)') || JSON.stringify(r);
     });
+    await tab.close();
+}
+
+group('the overlays that predate x-ds-anchor, in a host WITHOUT the script (the anchor is an enhancement)');
+{
+    const { tab, errors } = await openHost('anchor-missing.html');
+
+    /*
+      Each opens where its absolute classes put it: `position: absolute`, no
+      inline placement written over it, and beside its trigger on the side
+      its placement names. Exactly how every one of them behaved in 1.x.
+    */
+    const fallbacks = [
+        { name: 'dropdown', trigger: '#fb-dropdown-trigger', panel: '#fb-dropdown [role=menu]', side: 'bottom', gap: 8 },
+    ];
+
+    await check('the markup reached the page', async () =>
+        (await tab.locator('#fb-dropdown-trigger').count()) === 1 || 'the fallback specimens were not found');
+
+    for (const { name, trigger, panel, side, gap, open, close } of fallbacks) {
+        await check(`${name}: opens at its fallback position, beside its trigger`, async () => {
+            await (open ? open(tab) : tab.click(trigger));
+            await tab.waitForTimeout(350);
+            const r = await tab.evaluate(([p, t]) => {
+                const el = document.querySelector(p);
+                const a = el.getBoundingClientRect();
+                const b = document.querySelector(t).getBoundingClientRect();
+                const s = getComputedStyle(el);
+                return {
+                    shown: s.display !== 'none',
+                    position: s.position,
+                    inline: el.style.top || el.style.left,
+                    below: Math.round(a.top - b.bottom),
+                    above: Math.round(b.top - a.bottom),
+                };
+            }, [panel, trigger]);
+            await (close ? close(tab) : tab.keyboard.press('Escape'));
+            await tab.waitForTimeout(250);
+            if (!r.shown) return 'it did not open';
+            if (r.position !== 'absolute' || r.inline) return `position ${r.position}, inline ${JSON.stringify(r.inline)}: something placed it`;
+            const measured = side === 'bottom' ? r.below : r.above;
+            return measured === gap || `${measured}px ${side === 'bottom' ? 'below' : 'above'} its trigger, not ${gap}`;
+        });
+    }
+
+    await check('nothing in the console: a skipped anchor is not an error', async () => !errors.length || errors.join(' | '));
     await tab.close();
 }
 

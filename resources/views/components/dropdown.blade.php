@@ -20,14 +20,24 @@
 
     // A CLOSED set, so these are literal class strings a scanner can read rather
     // than "top-{$side}" built at runtime. See the note in modal.blade.php.
+    //
+    // These are where the menu sits without the package's script. With it,
+    // x-ds-anchor writes inline style over them, flipping the menu to the
+    // other side when this one has no room, and the origin follows the side
+    // it took (data-side) so a flipped menu grows from its trigger.
     $placements = [
-        'bottom-start' => 'top-full left-0 mt-2 origin-top-left',
-        'bottom-end' => 'top-full right-0 mt-2 origin-top-right',
-        'top-start' => 'bottom-full left-0 mb-2 origin-bottom-left',
-        'top-end' => 'bottom-full right-0 mb-2 origin-bottom-right',
+        'bottom-start' => 'top-full left-0 mt-2 origin-top-left data-[side=top]:origin-bottom-left',
+        'bottom-end' => 'top-full right-0 mt-2 origin-top-right data-[side=top]:origin-bottom-right',
+        'top-start' => 'bottom-full left-0 mb-2 origin-bottom-left data-[side=bottom]:origin-top-left',
+        'top-end' => 'bottom-full right-0 mb-2 origin-bottom-right data-[side=bottom]:origin-top-right',
     ];
 
-    $position = $placements[$placement] ?? $placements['bottom-end'];
+    $placement = array_key_exists($placement, $placements) ? $placement : 'bottom-end';
+    $position = $placements[$placement];
+
+    // The trigger wrapper is the menu's previous sibling; the anchor measures a
+    // `contents` wrapper by the trigger inside it.
+    $anchor = "{ open: {$state}, reference: \$el.previousElementSibling, placement: '{$placement}' }";
 
     // Named so it cannot collide with the `trigger` SLOT, which arrives as
     // $trigger — assigning to that name here would replace the consumer's markup
@@ -114,6 +124,9 @@
     <div
         x-show="{{ $state }}"
         x-cloak
+        {{-- An enhancement: skipped where the script is missing, and the
+             absolute placement below is then where the menu opens. --}}
+        x-ds-anchor="{{ $anchor }}"
         x-effect="{{ $focusManagement }}"
         {{-- .outside rather than a full-screen invisible backdrop: a backdrop
              would swallow the first click anywhere on the page, so closing a

@@ -33,7 +33,7 @@ Pass `open="menuOpen"` when something else also needs to open it.
 | Prop | Type | Default | What it does |
 |---|---|---|---|
 | `open` | Alpine expression | — | Omit to let it scope its own state. |
-| `placement` | `bottom-end` `bottom-start` `top-start` `top-end` | `bottom-end` | Which corner it hangs from. |
+| `placement` | `bottom-end` `bottom-start` `top-start` `top-end` | `bottom-end` | Which corner it prefers to hang from. With the script it flips when there is no room. |
 
 Plus a `trigger` slot.
 
@@ -60,9 +60,16 @@ an item that *becomes the field's value* is an option.
 `bottom-end` is the default because the overwhelming case is a trigger on the
 right of a row, where a left-aligned menu runs off the page.
 
-**There is no collision detection.** The component does not know where the
-viewport edge is — a menu near the bottom of the page needs `placement="top-*"`
-from you.
+`placement` is the **preferred** corner. With the package's
+[script](../getting-started.md#3-add-the-script) on the page, the menu flips to
+the other side when this one has no room, shifts to stay 8 px inside the
+window, and is placed with `position: fixed`, so a table cell or a card with
+`overflow: hidden` cannot clip it. With room, it opens exactly where it always
+did.
+
+Without the script it still works: it opens at `placement` and trusts it, as
+it did before 2.0, so a menu near the bottom of the page needs
+`placement="top-*"` from you, and a clipping ancestor cuts it off.
 
 ## The trigger is your element
 

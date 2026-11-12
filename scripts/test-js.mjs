@@ -181,8 +181,16 @@ async function bladeFiles(dir) {
   The segmented control is radios and CSS, so it must work, and not throw,
   where the script is missing: test-behaviour.mjs loads it on a page with no
   include and checks both. A directive goes on this list only with that test.
+
+  `ds-anchor` keeps an overlay on screen. The overlays that predate it
+  (dropdown, select, combobox, date picker, tooltip) keep their absolute
+  placement classes under it, which is how they opened in 1.x, so skipping it
+  costs the flip and the escape from a clipping box and nothing else:
+  test-behaviour.mjs opens each on a page with no include. popover and
+  hover-card use it too, inside a Behaviour::data() scope, so a host without
+  the script still hears about them.
 */
-const ENHANCEMENTS = new Set(['ds-glide']);
+const ENHANCEMENTS = new Set(['ds-glide', 'ds-anchor']);
 
 const used = new Map(); // "data:dsX" -> [files]
 const rawData = [];
