@@ -146,7 +146,10 @@ for (const [ref, file] of [...fontCss.matchAll(/url\(\.\/files\/([^)]+)\)/g)].ma
     fontCss = fontCss.replace(ref, `url(data:font/woff2;base64,${data})`);
 }
 
-const page = `<style>
+// The charset is not optional: a file:// page without one is read as
+// windows-1252, and every literal £ or é in a specimen photographs as Â£, Ã©.
+const page = `<meta charset="utf-8">
+<style>
 ${fontCss}
 </style>
 <style>
