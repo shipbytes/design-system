@@ -2685,7 +2685,7 @@ await check('the shipped stylesheet hides a cloaked element', async () => {
   gap. It exists so the cost is a number somebody can look at before deciding
   whether floating-ui is worth taking on.
 */
-group('overlay edges (reported, not enforced — no popover here does collision detection)');
+group('overlay edges (reported, not enforced — the overlays not yet on x-ds-anchor)');
 
 const overlays = [
     ['dropdown', '#menu-trigger', '[role=menu]'],

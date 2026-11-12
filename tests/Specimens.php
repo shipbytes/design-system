@@ -381,7 +381,10 @@ final class Specimens
                     ['label' => 'Report', 'key' => 'name', 'sortable' => true],
                     'Status',
                     'total' => ['label' => 'Total', 'align' => 'right', 'sortable' => true],
-                    ['label' => '', 'width' => 'w-14'],
+                    // A width is the consumer's own class, which this
+                    // package's CSS does not carry; the empty header is the
+                    // point here.
+                    ['label' => ''],
                 ]">
                     <x-ds::table-row>
                         <x-ds::table-cell>Q3 revenue</x-ds::table-cell>
