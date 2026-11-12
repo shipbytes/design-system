@@ -19,7 +19,10 @@
  *
  * Every string below is exactly what ds::input emitted in 1.x, in the same
  * order, empty segments included: InputUnchangedTest holds its output byte for
- * byte to a fixture written before this file existed.
+ * byte to a fixture written before this file existed. One change since: the
+ * focus ring was `sm:` only, which left a field below 640px with no focus
+ * indicator but the caret, and an external keyboard on a phone or a narrow
+ * window shows none. It is on at every width now.
  */
 
 $padding = static fn (string $size): string => match ($size) {
@@ -71,7 +74,7 @@ return [
         'before:bg-surface before:shadow-raised',
         'after:pointer-events-none after:absolute after:inset-0 after:rounded-control',
         'after:ring-transparent after:ring-inset',
-        'sm:focus-within:after:ring-2 sm:focus-within:after:ring-focus-ring',
+        'focus-within:after:ring-2 focus-within:after:ring-focus-ring',
         $flat ? 'before:bg-surface-subtle before:shadow-none' : '',
     ]),
 

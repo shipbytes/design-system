@@ -51,7 +51,7 @@
     $state = $current ? 'text-fg' : 'text-fg-body hover:text-fg';
     $iconState = $current ? 'text-fg-body' : 'text-fg-subtle';
 
-    $base = 'flex items-center rounded-control border border-transparent text-left text-section font-medium motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-fg/5 '.$state;
+    $base = 'flex items-center rounded-control border border-transparent text-left text-section font-medium motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-fg/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring '.$state;
 @endphp
 
 {{--

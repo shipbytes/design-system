@@ -149,7 +149,10 @@ posts. The main page is host setup (a), ds::scripts in the head above a
 deferred Alpine file; pages of their own cover (b) `Alpine.plugin()` on the ES
 module, (c) Livewire's bundled Alpine with the include loaded twice, a
 Content Security Policy with and without the nonce, and a page with no include
-that must say what is missing. Every request for `http://localhost/…` is
+that must say what is missing. A focus page (`scripts/focus-specimens.blade.php`)
+is walked with Tab in both themes at 1200px and 375px, and every stop, and
+every item inside the overlays, must draw a ring that was not there before;
+the browser's own `auto` ring fails it. Every request for `http://localhost/…` is
 answered by Laravel itself through `scripts/request.php`, so the include's src
 is fetched from the package's real route, headers and all. **Skips with a warning when there
 is no Chromium** (`npx playwright install chromium`), so a clean clone still goes
@@ -469,6 +472,14 @@ writes a page for a browser to open by `file://` needs the same line.
   out. A JavaScript animation (the stat tile's count-up) checks
   `matchMedia('(prefers-reduced-motion: reduce)')` and skips.
   `test-tokens.mjs` scans every view for this and fails the build.
+- **Every focusable element draws the system ring on `focus-visible`.**
+  `outline-2 outline-focus-ring`, outside with `outline-offset-2` where there
+  is room, inside with `-outline-offset-2` where a scrolling or clipping box
+  would cut it off (menu items, options, nav rails, panel rows). Never rely on
+  the browser's own ring, and never a fill alone: `surface-subtle` on `surface`
+  is about 1.04:1 in light. A transparent control (the file input) puts its
+  ring on the visible box with `has-focus-visible:`. A new component with
+  anything focusable gets a section in `scripts/focus-specimens.blade.php`.
 - **Comments explain why, not what.** The reason a value is what it is, or the
   bug that made it necessary.
 - **Never name the app this came from.** It is deliberately anonymous.

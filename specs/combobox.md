@@ -91,6 +91,7 @@ Alpine component either way, and the single case costs nothing to make correct.
   undo a selection is to aim at a 12px ✕, which on a touch screen is not a
   target at all.
 - Escape closes and returns focus to the field.
+- A focused option draws the focus ring inside itself, as the select's do.
 
 ## Accessibility
 

@@ -93,6 +93,8 @@ A Livewire host binds the hidden input and never touches the rest.
 - Focus returns to the trigger on close.
 
 Roving `tabindex`: every option is `-1` and the listbox moves focus itself.
+The focused option draws the focus ring inside itself, as the dropdown's items
+do; the fill it also takes is not enough to see on its own.
 
 ## Accessibility
 

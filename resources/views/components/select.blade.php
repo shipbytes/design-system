@@ -203,7 +203,7 @@
                 @click="value = {{ $optionValueJs }}; label = {{ $optionLabelJs }}; open = false"
                 @keydown.enter.prevent="$el.click()"
                 @keydown.space.prevent="$el.click()"
-                class="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-body text-fg-body motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:bg-surface-subtle focus-visible:text-fg focus-visible:outline-hidden aria-selected:font-medium aria-selected:text-fg"
+                class="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-body text-fg-body motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:bg-surface-subtle focus-visible:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring aria-selected:font-medium aria-selected:text-fg"
             >
                 <span class="truncate">{{ $option['label'] }}</span>
 

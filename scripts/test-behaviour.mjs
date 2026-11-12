@@ -113,6 +113,10 @@ await writeFile(join(TMP, 'fallback.blade.php'), `<div class="p-8">
 const fallbackMarkup = await render(join(TMP, 'fallback.blade.php'));
 await writeFile(join(TMP, 'fallback.html'), fallbackMarkup);
 
+// One of each focusable component, for the focus-indicator walk.
+const focusMarkup = await render(join(ROOT, 'scripts/focus-specimens.blade.php'));
+await writeFile(join(TMP, 'focus.html'), focusMarkup);
+
 await writeFile(
     join(TMP, 'in.css'),
     `@import "tailwindcss";
@@ -120,6 +124,7 @@ await writeFile(
 @import "${join(ROOT, 'dist/theme.css')}";
 @source "${join(TMP, 'specimens.html')}";
 @source "${join(TMP, 'fallback.html')}";
+@source "${join(TMP, 'focus.html')}";
 `,
 );
 
@@ -167,6 +172,15 @@ ${include}
 ${orderProbe}
 <script defer src="alpine.js"></script>
 </head><body>${specimens}</body></html>`,
+);
+
+await writeFile(
+    join(TMP, 'focus-page.html'),
+    `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+${include}
+<script defer src="alpine.js"></script>
+</head><body class="bg-surface">${focusMarkup}</body></html>`,
 );
 
 // ------------------------------------------------------------ 2. drive it
@@ -2909,6 +2923,183 @@ group('combobox in a scrolling modal body (overflow-y-auto, x-ds-anchor)');
     await check('closing the modal leaves nothing open behind it', async () =>
         !(await page.locator(listbox).isVisible()) || 'the list is still showing');
 }
+
+// ---------------------------------------------------------------- focus indicators
+
+/*
+  Tab from the top of a page holding one of each focusable component, in both
+  themes and at a desktop and a phone width, and require every stop to DRAW
+  something: an outline or a ring that was not there before focus, on the
+  element, a pseudo-element or one of its near ancestors (a field's ring is on
+  its shell, a chip's on its label). The browser's own `auto` ring fails: it is
+  not the system's ring, and it is the sign of an element nobody styled. So
+  does anything drawn on a transparent element, the file input being one.
+
+  The comparison is focused against unfocused, element by element, so a
+  permanent shadow on a card never counts as a ring. Reduced motion, so a ring
+  colour with a transition is measured at its end and not on its way there.
+*/
+const fpage = await context.newPage();
+await fpage.emulateMedia({ reducedMotion: 'reduce' });
+fpage.on('pageerror', (e) => jsErrors.push('focus page, uncaught: ' + e.message));
+await fpage.goto('file://' + join(TMP, 'focus-page.html'), { waitUntil: 'networkidle' });
+await fpage.waitForTimeout(300);
+
+await fpage.evaluate(() => {
+    const shown = (node) => {
+        for (let n = node; n && n.nodeType === 1; n = n.parentElement) {
+            const s = getComputedStyle(n);
+            if (parseFloat(s.opacity) === 0 || s.visibility === 'hidden') return false;
+        }
+        return true;
+    };
+    // Everything that could be a focus indicator, on the element and three
+    // ancestors, as strings to diff.
+    window.dsFocusMarks = (el) => {
+        const out = [];
+        let n = el;
+        for (let depth = 0; n && n.nodeType === 1 && depth < 4; depth++, n = n.parentElement) {
+            if (!shown(n)) continue;
+            for (const pseudo of [null, '::before', '::after']) {
+                const cs = getComputedStyle(n, pseudo);
+                if (pseudo && cs.content === 'none') continue;
+                const at = `${depth}${pseudo ?? ''}`;
+                if (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0) {
+                    out.push(`${at} outline ${cs.outlineStyle} ${parseFloat(cs.outlineWidth)} ${cs.outlineColor}`);
+                }
+                if (cs.boxShadow !== 'none') out.push(`${at} shadow ${cs.boxShadow}`);
+            }
+        }
+        return out;
+    };
+    window.dsDescribe = (el) => {
+        const what = el.getAttribute('aria-label') || el.textContent.replace(/\s+/g, ' ').trim().slice(0, 24) || el.name || '';
+        return `${el.closest('[data-focus]')?.dataset.focus ?? '?'}: ${el.tagName.toLowerCase()}${el.getAttribute('role') ? `[role=${el.getAttribute('role')}]` : ''} "${what}"`;
+    };
+});
+
+const clearColour = (c) => /rgba\([^)]*,\s*0\)/.test(c) || /\/\s*0\)/.test(c) || c.includes('transparent');
+/** true for a drawn ring, 'auto' for the browser's own, false for nothing. */
+const isRing = (mark) => {
+    const parts = mark.split(' ');
+    if (parts[1] === 'outline') {
+        if (parts[2] === 'auto') return 'auto';
+        return parseFloat(parts[3]) >= 1 && !clearColour(parts.slice(4).join(' '));
+    }
+    return mark.replace(/^\S+ shadow /, '').split(/,(?![^(]*\))/).some((shadow) => {
+        const spread = shadow.match(/(-?[\d.]+)px (-?[\d.]+)px (-?[\d.]+)px (-?[\d.]+)px/);
+        return spread && parseFloat(spread[4]) >= 1 && !clearColour(shadow);
+    });
+};
+const verdict = (on, off) => {
+    const added = on.filter((m) => !off.includes(m)).map(isRing);
+    return added.includes(true) ? 'ring' : added.includes('auto') ? "only the browser's own ring" : 'nothing';
+};
+
+const tabWalk = async () => {
+    await fpage.evaluate(() => {
+        document.activeElement?.blur();
+        document.querySelectorAll('[data-stop]').forEach((el) => delete el.dataset.stop);
+    });
+    await fpage.mouse.click(1, 1);
+    const stops = [];
+    for (let i = 0; i < 200; i++) {
+        await fpage.keyboard.press('Tab');
+        const stop = await fpage.evaluate((n) => {
+            const el = document.activeElement;
+            if (!el || el === document.body || el.id === 'f-end') return null;
+            el.dataset.stop = n;
+            return { n, section: el.closest('[data-focus]')?.dataset.focus, what: window.dsDescribe(el), on: window.dsFocusMarks(el) };
+        }, i);
+        if (!stop) break;
+        stops.push(stop);
+    }
+    await fpage.evaluate(() => document.activeElement?.blur());
+    for (const stop of stops) {
+        const off = await fpage.evaluate((n) => window.dsFocusMarks(document.querySelector(`[data-stop="${n}"]`)), stop.n);
+        stop.verdict = verdict(stop.on, off);
+    }
+    return stops;
+};
+
+/*
+  Inside an overlay, opened from its trigger with the keyboard. Each element
+  is measured focused, then again once `move` has taken focus off it. A dialog
+  panel is skipped: it takes focus on open so a screen reader starts at the
+  top of it, and is not a Tab stop.
+*/
+const overlayWalk = async (opener, open, move, count) => {
+    await fpage.keyboard.press('Escape');
+    await fpage.focus(opener);
+    await fpage.keyboard.press('Shift+Tab');
+    await fpage.keyboard.press('Tab');
+    await fpage.keyboard.press(open);
+    await fpage.waitForTimeout(100);
+    const bad = [];
+    for (let i = 0; i < count; i++) {
+        const now = await fpage.evaluate((n) => {
+            const el = document.activeElement;
+            el.dataset.inside = n;
+            return { dialog: el.getAttribute('role') === 'dialog' && el.tabIndex < 0, what: window.dsDescribe(el), on: window.dsFocusMarks(el) };
+        }, `${opener}-${i}`);
+        await fpage.keyboard.press(move);
+        await fpage.waitForTimeout(40);
+        if (now.dialog) continue;
+        const off = await fpage.evaluate((n) => {
+            const el = document.querySelector(`[data-inside="${n}"]`);
+            return document.activeElement === el ? null : window.dsFocusMarks(el);
+        }, `${opener}-${i}`);
+        if (off === null) bad.push(`${now.what}: ${move} did not move focus off it`);
+        else if (verdict(now.on, off) !== 'ring') bad.push(`${now.what}: ${verdict(now.on, off)}`);
+    }
+    await fpage.keyboard.press('Escape');
+    await fpage.waitForTimeout(100);
+    return bad;
+};
+
+const overlays = [
+    ['dropdown items', '#f-dd', 'Enter', 'ArrowDown', 2],
+    ['select options', '#f-select', 'ArrowDown', 'ArrowDown', 2],
+    ['combobox options', '#f-combobox', 'ArrowDown', 'ArrowDown', 2],
+    ['date picker month buttons and days', '[data-ds-date-trigger]', 'Enter', 'Tab', 5],
+    ['popover content', '#f-pop', 'Enter', 'Tab', 1],
+    ['modal, round the trap', '#f-modal-open', 'Enter', 'Tab', 4],
+    ['drawer, round the trap', '#f-drawer-open', 'Enter', 'Tab', 3],
+];
+
+const sections = await fpage.evaluate(() => [...document.querySelectorAll('[data-focus]')].map((el) => el.dataset.focus));
+
+for (const [width, label] of [[1200, 'desktop'], [375, 'phone']]) {
+    await fpage.setViewportSize({ width, height: 900 });
+    for (const theme of ['light', 'dark']) {
+        group(`focus indicators (${theme}, ${label} width)`);
+        await fpage.evaluate((t) => document.documentElement.classList.toggle('dark', t === 'dark'), theme);
+        const stops = await tabWalk();
+
+        await check(`every Tab stop draws a ring (${stops.length} stops)`, async () => {
+            const bad = stops.filter((s) => s.verdict !== 'ring').map((s) => `${s.what}: ${s.verdict}`);
+            return !bad.length || bad.join('; ');
+        });
+
+        if (label === 'desktop') {
+            await check(`Tab reached every one of the ${sections.length} components on the page`, async () => {
+                const reached = new Set(stops.map((s) => s.section));
+                const missed = sections.filter((name) => !reached.has(name));
+                return !missed.length || `never reached: ${missed.join(', ')}`;
+            });
+        }
+
+        for (const [name, ...walk] of overlays) {
+            await check(`${name}: each focused one draws a ring`, async () => {
+                const bad = await overlayWalk(...walk);
+                return !bad.length || bad.join('; ');
+            });
+        }
+    }
+}
+
+await fpage.evaluate(() => document.documentElement.classList.remove('dark'));
+await fpage.close();
 
 // ---------------------------------------------------------------- the other two host setups
 

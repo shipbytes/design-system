@@ -32,10 +32,11 @@
 
     $classes = implode(' ', [
         'flex w-full items-center gap-2.5 px-3 py-2 text-left text-body',
-        // No focus RING here — a ring inside a 4px-padded menu clips against
-        // the rounded edge. The hover fill doubles as the focus fill instead,
-        // which is why it is on focus-visible as well and not hover alone.
-        'focus-visible:outline-hidden',
+        // The ring is drawn INSIDE the item: an outer one would be clipped by
+        // the menu's overflow and its rounded edge. The fill alone is not
+        // enough to find the focus by: surface-subtle on surface is about
+        // 1.04:1 in the light theme.
+        'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring',
         $disabled
             ? 'cursor-not-allowed text-fg-subtle'
             : $tones[$tone].' '.($tone === 'danger' ? 'focus-visible:bg-danger-wash focus-visible:text-on-danger-tint' : 'focus-visible:bg-surface-subtle'),

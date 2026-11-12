@@ -56,7 +56,7 @@
 
     $classes = implode(' ', [
         'group block rounded-control border border-border-strong bg-surface p-4',
-        $href ? 'motion-safe:transition-all motion-safe:duration-popover-enter motion-safe:ease-enter hover:border-fg/20 hover:shadow-raised' : '',
+        $href ? 'motion-safe:transition-all motion-safe:duration-popover-enter motion-safe:ease-enter hover:border-fg/20 hover:shadow-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring' : '',
     ]);
 
     $tag = $href ? 'a' : 'div';

@@ -35,7 +35,7 @@ guidance under one field is one line too many.
 |---|---|
 | default | `border`, white fill, `shadow-raised` |
 | hover | border to `fg/20` |
-| focus | 2px inset `focus-ring`; border unchanged |
+| focus | 2px inset `focus-ring`, at every width (it was `sm:` and up until batch 06, which left a phone-width field with no indicator but the caret); border unchanged |
 | filled | identical to default — a filled field is not a state |
 | error | border `danger`, message below in `danger` with a leading icon |
 | disabled | `surface-subtle` fill, `fg-subtle` text, no shadow |

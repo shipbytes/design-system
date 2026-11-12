@@ -126,10 +126,11 @@ disabled `<a>` — a disabled link is still focusable and still followable by
 keyboard, so the only reliable way to stop it going somewhere is for it not to be
 a link.
 
-Items carry **no focus ring**. A ring inside a menu with 4px of vertical padding
-clips against the rounded edge. The hover fill doubles as the focus fill, which
-is why every item styles `focus-visible:` and `hover:` to the same value rather
-than relying on hover alone.
+Items draw the focus ring **inside** themselves (`-outline-offset-2`): an outer
+ring would be clipped by the menu's overflow and rounded edge. The hover fill is
+on `focus-visible:` as well, but the fill alone was the only indicator until
+batch 06, and `surface-subtle` on `surface` is about 1.04:1 in light, which is
+no indicator at all.
 
 ## Accessibility
 

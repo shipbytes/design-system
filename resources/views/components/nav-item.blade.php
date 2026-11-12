@@ -29,7 +29,10 @@
 
     // 14/20 rather than the body 14/24: a nav rail is a list of short labels and
     // the looser leading makes every row four pixels taller for nothing.
-    $base = 'flex items-center rounded-control border text-left text-section font-medium motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter';
+    //
+    // The focus ring is drawn inside the item because a rail scrolls, and a
+    // scrolling box clips an outer ring at its sides.
+    $base = 'flex items-center rounded-control border text-left text-section font-medium motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring';
 
     $expandedClasses = 'w-full gap-3 px-2 py-2';
     $collapsedClasses = 'size-8 justify-center p-2';

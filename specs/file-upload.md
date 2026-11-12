@@ -69,7 +69,8 @@ discarding it means the reader assumes it uploaded.
 
 ## Accessibility
 
-- A real `<label for>`, and the input keeps its own focus ring.
+- A real `<label for>`. The input is transparent, so the zone draws the focus
+  ring for it (`has-focus-visible:`), outside its dashed border.
 - The file list is `aria-live="polite"` — it changes in response to something the
   reader did, while their attention is on a dialog that just closed.
 - Each remove button names its file, not just "Remove".

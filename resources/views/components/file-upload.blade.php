@@ -62,6 +62,9 @@
         $disabled
             ? 'cursor-not-allowed bg-surface-subtle'
             : 'cursor-pointer bg-surface hover:border-accent hover:bg-accent-wash',
+        // The input is transparent, so its own ring would be too: the zone
+        // draws it instead.
+        'has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus-ring',
     ]);
 
     /*
