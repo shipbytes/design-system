@@ -69,6 +69,11 @@
 </x-ds::context-menu>
 </section>
 <section data-focus="theme-switcher"><x-ds::theme-switcher storageKey="focus-page-theme" /> <x-ds::theme-switcher variant="button" storageKey="focus-page-theme" /></section>
+<section data-focus="announcement-bar"><x-ds::announcement-bar dismissible href="/status">Maintenance on Saturday.</x-ds::announcement-bar><x-ds::announcement-bar tone="warning" dismissible>Trial ends soon.</x-ds::announcement-bar></section>
+{{-- A short timeout, so the question the walk leaves open is gone before the next walk. --}}
+<section data-focus="confirm-button"><x-ds::confirm-button type="button" :timeout="1" /></section>
+<section data-focus="hold-button"><x-ds::hold-button label="Hold to delete" /> <x-ds::hold-button tone="neutral" label="Hold to archive" /></section>
+<section data-focus="confirm-popover"><x-ds::confirm-popover title="Delete?" type="button"><x-slot:trigger><x-ds::button id="f-cp" size="sm" variant="danger">Delete</x-ds::button></x-slot:trigger></x-ds::confirm-popover></section>
 <section data-focus="modal"><x-ds::button id="f-modal-open" @click="modalOpen = true">Open modal</x-ds::button><x-ds::modal open="modalOpen" title="Confirm" size="sm">Body<x-slot:footer><x-ds::button size="sm" @click="modalOpen = false">OK</x-ds::button></x-slot:footer></x-ds::modal></section>
 <section data-focus="drawer"><x-ds::button id="f-drawer-open" @click="drawerOpen = true">Open drawer</x-ds::button><x-ds::drawer open="drawerOpen" title="Filters">Body<x-slot:footer><x-ds::button size="sm" @click="drawerOpen = false">Apply</x-ds::button></x-slot:footer></x-ds::drawer></section>
 {{-- The walk stops here. A plain button, so it is not checked. --}}

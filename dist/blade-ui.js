@@ -732,6 +732,752 @@ const __ds_behaviours_context_menu = (() => {
     return { contextMenu };
 })();
 
+// shared/confirm.js
+const __ds_shared_confirm = (() => {
+    /*
+     * What the three ways to guard a destructive action share: dsConfirm (the
+     * inline "Are you sure?"), dsConfirmDialog (the confirm popover) and dsHold
+     * (hold to confirm). Registers nothing.
+     *
+     * The action itself is always the host's: a form the confirm control submits,
+     * a wire:click or @click on it, or the `confirm` event. So a press that must
+     * not act yet is stopped where all three of those would hear it, and a press
+     * that may act is let through untouched.
+     */
+
+    /*
+     * Stops a click before the control's own listeners and the form hear it.
+     * Called from a listener CAPTURING on an ancestor: propagation stopped there
+     * never reaches the target phase, where Alpine's @click and Livewire's
+     * wire:click listen, and the default (submitting) is cancelled.
+     */
+    function swallow(event) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    }
+
+    /*
+     * `confirm` and `cancel`, from the control the host's attributes landed on,
+     * bubbling: a listener written on the component tag sits on that control, so
+     * it hears its own element's event.
+     */
+    function announce(control, name) {
+        control?.dispatchEvent(new CustomEvent(name, { bubbles: true }));
+    }
+
+    /*
+     * A page restored from the back-forward cache comes back exactly as it was
+     * left, mid-submit included: a spinner that never stops, a question still
+     * asked. `fn` puts the component back at rest. Returns the teardown.
+     */
+    function onRestore(fn) {
+        const listener = (event) => {
+            if (event.persisted) fn();
+        };
+        window.addEventListener('pageshow', listener);
+        return () => window.removeEventListener('pageshow', listener);
+    }
+
+    /*
+     * The first element under `root` matching `selector` that belongs to this
+     * component rather than to one of the same kind nested inside it.
+     */
+    function own(root, selector, scope) {
+        return [...root.querySelectorAll(selector)].find((el) => el.closest(scope) === root) ?? null;
+    }
+
+    /*
+     * Focus an element x-show is about to reveal. Alpine shows it in a later
+     * microtask than the state change, sometimes later than $nextTick, and a
+     * hidden element refuses focus without a word. So: now if it is rendered,
+     * else on the next frames, for a few of them, but only while focus is where
+     * it was at the call (or fell to the body when x-show hid it): if the reader
+     * has put it somewhere else in the meantime, it stays there.
+     */
+    function focusWhenShown(el, tries = 5, from = document.activeElement) {
+        if (!el) return;
+        if (el.getClientRects().length) {
+            el.focus();
+            return;
+        }
+        if (tries > 0) requestAnimationFrame(() => {
+            const now = document.activeElement;
+            if (!now || now === document.body || now === from) focusWhenShown(el, tries - 1, from);
+        });
+    }
+
+    return { swallow, announce, onRestore, own, focusWhenShown };
+})();
+
+// behaviours/confirm-dialog.js
+const __ds_behaviours_confirm_dialog = (() => {
+    /*
+     * dsConfirmDialog: the question inside an anchored confirmation, and the
+     * type-to-confirm field when there is one.
+     *
+     *   x-data="dsConfirmDialog({ text: 'acme-prod', strict: true, loading: false })"
+     *
+     * Behind ds::confirm-popover. It sits inside a dsPopover panel and drives the
+     * popover's `dsOpen` through the scope it inherits; opening, Escape, a press
+     * outside, focus leaving and the anchoring are the popover's. The view marks
+     * Cancel (data-ds-confirm-cancel), the confirm control
+     * (data-ds-confirm-confirm), which carries the host's attributes, and the
+     * field (data-ds-confirm-field). It binds the control's disabled state to
+     * `dsMatched` and its busy look to `dsBusy`.
+     *
+     *   - with `text`, the control is disabled until the field holds exactly
+     *     that text, letter case included; `strict: false` ignores case and the
+     *     spaces around it. Enter in the field confirms when it matches and
+     *     does nothing when not: it never submits the form around it some other
+     *     way. The field posts nothing, having no name
+     *   - a press on the control dispatches `confirm` from it, then the click
+     *     goes on to its own listeners and the form. With `loading` the panel
+     *     stays open with a spinner and refuses every later press until it
+     *     closes; without, it closes and focus goes back to the trigger
+     *   - Cancel closes it, focus back to the trigger. However it closes without
+     *     a confirmation (Cancel, Escape, a press outside, focus leaving), it
+     *     dispatches `cancel` from the control
+     *   - every opening starts afresh: the field empty, the control disabled
+     *
+     * The scope exposes `dsMatched` and `dsBusy` and nothing else.
+     */
+    const { swallow, announce, onRestore, own } = __ds_shared_confirm;
+
+    const SCOPE = '[data-ds-confirm-dialog]';
+
+    function confirmDialog(Alpine) {
+        Alpine.data('dsConfirmDialog', (options = {}) => {
+            const text = typeof options.text === 'string' && options.text !== '' ? options.text : null;
+            const strict = options.strict !== false;
+            const loading = options.loading === true;
+            let teardown = null;
+
+            const matches = (value) => text === null
+                || (strict ? value === text : value.trim().toLowerCase() === text.trim().toLowerCase());
+
+            return {
+                dsMatched: text === null,
+                dsBusy: false,
+
+                init() {
+                    const root = this.$el;
+                    const field = own(root, '[data-ds-confirm-field]', SCOPE);
+                    const cancel = own(root, '[data-ds-confirm-cancel]', SCOPE);
+                    const control = own(root, '[data-ds-confirm-confirm]', SCOPE);
+                    let confirmed = false;
+
+                    const close = () => {
+                        this.dsOpen = false;
+                    };
+
+                    const onClick = (event) => {
+                        if (control?.contains(event.target)) {
+                            if (this.dsBusy || !this.dsMatched) return swallow(event);
+                            confirmed = true;
+                            announce(control, 'confirm');
+                            if (loading) {
+                                this.dsBusy = true;
+                                return;
+                            }
+                            // After the click has reached the form and the host.
+                            setTimeout(close);
+                            return;
+                        }
+                        if (cancel?.contains(event.target)) close();
+                    };
+
+                    const onInput = () => {
+                        this.dsMatched = matches(field.value);
+                    };
+
+                    const onFieldKey = (event) => {
+                        if (event.key !== 'Enter') return;
+                        // Implicit submission would press the form's FIRST submit
+                        // button, which need not be this one.
+                        event.preventDefault();
+                        if (this.dsMatched && !this.dsBusy) control?.click();
+                    };
+
+                    root.addEventListener('click', onClick, true);
+                    field?.addEventListener('input', onInput);
+                    field?.addEventListener('keydown', onFieldKey);
+
+                    this.$watch('dsOpen', (open) => {
+                        if (open) {
+                            confirmed = false;
+                            this.dsBusy = false;
+                            if (field) field.value = '';
+                            this.dsMatched = text === null;
+                            return;
+                        }
+                        if (!confirmed) announce(control, 'cancel');
+                        confirmed = false;
+                        this.dsBusy = false;
+                    });
+
+                    const unRestore = onRestore(() => {
+                        confirmed = true;
+                        this.dsBusy = false;
+                        close();
+                    });
+
+                    teardown = () => {
+                        unRestore();
+                        root.removeEventListener('click', onClick, true);
+                        field?.removeEventListener('input', onInput);
+                        field?.removeEventListener('keydown', onFieldKey);
+                    };
+                },
+
+                destroy() {
+                    teardown?.();
+                },
+            };
+        });
+    }
+
+    return { confirmDialog };
+})();
+
+// behaviours/dismiss.js
+const __ds_behaviours_dismiss = (() => {
+    /*
+     * dsDismiss: a press puts it away, and with a key it stays away.
+     *
+     *   x-data="dsDismiss({ key: 'maintenance-2026-11' })"
+     *
+     * Behind ds::announcement-bar. Any button inside marked data-ds-dismiss
+     * dismisses: the bar's own close control, or a "Got it" in its action slot.
+     * Dismissing sets `dsDismissed`, which the view binds to the attribute its
+     * collapse reads, and dispatches `dismiss` from the root, bubbling, so a host
+     * that also remembers it on the server hears it.
+     *
+     * With `key`, the dismissal is written to localStorage under that key (the
+     * value is "1"), and a bar whose key is already there starts dismissed. The
+     * view also puts a small inline check before the bar's content that hides it
+     * before the first paint; this repeats the check for a page where that
+     * script did not run (a Content Security Policy without the nonce), so the
+     * bar is still put away, if a moment late. Storage that throws (a private
+     * window, blocked site data) dismisses for this page only.
+     *
+     * The scope exposes `dsDismissed` and nothing else. The view reveals its
+     * close control only when this has started, so a page without the script
+     * shows no control that would do nothing.
+     */
+
+    function dismiss(Alpine) {
+        Alpine.data('dsDismiss', (options = {}) => {
+            const key = typeof options.key === 'string' && options.key ? options.key : null;
+            let onClick = null;
+
+            return {
+                dsDismissed: false,
+
+                init() {
+                    if (key && stored(key)) this.dsDismissed = true;
+
+                    const root = this.$el;
+                    onClick = (event) => {
+                        const control = event.target.closest('[data-ds-dismiss]');
+                        // A dismissible thing nested inside belongs to its own scope.
+                        if (!control || control.closest('[data-ds-dismissible]') !== root || this.dsDismissed) return;
+                        this.dsDismissed = true;
+                        if (key) remember(key);
+                        root.dispatchEvent(new CustomEvent('dismiss', { bubbles: true }));
+                    };
+                    root.addEventListener('click', onClick);
+                },
+
+                destroy() {
+                    if (onClick) this.$el.removeEventListener('click', onClick);
+                },
+            };
+        });
+    }
+
+    function stored(key) {
+        try {
+            return localStorage.getItem(key) !== null;
+        } catch {
+            return false;
+        }
+    }
+
+    function remember(key) {
+        try {
+            localStorage.setItem(key, '1');
+        } catch {
+            // Still dismissed on this page; only the memory of it is lost.
+        }
+    }
+
+    return { dismiss };
+})();
+
+// behaviours/hold.js
+const __ds_behaviours_hold = (() => {
+    /*
+     * dsHold: confirm by holding the button down, or by pressing it twice.
+     *
+     *   x-data="dsHold({ duration: 1500, submit: false })"
+     *
+     * Behind ds::hold-button. The button is marked data-ds-hold and carries the
+     * host's attributes. The fill the view draws over it reads the custom
+     * property --ds-hold-rest, the part of the button still to fill (100% at
+     * rest, 0% when full), which this writes on the button.
+     *
+     * Holding: a pointer held on the button, or Space or Enter held while it has
+     * focus, fills it over `duration` ms. Letting go early, or sliding the
+     * pointer off it, rewinds it. A full button is the confirmation.
+     *
+     * Pressing twice: holding is not something everyone can do. A screen reader
+     * in browse mode, voice control and switch access activate a button with a
+     * single synthetic click and never hold anything. So a click that no held
+     * press of ours began, and a key press let go before the button filled, ARM
+     * it: `dsArmed` is set, the view swaps the instruction for "Press again to
+     * confirm" and its polite live region says so. The next such press confirms.
+     * Focus leaving, or Escape, disarms. A pointer let go early only rewinds:
+     * two quick clicks of a mouse must not delete anything.
+     *
+     * Confirming dispatches `confirm` from the button, bubbling, and then lets
+     * one click through to it: the host's @click or wire:click hears that click
+     * and nothing before it, and with `submit` it submits the form around it with
+     * the button as the submitter. Every other click on the button is stopped
+     * before those listeners and before the form. The button is rendered
+     * type=button and becomes a submitter only for that click, so a page without
+     * this script cannot submit anything from one press.
+     *
+     * Reduced motion: the fill moves in quarters rather than sweeping, and
+     * rewinds at once.
+     *
+     * The scope exposes `dsArmed` and nothing else.
+     */
+    const { swallow, announce, onRestore } = __ds_shared_confirm;
+
+    const KEYS = new Set([' ', 'Enter']);
+
+    // The rewind runs at three times the fill's pace: letting go should read as
+    // "nothing happened", quickly.
+    const REWIND = 3;
+
+    // Steps instead of a sweep, under reduced motion.
+    const STEPS = 4;
+
+    function hold(Alpine) {
+        Alpine.data('dsHold', (options = {}) => {
+            const duration = Number.isFinite(options.duration) && options.duration > 0 ? options.duration : 1500;
+            const submit = options.submit === true;
+            let teardown = null;
+
+            return {
+                dsArmed: false,
+
+                init() {
+                    const root = this.$el;
+                    const button = root.querySelector('[data-ds-hold]');
+                    if (!button) return;
+
+                    const still = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+                    let progress = 0;
+                    let frame = 0;
+                    let pressing = null; // 'pointer' | 'key' | null
+                    let pointerId = null;
+                    let pressed = false; // a press of ours began the click that follows
+                    let letThrough = false;
+                    let done = false;
+
+                    const paint = () => {
+                        const shown = still() ? Math.floor(progress * STEPS) / STEPS : progress;
+                        button.style.setProperty('--ds-hold-rest', `${((1 - shown) * 100).toFixed(2)}%`);
+                    };
+
+                    const run = (direction) => {
+                        cancelAnimationFrame(frame);
+                        let last = performance.now();
+                        const step = (now) => {
+                            const elapsed = now - last;
+                            last = now;
+                            progress = Math.min(1, Math.max(0, progress + (direction * elapsed * (direction < 0 ? REWIND : 1)) / duration));
+                            paint();
+                            if (direction > 0 && progress >= 1) return complete();
+                            if (direction < 0 && progress <= 0) return;
+                            frame = requestAnimationFrame(step);
+                        };
+                        frame = requestAnimationFrame(step);
+                    };
+
+                    const rewind = () => {
+                        pressing = null;
+                        if (still()) {
+                            cancelAnimationFrame(frame);
+                            progress = 0;
+                            paint();
+                            return;
+                        }
+                        run(-1);
+                    };
+
+                    const start = (by) => {
+                        if (done) return;
+                        pressing = by;
+                        run(1);
+                    };
+
+                    const arm = () => {
+                        this.dsArmed = true;
+                    };
+
+                    const disarm = () => {
+                        this.dsArmed = false;
+                    };
+
+                    // A form that would refuse the submit says so, and nothing
+                    // is confirmed: a full button over a form that never went is
+                    // a lie.
+                    const refused = () => submit && button.form && !button.form.checkValidity();
+
+                    const complete = () => {
+                        cancelAnimationFrame(frame);
+                        pressing = null;
+                        disarm();
+                        if (refused()) {
+                            button.form.reportValidity();
+                            progress = 0;
+                            paint();
+                            return;
+                        }
+                        progress = 1;
+                        paint();
+                        announce(button, 'confirm');
+
+                        // Its own task: a click() made while another click on the
+                        // button is being dispatched (the second press of a
+                        // screen reader's two) is ignored by the browser.
+                        setTimeout(() => {
+                            letThrough = true;
+                            if (submit) button.type = 'submit';
+                            try {
+                                button.click();
+                            } finally {
+                                if (submit) button.type = 'button';
+                                letThrough = false;
+                            }
+                        });
+
+                        if (submit) {
+                            // Held full while the page goes; a return from the
+                            // back-forward cache puts it back.
+                            done = true;
+                            button.setAttribute('aria-disabled', 'true');
+                            return;
+                        }
+                        setTimeout(rewind, 150);
+                    };
+
+                    const onPointerDown = (event) => {
+                        if (event.button !== 0 || !event.isPrimary || pressing) return;
+                        pressed = true;
+                        pointerId = event.pointerId;
+                        try {
+                            button.setPointerCapture(pointerId);
+                        } catch {
+                            // Not every pointer can be captured; the release still arrives.
+                        }
+                        start('pointer');
+                    };
+
+                    const onPointerMove = (event) => {
+                        if (pressing !== 'pointer' || event.pointerId !== pointerId) return;
+                        const r = button.getBoundingClientRect();
+                        const off = event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom;
+                        if (off) rewind();
+                    };
+
+                    const onPointerUp = (event) => {
+                        if (event.pointerId !== pointerId) return;
+                        pointerId = null;
+                        if (pressing === 'pointer') rewind();
+                        // The click this release makes, if it makes one, comes
+                        // first; one let go off the button makes none, and the
+                        // next click must not be taken for this press's.
+                        setTimeout(() => {
+                            pressed = false;
+                        });
+                    };
+
+                    const onKeyDown = (event) => {
+                        if (event.key === 'Escape') {
+                            if (this.dsArmed || pressing) {
+                                event.stopPropagation();
+                                disarm();
+                                if (pressing) rewind();
+                            }
+                            return;
+                        }
+                        if (!KEYS.has(event.key)) return;
+                        // Enter would click on keydown, and again on every repeat;
+                        // Space on keyup. Both are answered here instead.
+                        event.preventDefault();
+                        if (event.repeat || pressing || done) return;
+                        start('key');
+                    };
+
+                    const onKeyUp = (event) => {
+                        if (!KEYS.has(event.key)) return;
+                        event.preventDefault();
+                        if (pressing !== 'key') return;
+                        if (this.dsArmed) return complete();
+                        rewind();
+                        arm();
+                    };
+
+                    const onClick = (event) => {
+                        if (letThrough) return;
+                        swallow(event);
+                        if (pressed) {
+                            pressed = false;
+                            return;
+                        }
+                        // A click no press of ours began: assistive technology,
+                        // voice control, a switch.
+                        if (done || pressing) return;
+                        if (this.dsArmed) complete();
+                        else arm();
+                    };
+
+                    const onFocusOut = () => {
+                        disarm();
+                        if (pressing === 'key') rewind();
+                    };
+
+                    const onContextMenu = (event) => {
+                        // A long press on a touch screen opens the browser's menu.
+                        if (pressing === 'pointer') event.preventDefault();
+                    };
+
+                    const onBlurWindow = () => {
+                        if (pressing) rewind();
+                    };
+
+                    button.addEventListener('pointerdown', onPointerDown);
+                    button.addEventListener('pointermove', onPointerMove);
+                    button.addEventListener('pointerup', onPointerUp);
+                    button.addEventListener('pointercancel', onPointerUp);
+                    button.addEventListener('keydown', onKeyDown);
+                    button.addEventListener('keyup', onKeyUp);
+                    button.addEventListener('focusout', onFocusOut);
+                    button.addEventListener('contextmenu', onContextMenu);
+                    // Capturing on the root, so a click that must not act is
+                    // stopped before the button's own listeners hear it.
+                    root.addEventListener('click', onClick, true);
+                    window.addEventListener('blur', onBlurWindow);
+                    const unRestore = onRestore(() => {
+                        done = false;
+                        button.removeAttribute('aria-disabled');
+                        progress = 0;
+                        paint();
+                    });
+
+                    teardown = () => {
+                        cancelAnimationFrame(frame);
+                        unRestore();
+                        button.removeEventListener('pointerdown', onPointerDown);
+                        button.removeEventListener('pointermove', onPointerMove);
+                        button.removeEventListener('pointerup', onPointerUp);
+                        button.removeEventListener('pointercancel', onPointerUp);
+                        button.removeEventListener('keydown', onKeyDown);
+                        button.removeEventListener('keyup', onKeyUp);
+                        button.removeEventListener('focusout', onFocusOut);
+                        button.removeEventListener('contextmenu', onContextMenu);
+                        root.removeEventListener('click', onClick, true);
+                        window.removeEventListener('blur', onBlurWindow);
+                    };
+                },
+
+                destroy() {
+                    teardown?.();
+                },
+            };
+        });
+    }
+
+    return { hold };
+})();
+
+// behaviours/confirm.js
+const __ds_behaviours_confirm = (() => {
+    /*
+     * dsConfirm: a destructive button that asks, in place, before it acts.
+     *
+     *   x-data="dsConfirm({ timeout: 5000, loading: true })"
+     *
+     * Behind ds::confirm-button. The view renders both faces: the trigger
+     * (data-ds-confirm-trigger), shown at rest, and the question
+     * (data-ds-confirm-ask) holding Cancel (data-ds-confirm-cancel) and the
+     * confirm control (data-ds-confirm-confirm), which carries the host's
+     * attributes, its wire:click, its type=submit. The view binds the faces to
+     * `dsAsking` and the confirm control's busy look to `dsBusy`.
+     *
+     *   - a press on the trigger asks: the question shows, focus moves to Cancel,
+     *     the safe choice, and the polite live region the view binds says the
+     *     question
+     *   - Cancel, Escape, or `timeout` ms with neither the pointer over it nor
+     *     focus in it, puts it back; Cancel and Escape give focus to the trigger,
+     *     and every one of them dispatches `cancel` from the confirm control
+     *   - a press on the confirm control acts. It dispatches `confirm`, then the
+     *     click goes on to the control's own listeners and the form, untouched.
+     *     With `loading`, the control then shows its spinner and refuses every
+     *     later press, for a form that is submitting or a row about to go;
+     *     without, the button is put back at rest once the click is done
+     *
+     * Until it asks, the confirm control is not on screen, so nothing the host
+     * hung on it can run from one press: without this script, or without Alpine,
+     * the destructive action is unreachable rather than one click away.
+     *
+     * The scope exposes `dsAsking` and `dsBusy` and nothing else.
+     */
+    const { swallow, announce, onRestore, own, focusWhenShown } = __ds_shared_confirm;
+
+    const SCOPE = '[data-ds-confirm]';
+
+    function inlineConfirm(Alpine) {
+        Alpine.data('dsConfirm', (options = {}) => {
+            const timeout = Number.isFinite(options.timeout) ? options.timeout : 5000;
+            const loading = options.loading === true;
+            let parts = null;
+
+            return {
+                dsAsking: false,
+                dsBusy: false,
+
+                init() {
+                    const root = this.$el;
+                    const trigger = own(root, '[data-ds-confirm-trigger]', SCOPE);
+                    const cancel = own(root, '[data-ds-confirm-cancel]', SCOPE);
+                    const control = own(root, '[data-ds-confirm-confirm]', SCOPE);
+
+                    let timer = null;
+                    let hovered = false;
+                    let focused = false;
+
+                    const stopTimer = () => {
+                        clearTimeout(timer);
+                        timer = null;
+                    };
+
+                    // Restarted in full once both the pointer and focus have
+                    // left, not resumed: whoever moved away may have been reading.
+                    const startTimer = () => {
+                        stopTimer();
+                        if (timeout <= 0 || !this.dsAsking || this.dsBusy || hovered || focused) return;
+                        timer = setTimeout(() => putBack(false), timeout);
+                    };
+
+                    const putBack = (toTrigger) => {
+                        if (!this.dsAsking || this.dsBusy) return;
+                        stopTimer();
+                        this.dsAsking = false;
+                        announce(control, 'cancel');
+                        if (toTrigger || root.contains(document.activeElement)) focusWhenShown(trigger);
+                    };
+
+                    const ask = () => {
+                        this.dsAsking = true;
+                        focusWhenShown(cancel);
+                        this.$nextTick(startTimer);
+                    };
+
+                    const onClick = (event) => {
+                        if (control?.contains(event.target)) {
+                            if (this.dsBusy || !this.dsAsking) return swallow(event);
+                            stopTimer();
+                            announce(control, 'confirm');
+                            if (loading) {
+                                this.dsBusy = true;
+                                return;
+                            }
+                            // After the click has reached the form and the
+                            // host's listeners: hiding the control first would
+                            // not stop a submit, but it is not worth finding out
+                            // which browsers agree.
+                            setTimeout(() => {
+                                const had = root.contains(document.activeElement);
+                                this.dsAsking = false;
+                                if (had) focusWhenShown(trigger);
+                            });
+                            return;
+                        }
+                        if (cancel?.contains(event.target)) {
+                            putBack(true);
+                            return;
+                        }
+                        if (trigger?.contains(event.target) && !this.dsAsking) ask();
+                    };
+
+                    const onKeyDown = (event) => {
+                        if (event.key !== 'Escape' || !this.dsAsking || this.dsBusy) return;
+                        // Only when it is consumed, so a dialog around this one
+                        // still hears an Escape pressed at rest.
+                        event.stopPropagation();
+                        event.preventDefault();
+                        putBack(true);
+                    };
+
+                    const onEnter = () => {
+                        hovered = true;
+                        stopTimer();
+                    };
+                    const onLeave = () => {
+                        hovered = false;
+                        startTimer();
+                    };
+                    const onFocusIn = () => {
+                        focused = true;
+                        stopTimer();
+                    };
+                    const onFocusOut = (event) => {
+                        if (event.relatedTarget && root.contains(event.relatedTarget)) return;
+                        focused = false;
+                        startTimer();
+                    };
+
+                    // Capturing, so a press that must not act yet is stopped
+                    // before the control's own listeners hear it.
+                    root.addEventListener('click', onClick, true);
+                    root.addEventListener('keydown', onKeyDown);
+                    root.addEventListener('pointerenter', onEnter);
+                    root.addEventListener('pointerleave', onLeave);
+                    root.addEventListener('focusin', onFocusIn);
+                    root.addEventListener('focusout', onFocusOut);
+                    const unRestore = onRestore(() => {
+                        stopTimer();
+                        this.dsBusy = false;
+                        this.dsAsking = false;
+                    });
+
+                    parts = () => {
+                        stopTimer();
+                        unRestore();
+                        root.removeEventListener('click', onClick, true);
+                        root.removeEventListener('keydown', onKeyDown);
+                        root.removeEventListener('pointerenter', onEnter);
+                        root.removeEventListener('pointerleave', onLeave);
+                        root.removeEventListener('focusin', onFocusIn);
+                        root.removeEventListener('focusout', onFocusOut);
+                    };
+                },
+
+                destroy() {
+                    parts?.();
+                },
+            };
+        });
+    }
+
+    return { inlineConfirm };
+})();
+
 // behaviours/glide.js
 const __ds_behaviours_glide = (() => {
     /*
@@ -1950,8 +2696,9 @@ const __ds_behaviours_popover = (() => {
      *   - the control gets aria-expanded, kept in step, and aria-controls; a
      *     panel given no name is named by the control
      *   - a press on the trigger opens and closes it
-     *   - opening moves focus to the first focusable thing in the panel, or to
-     *     the panel itself; closing gives it back to the control, if it was in
+     *   - opening moves focus to the element marked data-ds-autofocus or
+     *     autofocus, else the first focusable thing in the panel, else the panel
+     *     itself; closing gives it back to the control, if it was in
      *     the panel
      *   - Escape closes, a press outside closes, and focus moving outside
      *     closes, Tab included: nothing is trapped. `dismissible: false` turns
@@ -2062,7 +2809,10 @@ const __ds_behaviours_popover = (() => {
         function focusIn() {
             if (!panel) return;
             const visible = (el) => el.getClientRects().length > 0;
-            const first = panel.querySelector('[autofocus]')
+            // data-ds-autofocus is the component's own mark, for a panel that
+            // names where focus belongs without the page-load meaning of
+            // autofocus: ds::confirm-popover puts it on Cancel or the field.
+            const first = panel.querySelector('[data-ds-autofocus], [autofocus]')
                 ?? [...panel.querySelectorAll(FOCUSABLE)].find(visible)
                 ?? panel;
             first.focus();
@@ -2923,6 +3673,10 @@ const __ds_blade_ui = (() => {
     const { anchorDirective } = __ds_behaviours_anchor;
     const { clipboard } = __ds_behaviours_clipboard;
     const { contextMenu } = __ds_behaviours_context_menu;
+    const { confirmDialog } = __ds_behaviours_confirm_dialog;
+    const { dismiss } = __ds_behaviours_dismiss;
+    const { hold } = __ds_behaviours_hold;
+    const { inlineConfirm } = __ds_behaviours_confirm;
     const { glide } = __ds_behaviours_glide;
     const { hoverCard } = __ds_behaviours_hover_card;
     const { numberField } = __ds_behaviours_number_field;
@@ -2934,7 +3688,7 @@ const __ds_blade_ui = (() => {
     const { toggleGroup } = __ds_behaviours_toggle_group;
     const { toolbar } = __ds_behaviours_toolbar;
 
-    const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme];
+    const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog];
 
     // Symbol.for, not a module-level flag. Two copies of this script, say the
     // inlined one AND a Vite import, are two separate modules with two separate

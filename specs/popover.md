@@ -25,8 +25,9 @@ popover holds anything else: fields, a form, text with links.
 - **Trigger wrapper**: `div.contents[data-ds-popover-trigger]`, so the
   consumer's button sits in the layout as if unwrapped. The first button,
   link or field in it is the control.
-- **Panel**: `div[role=dialog][tabindex=-1][data-ds-popover-panel]`, named by
-  `aria-labelledby` or `aria-label`, `x-show="dsOpen"`, `x-cloak`,
+- **Panel**: `div[role=dialog][tabindex=-1][data-ds-popover-panel]` (`role`
+  `alertdialog` with the `role` prop), named by `aria-labelledby` or
+  `aria-label`, described by `aria-describedby` with `describedby`, `x-show="dsOpen"`, `x-cloak`,
   `x-ds-anchor`. Surface: `rounded-panel border-border bg-surface p-4
   text-body text-fg-body shadow-float`, `z-50`.
 
@@ -82,7 +83,7 @@ writes `position: fixed` and its coordinates inline over them.
 
 - A click on the trigger wrapper toggles `dsOpen`.
 - Opening (after the first frame, so a popover open at page load takes no
-  focus): focus to `[autofocus]` in the panel, else the first visible
+  focus): focus to `[data-ds-autofocus]`, then `[autofocus]`, in the panel, else the first visible
   focusable element, else the panel itself.
 - Closing: if focus is in the panel, it returns to the control, except after a
   press outside or Tab away, which already put focus somewhere the reader
@@ -130,7 +131,7 @@ writes `position: fixed` and its coordinates inline over them.
 
 | | |
 |---|---|
-| Role | `dialog` on the panel; no `aria-modal` |
+| Role | `dialog` on the panel (`alertdialog` by the `role` prop); no `aria-modal` |
 | Name | `aria-labelledby` (prop), `aria-label` (prop), else labelled by the trigger |
 | State | `aria-expanded` and `aria-controls` on the trigger control |
 | Keyboard | Enter/Space on the trigger toggles. Tab moves through the panel and out, closing it. Escape closes and returns focus to the trigger |

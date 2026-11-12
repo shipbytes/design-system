@@ -136,6 +136,30 @@ const themeScript = await render(join(TMP, 'theme-script.blade.php'));
 await writeFile(join(TMP, 'theme-script-nonce.blade.php'), '<x-ds::theme-script nonce="t3st" />');
 const themeScriptNonce = await render(join(TMP, 'theme-script-nonce.blade.php'));
 
+/*
+  The guards against a destructive press, for host pages WITHOUT the script
+  (Alpine and no include) and without Alpine at all: in neither may one press
+  act. Each form records a submit rather than leaving the page.
+*/
+await writeFile(join(TMP, 'guards.blade.php'), `<div class="p-8">
+<x-ds::announcement-bar id="g-ab" dismissKey="guards-ab">Remembered.</x-ds::announcement-bar>
+<form id="g-form" onsubmit="event.preventDefault(); window.gSent = (window.gSent ?? 0) + 1">
+    <x-ds::confirm-button id="g-cb" @click="window.gClicks = (window.gClicks ?? 0) + 1" />
+    <x-ds::hold-button id="g-hb" type="submit" label="Hold to delete" />
+    <x-ds::confirm-popover id="g-cp" title="Delete?">
+        <x-slot:trigger><x-ds::button id="g-cp-trigger" size="sm">Delete</x-ds::button></x-slot:trigger>
+    </x-ds::confirm-popover>
+</form>
+</div>`);
+const guardsMarkup = await render(join(TMP, 'guards.blade.php'));
+await writeFile(join(TMP, 'guards.html'), guardsMarkup);
+
+// A remembered bar for the pre-paint check, with and without the nonce.
+await writeFile(join(TMP, 'announce.blade.php'), '<x-ds::announcement-bar id="pre-ab" dismissKey="pre-ab">Remembered.</x-ds::announcement-bar>');
+const announceMarkup = await render(join(TMP, 'announce.blade.php'));
+await writeFile(join(TMP, 'announce-nonce.blade.php'), '<x-ds::announcement-bar id="pre-ab" dismissKey="pre-ab" nonce="t3st">Remembered.</x-ds::announcement-bar>');
+const announceNonceMarkup = await render(join(TMP, 'announce-nonce.blade.php'));
+
 await writeFile(
     join(TMP, 'in.css'),
     `@import "tailwindcss";
@@ -145,6 +169,7 @@ await writeFile(
 @source "${join(TMP, 'fallback.html')}";
 @source "${join(TMP, 'focus.html')}";
 @source "${join(TMP, 'theme.html')}";
+@source "${join(TMP, 'guards.html')}";
 `,
 );
 
@@ -2748,6 +2773,596 @@ await check('the shipped stylesheet hides a cloaked element', async () => {
         || `a cloaked .flex element computes display:${display} — the shipped rule is missing or is being overridden`;
 });
 
+// ---------------------------------------------------------------- announcement bar
+
+const shownAt = (selector) => page.evaluate((s) => {
+    const el = document.querySelector(s);
+    if (!el) return null;
+    const style = getComputedStyle(el);
+    return style.display !== 'none' && style.visibility !== 'hidden';
+}, selector);
+
+group('announcement bar (dsDismiss)');
+
+await page.evaluate(() => {
+    localStorage.removeItem('behaviour-ab');
+    document.getElementById('ab-box').scrollIntoView({ block: 'center' });
+});
+
+await check('a named region, not a live region; an urgent outage is an alert', async () => {
+    const r = await page.evaluate(() => ({
+        role: document.getElementById('ab').getAttribute('role'),
+        label: document.getElementById('ab').getAttribute('aria-label'),
+        live: document.getElementById('ab').getAttribute('aria-live'),
+        urgent: document.getElementById('ab-urgent').getAttribute('role'),
+    }));
+    return (r.role === 'region' && r.label === 'Announcement' && r.live === null && r.urgent === 'alert') || JSON.stringify(r);
+});
+
+await check('the close control is shown once the script has started, and only on a dismissible bar', async () => {
+    const r = await page.evaluate(() => ({
+        ab: getComputedStyle(document.querySelector('#ab [data-ds-dismiss]')).visibility,
+        plain: document.querySelector('#ab-plain [data-ds-dismiss]'),
+        name: document.querySelector('#ab [data-ds-dismiss]').getAttribute('aria-label'),
+    }));
+    return (r.ab === 'visible' && r.plain === null && r.name === 'Dismiss') || JSON.stringify(r);
+});
+
+await check('the keyboard dismisses it: Enter on the close control collapses it to nothing', async () => {
+    await page.focus('#ab [data-ds-dismiss]');
+    await page.keyboard.press('Enter');
+    await settle(400);
+    const r = await page.evaluate(() => {
+        const el = document.getElementById('ab');
+        return { height: el.getBoundingClientRect().height, visibility: getComputedStyle(el).visibility, state: el.dataset.dsState };
+    });
+    return (r.height === 0 && r.visibility === 'hidden' && r.state === 'dismissed') || JSON.stringify(r);
+});
+
+await check('remembered under its key, and the host hears one `dismiss`', async () => {
+    const r = await page.evaluate(() => ({ stored: localStorage.getItem('behaviour-ab'), events: window.abDismissed }));
+    return (r.stored === '1' && r.events === 1) || JSON.stringify(r);
+});
+
+await check('collapsed means gone for the keyboard too: nothing in it takes focus', async () => {
+    await page.focus('#ab-box');
+    const reachable = await page.evaluate(() => {
+        const link = document.querySelector('#ab a[href]');
+        link.focus();
+        return document.activeElement === link;
+    });
+    return reachable === false || 'the link in a dismissed bar still takes focus';
+});
+
+await check('a button in the action slot marked data-ds-dismiss dismisses too, with no key to remember', async () => {
+    await page.click('#ab-got');
+    await settle(400);
+    const r = await page.evaluate(() => ({
+        height: document.getElementById('ab-action').getBoundingClientRect().height,
+        keys: Object.keys(localStorage).filter((k) => !k.startsWith('behaviour-ab')),
+    }));
+    return (r.height === 0 && !r.keys.length) || JSON.stringify(r);
+});
+
+await check('with motion allowed it collapses over the dialog-leave token', async () => {
+    const r = await page.evaluate(() => {
+        const s = getComputedStyle(document.getElementById('ab-plain'));
+        return { property: s.transitionProperty, duration: s.transitionDuration };
+    });
+    return (r.property.includes('grid-template-rows') && r.duration.split(',')[0].trim() === '0.15s') || JSON.stringify(r);
+});
+
+await check('with reduced motion there is no transition: it is simply gone', async () => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const duration = await page.evaluate(() => getComputedStyle(document.getElementById('ab-plain')).transitionDuration);
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    return duration === '0s' || `transition-duration ${duration}`;
+});
+
+// ---------------------------------------------------------------- confirm button
+
+const cbAsk = (id) => `[data-ds-confirm]:has(#${id}) [data-ds-confirm-ask]`;
+const cbTrigger = (id) => `[data-ds-confirm]:has(#${id}) [data-ds-confirm-trigger]`;
+const isActive = (selector) => page.evaluate((s) => document.activeElement === document.querySelector(s), selector);
+
+group('confirm button (dsConfirm)');
+
+await page.evaluate(() => document.getElementById('cb-form').scrollIntoView({ block: 'center' }));
+await settle(100);
+
+await check('at rest: the button alone, and the confirm control not on screen to press', async () => {
+    const r = await page.evaluate(([ask, trigger]) => ({
+        ask: getComputedStyle(document.querySelector(ask)).display,
+        trigger: getComputedStyle(document.querySelector(trigger)).display,
+        control: document.getElementById('cb').getClientRects().length,
+        type: document.querySelector(trigger).type,
+    }), [cbAsk('cb'), cbTrigger('cb')]);
+    return (r.ask === 'none' && r.trigger !== 'none' && r.control === 0 && r.type === 'button') || JSON.stringify(r);
+});
+
+let cbEdge = null;
+let cbHeight = null;
+await check('a press asks in place: the question, focus on Cancel, and the question said aloud', async () => {
+    const before = await page.evaluate(() => {
+        const r = document.querySelector('[data-ds-confirm]:has(#cb)').getBoundingClientRect();
+        return { right: r.right, height: r.height };
+    });
+    cbEdge = before.right;
+    cbHeight = before.height;
+    await page.click(cbTrigger('cb'));
+    await settle(250);
+    const r = await page.evaluate(() => ({
+        focus: document.activeElement?.textContent.trim(),
+        live: document.querySelector('[data-ds-confirm]:has(#cb) [aria-live]').textContent,
+        shown: document.getElementById('cb').getClientRects().length > 0,
+    }));
+    return (r.focus === 'Cancel' && r.live === 'Delete this report?' && r.shown) || JSON.stringify(r);
+});
+
+await check('in an end-aligned row it grows into the free space: its end edge and its height stay put', async () => {
+    const r = await page.evaluate(() => {
+        const b = document.querySelector('[data-ds-confirm]:has(#cb)').getBoundingClientRect();
+        return { right: b.right, height: b.height, width: b.width };
+    });
+    return (Math.abs(r.right - cbEdge) < 0.5 && Math.abs(r.height - cbHeight) < 0.5) || `${JSON.stringify(r)} vs right ${cbEdge}, height ${cbHeight}`;
+});
+
+await check('Escape puts it back, gives focus to the button, and dispatches `cancel`', async () => {
+    await page.keyboard.press('Escape');
+    await settle(150);
+    const shown = await shownAt(cbAsk('cb'));
+    if (shown) return 'still asking';
+    const cancelled = await page.evaluate(() => window.cbCancelled);
+    return ((await isActive(cbTrigger('cb'))) && cancelled === 1) || `focus on ${await active()}, ${cancelled} cancel events`;
+});
+
+await check('Cancel does the same', async () => {
+    await page.click(cbTrigger('cb'));
+    await settle(200);
+    await page.keyboard.press('Enter');
+    await settle(150);
+    if (await shownAt(cbAsk('cb'))) return 'still asking';
+    const cancelled = await page.evaluate(() => window.cbCancelled);
+    return ((await isActive(cbTrigger('cb'))) && cancelled === 2) || `focus on ${await active()}, ${cancelled} cancel events`;
+});
+
+await check('confirming dispatches `confirm` and submits the form, with its own name and value, once', async () => {
+    await page.click(cbTrigger('cb'));
+    await settle(200);
+    await page.click('#cb');
+    await settle(200);
+    const r = await page.evaluate(() => ({ sent: window.cbSent, confirmed: window.cbConfirmed, cancelled: window.cbCancelled }));
+    return (JSON.stringify(r.sent) === '["intent=delete"]' && r.confirmed === 1 && r.cancelled === 2) || JSON.stringify(r);
+});
+
+await check('and without `loading` it is back at rest, focus on the button', async () => {
+    const shown = await shownAt(cbAsk('cb'));
+    return (!shown && (await isActive(cbTrigger('cb')))) || `asking ${shown}, focus on ${await active()}`;
+});
+
+await check('`timeout`: left alone, it puts itself away, says `cancel`, and moves no focus', async () => {
+    await page.click(cbTrigger('cb-busy'));
+    await settle(150);
+    await page.click('#cb-away');
+    await page.mouse.move(2, 2);
+    await settle(1300);
+    const r = await page.evaluate(() => ({ cancelled: window.cbBusyCancelled, focus: document.activeElement?.id }));
+    const shown = await shownAt(cbAsk('cb-busy'));
+    return (!shown && r.cancelled === 1 && r.focus === 'cb-away') || `asking ${shown}, ${JSON.stringify(r)}`;
+});
+
+await check('`timeout` waits while focus is inside it', async () => {
+    await page.click(cbTrigger('cb-busy'));
+    await settle(150);
+    await page.mouse.move(2, 2);
+    await settle(1300);
+    const shown = await shownAt(cbAsk('cb-busy'));
+    return shown || 'it timed out under focus';
+});
+
+await check('`timeout` waits while the pointer is over it, and runs again once both have left', async () => {
+    const box = await page.locator(cbAsk('cb-busy')).boundingBox();
+    await page.mouse.move(box.x + 4, box.y + box.height / 2);
+    await page.evaluate(() => document.getElementById('cb-away').focus());
+    await settle(1300);
+    const held = await shownAt(cbAsk('cb-busy'));
+    await page.mouse.move(2, 2);
+    await settle(1300);
+    const after = await shownAt(cbAsk('cb-busy'));
+    return (held && !after) || `under the pointer: ${held ? 'asking' : 'gone'}; after: ${after ? 'still asking' : 'gone'}`;
+});
+
+await check('the confirm control carries the host @click; the first press never runs it', async () => {
+    const before = await page.evaluate(() => window.cbClicks ?? 0);
+    await page.click(cbTrigger('cb-busy'));
+    await settle(150);
+    const afterAsk = await page.evaluate(() => window.cbClicks ?? 0);
+    await page.click('#cb-busy');
+    await settle(100);
+    const afterConfirm = await page.evaluate(() => window.cbClicks ?? 0);
+    return (before === 0 && afterAsk === 0 && afterConfirm === 1) || `clicks: ${before} at rest, ${afterAsk} after asking, ${afterConfirm} after confirming`;
+});
+
+await check('`loading`: a spinner, aria-busy, Cancel disabled, and a second press goes nowhere', async () => {
+    await page.click('#cb-busy', { force: true });
+    await settle(100);
+    const r = await page.evaluate(() => {
+        const control = document.getElementById('cb-busy');
+        return {
+            clicks: window.cbClicks,
+            busy: control.getAttribute('aria-busy'),
+            spinner: getComputedStyle(control.querySelector('svg')).display,
+            cancel: document.querySelector('[data-ds-confirm]:has(#cb-busy) [data-ds-confirm-cancel]').disabled,
+        };
+    });
+    return (r.clicks === 1 && r.busy === 'true' && r.spinner !== 'none' && r.cancel) || JSON.stringify(r);
+});
+
+await check('`loading`: neither Escape nor the timeout puts it back while it works', async () => {
+    await page.focus('#cb-busy');
+    await page.keyboard.press('Escape');
+    await page.mouse.move(2, 2);
+    await page.click('#cb-away');
+    await settle(1300);
+    return (await shownAt(cbAsk('cb-busy'))) || 'it went back to rest mid-action';
+});
+
+await check('a page restored from the back-forward cache comes back at rest', async () => {
+    await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
+    await settle(100);
+    const r = await page.evaluate(() => document.getElementById('cb-busy').getAttribute('aria-busy'));
+    const shown = await shownAt(cbAsk('cb-busy'));
+    return (!shown && r === null) || `asking ${shown}, aria-busy ${r}`;
+});
+
+await check('Escape at rest is not swallowed: the host around it still hears it', async () => {
+    const before = Number(await page.textContent('#cb-outer-escapes'));
+    await page.focus(cbTrigger('cb-busy'));
+    await page.keyboard.press('Escape');
+    const after = Number(await page.textContent('#cb-outer-escapes'));
+    return after === before + 1 || `the host heard ${after - before} of one Escape`;
+});
+
+await check('timeout 0 never times out', async () => {
+    await page.click(cbTrigger('cb-still'));
+    await page.click('#cb-away');
+    await page.mouse.move(2, 2);
+    await settle(5300);
+    const shown = await shownAt(cbAsk('cb-still'));
+    await page.focus('#cb-still');
+    await page.keyboard.press('Escape');
+    return shown || 'it timed out';
+});
+
+await check('with reduced motion the question appears at once', async () => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.click(cbTrigger('cb-still'));
+    await settle(30);
+    const r = await page.evaluate((s) => {
+        const st = getComputedStyle(document.querySelector(s));
+        return { duration: st.transitionDuration, opacity: st.opacity };
+    }, cbAsk('cb-still'));
+    await page.keyboard.press('Escape');
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    return (r.duration === '0s' && r.opacity === '1') || JSON.stringify(r);
+});
+
+// ---------------------------------------------------------------- hold button
+
+const rest = (id) => page.evaluate((i) => document.getElementById(i).style.getPropertyValue('--ds-hold-rest') || '100%', id);
+const holdOn = async (id, ms) => {
+    const box = await page.locator(`#${id}`).boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await settle(ms);
+    await page.mouse.up();
+};
+const armedText = (id) => page.evaluate((i) => document.querySelector(`span:has(> #${i}) > [aria-live]`).textContent, id);
+
+group('hold button (dsHold)');
+
+await page.evaluate(() => document.getElementById('hb-form').scrollIntoView({ block: 'center' }));
+await settle(100);
+
+await check('rendered type=button, named by its instruction', async () => {
+    const r = await page.evaluate(() => {
+        const b = document.getElementById('hb');
+        return { type: b.type, name: b.innerText.split('\n')[0].trim() };
+    });
+    return (r.type === 'button' && r.name === 'Hold to delete') || JSON.stringify(r);
+});
+
+await check('let go early: nothing happens, and it rewinds', async () => {
+    await holdOn('hb', 500);
+    const mid = await rest('hb');
+    await settle(500);
+    const r = await page.evaluate(() => ({ sent: window.hbSent, confirmed: window.hbConfirmed }));
+    const after = await rest('hb');
+    return (!r.sent && !r.confirmed && parseFloat(mid) < 100 && after === '100.00%') || `${JSON.stringify(r)}, rest ${mid} then ${after}`;
+});
+
+await check('two quick clicks of a mouse do nothing', async () => {
+    await page.click('#hb');
+    await page.click('#hb');
+    await settle(300);
+    const r = await page.evaluate(() => ({ sent: window.hbSent, confirmed: window.hbConfirmed }));
+    return (!r.sent && !r.confirmed) || JSON.stringify(r);
+});
+
+await check('sliding off the button while holding rewinds it', async () => {
+    const box = await page.locator('#hb').boundingBox();
+    await page.mouse.move(box.x + 10, box.y + box.height / 2);
+    await page.mouse.down();
+    await settle(400);
+    await page.mouse.move(box.x + 10, box.y + box.height + 40, { steps: 3 });
+    await settle(1400);
+    await page.mouse.up();
+    await settle(100);
+    const r = await page.evaluate(() => ({ sent: window.hbSent, confirmed: window.hbConfirmed }));
+    return (!r.sent && !r.confirmed && (await rest('hb')) === '100.00%') || `${JSON.stringify(r)}, rest ${await rest('hb')}`;
+});
+
+await check('held for the duration: `confirm`, then the form submits with its name and value, once', async () => {
+    await holdOn('hb', 1800);
+    await settle(150);
+    const r = await page.evaluate(() => ({ sent: window.hbSent, confirmed: window.hbConfirmed, type: document.getElementById('hb').type }));
+    return (JSON.stringify(r.sent) === '["intent=delete"]' && r.confirmed === 1 && r.type === 'button') || JSON.stringify(r);
+});
+
+await check('a submitted one stays full and refuses another hold until the page comes back', async () => {
+    const full = await rest('hb');
+    await holdOn('hb', 1800);
+    const sent = await page.evaluate(() => window.hbSent.length);
+    await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
+    await settle(50);
+    const restored = await rest('hb');
+    return (full === '0.00%' && sent === 1 && restored === '100.00%') || `full ${full}, sent ${sent}, restored ${restored}`;
+});
+
+await check('the host @click runs on confirmation only', async () => {
+    await page.click('#hb-quick');
+    await settle(200);
+    const quick = await page.evaluate(() => window.hbClicks ?? 0);
+    await holdOn('hb-quick', 900);
+    await settle(100);
+    const held = await page.evaluate(() => ({ clicks: window.hbClicks, confirmed: window.hbQuickConfirmed }));
+    return (quick === 0 && held.clicks === 1 && held.confirmed === 1) || `after a click ${quick}; after a hold ${JSON.stringify(held)}`;
+});
+
+await check('Space held for the duration confirms', async () => {
+    await settle(300);
+    await page.focus('#hb-quick');
+    await page.keyboard.down(' ');
+    await settle(900);
+    await page.keyboard.up(' ');
+    await settle(100);
+    const r = await page.evaluate(() => ({ clicks: window.hbClicks, confirmed: window.hbQuickConfirmed }));
+    return (r.clicks === 2 && r.confirmed === 2) || JSON.stringify(r);
+});
+
+await check('a key pressed and let go early arms it: the words change, and are said aloud', async () => {
+    await settle(300);
+    await page.keyboard.press('Enter');
+    await settle(100);
+    const r = await page.evaluate(() => {
+        const faces = [...document.querySelectorAll('#hb-quick > .grid > span')];
+        return { shown: faces.find((f) => getComputedStyle(f).visibility === 'visible')?.textContent, clicks: window.hbClicks };
+    });
+    const said = await armedText('hb-quick');
+    return (r.shown === 'Press again to confirm' && said === 'Press again to confirm' && r.clicks === 2) || `${JSON.stringify(r)}, said ${JSON.stringify(said)}`;
+});
+
+await check('the next press confirms', async () => {
+    await page.keyboard.press('Enter');
+    await settle(100);
+    const r = await page.evaluate(() => ({ clicks: window.hbClicks, confirmed: window.hbQuickConfirmed }));
+    const said = await armedText('hb-quick');
+    return (r.clicks === 3 && r.confirmed === 3 && said === '') || `${JSON.stringify(r)}, said ${JSON.stringify(said)}`;
+});
+
+await check('Escape disarms, and so does focus leaving', async () => {
+    await settle(300);
+    await page.keyboard.press(' ');
+    await page.keyboard.press('Escape');
+    await page.keyboard.press(' ');
+    await settle(100);
+    const afterEscape = await page.evaluate(() => window.hbClicks);
+    await page.keyboard.press('Tab');
+    await page.focus('#hb-quick');
+    await page.keyboard.press(' ');
+    await settle(100);
+    const afterBlur = await page.evaluate(() => window.hbClicks);
+    await page.keyboard.press('Escape');
+    return (afterEscape === 3 && afterBlur === 3) || `clicks after Escape ${afterEscape}, after focus left ${afterBlur}`;
+});
+
+await check('assistive technology: a click no press began arms it, and the next one confirms', async () => {
+    await page.evaluate(() => document.getElementById('hb-quick').click());
+    await settle(50);
+    const armed = await armedText('hb-quick');
+    const once = await page.evaluate(() => window.hbClicks);
+    await page.evaluate(() => document.getElementById('hb-quick').click());
+    await settle(100);
+    const twice = await page.evaluate(() => window.hbClicks);
+    return (armed === 'Press again to confirm' && once === 3 && twice === 4) || `armed ${JSON.stringify(armed)}, clicks ${once} then ${twice}`;
+});
+
+await check('a form that would refuse the submit: nothing confirmed, and the browser says why', async () => {
+    await holdOn('hb-invalid', 700);
+    await settle(100);
+    const r = await page.evaluate(() => ({
+        sent: window.hbRequiredSent ?? false,
+        confirmed: window.hbInvalidConfirmed ?? false,
+        focus: document.activeElement?.id,
+    }));
+    return (!r.sent && !r.confirmed && r.focus === 'hb-required') || JSON.stringify(r);
+});
+
+await check('with reduced motion the fill moves in quarters, not a sweep', async () => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const box = await page.locator('#hb-quick').boundingBox();
+    await settle(300);
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    const seen = new Set();
+    for (let i = 0; i < 10; i++) {
+        seen.add(await rest('hb-quick'));
+        await settle(40);
+    }
+    await page.mouse.up();
+    await settle(50);
+    const after = await rest('hb-quick');
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    const allowed = ['100.00%', '75.00%', '50.00%', '25.00%', '100%'];
+    const odd = [...seen].filter((v) => !allowed.includes(v));
+    return (!odd.length && seen.size > 1 && after === '100.00%') || `values ${[...seen].join(', ')}, then ${after}`;
+});
+
+// ---------------------------------------------------------------- confirm popover
+
+const cpPanel = (trigger) => `[data-ds-popover]:has(#${trigger}) [data-ds-popover-panel]`;
+const cpShown = (trigger) => shownAt(cpPanel(trigger));
+
+group('confirm popover (dsConfirmDialog, on dsPopover)');
+
+await page.evaluate(() => document.getElementById('cp-form').scrollIntoView({ block: 'center' }));
+await settle(100);
+
+await check('an alertdialog, named by its title and described by its consequence', async () => {
+    const r = await page.evaluate((p) => {
+        const panel = document.querySelector(p);
+        const text = (attr) => document.getElementById(panel.getAttribute(attr))?.textContent.trim();
+        return { role: panel.getAttribute('role'), name: text('aria-labelledby'), description: text('aria-describedby'), modal: panel.getAttribute('aria-modal') };
+    }, cpPanel('cp-trigger'));
+    return (r.role === 'alertdialog' && r.name === 'Delete this report?' && r.description === 'Its 12 runs go with it.' && r.modal === null) || JSON.stringify(r);
+});
+
+await check('opening puts focus on Cancel, the safe choice', async () => {
+    await page.click('#cp-trigger');
+    await settle(250);
+    if (!(await cpShown('cp-trigger'))) return 'did not open';
+    return (await page.evaluate(() => document.activeElement?.textContent.trim())) === 'Cancel' || `focus on ${await active()}`;
+});
+
+await check('Escape closes it, dispatches `cancel`, and gives focus back to the trigger', async () => {
+    await page.keyboard.press('Escape');
+    await settle(250);
+    const r = await page.evaluate(() => ({ cancelled: window.cpCancelled, confirmed: window.cpConfirmed }));
+    if (await cpShown('cp-trigger')) return 'still open';
+    return (r.cancelled === 1 && !r.confirmed && (await active()) === 'cp-trigger') || `${JSON.stringify(r)}, focus on ${await active()}`;
+});
+
+await check('a press outside cancels too', async () => {
+    await page.click('#cp-trigger');
+    await settle(250);
+    await page.click('#cp-away');
+    await settle(250);
+    const cancelled = await page.evaluate(() => window.cpCancelled);
+    return (!(await cpShown('cp-trigger')) && cancelled === 2) || `cancel events ${cancelled}`;
+});
+
+await check('Cancel cancels, focus back to the trigger', async () => {
+    await page.click('#cp-trigger');
+    await settle(250);
+    await page.keyboard.press('Enter');
+    await settle(250);
+    const cancelled = await page.evaluate(() => window.cpCancelled);
+    return (!(await cpShown('cp-trigger')) && cancelled === 3 && (await active()) === 'cp-trigger') || `cancel events ${cancelled}, focus on ${await active()}`;
+});
+
+await check('confirming dispatches `confirm`, submits with its name and value, and closes without a `cancel`', async () => {
+    await page.click('#cp-trigger');
+    await settle(250);
+    await page.click('#cp');
+    await settle(250);
+    const r = await page.evaluate(() => ({ sent: window.cpSent, confirmed: window.cpConfirmed, cancelled: window.cpCancelled }));
+    if (await cpShown('cp-trigger')) return 'still open';
+    return (JSON.stringify(r.sent) === '["intent=delete"]' && r.confirmed === 1 && r.cancelled === 3 && (await active()) === 'cp-trigger')
+        || `${JSON.stringify(r)}, focus on ${await active()}`;
+});
+
+await check('type to confirm: focus in the field, and the confirm control disabled', async () => {
+    await page.click('#cp-typed-trigger');
+    await settle(250);
+    const r = await page.evaluate(() => ({
+        focus: document.activeElement?.matches('[data-ds-confirm-field]'),
+        disabled: document.getElementById('cp-typed').disabled,
+        name: document.activeElement?.name,
+        label: document.activeElement?.labels?.[0]?.textContent.replace(/\s+/g, ' ').trim(),
+    }));
+    return (r.focus && r.disabled && !r.name && r.label === 'Type acme-prod to confirm') || JSON.stringify(r);
+});
+
+await check('the wrong case, or a near miss, keeps it disabled; Enter then submits nothing at all', async () => {
+    await page.keyboard.type('Acme-prod');
+    const wrongCase = await page.evaluate(() => document.getElementById('cp-typed').disabled);
+    await page.keyboard.press('Enter');
+    await settle(100);
+    const sent = await page.evaluate(() => window.cpSent.length);
+    await page.fill('[data-ds-popover]:has(#cp-typed-trigger) [data-ds-confirm-field]', 'acme-pro');
+    const nearMiss = await page.evaluate(() => document.getElementById('cp-typed').disabled);
+    return (wrongCase && nearMiss && sent === 1) || `wrong case disabled ${wrongCase}, near miss disabled ${nearMiss}, sent ${sent}`;
+});
+
+await check('the exact text enables it, and Enter confirms', async () => {
+    await page.keyboard.type('d');
+    const enabled = await page.evaluate(() => !document.getElementById('cp-typed').disabled);
+    await page.keyboard.press('Enter');
+    await settle(250);
+    const sent = await page.evaluate(() => window.cpSent);
+    return (enabled && JSON.stringify(sent) === '["intent=delete","intent=delete-project"]' && !(await cpShown('cp-typed-trigger')))
+        || `enabled ${enabled}, sent ${JSON.stringify(sent)}`;
+});
+
+await check('opened again, it starts afresh: the field empty, the control disabled', async () => {
+    await page.click('#cp-typed-trigger');
+    await settle(250);
+    const r = await page.evaluate(() => ({
+        value: document.querySelector('[data-ds-popover]:has(#cp-typed-trigger) [data-ds-confirm-field]').value,
+        disabled: document.getElementById('cp-typed').disabled,
+    }));
+    await page.keyboard.press('Escape');
+    await settle(250);
+    return (r.value === '' && r.disabled) || JSON.stringify(r);
+});
+
+await check('strict off: letter case and the spaces around it do not matter', async () => {
+    await page.click('#cp-loose-trigger');
+    await settle(250);
+    await page.keyboard.type('  lEAVE ');
+    const enabled = await page.evaluate(() => !document.getElementById('cp-loose').disabled);
+    await page.keyboard.press('Enter');
+    await settle(250);
+    const confirmed = await page.evaluate(() => window.cpLooseConfirmed);
+    return (enabled && confirmed === 1) || `enabled ${enabled}, confirmed ${confirmed}`;
+});
+
+await check('`loading`: it stays open with a spinner, and a second press goes nowhere', async () => {
+    await page.click('#cp-busy-trigger');
+    await settle(250);
+    await page.click('#cp-busy');
+    await page.click('#cp-busy', { force: true });
+    await settle(100);
+    const r = await page.evaluate(() => ({
+        clicks: window.cpBusyClicks,
+        busy: document.getElementById('cp-busy').getAttribute('aria-busy'),
+        spinner: getComputedStyle(document.querySelector('#cp-busy svg')).display,
+    }));
+    const open = await cpShown('cp-busy-trigger');
+    await page.keyboard.press('Escape');
+    await settle(250);
+    return (open && r.clicks === 1 && r.busy === 'true' && r.spinner !== 'none') || `${JSON.stringify(r)}, open ${open}`;
+});
+
+await check('closed, the busy state is gone', async () => {
+    await page.click('#cp-busy-trigger');
+    await settle(250);
+    const busy = await page.evaluate(() => document.getElementById('cp-busy').getAttribute('aria-busy'));
+    await page.keyboard.press('Escape');
+    await settle(250);
+    return busy === null || `aria-busy ${busy}`;
+});
+
 // ---------------------------------------------------------------- overlay edges
 
 /*
@@ -2778,6 +3393,10 @@ const anchored = [
     {
         name: 'popover', trigger: '#pop-edge-trigger', panel: '#pop-edge',
         open: () => page.click('#pop-edge-trigger'), close: pressEscape,
+    },
+    {
+        name: 'confirm popover', trigger: '#cp-edge-trigger', panel: '[data-ds-popover]:has(#cp-edge-trigger) [data-ds-popover-panel]',
+        open: () => page.click('#cp-edge-trigger'), close: pressEscape,
     },
     {
         name: 'hover card', trigger: '#hc-edge-trigger', panel: '#hc-edge',
@@ -3354,6 +3973,8 @@ const overlays = [
     ['combobox options', '#f-combobox', 'ArrowDown', 'ArrowDown', 2],
     ['date picker month buttons and days', '[data-ds-date-trigger]', 'Enter', 'Tab', 5],
     ['popover content', '#f-pop', 'Enter', 'Tab', 1],
+    ['confirm button, asking', '[data-focus=confirm-button] [data-ds-confirm-trigger]', 'Enter', 'Tab', 2],
+    ['confirm popover content', '#f-cp', 'Enter', 'Tab', 2],
     ['context menu items', '#f-cm-row', 'Shift+F10', 'ArrowDown', 2],
     ['modal, round the trap', '#f-modal-open', 'Enter', 'Tab', 4],
     ['drawer, round the trap', '#f-drawer-open', 'Enter', 'Tab', 3],
@@ -3514,6 +4135,44 @@ ${include}
 <script defer src="alpine.js"></script>
 </head><body class="bg-surface">${themeMarkup}</body></html>`,
 
+    // The guards with Alpine and no include, and with neither.
+    'guards-missing.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+<script defer src="alpine.js"></script>
+</head><body>${guardsMarkup}</body></html>`,
+
+    'guards-static.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+</head><body>${guardsMarkup}</body></html>`,
+
+    // The remembered bar, then a probe that records whether it was hidden
+    // at the moment the parser passed it: before Alpine, before the body
+    // was done. Alpine and the include come after, as a host has them.
+    'announce-pre.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+${include}
+<script defer src="alpine.js"></script>
+</head><body>${announceMarkup}
+<script>window.atParse = { hidden: document.getElementById('pre-ab').hidden, height: document.getElementById('pre-ab').getBoundingClientRect().height };</script>
+<p id="pre-after">below the bar</p></body></html>`,
+
+    // Under the nonce policy: the check carries the nonce and runs.
+    'csp-announce.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+${includeWithNonce}
+<script nonce="t3st" defer src="alpine.js"></script>
+</head><body>${announceNonceMarkup}
+<script nonce="t3st">window.atParse = { hidden: document.getElementById('pre-ab').hidden };</script></body></html>`,
+
+    // And without it: the policy blocks the check, and dsDismiss puts the
+    // bar away once Alpine starts instead.
+    'csp-announce-without.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+${includeWithNonce}
+<script nonce="t3st" defer src="alpine.js"></script>
+</head><body>${announceMarkup}
+<script nonce="t3st">window.atParse = { hidden: document.getElementById('pre-ab').hidden };</script></body></html>`,
+
     // Served under the policy the CSP pages use: only a script with the
     // nonce runs.
     'csp-theme.html': `<!doctype html><html><head><meta charset="utf-8">
@@ -3561,7 +4220,7 @@ group('host setup (b): Alpine bundled by the host, Alpine.plugin(bladeUi)');
     await check('the plugin works', () => copiesOn(tab));
     await check('plugin twice plus the include: each name registered exactly once', async () => {
         const names = await tab.evaluate(() => window.dsRegistered);
-        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme'];
+        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme', 'dsDismiss', 'dsConfirm', 'dsHold', 'dsConfirmDialog'];
         return JSON.stringify(names) === JSON.stringify(expected) || `registered ${JSON.stringify(names)}`;
     });
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
@@ -3783,6 +4442,108 @@ group('the overlays that predate x-ds-anchor, in a host WITHOUT the script (the 
 
     await check('nothing in the console: a skipped anchor is not an error', async () => !errors.length || errors.join(' | '));
     await tab.close();
+}
+
+group('the destructive-action guards in a host WITHOUT the script, and with no Alpine at all');
+for (const [name, label] of [['guards-missing.html', 'no script'], ['guards-static.html', 'no Alpine']]) {
+    const { tab } = await openHost(name);
+
+    await check(`${label}: the markup reached the page`, async () =>
+        (await tab.locator('#g-hb').count()) === 1 || 'the guard specimens were not found');
+
+    await check(`${label}: the confirm button's confirm control is not on screen, and its button does nothing`, async () => {
+        await tab.click('[data-ds-confirm]:has(#g-cb) [data-ds-confirm-trigger]');
+        await tab.waitForTimeout(200);
+        const r = await tab.evaluate(() => ({
+            control: document.getElementById('g-cb').getClientRects().length,
+            sent: window.gSent ?? 0,
+            clicks: window.gClicks ?? 0,
+        }));
+        return (r.control === 0 && r.sent === 0 && r.clicks === 0) || JSON.stringify(r);
+    });
+
+    await check(`${label}: a press on the hold button submits nothing`, async () => {
+        await tab.click('#g-hb');
+        await tab.keyboard.press('Enter');
+        await tab.waitForTimeout(200);
+        const r = await tab.evaluate(() => ({ sent: window.gSent ?? 0, type: document.getElementById('g-hb').type }));
+        return (r.sent === 0 && r.type === 'button') || JSON.stringify(r);
+    });
+
+    await check(`${label}: the confirm popover never opens, so its confirm control is out of reach`, async () => {
+        await tab.click('#g-cp-trigger');
+        await tab.waitForTimeout(200);
+        const r = await tab.evaluate(() => ({ control: document.getElementById('g-cp').getClientRects().length, sent: window.gSent ?? 0 }));
+        return (r.control === 0 && r.sent === 0) || JSON.stringify(r);
+    });
+
+    await check(`${label}: the bar shows no close control that would do nothing`, async () => {
+        const visibility = await tab.evaluate(() => getComputedStyle(document.querySelector('#g-ab [data-ds-dismiss]')).visibility);
+        return visibility === 'hidden' || `the close control is ${visibility}`;
+    });
+
+    await tab.close();
+}
+
+group('announcement bar: a remembered dismissal, before the first paint');
+{
+    const { tab, errors } = await openHost('announce-pre.html');
+
+    await check('not dismissed yet: shown, and the check left it alone', async () => {
+        const r = await tab.evaluate(() => ({ atParse: window.atParse, height: document.getElementById('pre-ab').getBoundingClientRect().height }));
+        return (!r.atParse.hidden && r.height > 0) || JSON.stringify(r);
+    });
+
+    await tab.click('#pre-ab [data-ds-dismiss]');
+    await tab.waitForTimeout(400);
+    await tab.reload({ waitUntil: 'networkidle' });
+    await tab.waitForTimeout(300);
+
+    await check('dismissed, then reloaded: hidden at parse, before Alpine, taking no room', async () => {
+        const r = await tab.evaluate(() => ({ atParse: window.atParse, height: document.getElementById('pre-ab').getBoundingClientRect().height }));
+        return (r.atParse.hidden === true && r.atParse.height === 0 && r.height === 0) || JSON.stringify(r);
+    });
+
+    await check('storage that throws: the check is caught and the bar shows', async () => {
+        await tab.addInitScript(() => {
+            Object.defineProperty(window, 'localStorage', { get() { throw new Error('blocked'); } });
+        });
+        await tab.reload({ waitUntil: 'networkidle' });
+        await tab.waitForTimeout(300);
+        const r = await tab.evaluate(() => ({ atParse: window.atParse, height: document.getElementById('pre-ab').getBoundingClientRect().height }));
+        return (!r.atParse.hidden && r.height > 0) || JSON.stringify(r);
+    });
+
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+
+group('announcement bar under a Content Security Policy');
+{
+    const seed = await openHost('csp-announce.html');
+    await seed.tab.evaluate(() => localStorage.setItem('pre-ab', '1'));
+    await seed.tab.close();
+
+    const { tab, errors } = await openHost('csp-announce.html');
+    await check('with the nonce, the check runs before the first paint', async () => {
+        const hidden = await tab.evaluate(() => window.atParse.hidden);
+        return hidden === true || 'it was not hidden at parse';
+    });
+    await check('and nothing was blocked', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+
+    const without = await openHost('csp-announce-without.html');
+    await check('without the nonce the check is blocked, and dsDismiss puts the bar away when Alpine starts', async () => {
+        const r = await without.tab.evaluate(() => ({
+            atParse: window.atParse.hidden,
+            height: document.getElementById('pre-ab').getBoundingClientRect().height,
+            blocked: true,
+        }));
+        const blocked = without.errors.some((e) => /Content Security Policy/i.test(e));
+        return (r.atParse === false && r.height === 0 && blocked) || `${JSON.stringify(r)}, blocked ${blocked}`;
+    });
+    await without.tab.evaluate(() => localStorage.removeItem('pre-ab'));
+    await without.tab.close();
 }
 
 // ---------------------------------------------------------------- theme

@@ -908,6 +908,46 @@ final class Specimens
                 <x-ds::theme-switcher variant="nonsense" size="huge" />
                 BLADE,
 
+            'announcement-bar/all' => <<<'BLADE'
+                <x-ds::announcement-bar>Scheduled maintenance on Saturday.</x-ds::announcement-bar>
+                <x-ds::announcement-bar tone="accent" icon="sparkles" href="/changelog" actionLabel="See what changed">Exports are here.</x-ds::announcement-bar>
+                <x-ds::announcement-bar tone="success" :dismissible="true" sticky>All systems normal.</x-ds::announcement-bar>
+                <x-ds::announcement-bar tone="warning" dismissKey="trial-ends" nonce="abc123" label="Trial">
+                    Your trial ends in 3 days.
+                    <x-slot:action><x-ds::button size="sm" variant="secondary" data-ds-dismiss>Got it</x-ds::button></x-slot:action>
+                </x-ds::announcement-bar>
+                <x-ds::announcement-bar tone="danger" :urgent="true" :icon="false">Payments are failing.</x-ds::announcement-bar>
+                <x-ds::announcement-bar tone="nonsense" :urgent="true">Unknown tone, urgent ignored.</x-ds::announcement-bar>
+                BLADE,
+
+            'confirm-button/all' => <<<'BLADE'
+                <x-ds::confirm-button />
+                <x-ds::confirm-button label="Remove" question="Remove this member?" confirmLabel="Yes, remove" cancelLabel="Keep" variant="ghost" size="sm" />
+                <x-ds::confirm-button variant="secondary" size="lg" :timeout="0" :loading="true" type="button" wire:click="delete(4)" class="ml-auto" />
+                <x-ds::confirm-button variant="primary" :timeout="2.5" name="intent" value="archive" label="Archive" />
+                <x-ds::confirm-button variant="nonsense" size="huge" type="nonsense" />
+                BLADE,
+
+            'hold-button/all' => <<<'BLADE'
+                <x-ds::hold-button />
+                <x-ds::hold-button label="Hold to delete" armedLabel="Press again to delete" :duration="2000" type="submit" name="intent" value="delete" />
+                <x-ds::hold-button tone="neutral" size="sm" label="Hold to archive" />
+                <x-ds::hold-button size="lg" tone="nonsense" />
+                BLADE,
+
+            'confirm-popover/all' => <<<'BLADE'
+                <x-ds::confirm-popover title="Delete this report?" description="Its 12 runs go with it.">
+                    <x-slot:trigger><x-ds::button variant="danger" size="sm">Delete</x-ds::button></x-slot:trigger>
+                </x-ds::confirm-popover>
+                <x-ds::confirm-popover title="Delete project?" description="This cannot be undone." confirmText="acme-prod" :strict="false"
+                    confirmPrompt="Enter :text below" confirmLabel="Delete project" :loading="true" width="lg" placement="top-end">
+                    <x-slot:trigger><x-ds::button variant="secondary" tone="danger">Delete project</x-ds::button></x-slot:trigger>
+                </x-ds::confirm-popover>
+                <x-ds::confirm-popover tone="neutral" title="Revoke key?" confirmLabel="Revoke" cancelLabel="Keep" type="button" open="revokeOpen" wire:click="revoke">
+                    <x-slot:trigger><x-ds::button size="sm">Revoke</x-ds::button></x-slot:trigger>
+                </x-ds::confirm-popover>
+                BLADE,
+
             // Not a visual component, but it renders inside a host's layout and
             // so inside a Livewire render too; this puts it through the markers
             // test with everything else.

@@ -198,7 +198,11 @@ use the component.
 | `dsHoverCard` | Behind `ds::hover-card`. Opens the card after the pointer or keyboard focus rests on the trigger for 500 ms, keeps it open while the pointer crosses into it, closes it 300 ms after both are left or at once on Escape, and never opens it on touch. |
 | `dsContextMenu` | Behind `ds::context-menu`. Opens its menu at the pointer on a right-click, below the focused element on Shift+F10 or the Menu key, and at the finger on a touch held for 500 ms; leaves the browser's menu alone on fields and links unless `native` is false; closes on Escape, Tab, a choice or a press outside, and gives focus back. Exposes `dsTarget`, the element that was pressed. |
 | `dsTheme` | Behind `ds::theme-switcher`. Keeps the choice (light, dark, system) in localStorage, puts `dark` or `light` and `color-scheme` on `<html>`, follows `prefers-color-scheme` while on system, keeps every switcher on the page and in other tabs in step, and crossfades with a view transition where the browser has one and motion is allowed. |
-| `x-ds-anchor` | A directive, behind `ds::popover`, `ds::hover-card`, `ds::context-menu`, `ds::dropdown`, `ds::select`, `ds::combobox`, `ds::date-picker` and `ds::tooltip`, and yours for an overlay of your own: `x-ds-anchor="{ open: …, reference: …, placement: 'bottom-start' }"`. Places the panel beside its reference with `position: fixed`, so an ancestor's `overflow: hidden` cannot clip it; flips to the other side when the preferred one lacks room, shifts to stay 8 px inside the viewport, and caps the height with a scroll when neither side fits. Follows scrolling and resizing while `open` is true. Writes the side it took as `data-side`. `at: { x, y, width, height }`, measured from the reference's corner, hangs it off that box instead: a point, for a menu at the pointer. |
+| `dsDismiss` | Behind `ds::announcement-bar`'s `dismissible` and `dismissKey`. Collapses the bar on its ✕ or any `data-ds-dismiss` button in it, remembers the dismissal in localStorage under the key, dispatches `dismiss`, and repeats the pre-paint check for a page where the inline one was blocked. |
+| `dsConfirm` | Behind `ds::confirm-button`. Swaps the button for the question, Cancel and the confirm control, moves focus to Cancel, puts it back on Cancel, Escape or the timeout, and lets only a click on the control through to your listeners and the form. Dispatches `confirm` and `cancel`. |
+| `dsHold` | Behind `ds::hold-button`. Fills the button while it is held by pointer, Space or Enter, rewinds it when let go early, arms it for a second press from the keyboard or assistive technology, and on confirmation dispatches `confirm` and clicks the button once for real. |
+| `dsConfirmDialog` | Behind `ds::confirm-popover`, inside its `dsPopover`. Enables Confirm once the typed text matches, lets only a confirming click through, closes the popover after it, and dispatches `confirm`, or `cancel` on any other close. |
+| `x-ds-anchor` | A directive, behind `ds::popover`, `ds::confirm-popover`, `ds::hover-card`, `ds::context-menu`, `ds::dropdown`, `ds::select`, `ds::combobox`, `ds::date-picker` and `ds::tooltip`, and yours for an overlay of your own: `x-ds-anchor="{ open: …, reference: …, placement: 'bottom-start' }"`. Places the panel beside its reference with `position: fixed`, so an ancestor's `overflow: hidden` cannot clip it; flips to the other side when the preferred one lacks room, shifts to stay 8 px inside the viewport, and caps the height with a scroll when neither side fits. Follows scrolling and resizing while `open` is true. Writes the side it took as `data-side`. `at: { x, y, width, height }`, measured from the reference's corner, hangs it off that box instead: a point, for a menu at the pointer. |
 
 ### When it is missing
 
@@ -266,16 +270,18 @@ lets them choose light, dark or system, and remembers it:
 `illuminate/view` and `blade-heroicons`, and nothing else. Every component works
 in a plain Blade view.
 
-Twenty need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
+Twenty-five need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
 framework: **modal, drawer, sheet, dropdown, select, combobox, date-picker,
 accordion, file-upload, tooltip, sub-nav, otp-input, tag-input, number-field,
-password-strength, copy-button, toolbar, toggle-group, popover, hover-card**.
+password-strength, copy-button, toolbar, toggle-group, popover, hover-card,
+context-menu, theme-switcher, confirm-button, hold-button, confirm-popover**.
 `sub-nav` only to open and close: without Alpine, the section holding the
 current page is open and the rest are closed, as the server rendered them.
 
-Four more use it for **one optional prop** each, and work without it otherwise:
+Five more use it for **one optional prop** each, and work without it otherwise:
 `checkbox`'s `indeterminate`, `nav-item`'s `collapsedWhen`, `toast`'s
-`dismiss`, and `input`'s `reveal`. Skip those props and you need no JavaScript at all.
+`dismiss`, `input`'s `reveal`, and `announcement-bar`'s `dismissible` (and
+`dismissKey`, which implies it). Skip those props and you need no JavaScript at all.
 
 `segmented-control` uses Alpine and the package's script only to slide its
 highlight. Without them it is a plain radio group with the chosen segment
@@ -293,9 +299,10 @@ the top on a page change, and get it from Livewire.
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
 ```
 
-Nine of them, **otp-input, tag-input, number-field, password-strength,
-copy-button, toolbar, toggle-group, popover and hover-card**, and
-`input`'s `reveal`, need Alpine **and** [`<x-ds::scripts />`](#3-add-the-script)
+Fourteen of them, **otp-input, tag-input, number-field, password-strength,
+copy-button, toolbar, toggle-group, popover, hover-card, context-menu,
+theme-switcher, confirm-button, hold-button and confirm-popover**, and
+`input`'s `reveal` and `announcement-bar`'s dismissal, need Alpine **and** [`<x-ds::scripts />`](#3-add-the-script)
 above it, and say so on their page.
 
 **You do not need to add an `[x-cloak]` rule.** Twelve components hide themselves

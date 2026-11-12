@@ -447,6 +447,472 @@ root.removeEventListener('click', onClick, true);
 }
 return { contextMenu };
 })();
+const __ds_shared_confirm = (() => {
+function swallow(event) {
+event.preventDefault();
+event.stopImmediatePropagation();
+}
+function announce(control, name) {
+control?.dispatchEvent(new CustomEvent(name, { bubbles: true }));
+}
+function onRestore(fn) {
+const listener = (event) => {
+if (event.persisted) fn();
+};
+window.addEventListener('pageshow', listener);
+return () => window.removeEventListener('pageshow', listener);
+}
+function own(root, selector, scope) {
+return [...root.querySelectorAll(selector)].find((el) => el.closest(scope) === root) ?? null;
+}
+function focusWhenShown(el, tries = 5, from = document.activeElement) {
+if (!el) return;
+if (el.getClientRects().length) {
+el.focus();
+return;
+}
+if (tries > 0) requestAnimationFrame(() => {
+const now = document.activeElement;
+if (!now || now === document.body || now === from) focusWhenShown(el, tries - 1, from);
+});
+}
+return { swallow, announce, onRestore, own, focusWhenShown };
+})();
+const __ds_behaviours_confirm_dialog = (() => {
+const { swallow, announce, onRestore, own } = __ds_shared_confirm;
+const SCOPE = '[data-ds-confirm-dialog]';
+function confirmDialog(Alpine) {
+Alpine.data('dsConfirmDialog', (options = {}) => {
+const text = typeof options.text === 'string' && options.text !== '' ? options.text : null;
+const strict = options.strict !== false;
+const loading = options.loading === true;
+let teardown = null;
+const matches = (value) => text === null
+|| (strict ? value === text : value.trim().toLowerCase() === text.trim().toLowerCase());
+return {
+dsMatched: text === null,
+dsBusy: false,
+init() {
+const root = this.$el;
+const field = own(root, '[data-ds-confirm-field]', SCOPE);
+const cancel = own(root, '[data-ds-confirm-cancel]', SCOPE);
+const control = own(root, '[data-ds-confirm-confirm]', SCOPE);
+let confirmed = false;
+const close = () => {
+this.dsOpen = false;
+};
+const onClick = (event) => {
+if (control?.contains(event.target)) {
+if (this.dsBusy || !this.dsMatched) return swallow(event);
+confirmed = true;
+announce(control, 'confirm');
+if (loading) {
+this.dsBusy = true;
+return;
+}
+setTimeout(close);
+return;
+}
+if (cancel?.contains(event.target)) close();
+};
+const onInput = () => {
+this.dsMatched = matches(field.value);
+};
+const onFieldKey = (event) => {
+if (event.key !== 'Enter') return;
+event.preventDefault();
+if (this.dsMatched && !this.dsBusy) control?.click();
+};
+root.addEventListener('click', onClick, true);
+field?.addEventListener('input', onInput);
+field?.addEventListener('keydown', onFieldKey);
+this.$watch('dsOpen', (open) => {
+if (open) {
+confirmed = false;
+this.dsBusy = false;
+if (field) field.value = '';
+this.dsMatched = text === null;
+return;
+}
+if (!confirmed) announce(control, 'cancel');
+confirmed = false;
+this.dsBusy = false;
+});
+const unRestore = onRestore(() => {
+confirmed = true;
+this.dsBusy = false;
+close();
+});
+teardown = () => {
+unRestore();
+root.removeEventListener('click', onClick, true);
+field?.removeEventListener('input', onInput);
+field?.removeEventListener('keydown', onFieldKey);
+};
+},
+destroy() {
+teardown?.();
+},
+};
+});
+}
+return { confirmDialog };
+})();
+const __ds_behaviours_dismiss = (() => {
+function dismiss(Alpine) {
+Alpine.data('dsDismiss', (options = {}) => {
+const key = typeof options.key === 'string' && options.key ? options.key : null;
+let onClick = null;
+return {
+dsDismissed: false,
+init() {
+if (key && stored(key)) this.dsDismissed = true;
+const root = this.$el;
+onClick = (event) => {
+const control = event.target.closest('[data-ds-dismiss]');
+if (!control || control.closest('[data-ds-dismissible]') !== root || this.dsDismissed) return;
+this.dsDismissed = true;
+if (key) remember(key);
+root.dispatchEvent(new CustomEvent('dismiss', { bubbles: true }));
+};
+root.addEventListener('click', onClick);
+},
+destroy() {
+if (onClick) this.$el.removeEventListener('click', onClick);
+},
+};
+});
+}
+function stored(key) {
+try {
+return localStorage.getItem(key) !== null;
+} catch {
+return false;
+}
+}
+function remember(key) {
+try {
+localStorage.setItem(key, '1');
+} catch {
+}
+}
+return { dismiss };
+})();
+const __ds_behaviours_hold = (() => {
+const { swallow, announce, onRestore } = __ds_shared_confirm;
+const KEYS = new Set([' ', 'Enter']);
+const REWIND = 3;
+const STEPS = 4;
+function hold(Alpine) {
+Alpine.data('dsHold', (options = {}) => {
+const duration = Number.isFinite(options.duration) && options.duration > 0 ? options.duration : 1500;
+const submit = options.submit === true;
+let teardown = null;
+return {
+dsArmed: false,
+init() {
+const root = this.$el;
+const button = root.querySelector('[data-ds-hold]');
+if (!button) return;
+const still = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+let progress = 0;
+let frame = 0;
+let pressing = null; // 'pointer' | 'key' | null
+let pointerId = null;
+let pressed = false; // a press of ours began the click that follows
+let letThrough = false;
+let done = false;
+const paint = () => {
+const shown = still() ? Math.floor(progress * STEPS) / STEPS : progress;
+button.style.setProperty('--ds-hold-rest', `${((1 - shown) * 100).toFixed(2)}%`);
+};
+const run = (direction) => {
+cancelAnimationFrame(frame);
+let last = performance.now();
+const step = (now) => {
+const elapsed = now - last;
+last = now;
+progress = Math.min(1, Math.max(0, progress + (direction * elapsed * (direction < 0 ? REWIND : 1)) / duration));
+paint();
+if (direction > 0 && progress >= 1) return complete();
+if (direction < 0 && progress <= 0) return;
+frame = requestAnimationFrame(step);
+};
+frame = requestAnimationFrame(step);
+};
+const rewind = () => {
+pressing = null;
+if (still()) {
+cancelAnimationFrame(frame);
+progress = 0;
+paint();
+return;
+}
+run(-1);
+};
+const start = (by) => {
+if (done) return;
+pressing = by;
+run(1);
+};
+const arm = () => {
+this.dsArmed = true;
+};
+const disarm = () => {
+this.dsArmed = false;
+};
+const refused = () => submit && button.form && !button.form.checkValidity();
+const complete = () => {
+cancelAnimationFrame(frame);
+pressing = null;
+disarm();
+if (refused()) {
+button.form.reportValidity();
+progress = 0;
+paint();
+return;
+}
+progress = 1;
+paint();
+announce(button, 'confirm');
+setTimeout(() => {
+letThrough = true;
+if (submit) button.type = 'submit';
+try {
+button.click();
+} finally {
+if (submit) button.type = 'button';
+letThrough = false;
+}
+});
+if (submit) {
+done = true;
+button.setAttribute('aria-disabled', 'true');
+return;
+}
+setTimeout(rewind, 150);
+};
+const onPointerDown = (event) => {
+if (event.button !== 0 || !event.isPrimary || pressing) return;
+pressed = true;
+pointerId = event.pointerId;
+try {
+button.setPointerCapture(pointerId);
+} catch {
+}
+start('pointer');
+};
+const onPointerMove = (event) => {
+if (pressing !== 'pointer' || event.pointerId !== pointerId) return;
+const r = button.getBoundingClientRect();
+const off = event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom;
+if (off) rewind();
+};
+const onPointerUp = (event) => {
+if (event.pointerId !== pointerId) return;
+pointerId = null;
+if (pressing === 'pointer') rewind();
+setTimeout(() => {
+pressed = false;
+});
+};
+const onKeyDown = (event) => {
+if (event.key === 'Escape') {
+if (this.dsArmed || pressing) {
+event.stopPropagation();
+disarm();
+if (pressing) rewind();
+}
+return;
+}
+if (!KEYS.has(event.key)) return;
+event.preventDefault();
+if (event.repeat || pressing || done) return;
+start('key');
+};
+const onKeyUp = (event) => {
+if (!KEYS.has(event.key)) return;
+event.preventDefault();
+if (pressing !== 'key') return;
+if (this.dsArmed) return complete();
+rewind();
+arm();
+};
+const onClick = (event) => {
+if (letThrough) return;
+swallow(event);
+if (pressed) {
+pressed = false;
+return;
+}
+if (done || pressing) return;
+if (this.dsArmed) complete();
+else arm();
+};
+const onFocusOut = () => {
+disarm();
+if (pressing === 'key') rewind();
+};
+const onContextMenu = (event) => {
+if (pressing === 'pointer') event.preventDefault();
+};
+const onBlurWindow = () => {
+if (pressing) rewind();
+};
+button.addEventListener('pointerdown', onPointerDown);
+button.addEventListener('pointermove', onPointerMove);
+button.addEventListener('pointerup', onPointerUp);
+button.addEventListener('pointercancel', onPointerUp);
+button.addEventListener('keydown', onKeyDown);
+button.addEventListener('keyup', onKeyUp);
+button.addEventListener('focusout', onFocusOut);
+button.addEventListener('contextmenu', onContextMenu);
+root.addEventListener('click', onClick, true);
+window.addEventListener('blur', onBlurWindow);
+const unRestore = onRestore(() => {
+done = false;
+button.removeAttribute('aria-disabled');
+progress = 0;
+paint();
+});
+teardown = () => {
+cancelAnimationFrame(frame);
+unRestore();
+button.removeEventListener('pointerdown', onPointerDown);
+button.removeEventListener('pointermove', onPointerMove);
+button.removeEventListener('pointerup', onPointerUp);
+button.removeEventListener('pointercancel', onPointerUp);
+button.removeEventListener('keydown', onKeyDown);
+button.removeEventListener('keyup', onKeyUp);
+button.removeEventListener('focusout', onFocusOut);
+button.removeEventListener('contextmenu', onContextMenu);
+root.removeEventListener('click', onClick, true);
+window.removeEventListener('blur', onBlurWindow);
+};
+},
+destroy() {
+teardown?.();
+},
+};
+});
+}
+return { hold };
+})();
+const __ds_behaviours_confirm = (() => {
+const { swallow, announce, onRestore, own, focusWhenShown } = __ds_shared_confirm;
+const SCOPE = '[data-ds-confirm]';
+function inlineConfirm(Alpine) {
+Alpine.data('dsConfirm', (options = {}) => {
+const timeout = Number.isFinite(options.timeout) ? options.timeout : 5000;
+const loading = options.loading === true;
+let parts = null;
+return {
+dsAsking: false,
+dsBusy: false,
+init() {
+const root = this.$el;
+const trigger = own(root, '[data-ds-confirm-trigger]', SCOPE);
+const cancel = own(root, '[data-ds-confirm-cancel]', SCOPE);
+const control = own(root, '[data-ds-confirm-confirm]', SCOPE);
+let timer = null;
+let hovered = false;
+let focused = false;
+const stopTimer = () => {
+clearTimeout(timer);
+timer = null;
+};
+const startTimer = () => {
+stopTimer();
+if (timeout <= 0 || !this.dsAsking || this.dsBusy || hovered || focused) return;
+timer = setTimeout(() => putBack(false), timeout);
+};
+const putBack = (toTrigger) => {
+if (!this.dsAsking || this.dsBusy) return;
+stopTimer();
+this.dsAsking = false;
+announce(control, 'cancel');
+if (toTrigger || root.contains(document.activeElement)) focusWhenShown(trigger);
+};
+const ask = () => {
+this.dsAsking = true;
+focusWhenShown(cancel);
+this.$nextTick(startTimer);
+};
+const onClick = (event) => {
+if (control?.contains(event.target)) {
+if (this.dsBusy || !this.dsAsking) return swallow(event);
+stopTimer();
+announce(control, 'confirm');
+if (loading) {
+this.dsBusy = true;
+return;
+}
+setTimeout(() => {
+const had = root.contains(document.activeElement);
+this.dsAsking = false;
+if (had) focusWhenShown(trigger);
+});
+return;
+}
+if (cancel?.contains(event.target)) {
+putBack(true);
+return;
+}
+if (trigger?.contains(event.target) && !this.dsAsking) ask();
+};
+const onKeyDown = (event) => {
+if (event.key !== 'Escape' || !this.dsAsking || this.dsBusy) return;
+event.stopPropagation();
+event.preventDefault();
+putBack(true);
+};
+const onEnter = () => {
+hovered = true;
+stopTimer();
+};
+const onLeave = () => {
+hovered = false;
+startTimer();
+};
+const onFocusIn = () => {
+focused = true;
+stopTimer();
+};
+const onFocusOut = (event) => {
+if (event.relatedTarget && root.contains(event.relatedTarget)) return;
+focused = false;
+startTimer();
+};
+root.addEventListener('click', onClick, true);
+root.addEventListener('keydown', onKeyDown);
+root.addEventListener('pointerenter', onEnter);
+root.addEventListener('pointerleave', onLeave);
+root.addEventListener('focusin', onFocusIn);
+root.addEventListener('focusout', onFocusOut);
+const unRestore = onRestore(() => {
+stopTimer();
+this.dsBusy = false;
+this.dsAsking = false;
+});
+parts = () => {
+stopTimer();
+unRestore();
+root.removeEventListener('click', onClick, true);
+root.removeEventListener('keydown', onKeyDown);
+root.removeEventListener('pointerenter', onEnter);
+root.removeEventListener('pointerleave', onLeave);
+root.removeEventListener('focusin', onFocusIn);
+root.removeEventListener('focusout', onFocusOut);
+};
+},
+destroy() {
+parts?.();
+},
+};
+});
+}
+return { inlineConfirm };
+})();
 const __ds_behaviours_glide = (() => {
 const SELECTED = ':is([aria-current]:not([aria-current="false"]), [aria-checked="true"], [aria-pressed="true"], [aria-selected="true"])';
 const DISABLED = ':is(:disabled, [aria-disabled="true"])';
@@ -1278,7 +1744,7 @@ close(false);
 function focusIn() {
 if (!panel) return;
 const visible = (el) => el.getClientRects().length > 0;
-const first = panel.querySelector('[autofocus]')
+const first = panel.querySelector('[data-ds-autofocus], [autofocus]')
 ?? [...panel.querySelectorAll(FOCUSABLE)].find(visible)
 ?? panel;
 first.focus();
@@ -1817,6 +2283,10 @@ const __ds_blade_ui = (() => {
 const { anchorDirective } = __ds_behaviours_anchor;
 const { clipboard } = __ds_behaviours_clipboard;
 const { contextMenu } = __ds_behaviours_context_menu;
+const { confirmDialog } = __ds_behaviours_confirm_dialog;
+const { dismiss } = __ds_behaviours_dismiss;
+const { hold } = __ds_behaviours_hold;
+const { inlineConfirm } = __ds_behaviours_confirm;
 const { glide } = __ds_behaviours_glide;
 const { hoverCard } = __ds_behaviours_hover_card;
 const { numberField } = __ds_behaviours_number_field;
@@ -1827,7 +2297,7 @@ const { tagInput } = __ds_behaviours_tag_input;
 const { theme } = __ds_behaviours_theme;
 const { toggleGroup } = __ds_behaviours_toggle_group;
 const { toolbar } = __ds_behaviours_toolbar;
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog];
 const REGISTERED = Symbol.for('shipbytes.blade-ui');
 function bladeUi(Alpine) {
 if (!Alpine || Alpine[REGISTERED]) return;

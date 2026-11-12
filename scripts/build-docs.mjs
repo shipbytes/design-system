@@ -286,6 +286,18 @@ const OPERATE = {
         pane.locator('[data-shot-hover]').dispatchEvent('pointermove', { bubbles: true, pointerType: 'mouse' }),
     'copy-button': async (pane) =>
         pane.locator('[data-shot-press]').dispatchEvent('click', { bubbles: false }),
+    // The trigger pressed, so the image shows the question in its place.
+    // The click is heard by a listener capturing on the component, which a
+    // non-bubbling event still passes on its way down. Focus is then taken
+    // off Cancel, or the ring would be drawn in one pane and not the other.
+    'confirm-button': async (pane) => {
+        await pane.locator('[data-shot-press] [data-ds-confirm-trigger]').dispatchEvent('click', { bubbles: false });
+        await tab.waitForTimeout(100);
+        await tab.evaluate(() => document.activeElement?.blur());
+    },
+    // A click no press began, as a screen reader sends one: it arms.
+    'hold-button': async (pane) =>
+        pane.locator('[data-shot-press]').dispatchEvent('click', { bubbles: false }),
     // Real files, set on the real input, so the list and the thumbnail are the
     // component's own doing rather than a pose arranged for the photograph.
     'file-upload': async (pane) =>

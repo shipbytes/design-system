@@ -1,6 +1,6 @@
 # Shipbytes Blade UI — documentation
 
-Sixty-nine Blade components for Laravel, plus two pagination views. Presentation
+Seventy-three Blade components for Laravel, plus two pagination views. Presentation
 only: no state, no framework assumptions beyond Blade itself.
 
 **New here?** Start with [Getting started](getting-started.md) — install, three
@@ -22,6 +22,8 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Number field](components/number-field.md) | A bounded number with step buttons — needs Alpine and the script |
 | [Password strength](components/password-strength.md) | A strength hint for a new password, and `reveal` — needs Alpine and the script |
 | [Copy button](components/copy-button.md) | Copies a value and confirms in place — needs Alpine and the script |
+| [Confirm button](components/confirm-button.md) | A destructive button that asks in place first — needs Alpine and the script |
+| [Hold button](components/hold-button.md) | Confirmed by holding it, or by pressing twice — needs Alpine and the script |
 | [Rating](components/rating.md) | Stars to choose a score, or to show one |
 | [Chip group](components/chip-group.md) | Pressable filter chips, one or many, or links |
 | [Segmented control](components/segmented-control.md) | One of a few views or modes, side by side |
@@ -72,6 +74,7 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Sheet](components/sheet.md) | The mobile form of either — Alpine |
 | [Dropdown](components/dropdown.md) | A menu of actions — Alpine |
 | [Popover](components/popover.md) | Anything else anchored to a button: fields, a form — needs Alpine and the script |
+| [Confirm popover](components/confirm-popover.md) | A question anchored to its button, with optional type-to-confirm — needs Alpine and the script |
 | [Hover card](components/hover-card.md) | A preview of a person or a link on hover or focus — needs Alpine and the script |
 | [Context menu](components/context-menu.md) | The dropdown's menu at the pointer: right-click, long press, Shift+F10 — needs Alpine and the script |
 | [Tooltip](components/tooltip.md) | A short label on hover or focus — Alpine |
@@ -86,6 +89,7 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Avatar group](components/avatar-group.md) | A few faces from a larger set, overlapping |
 | [Badge](components/badge.md) | A small label that annotates |
 | [Alert](components/alert.md) | Something about the page you are on |
+| [Announcement bar](components/announcement-bar.md) | A banner above the app for everyone: maintenance, a trial, news; dismissal needs Alpine and the script |
 
 ## See everything at once
 
@@ -103,23 +107,26 @@ plain Blade view. The one opt-in exception is the pagination views' Livewire
 variants, which emit `wire:click` for a component that uses `WithPagination`.
 
 [Alpine](https://alpinejs.dev) — a single 15 kB script, not a framework — is
-needed by seventeen components, and by four optional props:
+needed by twenty components, and by five optional props:
 
 | | Needs Alpine |
 |---|---|
 | `modal` `drawer` `sheet` `dropdown` `select` `combobox` `date-picker` `accordion` `file-upload` `tooltip` | **Always.** Their whole behaviour is state the browser has no markup for. |
 | `otp-input` `tag-input` `number-field` `password-strength` `copy-button` `toolbar` `toggle-group` | **Always, and the package's script too.** Each renders its value from PHP and posts without JavaScript, but its behaviour is the script's. |
+| `confirm-button` `hold-button` `confirm-popover` | **Always, and the package's script too.** Without them each renders its first face and does nothing, so no single press ever carries out the action. |
 | `segmented-control` | **Never.** With Alpine and the package's script, its highlight slides; without them, the chosen segment draws its own face, and nothing throws. |
 | `input` | Only for `reveal`, which also needs the package's script. |
 | `checkbox` | Only for `indeterminate`. Without it the box renders unchecked — which is what a screen reader announces, so the feature is absent rather than lying. |
 | `nav-item` | Only for `collapsedWhen`. Omit it for a permanently expanded rail. |
 | `toast` | Only for `dismiss`, which takes an expression that removes the toast. |
+| `announcement-bar` | Only for `dismissible` and `dismissKey`, which also need the package's script. Without them the bar shows with no close control. |
 | `pagination-livewire` `simple-pagination-livewire` | For the scroll back to the top on a page change. Livewire brings its own Alpine, so there is nothing to add. |
 | Everything else | **Never.** |
 
 The package also ships a small script of its own, the behaviours several
 components share, which goes in the layout as `<x-ds::scripts />` above Alpine.
-The seven above that need it, and `input`'s `reveal`, say so at the top of
+The ten above that need it, and `input`'s `reveal` and `announcement-bar`'s
+dismissal, say so at the top of
 their pages. See [Add the script](getting-started.md#3-add-the-script).
 
 `stat-tile` pushes its own count-up script to a `scripts` stack — plain

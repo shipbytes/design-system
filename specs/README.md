@@ -71,6 +71,10 @@ independent implementations the same component rather than three lookalikes.
 | [button-group.md](button-group.md) | Joined buttons, the split button, why it is a class |
 | [toolbar.md](toolbar.md) | One Tab stop, roving focus, the hover highlight, pressed |
 | [toggle-group.md](toggle-group.md) | Single and multiple toggles, what posts, inside a toolbar |
+| [announcement-bar.md](announcement-bar.md) | Banner above the chrome, the pre-paint dismissal check, landmark not live region |
+| [confirm-button.md](confirm-button.md) | Asking in place, the fail-safe confirm control, the width it grows by |
+| [hold-button.md](hold-button.md) | Hold to confirm, the two-press path for keyboard and assistive technology |
+| [confirm-popover.md](confirm-popover.md) | Anchored confirmation, type-to-confirm, why alertdialog |
 
 Sub-components are covered by their parent: `table-cell` and `table-row` in
 table.md, `panel-row` in panel.md, `sheet-item` in sheet.md, `dropdown-item` in

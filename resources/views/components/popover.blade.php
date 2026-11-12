@@ -16,6 +16,14 @@
     'label' => null,
     /** The id of a heading inside the panel that names it. Preferred over `label`. */
     'labelledby' => null,
+    /** The id of the text inside the panel that says what it is about. */
+    'describedby' => null,
+    /**
+     * dialog | alertdialog. alertdialog for a panel that asks a question
+     * before something happens, as ds::confirm-popover does: a screen reader
+     * reads its description on open, not only its name.
+     */
+    'role' => 'dialog',
     /** sm | md | lg — 14, 18 or 24rem, and never wider than the window. */
     'width' => 'md',
     /**
@@ -48,8 +56,9 @@
     // are, so a quote in a label would end the attribute.
     $panel = new \Illuminate\View\ComponentAttributeBag(array_filter([
         'id' => e($id),
-        'role' => 'dialog',
+        'role' => $role === 'alertdialog' ? 'alertdialog' : 'dialog',
         'aria-labelledby' => $labelledby ? e($labelledby) : null,
+        'aria-describedby' => $describedby ? e($describedby) : null,
         'aria-label' => $labelledby || ! $label ? null : e($label),
         // So the panel can hold focus when it holds nothing focusable.
         'tabindex' => '-1',

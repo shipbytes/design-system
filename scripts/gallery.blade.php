@@ -1302,6 +1302,99 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Announcement bar --}}
+<section class="ds-spec" id="announcement-bar">
+    <header class="ds-spec-head">
+        <h2>Announcement bar</h2>
+        <p>A full-width banner above the app&rsquo;s chrome: maintenance, a trial ending, a new feature. A landmark, not a live region, unless an outage is marked urgent.</p>
+    </header>
+
+    <div class="ds-note">With <em>no script</em> here the dismissible bars show <em>no close control</em>: it appears only once the package&rsquo;s script has started, so it is never a control that does nothing.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Tones <span>&middot; neutral is the inverse surface; the rest are the alert&rsquo;s washes</span></div>
+        <div class="flex flex-col gap-2">
+            <x-ds::announcement-bar href="#status">Scheduled maintenance on Saturday, 02:00 to 03:00 UTC.</x-ds::announcement-bar>
+            <x-ds::announcement-bar tone="accent" icon="sparkles" dismissible>Exports are here: CSV and PDF from every report.
+                <x-slot:action><x-ds::button size="sm" variant="secondary">Try it</x-ds::button></x-slot:action>
+            </x-ds::announcement-bar>
+            <x-ds::announcement-bar tone="success" dismissible>All systems are back to normal.</x-ds::announcement-bar>
+            <x-ds::announcement-bar tone="warning" dismissKey="gallery-trial" href="#billing" actionLabel="Choose a plan">Your trial ends in 3 days.</x-ds::announcement-bar>
+            <x-ds::announcement-bar tone="danger" :urgent="true">Card payments are failing. We are on it.</x-ds::announcement-bar>
+            <x-ds::announcement-bar tone="neutral" :icon="false">No icon, for a message that needs none.</x-ds::announcement-bar>
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Confirm button --}}
+<section class="ds-spec" id="confirm-button">
+    <header class="ds-spec-head">
+        <h2>Confirm button</h2>
+        <p>A destructive button that asks in its own place: &ldquo;Are you sure? Cancel Delete&rdquo;. The confirm control is hidden from the server and shown only by the script, so without it the action cannot be reached.</p>
+    </header>
+
+    <div class="ds-note">With <em>no Alpine</em> here they stay at rest, which is also how they fail: safe. The question in place is in the documentation screenshot.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Variants and sizes <span>&middot; danger by default; secondary and ghost are drawn in the danger tone</span></div>
+        <div class="{{ $row }}">
+            <x-ds::confirm-button type="button" />
+            <x-ds::confirm-button type="button" variant="secondary" label="Revoke access" />
+            <x-ds::confirm-button type="button" variant="ghost" size="sm" label="Remove" />
+            <x-ds::confirm-button type="button" variant="primary" size="lg" label="Archive all" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Hold button --}}
+<section class="ds-spec" id="hold-button">
+    <header class="ds-spec-head">
+        <h2>Hold button</h2>
+        <p>Confirmed by holding it, pointer or Space or Enter, while it fills; or for keyboard and assistive technology, by pressing it twice. The instruction is the button&rsquo;s own words.</p>
+    </header>
+
+    <div class="ds-note">The part-filled ones below are set by hand to the custom property the script writes while a button is held.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Tones and fill <span>&middot; at rest, a third held, two thirds held</span></div>
+        <div class="{{ $row }}">
+            <x-ds::hold-button label="Hold to delete" />
+            <x-ds::hold-button label="Hold to delete" style="--ds-hold-rest: 66%" />
+            <x-ds::hold-button label="Hold to delete" style="--ds-hold-rest: 33%" />
+        </div>
+        <div class="{{ $row }} mt-3">
+            <x-ds::hold-button tone="neutral" size="sm" label="Hold to archive" />
+            <x-ds::hold-button tone="neutral" size="sm" label="Hold to archive" style="--ds-hold-rest: 50%" />
+            <x-ds::hold-button size="lg" label="Hold to empty the bin" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Confirm popover --}}
+<section class="ds-spec" id="confirm-popover">
+    <header class="ds-spec-head">
+        <h2>Confirm popover</h2>
+        <p>An anchored confirmation card on the popover: the question, its consequence, Cancel and Confirm, and optionally a name to type first. An alertdialog, so the consequence is read with the question.</p>
+    </header>
+
+    <div class="ds-note">The gallery loads <em>no Alpine</em>, so the cards stay closed, as the popover&rsquo;s do. The open card, with type-to-confirm, is in the documentation screenshot.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Triggers <span>&middot; your own button</span></div>
+        <div class="{{ $row }}">
+            <x-ds::confirm-popover title="Delete this report?" description="Its 12 runs go with it.">
+                <x-slot:trigger><x-ds::button variant="danger" size="sm">Delete</x-ds::button></x-slot:trigger>
+            </x-ds::confirm-popover>
+            <x-ds::confirm-popover title="Delete project?" description="This cannot be undone." confirmText="acme-prod" confirmLabel="Delete project">
+                <x-slot:trigger><x-ds::button variant="secondary" tone="danger" size="sm">Delete project</x-ds::button></x-slot:trigger>
+            </x-ds::confirm-popover>
+            <x-ds::confirm-popover tone="neutral" title="Revoke key?" confirmLabel="Revoke" type="button">
+                <x-slot:trigger><x-ds::button variant="ghost" size="sm">Revoke</x-ds::button></x-slot:trigger>
+            </x-ds::confirm-popover>
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Theme switcher --}}
 <section class="ds-spec" id="theme-switcher">
     <header class="ds-spec-head">

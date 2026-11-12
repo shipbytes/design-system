@@ -51,6 +51,8 @@ src/              the service provider
   Support/Tray.php              reads the tray recipe (partials/tray.php)
   Support/Popover.php           reads the popover recipe (partials/popover.php)
   Support/Menu.php              reads the menu recipe (partials/menu.php)
+  Support/Dismissal.php         the announcement bar's pre-paint dismissal
+                                check, an inline script with the CSP nonce
 config/           blade-ui.php — icon aliases, default icon size
 resources/views/  the Blade components + the two pagination views and
                   their two Livewire variants
@@ -83,7 +85,9 @@ resources/js/     the shared script's source: plain ES modules, hand-edited
   behaviours/       one file per behaviour
   shared/           helpers more than one behaviour imports (roving.js:
                     the roving tabindex toolbar and toggle-group use;
-                    anchor.js: the positioning x-ds-anchor drives)
+                    anchor.js: the positioning x-ds-anchor drives;
+                    confirm.js: the swallow, announce and bfcache-restore
+                    helpers the three confirmation behaviours share)
                   (export-ignored: consumers get dist/, not the modules)
 
 tokens/           DTCG source. Edited by hand, like resources/js/.
@@ -653,13 +657,13 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 69 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 73 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
-accordion, accordion-item, alert, avatar, avatar-group, badge, bottom-nav,
+accordion, accordion-item, alert, announcement-bar, avatar, avatar-group, badge, bottom-nav,
 bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, chip,
-button-group, chip-group, combobox, copy-button, date-picker, drawer, dropdown,
-context-menu, dropdown-item, empty-state, file-upload, hover-card, icon,
+button-group, chip-group, combobox, confirm-button, confirm-popover, copy-button, date-picker, drawer, dropdown,
+context-menu, dropdown-item, empty-state, file-upload, hold-button, hover-card, icon,
 input, modal,
 nav-item, number-field, otp-input, panel, panel-row, password-strength,
 popover, progress, radio, radio-card, radio-cards, radio-group, rating,
@@ -678,10 +682,12 @@ three lines of CSS, every component rendering styled in light and dark.
 **Needs Alpine:** modal, drawer, sheet, dropdown, select, combobox, date-picker,
 accordion (with accordion-item), file-upload, tooltip, otp-input, tag-input,
 number-field, password-strength, copy-button, toolbar (with toolbar-button and
-toolbar-separator), toggle-group (with toggle), popover, hover-card, context-menu, theme-switcher, sub-nav —
+toolbar-separator), toggle-group (with toggle), popover, hover-card, context-menu, theme-switcher,
+confirm-button, hold-button, confirm-popover, sub-nav —
 always (sub-nav only to toggle: its open state is rendered from PHP). Plus ONE optional prop each on
-checkbox (`indeterminate`), nav-item (`collapsedWhen`), toast (`dismiss`) and
-input (`reveal`), and the pagination views' Livewire variants, whose scroll to
+checkbox (`indeterminate`), nav-item (`collapsedWhen`), toast (`dismiss`),
+input (`reveal`) and announcement-bar (`dismissible`, and `dismissKey`, which
+implies it), and the pagination views' Livewire variants, whose scroll to
 the top is an `x-on:click` that Livewire's bundled Alpine runs. Everything else
 is plain Blade and CSS (stat-tile's count-up is a plain script it pushes to a
 `scripts` stack), and nothing anywhere needs Livewire; the pagination views'
@@ -694,8 +700,10 @@ copy-button (`dsClipboard`, which is also documented for direct use),
 toolbar (`dsToolbar`, `x-ds-glide.hover`), toggle-group (`dsToggleGroup`,
 `x-ds-glide.hover`), popover (`dsPopover`, `x-ds-anchor`), hover-card
 (`dsHoverCard`, `x-ds-anchor`), context-menu (`dsContextMenu`, `x-ds-anchor`
-with its `at` box), theme-switcher (`dsTheme`), and input's `reveal`
-(`dsPassword`). `<x-ds::theme-script />` is a class component like
+with its `at` box), theme-switcher (`dsTheme`), confirm-button (`dsConfirm`),
+hold-button (`dsHold`), confirm-popover (`dsConfirmDialog`, on `dsPopover` and
+`x-ds-anchor`), announcement-bar's dismissal (`dsDismiss`), and input's
+`reveal` (`dsPassword`). `<x-ds::theme-script />` is a class component like
 `ds::scripts`, plain inline JavaScript with no Alpine and no script. segmented-control
 uses `x-ds-glide` as an enhancement only, and dropdown, select, combobox,
 date-picker and tooltip use `x-ds-anchor` as an enhancement only: each works

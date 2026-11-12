@@ -67,6 +67,8 @@ first.
 | `open` | string | — | An assignable Alpine reference holding the state. Left out, the popover holds its own. |
 | `label` | string | — | The dialog's name, when nothing in it says what it is. |
 | `labelledby` | string | — | The id of a heading inside that names it. Preferred over `label`. With neither, the panel is named by the trigger. |
+| `describedby` | string | — | The id of the text inside that says more, read with the name. |
+| `role` | string | `dialog` | `alertdialog` for a panel that asks one question before something happens, as [confirm popover](confirm-popover.md) does. |
 | `width` | string | `md` | `sm` (14rem), `md` (18rem) or `lg` (24rem), never wider than the window. |
 | `dismissible` | bool | `true` | Escape, a press outside and focus leaving close it. `false` for a panel you close yourself. |
 
@@ -76,7 +78,8 @@ Slots: `trigger` (your button) and the default slot (the panel's content).
 ## What it does
 
 - **Opens** on a press of the trigger and moves focus to the first thing in it
-  you can focus (or an element marked `autofocus`), or to the panel itself.
+  you can focus (or an element marked `data-ds-autofocus` or `autofocus`), or
+  to the panel itself.
 - **Closes** on Escape, on a press anywhere outside it, and when focus moves
   out of it, Tab included. Escape and closing from inside give focus back to
   the trigger; a press elsewhere leaves focus where you pressed.
