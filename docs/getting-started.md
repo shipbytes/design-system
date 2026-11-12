@@ -203,6 +203,8 @@ use the component.
 | `dsHold` | Behind `ds::hold-button`. Fills the button while it is held by pointer, Space or Enter, rewinds it when let go early, arms it for a second press from the keyboard or assistive technology, and on confirmation dispatches `confirm` and clicks the button once for real. |
 | `dsConfirmDialog` | Behind `ds::confirm-popover`, inside its `dsPopover`. Enables Confirm once the typed text matches, lets only a confirming click through, closes the popover after it, and dispatches `confirm`, or `cancel` on any other close. |
 | `x-ds-anchor` | A directive, behind `ds::popover`, `ds::confirm-popover`, `ds::hover-card`, `ds::context-menu`, `ds::dropdown`, `ds::select`, `ds::combobox`, `ds::date-picker` and `ds::tooltip`, and yours for an overlay of your own: `x-ds-anchor="{ open: …, reference: …, placement: 'bottom-start' }"`. Places the panel beside its reference with `position: fixed`, so an ancestor's `overflow: hidden` cannot clip it; flips to the other side when the preferred one lacks room, shifts to stay 8 px inside the viewport, and caps the height with a scroll when neither side fits. Follows scrolling and resizing while `open` is true. Writes the side it took as `data-side`. `at: { x, y, width, height }`, measured from the reference's corner, hangs it off that box instead: a point, for a menu at the pointer. |
+| `dsRoll` | Behind `ds::counter` when its `value` is bound to Alpine state (`::value="count"`). Follows the expression, formats it as the server does, keeps the hidden text in step, and rolls the digits to each new value. |
+| `x-ds-roll` | A directive, behind `ds::counter` when its value comes from the server. Rolls the digits when a re-render (a Livewire morph) changes the number; with `.in`, rolls up from zero the first time the counter is half in view. Instant under reduced motion. |
 
 ### When it is missing
 
@@ -217,15 +219,18 @@ The component renders, because the server rendered it, and does nothing when
 pressed. In your own `x-data` the same cause reads as Alpine's
 `dsClipboard is not defined`.
 
-`x-ds-glide` and `x-ds-anchor` are the two registrations that are silent when
-missing, on purpose. `x-ds-glide` only adds the sliding highlight, and
+`x-ds-glide`, `x-ds-anchor` and `x-ds-roll` are the three registrations that
+are silent when missing, on purpose. `x-ds-glide` only adds the sliding highlight, and
 `ds::segmented-control`, which uses it without any `ds…` behaviour, works and
 posts the same without it: Alpine skips a directive it does not know, and the
 chosen segment keeps the face CSS draws. `x-ds-anchor` keeps an overlay on
 screen, and the dropdown, select, combobox, date picker and tooltip open at
 their `placement` without it, as they did before 2.0: near the bottom of the
 window or inside a box with `overflow: hidden` they run off the page or are
-cut off, and nothing reports it.
+cut off, and nothing reports it. `x-ds-roll` only animates a counter whose
+number the server already printed: without it the new number simply replaces
+the old one. A counter bound to Alpine state goes through `dsRoll` instead,
+which does report itself, because nothing else would write the number.
 
 ## 4. Use a component
 
@@ -286,6 +291,11 @@ Five more use it for **one optional prop** each, and work without it otherwise:
 `segmented-control` uses Alpine and the package's script only to slide its
 highlight. Without them it is a plain radio group with the chosen segment
 drawn by CSS.
+
+`counter` uses Alpine and the package's script to roll its digits. Without
+them it is the formatted number, and a server re-render still changes it. A
+counter whose `value` is bound to Alpine state (`::value="count"`) needs both,
+because only the script writes that number.
 
 `dropdown`, `select`, `combobox`, `date-picker` and `tooltip` need Alpine, and
 use the package's script to stay on screen: with it they flip away from the

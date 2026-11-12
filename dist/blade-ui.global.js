@@ -1776,6 +1776,161 @@ root.removeEventListener('focusout', onFocusOut);
 }
 return { popover };
 })();
+const __ds_behaviours_roll = (() => {
+const MINUS = '−';
+const UNITS = ['', 'K', 'M', 'B', 'T'];
+function roll(Alpine) {
+Alpine.directive('ds-roll', (el, { modifiers }, { cleanup }) => {
+const counter = roller(el);
+if (!counter) return;
+const face = el.querySelector('[data-ds-counter-face]');
+const observer = new MutationObserver((records) => {
+if (records.every((record) => face.contains(record.target))) return;
+counter.to(el.querySelector('[data-ds-counter-text]').textContent);
+});
+observer.observe(el, { attributes: true, attributeFilter: ['data-ds-value'], childList: true, characterData: true, subtree: true });
+const stopIn = modifiers.includes('in') ? counter.rollIn() : () => {};
+cleanup(() => {
+observer.disconnect();
+stopIn();
+counter.stop();
+});
+});
+Alpine.data('dsRoll', (options = {}) => {
+let counter = null;
+let effect = null;
+let stopIn = () => {};
+return {
+init() {
+counter = roller(this.$el);
+if (!counter || typeof options.value !== 'function') return;
+const text = this.$el.querySelector('[data-ds-counter-text]');
+const format = formatter(readFormat(this.$el));
+let first = true;
+effect = Alpine.effect(() => {
+const value = options.value();
+const shown = format(value);
+text.textContent = shown;
+this.$el.dataset.dsValue = Number.isFinite(Number(value)) ? String(Number(value)) : '';
+if (first) counter.set(shown);
+else counter.to(shown);
+first = false;
+});
+if (options.in) stopIn = counter.rollIn();
+},
+destroy() {
+if (effect) Alpine.release(effect);
+stopIn();
+counter?.stop();
+},
+};
+});
+}
+function roller(root) {
+const face = root.querySelector('[data-ds-counter-face]');
+const template = root.querySelector('template[data-ds-counter-digit]');
+if (!face || !template) return null;
+let shown = face.textContent;
+let timer = 0;
+let frame = 0;
+const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+function stop() {
+clearTimeout(timer);
+cancelAnimationFrame(frame);
+}
+function set(value) {
+stop();
+shown = value;
+if (face.textContent !== value || face.children.length) face.textContent = value;
+}
+function to(value, from = shown) {
+if (value === shown && value === from) return;
+if (reduced()) return set(value);
+stop();
+shown = value;
+const fromDigits = from.replace(/[^0-9]/g, '');
+const toDigits = value.replace(/[^0-9]/g, '').length;
+let seen = 0;
+const strips = [];
+const parts = [...value].map((char) => {
+if (!/[0-9]/.test(char)) return document.createTextNode(char);
+const column = template.content.firstElementChild.cloneNode(true);
+const strip = column.querySelector('[data-ds-counter-strip]');
+const place = toDigits - 1 - seen++;
+const start = fromDigits[fromDigits.length - 1 - place] ?? '0';
+strip.style.setProperty('--ds-digit', `${-Number(start) * 10}%`);
+strips.push([strip, char]);
+return column;
+});
+face.replaceChildren(...parts);
+void face.offsetWidth;
+frame = requestAnimationFrame(() => {
+for (const [strip, char] of strips) strip.style.setProperty('--ds-digit', `${-Number(char) * 10}%`);
+});
+const longest = strips.length ? duration(strips[0][0]) : 0;
+timer = setTimeout(() => set(value), longest + 50);
+}
+function rollIn() {
+if (reduced() || typeof IntersectionObserver !== 'function') return () => {};
+const target = shown;
+const zero = target.replace(/[0-9]/g, '0');
+set(zero);
+const io = new IntersectionObserver((entries) => {
+if (!entries.some((entry) => entry.isIntersecting)) return;
+io.disconnect();
+to(shown === zero ? target : shown, zero);
+}, { threshold: 0.5 });
+io.observe(root);
+return () => io.disconnect();
+}
+return { to: (value) => to(value), set, stop, rollIn };
+}
+function duration(strip) {
+const style = getComputedStyle(strip);
+const seconds = (list) => list.split(',').map((t) => parseFloat(t) * (t.trim().endsWith('ms') ? 1 : 1000) || 0);
+const durations = seconds(style.transitionDuration);
+const delays = seconds(style.transitionDelay);
+return Math.max(0, ...durations.map((d, i) => d + (delays[i] ?? 0)));
+}
+function readFormat(root) {
+try {
+return JSON.parse(root.dataset.dsFormat || '{}');
+} catch {
+return {};
+}
+}
+function formatter(o) {
+const max = Number.isInteger(o.maximumFractionDigits) ? o.maximumFractionDigits : 2;
+const min = Number.isInteger(o.minimumFractionDigits) ? Math.min(o.minimumFractionDigits, max) : 0;
+let nf;
+try {
+nf = new Intl.NumberFormat(o.locale || 'en', { minimumFractionDigits: min, maximumFractionDigits: max, useGrouping: o.useGrouping !== false });
+} catch {
+nf = new Intl.NumberFormat('en', { minimumFractionDigits: min, maximumFractionDigits: max, useGrouping: o.useGrouping !== false });
+}
+const round = (n) => Math.round(n * 10 ** max) / 10 ** max;
+return (value) => {
+const number = typeof value === 'string' && value.trim() === '' ? NaN : Number(value);
+if (value === null || value === undefined || !Number.isFinite(number)) return '—';
+let n = number;
+let unit = 0;
+if (o.compact) {
+while (Math.abs(n) >= 1000 && unit < UNITS.length - 1) {
+n /= 1000;
+unit++;
+}
+if (round(Math.abs(n)) >= 1000 && unit < UNITS.length - 1) {
+n /= 1000;
+unit++;
+}
+}
+const rounded = round(Math.abs(n));
+const sign = n < 0 && rounded > 0 ? MINUS : '';
+return `${sign}${o.prefix ?? ''}${nf.format(rounded)}${UNITS[unit]}${o.suffix ?? ''}`;
+};
+}
+return { roll };
+})();
 const __ds_behaviours_tag_input = (() => {
 function tagInput(Alpine) {
 Alpine.data('dsTagInput', (options = {}) => {
@@ -2293,11 +2448,12 @@ const { numberField } = __ds_behaviours_number_field;
 const { otp } = __ds_behaviours_otp;
 const { password } = __ds_behaviours_password;
 const { popover } = __ds_behaviours_popover;
+const { roll } = __ds_behaviours_roll;
 const { tagInput } = __ds_behaviours_tag_input;
 const { theme } = __ds_behaviours_theme;
 const { toggleGroup } = __ds_behaviours_toggle_group;
 const { toolbar } = __ds_behaviours_toolbar;
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll];
 const REGISTERED = Symbol.for('shipbytes.blade-ui');
 function bladeUi(Alpine) {
 if (!Alpine || Alpine[REGISTERED]) return;
