@@ -478,7 +478,8 @@ const __ds_behaviours_chart = (() => {
     /*
      * x-ds-chart: a chart's values, reachable one at a time. Behind ds::bar-chart,
      * ds::line-chart, ds::donut-chart, ds::split-bar, ds::waffle-chart,
-     * ds::activity-rings and ds::slope-chart when `interactive` (the default):
+     * ds::activity-rings, ds::slope-chart, ds::funnel-chart, ds::radar-chart and
+     * ds::treemap when `interactive` (the default):
      *
      *   x-data x-ds-chart
      *
@@ -510,7 +511,8 @@ const __ds_behaviours_chart = (() => {
      *             both: which arrows run along the categories), data-ds-chart-next
      *             (the arrow that moves to the next series), data-ds-chart-nearest
      *             (a line: the pointer picks the nearest point, not the one under
-     *             it), data-ds-chart-toggles
+     *             it), data-ds-chart-toggles, data-ds-chart-links (some marks are
+     *             links: see below)
      *   plot      data-ds-chart-plot, the svg
      *   mark      data-ds-chart-mark, with data-ds-at (category index), data-ds-in
      *             (series index), data-ds-label, data-ds-value (formatted by PHP),
@@ -523,6 +525,12 @@ const __ds_behaviours_chart = (() => {
      *   key       data-ds-chart-key="n", a legend entry
      *   readout   data-ds-chart-readout, hidden, holding
      *             data-ds-chart-readout-label, -series, -value and -swatch
+     *
+     * With data-ds-chart-links (a treemap whose tiles have an href), the marks
+     * that are links stay links, each its own Tab stop as without the script,
+     * and nothing roves: a link the arrow keys hid from Tab would be a link a
+     * keyboard reader could not find. Focus and the pointer still show the
+     * readout; the plot is already a group and the other marks images, in PHP.
      *
      * Visual state is attributes the view's classes read: data-ds-active on the
      * mark being read, data-ds-off on a hidden series, aria-pressed on a key,
@@ -553,6 +561,7 @@ const __ds_behaviours_chart = (() => {
         const axis = root.dataset.dsChartAxis || 'horizontal';
         const next = root.dataset.dsChartNext || '';
         const nearest = root.hasAttribute('data-ds-chart-nearest');
+        const links = root.hasAttribute('data-ds-chart-links');
 
         const all = () => [...plot.querySelectorAll(MARK)];
         const shown = (mark) => !mark.closest('[data-ds-off]');
@@ -564,7 +573,7 @@ const __ds_behaviours_chart = (() => {
         // the browser's square ring and no readout. Out of the order, the first
         // stop is the mark roving chose.
         plot.setAttribute('tabindex', '-1');
-        for (const mark of all()) mark.setAttribute('role', 'img');
+        if (!links) for (const mark of all()) mark.setAttribute('role', 'img');
 
         let active = null;
         let beside = null;
@@ -606,7 +615,7 @@ const __ds_behaviours_chart = (() => {
             anchored = null;
         }
 
-        const rove = roving(plot, { items: marks, axis: () => axis });
+        const rove = links ? null : roving(plot, { items: marks, axis: () => axis });
 
         // Across the series: the same category in the next or previous series
         // that is showing, wrapping. Roving has the arrows along the categories;
@@ -705,7 +714,7 @@ const __ds_behaviours_chart = (() => {
             // series' marks are taken out of the order here, so the stop one of
             // them held does not linger behind the new one.
             for (const mark of all()) if (!shown(mark)) mark.setAttribute('tabindex', '-1');
-            rove.settle();
+            rove?.settle();
         }
 
         function onKeyClick(event) {
@@ -728,7 +737,7 @@ const __ds_behaviours_chart = (() => {
 
         return () => {
             hide();
-            rove();
+            rove?.();
             plot.removeAttribute('tabindex');
             plot.removeEventListener('keydown', onKeyDown);
             plot.removeEventListener('focusin', onFocusIn);

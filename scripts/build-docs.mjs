@@ -327,6 +327,14 @@ const OPERATE = {
     'waffle-chart': async (pane) => hoverAt(pane.locator('[data-shot-hover] [data-ds-chart-piece="1"]').nth(12)),
     'activity-rings': async (pane) => hoverAt(pane.locator('[data-shot-hover] [data-ds-chart-mark][data-ds-at="1"]')),
     'slope-chart': async (pane) => hoverAt(pane.locator('[data-shot-hover] [data-ds-chart-mark][data-ds-at="1"][data-ds-in="2"]')),
+    // Batch 14, each placed so the readout covers no words: the checkout's
+    // Payment, whose readout fits between its value and its bar; Acme's
+    // Reliability, whose readout stands below the centre, clear of the
+    // numbered axis; a tile whose readout stands over the empty middle of
+    // the tile above it.
+    'funnel-chart': async (pane) => hoverAt(pane.locator('[data-shot-hover] [data-ds-chart-mark][data-ds-at="2"]')),
+    'radar-chart': async (pane) => hoverAt(pane.locator('[data-shot-hover] [data-ds-chart-mark][data-ds-at="3"][data-ds-in="0"]')),
+    'treemap': async (pane) => hoverAt(pane.locator('[data-shot-hover] [data-ds-chart-mark][data-ds-label="Tools"]')),
     // A click no press began, as a screen reader sends one: it arms.
     'hold-button': async (pane) =>
         pane.locator('[data-shot-press]').dispatchEvent('click', { bubbles: false }),
@@ -484,8 +492,37 @@ const lowContrast = await tab.evaluate(() => {
         return 0.2126 * r + 0.7152 * g + 0.0722 * b;
     };
 
+    /*
+      SVG text has no background of its own and sits on whatever is drawn
+      under it: a treemap's label on its tile, a funnel's value in its bar.
+      The topmost filled shape under the middle of the text is that ground,
+      with its fill-opacity and opacity, over the HTML ground below it. Asked
+      of the browser's own hit test, so it is the shape actually painted
+      there; a stroked line (a gridline) has no fill and is not ground.
+    */
+    const SHAPES = new Set(['rect', 'path', 'polygon', 'circle', 'ellipse']);
+    const shapeUnder = (el) => {
+        if (!(el instanceof SVGElement) || !el.ownerSVGElement) return null;
+        // A hit test sees only what is in the viewport.
+        el.scrollIntoView({ block: 'center', inline: 'center' });
+        const box = el.getBoundingClientRect();
+        for (const hit of document.elementsFromPoint(box.left + box.width / 2, box.top + box.height / 2)) {
+            if (hit === el || el.contains(hit) || !SHAPES.has(hit.tagName)) continue;
+            const style = getComputedStyle(hit);
+            if (style.fill === 'none') continue;
+            const colour = rgba(style.fill);
+            let alpha = (colour[3] / 255) * parseFloat(style.fillOpacity);
+            for (let e = hit; e && e instanceof SVGElement; e = e.parentElement) alpha *= parseFloat(getComputedStyle(e).opacity);
+            if (alpha <= 0) continue;
+            return [...colour.slice(0, 3), alpha * 255];
+        }
+        return null;
+    };
+
     const ground = (el) => {
         const layers = [];
+        const shape = shapeUnder(el);
+        if (shape) layers.push(shape);
         for (let e = el; e; e = e.parentElement) {
             const c = getComputedStyle(e).backgroundColor;
             if (c && c !== 'rgba(0, 0, 0, 0)') layers.push(rgba(c));
@@ -506,8 +543,16 @@ const lowContrast = await tab.evaluate(() => {
         // A visually hidden label (`sr-only`: a 1px clipped box) is read aloud,
         // never seen, so it has no contrast to fail. It also usually carries no
         // colour of its own, and would report the page's inherited black.
-        const box = el.getBoundingClientRect();
-        if (box.width <= 1 && box.height <= 1) continue;
+        // Its own box can be larger than the clip it sits in, so the clip is
+        // looked for up the tree: a chart's hidden table is a whole table,
+        // which a table's layout widens past sr-only's 1px.
+        let clipped = false;
+        for (let e = el; e && !clipped; e = e.parentElement) {
+            const box = e.getBoundingClientRect();
+            const cs = getComputedStyle(e);
+            clipped = (box.width <= 1 && box.height <= 1) || cs.clipPath === 'inset(50%)' || cs.clip === 'rect(0px, 0px, 0px, 0px)';
+        }
+        if (clipped) continue;
 
         // Inactive controls are exempt from WCAG 1.4.3, and dimming them is the
         // point — a disabled menu item that reads at full strength is worse.
