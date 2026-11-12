@@ -23,6 +23,33 @@ class (as `ds::scripts` is) for a reason that is not visual.
   vertical) only when it is in a group. Properties inherit, so a button inside
   a dropdown wrapper gets the wrapper's ends.
 
+### Expanding
+
+`expanding` turns the group into a row of icon buttons whose labels open on
+hover, keyboard focus, and while a button is pressed or current:
+
+```
+┌───────┬───┬───┐
+│ B Bold│ I │ U │   ← each ds::button needs `icon`; its slot is the label
+└───────┴───┴───┘
+```
+
+- **The group** is `flex w-full min-w-0` instead of `inline-flex`: it fills its
+  container, so the width a label opens into is already the group's, and
+  nothing beside it moves. Horizontal only; vertical throws.
+- **Each button** (it reads `expanding` through `buttonGroup`) is square-padded,
+  drops its gap, and wraps the slot in a one-column grid,
+  `grid-cols-[0fr]` → `[1fr]`, `motion-safe:transition-[grid-template-columns]`.
+  The label is in the DOM throughout, `truncate` inside a `min-w-0` track, so
+  it is always the button's name.
+- **Open** on `group-hover/expand`, `group-focus-visible/expand`,
+  `group-aria-pressed/expand`, `group-aria-[current=page|true]/expand`. `hover:`
+  is Tailwind's hover-capable media query, so on touch only the pressed or
+  current button is open.
+- A button with `icon` and no group draws the icon before its label, as it
+  would by hand. Without `expanding` the group's and the button's output are
+  byte-for-byte what they were (tests/ButtonUnchangedTest.php).
+
 ## How the group reaches the buttons
 
 `ds::button` reads `@aware(['buttonGroup'])`, an array of size, variant and
@@ -72,6 +99,7 @@ hovered or focused button's border and ring sit above its neighbours'.
 | Name | `label` (`aria-label`) |
 | Keyboard | Each button is its own Tab stop; nothing added |
 | Focus | Each button's own ring, lifted above its neighbours |
+| Expanding | Every label stays in the DOM, collapsed to zero width, never `display: none`: the name is intact; pressed is `aria-pressed`, current is `aria-current` |
 
 ## Do not
 

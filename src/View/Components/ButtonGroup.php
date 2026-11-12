@@ -31,7 +31,7 @@ final class ButtonGroup extends Component
      * What a ds::button inside reads through `@aware(['buttonGroup'])`:
      * the size and variant to fall back on, and which way the joins run.
      *
-     * @var array{size: ?string, variant: string, orientation: string}
+     * @var array{size: ?string, variant: string, orientation: string, expanding: bool}
      */
     public array $buttonGroup;
 
@@ -44,12 +44,30 @@ final class ButtonGroup extends Component
         public string $variant = 'secondary',
         /** horizontal | vertical */
         public string $orientation = 'horizontal',
+        /**
+         * Icon buttons whose labels fold away, the hovered, focused, pressed
+         * or current one showing its own. Every button needs an `icon`. The
+         * group fills the width it is given and the labels open inside it,
+         * so nothing beside the group moves. Horizontal only.
+         */
+        public bool $expanding = false,
     ) {
         $this->orientation = $orientation === 'vertical' ? 'vertical' : 'horizontal';
+
+        // A column whose buttons grow sideways would widen the column, and
+        // move whatever sits beside it, which is the one thing this mode
+        // promises not to do.
+        if ($expanding && $this->orientation === 'vertical') {
+            throw new \InvalidArgumentException(
+                'ds::button-group cannot be both `expanding` and vertical: a label opening sideways would widen the column. Use a horizontal group, or a vertical one whose buttons show their labels.'
+            );
+        }
+
         $this->buttonGroup = [
             'size' => $size,
             'variant' => $variant,
             'orientation' => $this->orientation,
+            'expanding' => $expanding,
         ];
     }
 
