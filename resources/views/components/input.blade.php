@@ -29,43 +29,15 @@
         && $attributes->has('readonly')
         && ! in_array($attributes->get('readonly'), [false, null], true);
 
-    /*
-     * The Catalyst two-layer construction, kept exactly.
-     *
-     *   ::before  inset by 1px — carries the fill and the shadow, at a radius
-     *             one pixel tighter so it nests inside the outline
-     *   ::after   at inset 0 — carries the focus ring, drawn INWARD
-     *
-     * Drawing the ring inward is the whole point: the box never changes size on
-     * focus, so nothing reflows and the fields below do not shift. A plain
-     * `outline` would.
-     */
-    $shell = implode(' ', [
-        'relative block w-full',
-        'before:absolute before:inset-px before:rounded-[calc(var(--ds-radius-control)-1px)]',
-        'before:bg-surface before:shadow-raised',
-        'after:pointer-events-none after:absolute after:inset-0 after:rounded-control',
-        'after:ring-transparent after:ring-inset',
-        'sm:focus-within:after:ring-2 sm:focus-within:after:ring-focus-ring',
-        $disabled || $readonly ? 'before:bg-surface-subtle before:shadow-none' : '',
-    ]);
+    // The shell, the control and the messages are the field recipe, shared
+    // with every component that has to look like this one: see
+    // resources/views/partials/field.php.
+    $field = \Shipbytes\BladeUi\Support\Field::recipe();
+
+    $shell = $field['shell']($disabled || $readonly);
 
     $control = implode(' ', [
-        'relative block w-full appearance-none rounded-control bg-transparent',
-        // calc(step - 1px) absorbs the border so the control lands on the
-        // 44px/36px grid rather than 2px over it.
-        'px-[calc(--spacing(3.5)-1px)] py-[calc(--spacing(2.5)-1px)]',
-        'sm:px-[calc(--spacing(3)-1px)] sm:py-[calc(--spacing(1.5)-1px)]',
-        'text-body-touch text-fg placeholder:text-fg-muted sm:text-body',
-        'border focus:outline-hidden',
-        match (true) {
-            (bool) $error => 'border-danger hover:border-danger',
-            $readonly => 'border-border',
-            default => 'border-border hover:border-fg/20',
-        },
-        // Readonly is muted, not faded like disabled: the value is still there
-        // to be read and copied, and fg-muted holds AA on surface-subtle.
-        $disabled ? 'text-fg-subtle' : ($readonly ? 'text-fg-muted' : ''),
+        $field['control']((bool) $error, $readonly, (bool) $disabled),
         $icon ? 'pl-9 sm:pl-9' : '',
         $as === 'select' ? 'pr-9 sm:pr-8' : '',
     ]);
@@ -80,7 +52,7 @@
 
 <div {{ $attributes->only('class') }}>
     @if ($label)
-        <label for="{{ $id }}" class="block text-body font-medium text-fg">{{ $label }}</label>
+        <label for="{{ $id }}" class="{{ $field['label'] }}">{{ $label }}</label>
     @endif
 
     <span @class([$shell, 'mt-1.5' => (bool) $label])>
@@ -107,13 +79,13 @@
     </span>
 
     @if ($error)
-        <p id="{{ $id }}-error" class="mt-1.5 flex items-start gap-1.5 text-meta text-danger">
+        <p id="{{ $id }}-error" class="{{ $field['error'] }}">
             <x-ds::icon name="exclamation-circle" size="3.5" class="mt-0.5" />
             <span>{{ $error }}</span>
         </p>
     @elseif ($help)
         {{-- Help is REPLACED by the error, never stacked with it: two lines of
              guidance under one field is one line too many. --}}
-        <p id="{{ $id }}-help" class="mt-1.5 text-meta text-fg-muted">{{ $help }}</p>
+        <p id="{{ $id }}-help" class="{{ $field['help'] }}">{{ $help }}</p>
     @endif
 </div>
