@@ -33,6 +33,17 @@
     'disabled' => false,
     /** md: the height of a field, 44px below sm and 36px above. sm: 32px, for a table row or a toolbar. */
     'size' => 'md',
+    /**
+     * What the slider filters, drawn as bars behind it: a count per bucket,
+     * equal widths from min to max; or, with `buckets`, the raw values,
+     * counted into that many here.
+     */
+    'histogram' => null,
+    'buckets' => null,
+    /** With `histogram`, how many fall in the range: ":count" is the number, and "one|other" picks by it. */
+    'countLabel' => ':count result|:count results',
+    /** Number fields under the slider, one per thumb, bound to them. Need the script; hidden without it. */
+    'inputs' => false,
 ])
 
 @php
@@ -118,10 +129,42 @@
     $model = $attributes->filter($isModel);
     $rest = $attributes->except(['class', 'id'])->filter(fn ($v, $key) => ! $isModel($v, $key));
 
+    /*
+     * The histogram: each bucket's count, its height against the tallest,
+     * and its middle, which is what decides whether it is in the range, so
+     * the bars lit and the number counted are the same buckets.
+     */
+    $bars = [];
+    $counted = null;
+    if ($histogram !== null) {
+        $given = array_values(array_filter((array) $histogram, 'is_numeric'));
+        $n = is_numeric($buckets) && (int) $buckets > 0 ? (int) $buckets : null;
+        $counts = $n === null ? array_map(fn ($c) => max(0, (float) $c), $given) : array_fill(0, $n, 0);
+        foreach ($n === null ? [] : $given as $x) {
+            if ((float) $x >= $low && (float) $x <= $high) {
+                $counts[min($n - 1, (int) floor(((float) $x - $low) / ($high - $low) * $n))]++;
+            }
+        }
+        $tallest = max([1, ...$counts]);
+        $width = ($high - $low) / max(1, count($counts));
+        $total = 0;
+        foreach ($counts as $i => $count) {
+            $mid = $low + ($i + 0.5) * $width;
+            $in = $mid >= $values[0] && $mid <= $values[1];
+            $total += $in ? $count : 0;
+            $bars[] = ['count' => $plain($count), 'mid' => $plain($mid), 'in' => $in, 'height' => $plain(round($count / $tallest * 100, 2))];
+        }
+        $countFormat = ['decimals' => 0] + array_intersect_key((array) $format, ['locale' => 1, 'grouping' => 1]);
+        $forms = explode('|', (string) $countLabel);
+        $counted = str_replace(':count', Chart::format($total, $countFormat), $forms[$total == 1 ? 0 : count($forms) - 1]);
+    }
+
+    // Keys added only with a histogram: a slider without one is held byte
+    // for byte by SliderUnchangedTest.
     $state = \Shipbytes\BladeUi\Support\Behaviour::data('dsSlider', [
         'minGap' => is_numeric($minGap) ? max(0, (float) $minGap) : 0,
         'format' => Chart::formatOptions((array) $format),
-    ]);
+    ] + ($bars ? ['count' => ['label' => (string) $countLabel, 'format' => Chart::formatOptions($countFormat)]] : []));
 
     // The thumb is 24px whatever its size, so it is always a 24px target;
     // the inset is how much of that is transparent around the visible disc.
@@ -185,6 +228,20 @@
         </div>
     @endif
 
+@if ($bars)
+    {{-- For the eye: the thumbs' aria-valuetext and the count say what it
+         shows. Inset half a thumb each side, as the track is, so a bar
+         sits over the values it counts; lit by data-ds-in, which the
+         script moves with the thumbs. --}}
+    <div class="mx-3 mt-3 -mb-2 flex h-12 items-end" aria-hidden="true" data-ds-slider-bars>
+        @foreach ($bars as $bar)
+            <span @class([
+                'mx-px min-h-px flex-1 rounded-t-[2px] bg-fg/10 motion-safe:transition-colors motion-safe:duration-hint-enter motion-safe:ease-enter',
+                $disabled ? 'data-ds-in:bg-fg-subtle' : 'data-ds-in:bg-fg-muted',
+            ]) style="height: {{ $bar['height'] }}%" data-ds-slider-bar data-ds-mid="{{ $bar['mid'] }}" data-ds-count="{{ $bar['count'] }}" @if ($bar['in']) data-ds-in @endif></span>
+        @endforeach
+    </div>
+@endif
     <div
         class="{{ $body }}"
         data-ds-slider-body
@@ -242,6 +299,20 @@
         </div>
     @endif
 
+@if ($bars)
+    <p class="mt-1.5 text-meta text-fg-muted tabular-nums" aria-hidden="true" data-ds-slider-count>{{ $counted }}</p>
+    {{-- Said politely, once the thumbs have stopped. --}}
+    <span class="sr-only" role="status" data-ds-slider-said>{{ $counted }}</span>
+@endif
+@if ($inputs)
+    {{-- Bound to the thumbs by the script, so hidden without it; they have
+         no name, the thumbs post. --}}
+    <div class="mt-3 grid grid-cols-2 gap-3" hidden x-bind:hidden="! dsReady" data-ds-slider-numbers>
+        @foreach ($thumbs as $key => $thumb)
+            <x-ds::number-field name="" :id="$thumb['id'].'-number'" :label="$thumb['label'] ?? $label ?? 'Value'" :value="$plain($thumb['value'])" :min="$plain($low)" :max="$plain($high)" :step="$any ? 'any' : $plain($increment)" size="sm" :disabled="$disabled" data-ds-slider-number="{{ $key }}" />
+        @endforeach
+    </div>
+@endif
     @if ($error)
         <p id="{{ $id }}-error" class="{{ $field['error'] }}">
             <x-ds::icon name="exclamation-circle" size="3.5" class="mt-0.5" />

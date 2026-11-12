@@ -34,6 +34,42 @@ Prices include tax.                                 ← help, or the error
 - `size`: `md` (a field's height, 44px below `sm` and 36px above, so a slider
   lines up with the fields beside it) or `sm` (32px).
 
+## Histogram
+
+```
+Price per night                        $50 – $200
+      ▂▃▇█▆▄▃▂▂▁ ▁ ▁▁ ▁  ▁                         ← bars, lit inside the range
+  ○━━━━━━━━━━━━━○                                   ← the track as above
+19 stays                                            ← the count
+[Minimum price  50 −+] [Maximum price  200 −+]      ← inputs
+```
+
+- **`histogram`** is a count per bucket, the buckets equal widths from `min`
+  to `max`; with **`buckets`** it is raw values, counted into that many in
+  PHP (a value on `max` goes in the last; outside `min`..`max`, in none).
+  Plain elements in a flex row inset half a thumb each side like the track,
+  so each bar spans exactly the values it counts; heights against the tallest
+  bucket, inline (data, not a class).
+- **A bucket is in the range when its middle is**, inclusive. The lit bars
+  (`data-ds-in`, which `data-ds-in:` reads) and the counted ones are the same
+  set, so the count never disagrees with the picture. PHP lights them first;
+  the script moves the attribute, never a class, and re-renders nothing.
+- **The count**, `countLabel` with `:count` formatted as `format`'s locale and
+  grouping and no decimals; "one|other" picks by the number (one form for 1).
+  Shown at once in a line that is `aria-hidden`, and written half a second
+  after the last move into a `role=status` region, so it is said once, not
+  once per step.
+- **`inputs`**: a `ds::number-field` per thumb (no name: the thumbs post),
+  labelled `lowLabel` and `highLabel` (or `label`), `hidden` until the script
+  binds it (`dsReady`). Each follows its thumb; while typed in it moves the
+  thumb only once the number is one the thumb can take (its `min` and `max`
+  are rewritten to the other thumb less `minGap`, so the browser's own check
+  agrees); leaving it moves the thumb anyway, held, and writes back what the
+  thumb took. Works on a single slider too.
+- **Without it the slider is byte for byte as before**: SliderUnchangedTest
+  holds a fixture rendered from the view before the prop existed. Every new
+  block starts at column 0, where Blade leaves nothing behind when it is off.
+
 ## States
 
 | State | Treatment |
@@ -68,7 +104,8 @@ Prices include tax.                                 ← help, or the error
 | Arrows, Home, End, PageUp, PageDown, drag, tap | The browser's own |
 | Any change | Fill, `aria-valuetext`, readouts follow |
 | `range`: a thumb pushed into the other | Stops `minGap` short of it (0 by default: they may meet, never cross) |
-| `range`: a press on the track | The nearer thumb jumps there and takes focus; `input` and `change` |
+| `range`: a press on the track or the bars | The nearer thumb jumps there and takes focus; `input` and `change`. A press elsewhere in the component (a label, a number field) does not |
+| `histogram`: any change | Bars in the range lit, the count written, and said 500 ms later |
 | `range`: two thumbs at one end | The low thumb is on top past halfway, so they can be pulled apart |
 | Host sets the value (`x-model`, `wire:model`) | Drawn, clamped and stepped as the inputs take it; handed back if it differed |
 
@@ -84,6 +121,8 @@ Prices include tax.                                 ← help, or the error
 | Target | 24px square thumb at every size (WCAG 2.5.8) |
 | Readouts | The inline readout is plain text, not a live region, and the tooltip is `aria-hidden`: each thumb already speaks its value |
 | Marks | Their labels are `aria-hidden`; the value text says where a thumb is |
+| Histogram | `aria-hidden`; the count line is `aria-hidden` too, and its words are in a polite `role=status` |
+| Inputs | Native number fields named like their thumbs |
 
 ## Without the script
 
@@ -91,7 +130,8 @@ The single slider is a complete native control: it moves, posts and is
 announced. The fill and the readout stay where PHP drew them until the page
 is reloaded. The range pair posts two valid values, but the two thumbs CAN
 cross (the low one ending above the high one): nothing stops a native input
-passing another. Validate the order on the server, which you must anyway. The
+passing another. A histogram stays lit and counted as the server drew it;
+`inputs` stay hidden. Validate the order on the server, which you must anyway. The
 `x-data` throws its named error, so a page that forgot the include is told.
 
 ## Do not

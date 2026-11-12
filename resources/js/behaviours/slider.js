@@ -19,10 +19,20 @@
  *     (data-ds-slider-top), so two thumbs parked at one end can be parted;
  *   - with two thumbs, a press on the track moves the nearer thumb there,
  *     which a native input does for itself when it is alone;
- *   - the tips, shown while their thumb is dragged or has keyboard focus.
+ *   - the tips, shown while their thumb is dragged or has keyboard focus;
+ *   - with a histogram (data-ds-slider-bar, each with its count and its
+ *     middle value), which bars are lit (data-ds-in, a bar whose middle is
+ *     in the range) and the count of what they hold, written at once and
+ *     said in the status region (data-ds-slider-said) half a second after
+ *     the thumbs stop;
+ *   - with `inputs`, the number fields (data-ds-slider-number), shown once
+ *     this runs (dsReady): each follows its thumb, and moves it while typed
+ *     in once the number is one the thumb can take (the other thumb is its
+ *     bound); leaving one moves it anyway, held to the other thumb, and
+ *     writes back what the thumb took.
  *
- * Two-way binding goes through `dsValue`, the one name the scope exposes
- * beside init and destroy: a number, or with two thumbs [low, high] (or
+ * Two-way binding goes through `dsValue`, which with `dsReady` is all the
+ * scope exposes beside init and destroy: a number, or with two thumbs [low, high] (or
  * { low, high }, when that is the shape the host gave). The view puts
  * x-modelable="dsValue" on the root with the host's x-model or wire:model.
  * A value the host sets is drawn, clamped and stepped as the inputs would
@@ -38,12 +48,14 @@ export function slider(Alpine) {
 
         return {
             dsValue: null,
+            dsReady: false,
 
             init() {
                 control = wire(this.$el, options, (value) => {
                     this.dsValue = value;
                 });
                 this.dsValue = control.value();
+                this.dsReady = true;
                 this.$watch('dsValue', (value) => control.set(value));
             },
 
@@ -66,6 +78,13 @@ function wire(root, options, report) {
     const gap = Math.max(0, Number(options.minGap) || 0);
     const tips = Object.fromEntries(keys.map((key) => [key, root.querySelector(`[data-ds-slider-tip="${key}"]`)]));
     const outputs = Object.fromEntries(keys.map((key) => [key, root.querySelector(`[data-ds-slider-output-${key}]`)]));
+    const numbers = Object.fromEntries(keys.map((key) => [key, root.querySelector(`[data-ds-slider-number="${key}"]`)]));
+    const bars = [...root.querySelectorAll('[data-ds-slider-bar]')];
+    const counted = root.querySelector('[data-ds-slider-count]');
+    const said = root.querySelector('[data-ds-slider-said]');
+    const forms = String(options.count?.label ?? '').split('|');
+    const formatCount = formatter(options.count?.format ?? {});
+    let saying = 0;
 
     // The shape the host's value came in, so it is handed back the same way.
     let keyed = false;
@@ -86,6 +105,54 @@ function wire(root, options, report) {
             if (outputs[key]) outputs[key].textContent = text;
         }
         if (pair) inputs.low.toggleAttribute('data-ds-slider-top', ratio(number(inputs.low)) > 0.5);
+
+        const low = pair ? number(inputs.low) : lowest();
+        const high = number(inputs.high);
+        if (bars.length) {
+            let total = 0;
+            for (const bar of bars) {
+                const inside = Number(bar.dataset.dsMid) >= low && Number(bar.dataset.dsMid) <= high;
+                bar.toggleAttribute('data-ds-in', inside);
+                if (inside) total += Number(bar.dataset.dsCount);
+            }
+            const text = forms[total === 1 ? 0 : forms.length - 1].replace(':count', formatCount(total));
+            if (counted) counted.textContent = text;
+            clearTimeout(saying);
+            saying = setTimeout(() => {
+                if (said) said.textContent = text;
+            }, 500);
+        }
+
+        for (const key of keys) {
+            const field = numbers[key];
+            if (!field) continue;
+            if (document.activeElement !== field) field.value = inputs[key].value;
+            // Each bounded by the other thumb, so the browser's own check
+            // agrees with what leaving the field will do.
+            if (pair) field[key === 'low' ? 'max' : 'min'] = String(key === 'low' ? high - gap : low + gap);
+            // dsNumberField redraws its buttons on a change at its root.
+            field.closest('[x-data]')?.dispatchEvent(new Event('change'));
+        }
+    }
+
+    /*
+     * A number field moves its thumb: while typed in, once the number is
+     * one the thumb can take (the "3" of a "300" being typed is not); on
+     * leaving it, always, and it is written back as what the thumb took.
+     */
+    function onNumber(event) {
+        const key = keys.find((k) => numbers[k] === event.target);
+        if (!key) return;
+        const n = event.target.value === '' ? NaN : Number(event.target.value);
+        const leaving = event.type === 'change';
+        const field = event.target;
+        if (!Number.isFinite(n) || (!leaving && (n < Number(field.min) || n > Number(field.max)))) return;
+        const input = inputs[key];
+        input.value = String(n);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        if (!leaving) return;
+        field.value = input.value;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
     /*
@@ -138,7 +205,9 @@ function wire(root, options, report) {
             showTip(key, true);
             return;
         }
-        if (pair && event.button === 0) jump(event);
+        // The track, or the bars over it; not a label, a help line or a
+        // number field, which are inside the root too.
+        if (pair && event.button === 0 && event.target.closest('[data-ds-slider-body], [data-ds-slider-bars]')) jump(event);
     }
 
     function onPointerUp() {
@@ -221,6 +290,8 @@ function wire(root, options, report) {
 
     const listeners = [
         [root, 'input', onInput],
+        [root, 'input', onNumber],
+        [root, 'change', onNumber],
         [root, 'pointerdown', onPointerDown],
         [root, 'focusin', onFocusIn],
         [root, 'focusout', onFocusOut],
@@ -235,6 +306,7 @@ function wire(root, options, report) {
         value,
         set,
         teardown() {
+            clearTimeout(saying);
             for (const [target, type, fn] of listeners) target.removeEventListener(type, fn);
         },
     };
