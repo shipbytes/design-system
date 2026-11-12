@@ -185,6 +185,17 @@ await writeFile(join(TMP, 'c-morph-b.blade.php'), morphBlade('10:00', 'Two', 70)
 const cMorphAfter = await render(join(TMP, 'c-morph-b.blade.php'));
 await writeFile(join(TMP, 'c-morph.html'), cMorphBefore + cMorphAfter);
 
+// The sortable list, the palette and the split as a Livewire re-render brings
+// them back: the rows in the order the server saved, one more option.
+const b12Blade = (order, options) => '<div id="b12-morph">'
+    + `<x-ds::sortable-list id="som" name="m" label="Morphed">${[...order].map((v) => `<x-ds::sortable-item value="${v}" label="Row ${v}">Row ${v}</x-ds::sortable-item>`).join('')}</x-ds::sortable-list>`
+    + `<x-ds::command-palette id="cpm" name="morph">${options.map((o) => `<x-ds::command-item label="${o}" href="#${o}" />`).join('')}</x-ds::command-palette>`
+    + '<div class="h-40 w-[600px]"><x-ds::split id="spm" name="m"><x-ds::split-pane id="spm-a" size="30%">A</x-ds::split-pane><x-ds::split-pane>B</x-ds::split-pane></x-ds::split></div></div>';
+await writeFile(join(TMP, 'b12-morph-a.blade.php'), b12Blade('abc', ['One']));
+const b12MorphBefore = await render(join(TMP, 'b12-morph-a.blade.php'));
+await writeFile(join(TMP, 'b12-morph-b.blade.php'), b12Blade('cab', ['One', 'Two']));
+const b12MorphAfter = await render(join(TMP, 'b12-morph-b.blade.php'));
+
 await writeFile(
     join(TMP, 'in.css'),
     `@import "tailwindcss";
@@ -5007,6 +5018,495 @@ group('slider, time picker and inline edit bound with x-model');
     });
 }
 
+group('command palette (dsCommandPalette)');
+{
+    const cmd = (id = 'cmd') => page.evaluate((i) => {
+        const root = document.getElementById(i);
+        const input = root.querySelector('[data-ds-command-input]');
+        const top = (el) => el.getBoundingClientRect().top;
+        return {
+            open: root.querySelector('[data-ds-command-panel]').checkVisibility(),
+            focus: document.activeElement?.id,
+            active: input.getAttribute('aria-activedescendant'),
+            selected: [...root.querySelectorAll('[aria-selected=true]')].map((o) => o.id).join(),
+            shown: [...root.querySelectorAll('[data-ds-command-item]')].filter((o) => o.checkVisibility()).sort((a, b) => top(a) - top(b)).map((o) => o.id).join(),
+            groups: [...root.querySelectorAll('[data-ds-command-group]')].filter((g) => g.checkVisibility()).sort((a, b) => top(a) - top(b)).map((g) => g.id).join(),
+            empty: root.querySelector('[data-ds-command-empty]').checkVisibility(),
+            value: input.value,
+            locked: document.body.classList.contains('overflow-hidden'),
+        };
+    }, id);
+    const openMain = async () => {
+        await page.focus('#cmd-field');
+        await page.keyboard.press('Control+k');
+        await settle(300);
+    };
+    const keys = async (...list) => {
+        const seen = [];
+        for (const key of list) {
+            await page.keyboard.press(key);
+            seen.push((await cmd()).active);
+        }
+        return seen.join();
+    };
+
+    await check('closed at first, the page free to scroll', async () => {
+        const s = await cmd();
+        return (!s.open && !s.locked) || JSON.stringify(s);
+    });
+    await check('the field is a combobox over the listbox; the panel a named modal dialog', async () => {
+        const r = await page.evaluate(() => {
+            const root = document.getElementById('cmd');
+            const input = root.querySelector('[data-ds-command-input]');
+            const list = root.querySelector('[data-ds-command-list]');
+            const panel = root.querySelector('[data-ds-command-panel]');
+            return {
+                role: input.getAttribute('role'), controls: input.getAttribute('aria-controls') === list.id, listRole: list.getAttribute('role'),
+                dialog: `${panel.getAttribute('role')}|${panel.getAttribute('aria-modal')}|${panel.getAttribute('aria-label')}`,
+                group: root.querySelector('#cmd-go').getAttribute('role'), named: document.getElementById(root.querySelector('#cmd-go').getAttribute('aria-labelledby'))?.textContent.trim(),
+                options: [...list.querySelectorAll('[data-ds-command-item]')].every((o) => o.getAttribute('role') === 'option' && o.tabIndex === -1),
+            };
+        });
+        return (r.role === 'combobox' && r.controls && r.listRole === 'listbox' && r.dialog === 'dialog|true|Command palette' && r.group === 'group' && r.named === 'Go to' && r.options) || JSON.stringify(r);
+    });
+    await check('Ctrl+K opens it from inside another field: focus in its field, the first option active, the page locked', async () => {
+        await openMain();
+        const s = await cmd();
+        return (s.open && s.focus === 'cmd-input' && s.active === 'ci-invoices' && s.selected === 'ci-invoices' && s.locked) || JSON.stringify(s);
+    });
+    await check('the arrows pass over a disabled option and wrap; Home and End go to the ends', async () => {
+        const seen = await keys('ArrowDown', 'ArrowDown', 'ArrowDown', 'ArrowDown', 'ArrowUp', 'Home', 'End');
+        const focus = (await cmd()).focus;
+        return (seen === 'ci-customers,ci-new,ci-archive,ci-invoices,ci-archive,ci-invoices,ci-archive' && focus === 'cmd-input') || `${seen} (focus ${focus})`;
+    });
+    await check('typing filters and ranks: the group with the better match goes first', async () => {
+        await page.keyboard.type('ne');
+        await settle(50);
+        const s = await cmd();
+        return (s.shown === 'ci-new,ci-invoices' && s.groups === 'cmd-actions,cmd-go' && s.active === 'ci-new' && !s.empty) || JSON.stringify(s);
+    });
+    await check('keywords find an option; a group with nothing left goes', async () => {
+        await page.fill('#cmd-input', '');
+        await page.keyboard.type('hide');
+        await settle(50);
+        const s = await cmd();
+        return (s.shown === 'ci-archive' && s.groups === 'cmd-actions' && s.active === 'ci-archive') || JSON.stringify(s);
+    });
+    await check('the search event is debounced: one per pause, with the query', async () => {
+        await settle(300);
+        const got = await page.evaluate(() => window.cmdSearches ?? []);
+        return got.at(-1) === 'hide' && !got.includes('h') && !got.includes('hi') || JSON.stringify(got);
+    });
+    await check('nothing matches: no option, no group, the empty row shown', async () => {
+        await page.fill('#cmd-input', '');
+        await page.keyboard.type('zzz');
+        await settle(50);
+        const s = await cmd();
+        return (s.shown === '' && s.groups === '' && s.empty && s.active === null) || JSON.stringify(s);
+    });
+    await check('Escape empties the query and stays open; Escape again closes, focus back where it was', async () => {
+        await page.keyboard.press('Escape');
+        await settle(50);
+        const once = await cmd();
+        await page.keyboard.press('Escape');
+        await settle(300);
+        const twice = await cmd();
+        return (once.open && once.value === '' && once.shown.split(',').length === 5 && once.active === 'ci-invoices'
+            && !twice.open && twice.focus === 'cmd-field' && !twice.locked) || JSON.stringify({ once, twice });
+    });
+    await check('reopened, it starts afresh: empty, every option, the first active; a closing search is sent empty', async () => {
+        await openMain();
+        const s = await cmd();
+        const searches = await page.evaluate(() => window.cmdSearches);
+        return (s.value === '' && s.shown === 'ci-invoices,ci-customers,ci-settings,ci-new,ci-archive' && s.active === 'ci-invoices' && searches.at(-1) === '') || JSON.stringify({ s, searches });
+    });
+    await check('Ctrl+K again closes it', async () => {
+        await page.keyboard.press('Control+k');
+        await settle(300);
+        const s = await cmd();
+        return (!s.open && s.focus === 'cmd-field') || JSON.stringify(s);
+    });
+    await check('Enter on a link follows it and closes', async () => {
+        await openMain();
+        await page.keyboard.type('cust');
+        await page.keyboard.press('Enter');
+        await settle(300);
+        const s = await cmd();
+        const hash = await page.evaluate(() => location.hash);
+        return (hash === '#customers' && !s.open) || JSON.stringify({ hash, s });
+    });
+    await check('opened by its event from a button: Enter on an action dispatches it with its value; focus back on the button', async () => {
+        await page.click('#cmd-open');
+        await settle(300);
+        const opened = await cmd();
+        await page.keyboard.type('arch');
+        await page.keyboard.press('Enter');
+        await settle(300);
+        const s = await cmd();
+        const actions = await page.evaluate(() => window.cmdActions ?? []);
+        return (opened.open && opened.focus === 'cmd-input' && actions.join() === 'archive:42' && !s.open && s.focus === 'cmd-open') || JSON.stringify({ opened, s, actions });
+    });
+    await check('a press on an option runs it; a press on a disabled one does nothing', async () => {
+        await page.click('#cmd-open');
+        await settle(300);
+        await page.click('#ci-settings', { force: true });
+        await settle(100);
+        const still = await cmd();
+        await page.click('#ci-new');
+        await settle(300);
+        const s = await cmd();
+        const actions = await page.evaluate(() => window.cmdActions);
+        return (still.open && actions.join() === 'archive:42,create:draft' && !s.open) || JSON.stringify({ still, s, actions });
+    });
+    await check('the event opens only the palette it names', async () => {
+        await page.evaluate(() => window.dispatchEvent(new CustomEvent('open-command-palette', { detail: { name: 'nobody' } })));
+        await settle(300);
+        const a = await cmd();
+        const b = await cmd('cmd-remote');
+        return (!a.open && !b.open) || JSON.stringify({ a, b });
+    });
+    await check('options replaced under it (a re-render): the active one stays active; when it goes, the first is', async () => {
+        await openMain();
+        await page.keyboard.press('ArrowDown');
+        await page.evaluate(() => {
+            document.getElementById('ci-invoices').remove();
+            const copy = document.getElementById('ci-customers').cloneNode(true);
+            copy.id = 'ci-credit';
+            copy.dataset.dsLabel = 'Credit notes';
+            copy.setAttribute('aria-selected', 'false');
+            copy.setAttribute('href', '#credit');
+            document.getElementById('cmd-go').append(copy);
+        });
+        await settle(50);
+        const kept = await cmd();
+        await page.evaluate(() => document.getElementById('ci-customers').remove());
+        await settle(50);
+        const moved = await cmd();
+        await page.keyboard.press('Escape');
+        await settle(300);
+        return (kept.active === 'ci-customers' && kept.selected === 'ci-customers' && kept.shown.includes('ci-credit')
+            && moved.active === 'ci-credit' && moved.selected === 'ci-credit') || JSON.stringify({ kept, moved });
+    });
+    await check('a bare-key shortcut ("/") is ignored in a field and opens from anywhere else', async () => {
+        await page.focus('#cmd-field');
+        await page.fill('#cmd-field', '');
+        await page.keyboard.press('/');
+        await settle(300);
+        const typed = await page.inputValue('#cmd-field');
+        const inField = await cmd('cmd-remote');
+        await page.focus('#cmd-open');
+        await page.keyboard.press('/');
+        await settle(300);
+        const s = await cmd('cmd-remote');
+        return (typed === '/' && !inField.open && s.open && s.focus === 'cmd-remote-input' && s.value === '') || JSON.stringify({ typed, inField, s });
+    });
+    await check('loading: the list busy, no empty row, a spinner instead of the magnifier', async () => {
+        const r = await page.evaluate(() => {
+            const root = document.getElementById('cmd-remote');
+            return { busy: root.querySelector('[data-ds-command-list]').getAttribute('aria-busy'), empty: root.querySelector('[data-ds-command-empty]').checkVisibility(), spin: Boolean(root.querySelector('.motion-safe\\:animate-spin')) };
+        });
+        await page.keyboard.press('Escape');
+        await settle(300);
+        return (r.busy === 'true' && !r.empty && r.spin) || JSON.stringify(r);
+    });
+    await check('with filter off, typing hides nothing', async () => {
+        await page.evaluate(() => {
+            const list = document.querySelector('#cmd-remote [data-ds-command-list]');
+            list.setAttribute('aria-busy', 'false');
+            list.insertAdjacentHTML('beforeend', document.getElementById('ci-archive').outerHTML.replace('id="ci-archive"', 'id="cr-archive"').replace('aria-selected="true"', 'aria-selected="false"'));
+        });
+        await page.focus('#cmd-open');
+        await page.keyboard.press('/');
+        await settle(300);
+        await page.keyboard.type('zzz');
+        await settle(300);
+        const s = await cmd('cmd-remote');
+        await page.keyboard.press('Escape');
+        await page.keyboard.press('Escape');
+        await settle(300);
+        return (s.shown === 'cr-archive' && s.active === 'cr-archive' && !s.empty) || JSON.stringify(s);
+    });
+}
+
+group('sortable list (dsSortable)');
+{
+    const so = () => page.evaluate(() => {
+        const root = document.getElementById('so');
+        return {
+            order: new FormData(document.getElementById('so-form')).getAll('steps[]').join(''),
+            shown: [...root.querySelectorAll('[data-ds-sortable-item]')].map((r) => r.dataset.value).join(''),
+            status: root.querySelector('[data-ds-sortable-status]').textContent,
+            focus: document.activeElement?.getAttribute('aria-label') ?? document.activeElement?.id,
+            pressed: [...root.querySelectorAll('[aria-pressed=true]')].map((h) => h.getAttribute('aria-label')).join(),
+            events: (window.soEvents ?? []).map((e) => `${e.order.join('')}:${e.moved}:${e.from}>${e.to}`).join(' '),
+            dragging: root.hasAttribute('data-dragging'),
+            placeholder: root.querySelector('[data-ds-sortable-placeholder]').checkVisibility(),
+        };
+    });
+    const handle = (v) => `#so [data-value="${v}"] [data-ds-sortable-handle]`;
+
+    await check('each row has a named handle, described by the instructions; the fixed row\'s is disabled', async () => {
+        const r = await page.evaluate(() => {
+            const root = document.getElementById('so');
+            const handles = [...root.querySelectorAll('[data-ds-sortable-handle]')];
+            const help = document.getElementById(handles[0].getAttribute('aria-describedby'));
+            return {
+                names: handles.map((h) => h.getAttribute('aria-label')).join('|'),
+                visible: handles.every((h) => h.checkVisibility()),
+                disabled: handles.map((h) => h.disabled).join(),
+                help: help?.textContent.startsWith('Press Space or Enter'),
+                list: root.querySelector('[data-ds-sortable-list]').getAttribute('aria-label'),
+                buttons: root.querySelectorAll('[data-value=d] [data-ds-sortable-up]').length,
+            };
+        });
+        return (r.names === 'Reorder Alpha|Reorder Bravo|Reorder Charlie third|Reorder Delta' && r.visible && r.disabled === 'false,false,false,true' && r.help && r.list === 'Steps' && r.buttons === 0) || JSON.stringify(r);
+    });
+    await check('it posts the order shown', async () => (await so()).order === 'abcd' || JSON.stringify(await so()));
+    await check('Space picks a row up, announced; the arrows move it, focus staying on its handle', async () => {
+        await page.focus(handle('a'));
+        await page.keyboard.press('Space');
+        await settle(50);
+        const picked = await so();
+        await page.keyboard.press('ArrowDown');
+        await page.keyboard.press('ArrowDown');
+        await settle(50);
+        const moved = await so();
+        return (picked.pressed === 'Reorder Alpha' && picked.status === 'Picked up Alpha, position 1 of 4.'
+            && moved.order === 'bcad' && moved.focus === 'Reorder Alpha' && moved.status === 'Moved to position 3 of 4.') || JSON.stringify({ picked, moved });
+    });
+    await check('Escape puts it back, announced, with no reorder event', async () => {
+        await page.keyboard.press('Escape');
+        await settle(350);
+        const s = await so();
+        return (s.order === 'abcd' && s.pressed === '' && s.status === 'Cancelled. Alpha is back at position 1 of 4.' && s.events === '' && s.focus === 'Reorder Alpha') || JSON.stringify(s);
+    });
+    await check('Enter, ArrowDown, Enter: dropped, announced, and one reorder event', async () => {
+        await page.keyboard.press('Enter');
+        await page.keyboard.press('ArrowDown');
+        await page.keyboard.press('Enter');
+        await settle(350);
+        const s = await so();
+        return (s.order === 'bacd' && s.pressed === '' && s.status === 'Dropped Alpha at position 2 of 4.' && s.events === 'bacd:a:0>1') || JSON.stringify(s);
+    });
+    await check('a row can pass the one that stays put', async () => {
+        await page.focus(handle('c'));
+        await page.keyboard.press('Space');
+        await page.keyboard.press('ArrowDown');
+        await page.keyboard.press('Space');
+        await settle(350);
+        const s = await so();
+        return (s.order === 'badc' && s.events.endsWith('badc:c:2>3')) || JSON.stringify(s);
+    });
+    await check('the arrows stop at the ends', async () => {
+        await page.focus(handle('b'));
+        await page.keyboard.press('Space');
+        await page.keyboard.press('ArrowUp');
+        await settle(50);
+        const s = await so();
+        await page.keyboard.press('Escape');
+        await settle(350);
+        return (s.order === 'badc' && s.status === 'Picked up Bravo, position 1 of 4.') || JSON.stringify(s);
+    });
+    await check('Tab away from a picked-up row drops it there', async () => {
+        await page.focus(handle('c'));
+        await page.keyboard.press('Space');
+        await page.keyboard.press('ArrowUp');
+        await page.focus('#so-after');
+        await settle(350);
+        const s = await so();
+        return (s.order === 'bacd' && s.pressed === '' && s.events.endsWith('bacd:c:3>2')) || JSON.stringify(s);
+    });
+    await check('Move up and Move down move a row at once; an end\'s button is aria-disabled', async () => {
+        const ends = await page.evaluate(() => ({
+            up: document.querySelector('#so [data-value=b] [data-ds-sortable-up]').getAttribute('aria-disabled'),
+            down: document.querySelector('#so [data-value=c] [data-ds-sortable-down]').getAttribute('aria-disabled'),
+        }));
+        await page.click('#so [data-value=a] [aria-label="Move Alpha up"]');
+        await settle(350);
+        const s = await so();
+        const after = await page.evaluate(() => document.querySelector('#so [data-value=a] [data-ds-sortable-up]').getAttribute('aria-disabled'));
+        return (ends.up === 'true' && ends.down === 'false' && s.order === 'abcd' && s.status === 'Moved to position 1 of 4.' && s.events.endsWith('abcd:a:1>0') && after === 'true') || JSON.stringify({ ends, s, after });
+    });
+    await check('a drag by the handle: the placeholder while it moves, the new order on release', async () => {
+        const from = await page.locator(handle('a')).boundingBox();
+        const target = await page.locator('#so [data-value=c]').boundingBox();
+        await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2 + 10, { steps: 3 });
+        await page.mouse.move(from.x + from.width / 2, target.y + target.height / 2 + 4, { steps: 8 });
+        await settle(100);
+        const during = await so();
+        await page.mouse.up();
+        await settle(350);
+        const s = await so();
+        return (during.dragging && during.placeholder && during.order === 'abcd' && s.order === 'bcad' && !s.dragging && !s.placeholder && s.events.endsWith('bcad:a:0>2')) || JSON.stringify({ during, s });
+    });
+    await check('Escape during a drag puts the row back, with no event', async () => {
+        const before = (await so()).events;
+        const from = await page.locator(handle('b')).boundingBox();
+        await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2 + 80, { steps: 8 });
+        await settle(100);
+        await page.keyboard.press('Escape');
+        await page.mouse.up();
+        await settle(350);
+        const s = await so();
+        return (s.order === 'bcad' && s.events === before && !s.dragging) || JSON.stringify(s);
+    });
+    await check('a press on the handle with no movement moves nothing', async () => {
+        const before = (await so()).events;
+        await page.click(handle('c'));
+        await settle(100);
+        const s = await so();
+        return (s.order === 'bcad' && s.events === before) || JSON.stringify(s);
+    });
+    await check('the fixed row does not move from its handle or its row', async () => {
+        await page.focus('#so-after');
+        const from = await page.locator('#so [data-value=d]').boundingBox();
+        await page.mouse.move(from.x + 20, from.y + from.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(from.x + 20, from.y - 80, { steps: 6 });
+        await page.mouse.up();
+        await settle(200);
+        return (await so()).order === 'bcad' || JSON.stringify(await so());
+    });
+}
+
+group('split (dsSplit)');
+{
+    const sp = () => page.evaluate(() => {
+        const w = (id) => Math.round(document.getElementById(id).getBoundingClientRect().width);
+        const h = (id) => Math.round(document.getElementById(id).getBoundingClientRect().height);
+        const div = (root) => document.querySelector(`#${root} > [data-ds-split-divider]`);
+        const aria = (d) => ['aria-controls', 'aria-valuenow', 'aria-valuemin', 'aria-valuemax'].map((a) => d.getAttribute(a)).join('|');
+        return {
+            files: w('sp-files'), main: w('sp-main'), editor: h('sp-editor'), console: h('sp-console'),
+            outer: aria(div('sp')), inner: aria(div('sp-inner')),
+            folded: document.getElementById('sp-files').hasAttribute('data-collapsed'),
+            hidden: getComputedStyle(document.getElementById('sp-files')).visibility === 'hidden',
+            events: (window.spEvents ?? []).join(' '),
+            shield: document.querySelector('#sp > [data-ds-split-shield]').checkVisibility(),
+        };
+    });
+    // The first of each: the last pane's divider is never drawn.
+    const outer = '#sp > [data-ds-split-divider] >> nth=0';
+    const inner = '#sp-inner > [data-ds-split-divider] >> nth=0';
+    const reset = () => page.evaluate(() => { window.spEvents = []; });
+    // The events, their sizes rounded to whole percents: what they carry is
+    // to two places, of the panes' room, which the 1px divider is not in.
+    const sent = (events) => events.split(' ').filter(Boolean).map((e) => {
+        const [type, name, sizes] = e.split(':');
+        return `${type}:${name}${sizes ? ':' + sizes.split('/').map((n) => Math.round(Number(n))).join('/') : ''}`;
+    }).join(' ');
+
+    await check('first paint: the panes at their sizes, each divider a focusable, named, valued separator', async () => {
+        const s = await sp();
+        const r = await page.evaluate(() => [...document.querySelectorAll('#sp [data-ds-split-divider]')].map((d) =>
+            `${d.getAttribute('role')}:${d.getAttribute('aria-orientation')}:${d.tabIndex}:${d.getAttribute('aria-label')}:${d.checkVisibility()}`).join(' '));
+        // The split is 598px inside its border; 30% of it, and the vertical split's 40%.
+        return (Math.abs(s.files - 179) <= 1 && Math.abs(s.console - 102) <= 1 && s.outer === 'sp-files|30|0|60' && s.inner === 'sp-console|40|0|100'
+            && r === 'separator:vertical:0:Resize the files:true separator:horizontal:0:Resize the console:true separator:horizontal:0:Resize the console:false separator:vertical:0:Resize the files:false')
+            || JSON.stringify({ s, r });
+    });
+    await check('ArrowRight moves it 1%, Shift 10%; each key sends resize and resized with the sizes', async () => {
+        await reset();
+        await page.focus(outer);
+        await page.keyboard.press('ArrowRight');
+        const one = await sp();
+        await page.keyboard.press('Shift+ArrowRight');
+        const ten = await sp();
+        return (one.outer.startsWith('sp-files|31|') && ten.outer.startsWith('sp-files|41|') && Math.abs(ten.files - 245) <= 2
+            && sent(ten.events) === 'resize:outer resized:outer:31/69 resize:outer resized:outer:41/59') || JSON.stringify({ one, ten });
+    });
+    await check('Home and End take the pane to its min and max', async () => {
+        await page.keyboard.press('Home');
+        const home = await sp();
+        await page.keyboard.press('End');
+        const end = await sp();
+        return (home.files === 100 && end.outer.startsWith('sp-files|60|') && Math.abs(end.files - 359) <= 1) || JSON.stringify({ home, end });
+    });
+    await check('Enter folds a collapsible pane away, out of Tab\'s reach, and brings it back at its size', async () => {
+        await page.keyboard.press('Enter');
+        await settle(50);
+        const folded = await sp();
+        await page.keyboard.press('Enter');
+        await settle(50);
+        const back = await sp();
+        return (folded.folded && folded.hidden && folded.files === 0 && folded.outer.startsWith('sp-files|0|')
+            && !back.folded && !back.hidden && Math.abs(back.files - 359) <= 1) || JSON.stringify({ folded, back });
+    });
+    await check('a double-click on the divider folds it too', async () => {
+        await page.dblclick(outer);
+        await settle(50);
+        const folded = await sp();
+        await page.dblclick(outer);
+        await settle(50);
+        const back = await sp();
+        return (folded.folded && !back.folded && Math.abs(back.files - 359) <= 1) || JSON.stringify({ folded, back });
+    });
+    await check('a drag across the iframe in the other pane is not swallowed: the shield covers it, resize on the way, resized at the end', async () => {
+        await page.focus(outer);
+        await page.keyboard.press('Home');
+        await reset();
+        const box = await page.locator(outer).boundingBox();
+        const y = box.y + 40;
+        await page.mouse.move(box.x + box.width / 2, y);
+        await page.mouse.down();
+        // Over the iframe in the editor pane all the way.
+        await page.mouse.move(box.x + 60, y, { steps: 6 });
+        await page.mouse.move(box.x + 120, y, { steps: 6 });
+        await settle(50);
+        const during = await sp();
+        const over = await page.evaluate(([x, yy]) => document.elementFromPoint(x, yy)?.matches('[data-ds-split-shield]'), [box.x + 120, y]);
+        await page.mouse.up();
+        await settle(50);
+        const after = await sp();
+        const selected = await page.evaluate(() => String(getSelection()));
+        const last = sent(after.events).split(' ');
+        return (during.shield && over && Math.abs(after.files - 220) <= 2 && !after.shield && last[0] === 'resize:outer' && last.at(-1) === 'resized:outer:37/63' && selected === '')
+            || JSON.stringify({ during, over, after, selected });
+    });
+    await check('the drag holds the limits', async () => {
+        const box = await page.locator(outer).boundingBox();
+        await page.mouse.move(box.x + box.width / 2, box.y + 40);
+        await page.mouse.down();
+        await page.mouse.move(box.x + 400, box.y + 40, { steps: 6 });
+        await page.mouse.up();
+        await settle(50);
+        const wide = await sp();
+        return Math.abs(wide.files - 359) <= 1 || JSON.stringify(wide);
+    });
+    await check('nested: the vertical split\'s divider moves only its panes, its controlled pane being the collapsible one after it', async () => {
+        await reset();
+        const before = await sp();
+        await page.focus(inner);
+        await page.keyboard.press('ArrowUp');
+        const s = await sp();
+        return (s.inner.startsWith('sp-console|41|') && s.console > before.console && s.files === before.files && s.outer === before.outer
+            && !s.events.includes(':outer') && s.events.includes('resized:inner')) || JSON.stringify({ before, s });
+    });
+    await check('and a drag on it, upward, grows the console', async () => {
+        const before = await sp();
+        const box = await page.locator(inner).boundingBox();
+        await page.mouse.move(box.x + 100, box.y + box.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(box.x + 100, box.y - 30, { steps: 5 });
+        await page.mouse.up();
+        await settle(50);
+        const s = await sp();
+        return (Math.abs(s.console - before.console - 30) <= 2 && s.files === before.files) || JSON.stringify({ before, s });
+    });
+    await check('below stackBelow: stacked at natural size, the dividers gone and out of Tab', async () => {
+        const r = await page.evaluate(() => {
+            const root = document.getElementById('sp-stack');
+            const d = root.querySelector(':scope > [data-ds-split-divider]');
+            return { dir: getComputedStyle(root).flexDirection, shown: d.checkVisibility(), a: Math.round(document.getElementById('sp-stack-a').getBoundingClientRect().width) };
+        });
+        return (r.dir === 'column' && !r.shown && r.a === 600) || JSON.stringify(r);
+    });
+}
+
 // ---------------------------------------------------------------- focus indicators
 
 /*
@@ -5163,6 +5663,9 @@ const overlays = [
     ['context menu items', '#f-cm-row', 'Shift+F10', 'ArrowDown', 2],
     ['modal, round the trap', '#f-modal-open', 'Enter', 'Tab', 4],
     ['drawer, round the trap', '#f-drawer-open', 'Enter', 'Tab', 3],
+    // Tab cannot leave the field, the only stop; Escape closes it, so the
+    // ring is compared with the field gone.
+    ['command palette, its field', '#f-cmd-open', 'Enter', 'Escape', 1],
 ];
 
 const sections = await fpage.evaluate(() => [...document.querySelectorAll('[data-focus]')].map((el) => el.dataset.focus));
@@ -5254,6 +5757,7 @@ const listsMarkup = [
     specimens.match(/<div class="mt-6 w-64" id="et-box"[\s\S]*?Short enough\.[\s\S]*?<\/button>\s*<\/div>\s*<\/div>/)?.[0],
 ].join('');
 const inputsCMarkup = specimens.match(/<div class="mt-6 w-\[640px\]" id="inputs-c"[\s\S]*?<!-- \/inputs-c -->/)?.[0];
+const b12Markup = specimens.match(/<div class="mt-6 w-\[640px\]" id="b12"[\s\S]*?<!-- \/b12 -->/)?.[0];
 const clipMarkup = specimens.match(/<div class="mt-6" id="clip"[\s\S]*?<\/span>\s*<\/div>/)?.[0];
 
 const hostPages = {
@@ -5337,6 +5841,19 @@ ${include}
 ${include}
 <script defer src="alpine.js"></script>
 </head><body>${inputsCMarkup}</body></html>`,
+
+    // Batch 12 with no Alpine at all: a list that posts, panes at their sizes.
+    'b12-static.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+</head><body>${b12Markup}</body></html>`,
+
+    'b12-morph.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+${include}
+</head><body>${b12MorphBefore}
+<script>window.b12MorphNext = ${JSON.stringify(b12MorphAfter)};</script>
+<script src="livewire.js"></script>
+</body></html>`,
 
     'c-morph.html': `<!doctype html><html><head><meta charset="utf-8">
 <style>${css}</style>
@@ -5476,7 +5993,7 @@ group('host setup (b): Alpine bundled by the host, Alpine.plugin(bladeUi)');
     await check('the plugin works', () => copiesOn(tab));
     await check('plugin twice plus the include: each name registered exactly once', async () => {
         const names = await tab.evaluate(() => window.dsRegistered);
-        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme', 'dsDismiss', 'dsConfirm', 'dsHold', 'dsConfirmDialog', 'dsRoll', 'dsClamp', 'dsClear', 'dsTree', 'dsSlider', 'dsTimePicker', 'dsInlineEdit'];
+        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme', 'dsDismiss', 'dsConfirm', 'dsHold', 'dsConfirmDialog', 'dsRoll', 'dsClamp', 'dsClear', 'dsTree', 'dsSlider', 'dsTimePicker', 'dsInlineEdit', 'dsCommandPalette', 'dsSortable', 'dsSplit'];
         return JSON.stringify(names) === JSON.stringify(expected) || `registered ${JSON.stringify(names)}`;
     });
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
@@ -6303,6 +6820,99 @@ group('time picker, inline edit and slider re-rendered by a morph (Livewire\'s A
         await tab.waitForTimeout(200);
         const s = await state();
         return (s.editing && !s.read) || JSON.stringify(s);
+    });
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+
+group('command palette, sortable list and split with no Alpine at all (the script is an enhancement)');
+{
+    const { tab, errors } = await openHost('b12-static.html');
+
+    await check('the markup reached the page', async () =>
+        (await tab.locator('#cmd, #so, #sp').count()) === 3 || 'a specimen was not found in the rendered page');
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await check('the palettes stay closed, Ctrl+K or not', async () => {
+        await tab.focus('#cmd-field');
+        await tab.keyboard.press('Control+k');
+        await tab.waitForTimeout(100);
+        const open = await tab.evaluate(() => [...document.querySelectorAll('[data-ds-command-panel]')].some((p) => p.checkVisibility()));
+        return !open || 'a palette is showing';
+    });
+    await check('the list posts the server\'s order, with no handles or buttons to press', async () => {
+        const r = await tab.evaluate(() => ({
+            order: new FormData(document.getElementById('so-form')).getAll('steps[]').join(''),
+            controls: [...document.querySelectorAll('#so button')].filter((b) => b.checkVisibility()).length,
+        }));
+        return (r.order === 'abcd' && r.controls === 0) || JSON.stringify(r);
+    });
+    await check('the panes are at their sizes; the dividers are lines, not Tab stops', async () => {
+        const r = await tab.evaluate(() => ({
+            files: Math.round(document.getElementById('sp-files').getBoundingClientRect().width),
+            console: Math.round(document.getElementById('sp-console').getBoundingClientRect().height),
+            focusable: [...document.querySelectorAll('[data-ds-split-divider]')].filter((d) => d.tabIndex >= 0 && d.hasAttribute('tabindex')).length,
+        }));
+        return (Math.abs(r.files - 179) <= 1 && Math.abs(r.console - 102) <= 1 && r.focusable === 0) || JSON.stringify(r);
+    });
+    await tab.close();
+}
+
+group('sortable list, command palette and split re-rendered by a morph (Livewire\'s Alpine.morph)');
+{
+    const { tab, errors } = await openHost('b12-morph.html');
+    const state = () => tab.evaluate(() => ({
+        rows: [...document.querySelectorAll('#som [data-ds-sortable-item]')].map((r) => r.dataset.value).join(''),
+        handles: [...document.querySelectorAll('#som [data-ds-sortable-handle]')].filter((h) => h.checkVisibility()).length,
+        divider: document.querySelector('#spm > [data-ds-split-divider]').getAttribute('tabindex'),
+        options: document.querySelectorAll('#cpm [data-ds-command-item]').length,
+    }));
+    const morph = async () => {
+        await tab.evaluate(() => window.Alpine.morph(document.getElementById('b12-morph'), window.b12MorphNext));
+        await tab.waitForTimeout(200);
+    };
+
+    await check('before: handles shown, the divider a Tab stop', async () => {
+        const s = await state();
+        return (s.rows === 'abc' && s.handles === 3 && s.divider === '0' && s.options === 1) || JSON.stringify(s);
+    });
+    await check('after a morph to the saved order: the rows in it, the handles still shown, the divider still a stop', async () => {
+        await morph();
+        const s = await state();
+        return (s.rows === 'cab' && s.handles === 3 && s.divider === '0' && s.options === 2) || JSON.stringify(s);
+    });
+    await check('the list still moves from the keyboard', async () => {
+        await tab.focus('#som [data-value="c"] [data-ds-sortable-handle]');
+        await tab.keyboard.press('Space');
+        await tab.keyboard.press('ArrowDown');
+        await tab.keyboard.press('Space');
+        await tab.waitForTimeout(350);
+        return (await state()).rows === 'acb' || JSON.stringify(await state());
+    });
+    await check('the palette opens and ranks the option the morph brought', async () => {
+        await tab.evaluate(() => window.dispatchEvent(new CustomEvent('open-command-palette', { detail: { name: 'morph' } })));
+        await tab.waitForTimeout(300);
+        await tab.keyboard.type('tw');
+        await tab.waitForTimeout(50);
+        const r = await tab.evaluate(() => {
+            const input = document.querySelector('#cpm [data-ds-command-input]');
+            return { focus: document.activeElement === input, active: document.getElementById(input.getAttribute('aria-activedescendant'))?.dataset.dsLabel };
+        });
+        await tab.keyboard.press('Escape');
+        await tab.keyboard.press('Escape');
+        return (r.focus && r.active === 'Two') || JSON.stringify(r);
+    });
+    await check('a morph mid-search keeps the palette open and the query typed', async () => {
+        await tab.evaluate(() => window.dispatchEvent(new CustomEvent('open-command-palette', { detail: { name: 'morph' } })));
+        await tab.waitForTimeout(300);
+        await tab.keyboard.type('on');
+        await morph();
+        const r = await tab.evaluate(() => {
+            const input = document.querySelector('#cpm [data-ds-command-input]');
+            return { open: document.querySelector('#cpm [data-ds-command-panel]').checkVisibility(), value: input.value, focus: document.activeElement === input, active: document.getElementById(input.getAttribute('aria-activedescendant'))?.dataset.dsLabel };
+        });
+        await tab.keyboard.press('Escape');
+        await tab.keyboard.press('Escape');
+        return (r.open && r.value === 'on' && r.focus && r.active === 'One') || JSON.stringify(r);
     });
     await check('nothing in the console', async () => !errors.length || errors.join(' | '));
     await tab.close();

@@ -1087,6 +1087,339 @@ const __ds_behaviours_clipboard = (() => {
     return { clipboard };
 })();
 
+// behaviours/command-palette.js
+const __ds_behaviours_command_palette = (() => {
+    /*
+     * dsCommandPalette: a searchable list of actions and destinations in a modal
+     * layer, behind ds::command-palette.
+     *
+     *   x-data="dsCommandPalette({ name: 'main', shortcut: 'mod+k', filter: true })"
+     *
+     * The markup is the view's, rendered complete by PHP: the modal layer
+     * (partials/modal.php, shown by x-show="dsOpen"), the field marked
+     * data-ds-command-input with role=combobox, the list data-ds-command-list
+     * with role=listbox, the items data-ds-command-item (role=option, an id, a
+     * label in data-ds-label, keywords in data-ds-keywords, a value, an action
+     * name, aria-disabled), the groups data-ds-command-group, and the empty row
+     * data-ds-command-empty inside a status region.
+     *
+     *   - It opens on `shortcut` anywhere on the page ("mod" is Cmd on a Mac,
+     *     Ctrl elsewhere), and on an `open-command-palette` event at the window
+     *     whose detail.name is this palette's name (both absent counts as a
+     *     match); `close-command-palette` closes it. A shortcut with Ctrl or Cmd
+     *     works while typing in another field, and toggles; one without them
+     *     does nothing in a field. The key's default is prevented only when the
+     *     palette acts on it.
+     *   - The modal layer does the rest of being a dialog: focus in, the trap,
+     *     Escape and the backdrop, the scroll lock, focus back out.
+     *   - Focus stays in the field. The arrows (wrapping), Home and End move the
+     *     active option, which the field names in aria-activedescendant and
+     *     which carries aria-selected; disabled options are passed over. A
+     *     pointer moving over an option makes it the active one.
+     *   - Typing filters: case-insensitive, over the label and the keywords,
+     *     ranked prefix, then word start, then anywhere, then the letters in
+     *     order; keywords rank just below the label. Options are ranked inside
+     *     their group, and groups by their best option, by CSS `order`, so the
+     *     DOM is left as the host rendered it. A group with nothing left hides,
+     *     and with nothing at all the empty row shows. `filter: false` leaves
+     *     all of that to the host.
+     *   - Typing also dispatches `search` with { query }, debounced, from the
+     *     root, bubbling: the host's way to fetch and re-render the options. The
+     *     options can change at any time; the active one is kept if it is still
+     *     there, by id, else the first.
+     *   - Enter, or a press, activates the active option: a link is followed (a
+     *     click on it, so the host's own listeners and wire:navigate hear it),
+     *     an option with an action dispatches that event with { value },
+     *     bubbling, and either way the palette closes.
+     *   - Escape with a query empties it and is stopped there; on an empty field
+     *     it reaches the layer, which closes. Closing empties the query.
+     *
+     * The scope exposes `dsOpen` and nothing else.
+     */
+
+    const EDITABLE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
+    const SEARCH_DELAY = 200;
+
+    function commandPalette(Alpine) {
+        Alpine.data('dsCommandPalette', (options = {}) => {
+            let control = null;
+
+            return {
+                dsOpen: false,
+
+                init() {
+                    control = wire(this.$el, options, {
+                        isOpen: () => this.dsOpen,
+                        setOpen: (open) => {
+                            this.dsOpen = open;
+                        },
+                    });
+                    this.$watch('dsOpen', (open) => control.changed(open));
+                },
+
+                destroy() {
+                    control?.teardown();
+                },
+            };
+        });
+    }
+
+    function wire(root, options, api) {
+        const input = root.querySelector('[data-ds-command-input]');
+        const list = root.querySelector('[data-ds-command-list]');
+        const empty = root.querySelector('[data-ds-command-empty]');
+        const filtering = options.filter !== false;
+        const combo = parse(options.shortcut);
+
+        let active = null;
+        let shown = [];
+        let timer = null;
+        let sent = '';
+
+        const items = () => [...list.querySelectorAll('[data-ds-command-item]')];
+        const usable = (item) => item.getAttribute('aria-disabled') !== 'true';
+
+        function query() {
+            return fold(input.value).trim();
+        }
+
+        function setActive(item, scroll = true) {
+            if (active && active !== item) active.setAttribute('aria-selected', 'false');
+            active = item ?? null;
+            if (active) {
+                active.setAttribute('aria-selected', 'true');
+                input.setAttribute('aria-activedescendant', active.id);
+                if (scroll) active.scrollIntoView({ block: 'nearest' });
+            } else {
+                input.removeAttribute('aria-activedescendant');
+            }
+            observer.takeRecords();
+        }
+
+        /*
+         * Hide, rank and order the options for the query, then read back the
+         * order they are drawn in: that, not the DOM, is what the arrows walk.
+         */
+        function arrange() {
+            const q = query();
+            const all = items();
+            const scores = new Map();
+
+            for (const item of all) {
+                const score = !filtering || !q ? 1 : Math.max(rank(fold(item.dataset.dsLabel ?? item.textContent), q), rank(fold(item.dataset.dsKeywords ?? ''), q) - 0.5);
+                scores.set(item, score);
+                item.hidden = score <= 0;
+            }
+
+            // Rank among siblings; a group by the best option inside it.
+            const groups = [...list.querySelectorAll('[data-ds-command-group]')];
+            const best = new Map(groups.map((group) => [group, Math.max(0, ...all.filter((i) => i.closest('[data-ds-command-group]') === group).map((i) => scores.get(i)))]));
+            for (const group of groups) group.hidden = best.get(group) <= 0;
+            for (const box of [list, ...groups]) {
+                const kids = [...box.children].filter((el) => scores.has(el) || best.has(el));
+                order(kids, (el) => scores.get(el) ?? best.get(el), q);
+            }
+
+            shown = all.filter((item) => !item.hidden && item.getClientRects().length);
+            shown.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
+
+            const busy = list.getAttribute('aria-busy') === 'true';
+            if (empty) empty.hidden = busy || all.some((item) => !item.hidden);
+        }
+
+        // Our own writes are not changes the host made: their records are
+        // dropped, here and in setActive. A morph that resets them is one.
+        function refresh(keep = true) {
+            arrange();
+            const still = keep && active && shown.includes(active) ? active : keep && active ? shown.find((item) => item.id === active.id) : null;
+            setActive(still && usable(still) ? still : shown.find(usable), false);
+            observer.takeRecords();
+        }
+
+        function move(key) {
+            const live = shown.filter(usable);
+            if (!live.length) return;
+            const at = live.indexOf(active);
+            const to = key === 'Home' ? 0
+                : key === 'End' ? live.length - 1
+                : key === 'ArrowUp' ? (at <= 0 ? live.length - 1 : at - 1)
+                : (at === live.length - 1 ? 0 : at + 1);
+            setActive(live[to]);
+        }
+
+        function search() {
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                const q = input.value.trim();
+                if (q === sent) return;
+                sent = q;
+                root.dispatchEvent(new CustomEvent('search', { bubbles: true, detail: { query: q } }));
+            }, SEARCH_DELAY);
+        }
+
+        function clear() {
+            if (!input.value) return;
+            input.value = '';
+            search();
+        }
+
+        function onKeyDown(event) {
+            if (event.isComposing) return;
+            if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+                event.preventDefault();
+                move(event.key);
+            } else if (event.key === 'Enter') {
+                event.preventDefault();
+                if (active && usable(active)) active.click();
+            } else if (event.key === 'Escape' && input.value) {
+                event.preventDefault();
+                event.stopPropagation();
+                clear();
+                refresh(false);
+            }
+        }
+
+        function onInput() {
+            refresh(false);
+            list.scrollTop = 0;
+            search();
+        }
+
+        function onClick(event) {
+            const item = event.target.closest('[data-ds-command-item]');
+            if (!item || !list.contains(item)) return;
+            if (!usable(item)) {
+                event.preventDefault();
+                return;
+            }
+            const action = item.dataset.dsAction;
+            if (action) item.dispatchEvent(new CustomEvent(action, { bubbles: true, detail: { value: item.dataset.value ?? null } }));
+            api.setOpen(false);
+        }
+
+        function onPointerMove(event) {
+            const item = event.target.closest('[data-ds-command-item]');
+            if (item && item !== active && usable(item)) setActive(item, false);
+        }
+
+        // A press on the list must not take focus out of the field.
+        function onPointerDown(event) {
+            event.preventDefault();
+        }
+
+        function onShortcut(event) {
+            if (!combo || event.defaultPrevented || event.isComposing || !matches(combo, event)) return;
+            if (!combo.chord && event.target.closest?.(EDITABLE)) return;
+            event.preventDefault();
+            api.setOpen(!api.isOpen());
+        }
+
+        const named = (event) => (event.detail?.name ?? null) === (options.name ?? null);
+        const onOpen = (event) => named(event) && api.setOpen(true);
+        const onClose = (event) => named(event) && api.setOpen(false);
+
+        const observer = new MutationObserver(() => refresh());
+        observer.observe(list, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'style', 'aria-selected', 'aria-disabled', 'aria-busy', 'data-ds-label', 'data-ds-keywords'] });
+
+        input.addEventListener('keydown', onKeyDown);
+        input.addEventListener('input', onInput);
+        list.addEventListener('click', onClick);
+        list.addEventListener('pointermove', onPointerMove);
+        list.addEventListener('mousedown', onPointerDown);
+        window.addEventListener('keydown', onShortcut);
+        window.addEventListener('open-command-palette', onOpen);
+        window.addEventListener('close-command-palette', onClose);
+
+        return {
+            changed(open) {
+                if (open) {
+                    // Drawn by now (x-show runs first), so the order can be read.
+                    requestAnimationFrame(() => refresh(false));
+                } else {
+                    clear();
+                    refresh(false);
+                    setActive(null);
+                }
+            },
+            teardown() {
+                clearTimeout(timer);
+                observer.disconnect();
+                input.removeEventListener('keydown', onKeyDown);
+                input.removeEventListener('input', onInput);
+                list.removeEventListener('click', onClick);
+                list.removeEventListener('pointermove', onPointerMove);
+                list.removeEventListener('mousedown', onPointerDown);
+                window.removeEventListener('keydown', onShortcut);
+                window.removeEventListener('open-command-palette', onOpen);
+                window.removeEventListener('close-command-palette', onClose);
+            },
+        };
+    }
+
+    // Lower case, accents off, one space: "Café  Menu" finds "cafe m".
+    function fold(text) {
+        return String(text).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
+    }
+
+    /*
+     * 4 the text starts with the query, 3 a word in it does, 2 it is somewhere
+     * inside, 1 its letters are there in order, 0 no match.
+     */
+    function rank(text, q) {
+        let at = text.indexOf(q);
+        if (at === 0) return 4;
+        const inside = at > 0;
+        while (at > 0) {
+            if (!/[\p{L}\p{N}]/u.test(text[at - 1])) return 3;
+            at = text.indexOf(q, at + 1);
+        }
+        if (inside) return 2;
+        const letters = q.replace(/ /g, '');
+        let i = 0;
+        for (const ch of text) if (ch === letters[i] && ++i === letters.length) return 1;
+        return 0;
+    }
+
+    /*
+     * CSS order among siblings, best first, ties in the host's order. Starts at
+     * 1 so a group's heading, at 0 and first in the DOM, stays above its options.
+     * Cleared with no query, which leaves the host's order exactly. An option the
+     * host wrapped in an element of its own keeps its place: only the arrows'
+     * order, read from the screen, has to be right.
+     */
+    function order(nodes, score, q) {
+        const ranked = nodes.map((node, i) => [node, score(node), i]).sort((a, b) => b[1] - a[1] || a[2] - b[2]);
+        ranked.forEach(([node], i) => (q ? node.style.setProperty('order', String(i + 1)) : node.style.removeProperty('order')));
+    }
+
+    function parse(shortcut) {
+        if (!shortcut) return null;
+        const parts = String(shortcut).toLowerCase().split('+').map((p) => p.trim()).filter(Boolean);
+        const key = parts.pop();
+        if (!key) return null;
+        const mac = /mac|iphone|ipad|ipod/i.test(navigator.userAgentData?.platform ?? navigator.platform ?? '');
+        const want = { key, ctrl: false, meta: false, alt: false, shift: false };
+        for (const part of parts) {
+            if (part === 'mod') want[mac ? 'meta' : 'ctrl'] = true;
+            else if (part === 'cmd' || part === 'meta') want.meta = true;
+            else if (part === 'ctrl' || part === 'control') want.ctrl = true;
+            else if (part === 'alt' || part === 'option') want.alt = true;
+            else if (part === 'shift') want.shift = true;
+        }
+        want.chord = want.ctrl || want.meta;
+        return want;
+    }
+
+    // Shift is only compared for a letter or a named key: "?" is typed with it.
+    function matches(combo, event) {
+        if (String(event.key).toLowerCase() !== combo.key) return false;
+        if (event.ctrlKey !== combo.ctrl || event.metaKey !== combo.meta || event.altKey !== combo.alt) return false;
+        return combo.key.length === 1 && !/[a-z]/.test(combo.key) ? true : event.shiftKey === combo.shift;
+    }
+
+    return { commandPalette };
+})();
+
 // behaviours/context-menu.js
 const __ds_behaviours_context_menu = (() => {
     /*
@@ -4335,6 +4668,667 @@ const __ds_behaviours_slider = (() => {
     return { slider };
 })();
 
+// behaviours/sortable.js
+const __ds_behaviours_sortable = (() => {
+    /*
+     * dsSortable: rows put in order by drag, by keyboard or by buttons, behind
+     * ds::sortable-list.
+     *
+     *   x-data="dsSortable({ handle: true, disabled: false, words: { picked, moved, dropped, cancelled } })"
+     *
+     * The markup is the view's, rendered complete by PHP in the server's order:
+     * the list data-ds-sortable-list, its rows data-ds-sortable-item (a value, a
+     * label in data-ds-label, data-ds-sortable-fixed on one that stays put),
+     * each with its hidden input, a handle data-ds-sortable-handle and the
+     * buttons data-ds-sortable-up / -down; a placeholder and a status region.
+     * Rows are moved in the DOM, so the hidden inputs post the order shown.
+     *
+     *   - Pointer: a press on a handle (or with handle: false, from a mouse or
+     *     pen anywhere on the row that is not a control) and a move of a few
+     *     pixels picks the row up. It follows the pointer under pointer capture,
+     *     the others slide out of its way by transforms, the placeholder marks
+     *     where it will land, and the nearest scrolling box scrolls near its
+     *     edges. Release drops it and it settles into place; Escape or a
+     *     cancelled pointer puts everything back.
+     *   - Keyboard, on a handle: Space or Enter picks the row up, the arrows
+     *     move it, Space or Enter drops it, Escape puts it back; leaving the
+     *     handle drops it where it is. Each step is announced in the status
+     *     region from `words` (:item, :position, :total).
+     *   - The buttons move a row one place at once.
+     *
+     * After every drop that changed the order it dispatches `reorder` from the
+     * root, bubbling, with { order: [values], moved: value, from, to }, the
+     * positions counted from 0. A host that persists it and re-renders is
+     * morphed back in its own order; the rows are read afresh every time, so
+     * nothing here is held across a morph.
+     *
+     * The scope exposes `dsReady`, which the handles and buttons are shown by,
+     * and nothing else.
+     */
+
+    const CONTROL = 'a[href], button, input, select, textarea, label, [contenteditable]';
+    // How far the pointer travels before a press becomes a drag, so a click on
+    // the handle is still a click.
+    const SLOP = 4;
+    const EDGE = 48;
+
+    function sortable(Alpine) {
+        Alpine.data('dsSortable', (options = {}) => {
+            let control = null;
+
+            return {
+                dsReady: false,
+
+                init() {
+                    control = wire(this.$el, options);
+                    this.dsReady = true;
+                },
+
+                destroy() {
+                    control?.teardown();
+                },
+            };
+        });
+    }
+
+    function wire(root, options) {
+        const list = root.querySelector('[data-ds-sortable-list]');
+        const placeholder = root.querySelector('[data-ds-sortable-placeholder]');
+        const status = root.querySelector('[data-ds-sortable-status]');
+        const words = options.words ?? {};
+        const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        const rows = () => [...list.children].filter((el) => el.matches('[data-ds-sortable-item]'));
+        const movable = (row) => !options.disabled && !row.hasAttribute('data-ds-sortable-fixed');
+        const handleOf = (row) => row.querySelector('[data-ds-sortable-handle]');
+
+        let lifted = null;
+        let drag = null;
+        let moving = false;
+
+        function say(template, row) {
+            const all = rows();
+            const text = String(template ?? '')
+                .replaceAll(':item', row.dataset.dsLabel ?? '')
+                .replaceAll(':position', String(all.indexOf(row) + 1))
+                .replaceAll(':total', String(all.length));
+            // Emptied first, so the same words twice are still spoken twice.
+            status.textContent = '';
+            requestAnimationFrame(() => {
+                status.textContent = text;
+            });
+        }
+
+        // The ends of the list cannot be moved past; aria-disabled rather than
+        // disabled, so a button that just became an end keeps its focus.
+        function settle() {
+            const all = rows();
+            all.forEach((row, i) => {
+                row.querySelector('[data-ds-sortable-up]')?.setAttribute('aria-disabled', String(i === 0));
+                row.querySelector('[data-ds-sortable-down]')?.setAttribute('aria-disabled', String(i === all.length - 1));
+            });
+        }
+
+        function commit(row, from) {
+            settle();
+            const all = rows();
+            const to = all.indexOf(row);
+            if (to === from) return;
+            root.dispatchEvent(new CustomEvent('reorder', {
+                bubbles: true,
+                detail: { order: all.map((r) => r.dataset.value), moved: row.dataset.value, from, to },
+            }));
+        }
+
+        /*
+         * Move `row` to `to`, animated from where everything is drawn now to
+         * where it lands (FLIP): measure, move, measure, start each row at its
+         * old place and let its transition carry it home.
+         */
+        function place(row, to) {
+            const all = rows();
+            const first = new Map(all.map((r) => [r, r.getBoundingClientRect().top]));
+            const had = row.contains(document.activeElement) ? document.activeElement : null;
+            const others = all.filter((r) => r !== row);
+            moving = true;
+            list.insertBefore(row, others[to] ?? null);
+            if (had && document.activeElement !== had) had.focus({ preventScroll: true });
+            moving = false;
+
+            for (const r of all) {
+                r.setAttribute('data-instant', '');
+                r.style.removeProperty('transform');
+            }
+            if (reduced()) {
+                for (const r of all) r.removeAttribute('data-instant');
+                return;
+            }
+            for (const r of all) {
+                const delta = first.get(r) - r.getBoundingClientRect().top;
+                if (delta) r.style.transform = `translateY(${delta}px)`;
+            }
+            // Read once so the jump back lands before the transitions are on.
+            void list.offsetHeight;
+            for (const r of all) {
+                r.removeAttribute('data-instant');
+                r.style.removeProperty('transform');
+            }
+        }
+
+        // ------------------------------------------------------------ keyboard
+
+        function pick(row) {
+            lifted = { row, from: rows().indexOf(row) };
+            row.setAttribute('data-lifted', '');
+            handleOf(row)?.setAttribute('aria-pressed', 'true');
+            say(words.picked, row);
+        }
+
+        function put(cancelled) {
+            if (!lifted) return;
+            const { row, from } = lifted;
+            lifted = null;
+            if (cancelled && rows().indexOf(row) !== from) place(row, from);
+            row.removeAttribute('data-lifted');
+            handleOf(row)?.setAttribute('aria-pressed', 'false');
+            say(cancelled ? words.cancelled : words.dropped, row);
+            if (!cancelled) commit(row, from);
+            else settle();
+        }
+
+        function step(row, by) {
+            const at = rows().indexOf(row);
+            const to = at + by;
+            if (to < 0 || to >= rows().length) return false;
+            place(row, to);
+            return true;
+        }
+
+        // Escape during a drag, wherever focus is.
+        function onDocumentKey(event) {
+            if (!drag?.started || event.key !== 'Escape') return;
+            event.preventDefault();
+            event.stopPropagation();
+            endDrag(true);
+        }
+
+        function onKeyDown(event) {
+            if (drag) return;
+            const handle = event.target.closest?.('[data-ds-sortable-handle]');
+            const row = handle?.closest('[data-ds-sortable-item]');
+            if (!row || !list.contains(row) || !movable(row)) return;
+            const key = event.key;
+
+            if (!lifted) {
+                if (key === ' ' || key === 'Enter') {
+                    event.preventDefault();
+                    pick(row);
+                }
+                return;
+            }
+            if (lifted.row !== row) return;
+            if (key === 'ArrowUp' || key === 'ArrowDown') {
+                event.preventDefault();
+                if (step(row, key === 'ArrowUp' ? -1 : 1)) say(words.moved, row);
+            } else if (key === ' ' || key === 'Enter') {
+                event.preventDefault();
+                put(false);
+            } else if (key === 'Escape') {
+                event.preventDefault();
+                event.stopPropagation();
+                put(true);
+            }
+        }
+
+        // A Space released on a button presses it; the press that picked a row
+        // up or dropped it must not also reach the host.
+        function onKeyUp(event) {
+            if (event.key === ' ' && event.target.closest?.('[data-ds-sortable-handle]')) event.preventDefault();
+        }
+
+        function onFocusOut(event) {
+            if (moving || !lifted || !lifted.row.contains(event.target)) return;
+            if (event.relatedTarget && lifted.row.contains(event.relatedTarget)) return;
+            put(false);
+        }
+
+        function onClick(event) {
+            const button = event.target.closest?.('[data-ds-sortable-up], [data-ds-sortable-down]');
+            const row = button?.closest('[data-ds-sortable-item]');
+            if (!row || !list.contains(row) || !movable(row) || button.getAttribute('aria-disabled') === 'true') return;
+            const from = rows().indexOf(row);
+            if (step(row, button.matches('[data-ds-sortable-up]') ? -1 : 1)) {
+                say(words.moved, row);
+                commit(row, from);
+            }
+        }
+
+        // ------------------------------------------------------------ pointer
+
+        function onPointerDown(event) {
+            if (event.button !== 0 || drag || lifted) return;
+            const row = event.target.closest('[data-ds-sortable-item]');
+            if (!row || !list.contains(row) || !movable(row)) return;
+            if (!event.target.closest('[data-ds-sortable-handle]')) {
+                // Touch only by the handle, whose touch-action is none: anywhere
+                // else a finger scrolls the page.
+                if (options.handle !== false || event.pointerType === 'touch' || event.target.closest(CONTROL)) return;
+            }
+            // No text selection starting under a mouse on its way to a drag.
+            if (event.pointerType !== 'touch') event.preventDefault();
+            drag = { row, id: event.pointerId, x: event.clientX, y: event.clientY, started: false };
+            // Refused for a pointer the browser no longer counts as down; the
+            // listeners on the row still carry the drag as far as it reaches.
+            try {
+                row.setPointerCapture(event.pointerId);
+            } catch {}
+            row.addEventListener('pointermove', onPointerMove);
+            row.addEventListener('pointerup', onPointerUp);
+            row.addEventListener('pointercancel', onPointerCancel);
+        }
+
+        function startDrag() {
+            const all = rows();
+            const { row } = drag;
+            const from = all.indexOf(row);
+            const tops = all.map((r) => r.offsetTop);
+            const heights = all.map((r) => r.offsetHeight);
+            const gap = all.length > 1 ? Math.max(0, tops[1] - tops[0] - heights[0]) : 0;
+            Object.assign(drag, {
+                started: true, all, from, to: from, tops, heights, shift: heights[from] + gap,
+                origin: root.getBoundingClientRect().top, scroller: scrollParent(root), frame: 0,
+            });
+            row.setAttribute('data-dragging', '');
+            root.setAttribute('data-dragging', '');
+            placeholder.style.height = `${heights[from]}px`;
+            placeholder.style.transform = `translateY(${tops[from]}px)`;
+            placeholder.hidden = false;
+        }
+
+        function frame() {
+            if (!drag?.started) return;
+            const { row, all, from, tops, heights, shift } = drag;
+            const dy = drag.y - drag.y0 - (root.getBoundingClientRect().top - drag.origin);
+            row.style.transform = `translateY(${dy}px)`;
+
+            // A row gives way once the dragged row's leading edge passes its
+            // middle: its bottom edge going down, its top edge going up. Its own
+            // middle would be a whole row late.
+            const top = tops[from] + dy;
+            const bottom = top + heights[from];
+            let to = from;
+            for (let j = from + 1; j < all.length; j++) if (bottom > tops[j] + heights[j] / 2) to = j;
+            for (let j = from - 1; j >= 0; j--) if (top < tops[j] + heights[j] / 2) to = j;
+            drag.to = to;
+
+            all.forEach((r, j) => {
+                if (r === row) return;
+                const by = from < j && j <= to ? -shift : to <= j && j < from ? shift : 0;
+                if (by) r.style.transform = `translateY(${by}px)`;
+                else r.style.removeProperty('transform');
+            });
+            const slot = to > from ? tops[to] + heights[to] - heights[from] : tops[to];
+            placeholder.style.transform = `translateY(${slot}px)`;
+
+            // Near the scrolling box's edge, scroll it, and keep coming back
+            // here while the pointer stays there.
+            const box = drag.scroller === document.scrollingElement
+                ? { top: 0, bottom: innerHeight }
+                : drag.scroller.getBoundingClientRect();
+            const speed = drag.y < box.top + EDGE ? -(box.top + EDGE - drag.y) / 3
+                : drag.y > box.bottom - EDGE ? (drag.y - box.bottom + EDGE) / 3 : 0;
+            if (speed) {
+                drag.scroller.scrollBy(0, Math.max(-24, Math.min(24, speed)));
+                drag.frame = requestAnimationFrame(frame);
+            } else {
+                drag.frame = 0;
+            }
+        }
+
+        function onPointerMove(event) {
+            if (!drag || event.pointerId !== drag.id) return;
+            if (!drag.started) {
+                if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < SLOP) return;
+                drag.y0 = drag.y;
+                startDrag();
+            }
+            drag.y = event.clientY;
+            if (!drag.frame) drag.frame = requestAnimationFrame(frame);
+        }
+
+        function endDrag(cancelled) {
+            const current = drag;
+            drag = null;
+            const { row } = current;
+            row.removeEventListener('pointermove', onPointerMove);
+            row.removeEventListener('pointerup', onPointerUp);
+            row.removeEventListener('pointercancel', onPointerCancel);
+            if (row.hasPointerCapture?.(current.id)) row.releasePointerCapture(current.id);
+            if (!current.started) return;
+
+            cancelAnimationFrame(current.frame);
+            placeholder.hidden = true;
+            row.removeAttribute('data-dragging');
+            root.removeAttribute('data-dragging');
+            // From where it is drawn, under the pointer, to its slot.
+            place(row, cancelled ? current.from : current.to);
+            if (cancelled) settle();
+            else commit(row, current.from);
+        }
+
+        function onPointerUp(event) {
+            if (drag && event.pointerId === drag.id) endDrag(false);
+        }
+
+        function onPointerCancel(event) {
+            if (drag && event.pointerId === drag.id) endDrag(true);
+        }
+
+        settle();
+        list.addEventListener('keydown', onKeyDown);
+        list.addEventListener('keyup', onKeyUp);
+        list.addEventListener('focusout', onFocusOut);
+        list.addEventListener('click', onClick);
+        list.addEventListener('pointerdown', onPointerDown);
+        document.addEventListener('keydown', onDocumentKey, true);
+
+        return {
+            teardown() {
+                if (drag) endDrag(true);
+                list.removeEventListener('keydown', onKeyDown);
+                list.removeEventListener('keyup', onKeyUp);
+                list.removeEventListener('focusout', onFocusOut);
+                list.removeEventListener('click', onClick);
+                list.removeEventListener('pointerdown', onPointerDown);
+                document.removeEventListener('keydown', onDocumentKey, true);
+            },
+        };
+    }
+
+    // The box that scrolls the list: the nearest ancestor that scrolls, or the page.
+    function scrollParent(el) {
+        for (let n = el.parentElement; n && n !== document.body; n = n.parentElement) {
+            const { overflowY } = getComputedStyle(n);
+            if (/(auto|scroll)/.test(overflowY) && n.scrollHeight > n.clientHeight) return n;
+        }
+        return document.scrollingElement;
+    }
+
+    return { sortable };
+})();
+
+// behaviours/split.js
+const __ds_behaviours_split = (() => {
+    /*
+     * dsSplit: dividers that resize the panes either side of them, behind
+     * ds::split.
+     *
+     *   x-data="dsSplit({ name: 'editor' })"
+     *
+     * The markup is the view's, rendered complete by PHP: the root
+     * data-ds-split with data-orientation, its panes data-ds-split-pane (sized
+     * by --ds-split-size, limited by min-width / max-width or the heights,
+     * data-ds-collapsible on one that folds away), each followed by a divider
+     * data-ds-split-divider with role=separator, and a shield
+     * data-ds-split-shield. Only the root's own children are its panes, so a
+     * split inside a pane is a split of its own.
+     *
+     * A divider moves the boundary between the pane before it and the pane
+     * after it, the two sizes always adding up to what they had; each pane's
+     * own limits hold. It names and values ONE of them, the pane it controls:
+     * the one before it, unless only the one after it folds away. Its value is
+     * that pane's share of the split, in percent.
+     *
+     *   - Pointer, under capture: drag the divider. The shield covers the window
+     *     meanwhile, so an iframe in a pane cannot take the pointer, and the
+     *     root is data-dragging (no text selection).
+     *   - Keyboard, on the divider: the arrows move it 1%, Shift 10%; Home and
+     *     End take the controlled pane to its smallest and largest; Enter folds
+     *     a collapsible pane away and brings it back. Double-click does too.
+     *   - A divider not drawn (the split is stacked below `stackBelow`) does
+     *     nothing.
+     *
+     * Sizes are written back as percentages of the split, so a pane keeps its
+     * share when the window changes. It dispatches `resize` while a drag moves,
+     * at most once a frame, and `resized` when it ends and after each key, both
+     * from the root, bubbling, with { name, sizes: [percent per pane] }. It
+     * stores nothing: persisting is the host's.
+     *
+     * The scope exposes `dsReady`, which the dividers' tabindex is bound to,
+     * and nothing else.
+     */
+
+    const STEP = 1;
+    const BIG_STEP = 10;
+
+    function split(Alpine) {
+        Alpine.data('dsSplit', (options = {}) => {
+            let control = null;
+
+            return {
+                dsReady: false,
+
+                init() {
+                    control = wire(this.$el, options);
+                    this.dsReady = true;
+                    this.$nextTick(() => control.value());
+                },
+
+                destroy() {
+                    control?.teardown();
+                },
+            };
+        });
+    }
+
+    function wire(root, options) {
+        const across = root.dataset.orientation === 'vertical' ? 'height' : 'width';
+        const own = (selector) => [...root.children].filter((el) => el.matches(selector));
+        const shield = own('[data-ds-split-shield]')[0];
+        const panes = () => own('[data-ds-split-pane]');
+        const dividers = () => own('[data-ds-split-divider]');
+
+        // What a pane had before it was folded away, to bring it back to.
+        const folded = new WeakMap();
+        let drag = null;
+        let frame = 0;
+
+        const px = (el) => el.getBoundingClientRect()[across];
+        const room = () => panes().reduce((sum, pane) => sum + px(pane), 0);
+
+        // A limit the CSS holds, read back in pixels: min-width, max-width.
+        function limit(pane, which) {
+            if (pane.hasAttribute('data-collapsed')) return which === 'min' ? 0 : Infinity;
+            const value = getComputedStyle(pane)[`${which}${across === 'width' ? 'Width' : 'Height'}`];
+            if (!value || value === 'none' || value === 'auto') return which === 'min' ? 0 : Infinity;
+            return value.endsWith('%') ? (parseFloat(value) / 100) * px(root) : parseFloat(value);
+        }
+
+        function pair(divider) {
+            const all = panes();
+            const before = divider.previousElementSibling;
+            const at = all.indexOf(before);
+            const after = all[at + 1];
+            if (at < 0 || !after) return null;
+            const folds = (p) => p.hasAttribute('data-ds-collapsible');
+            const controlled = folds(after) && !folds(before) ? after : before;
+            return { before, after, controlled };
+        }
+
+        function write(pane, size, total) {
+            pane.style.setProperty('--ds-split-size', `${Math.round((size / total) * 10000) / 100}%`);
+        }
+
+        /*
+         * Move the boundary to give `before` this many pixels, inside both panes'
+         * limits, the other taking what is left of the two together.
+         */
+        function resizeTo(p, want, start = null) {
+            const total = room();
+            const a = start?.a ?? px(p.before);
+            const b = start?.b ?? px(p.after);
+            const sum = a + b;
+            const low = Math.max(limit(p.before, 'min'), sum - limit(p.after, 'max'));
+            const high = Math.min(limit(p.before, 'max'), sum - limit(p.after, 'min'));
+            const next = Math.max(low, Math.min(high, want));
+            write(p.before, next, total);
+            write(p.after, sum - next, total);
+            value();
+        }
+
+        // The controlled pane's share, and the range it may take.
+        function value() {
+            const total = room();
+            if (!total) return;
+            for (const divider of dividers()) {
+                const p = pair(divider);
+                if (!p) continue;
+                const share = (pane) => Math.round((px(pane) / total) * 100);
+                const folds = p.controlled.hasAttribute('data-ds-collapsible');
+                const min = folds ? 0 : Math.round((limit(p.controlled, 'min') / total) * 100);
+                const max = Math.min(100, Math.round((limit(p.controlled, 'max') / total) * 100));
+                divider.setAttribute('aria-controls', p.controlled.id);
+                divider.setAttribute('aria-valuenow', String(share(p.controlled)));
+                divider.setAttribute('aria-valuemin', String(min));
+                divider.setAttribute('aria-valuemax', String(max));
+            }
+        }
+
+        function tell(type) {
+            const total = room();
+            const sizes = panes().map((pane) => (total ? Math.round((px(pane) / total) * 10000) / 100 : 0));
+            root.dispatchEvent(new CustomEvent(type, { bubbles: true, detail: { name: options.name ?? null, sizes } }));
+        }
+
+        function fold(divider) {
+            const p = pair(divider);
+            if (!p || !p.controlled.hasAttribute('data-ds-collapsible')) return;
+            const pane = p.controlled;
+            const other = pane === p.before ? p.after : p.before;
+            const total = room();
+            if (pane.hasAttribute('data-collapsed')) {
+                pane.removeAttribute('data-collapsed');
+                const back = folded.get(pane) ?? total / 2;
+                const sum = px(pane) + px(other);
+                resizeTo(p, pane === p.before ? back : sum - back);
+            } else {
+                folded.set(pane, px(pane));
+                const sum = px(pane) + px(other);
+                pane.setAttribute('data-collapsed', '');
+                write(pane, 0, total);
+                write(other, sum, total);
+                value();
+            }
+            tell('resized');
+        }
+
+        const usable = (divider) => divider.getClientRects().length > 0;
+        const target = (event) => {
+            const divider = event.target.closest?.('[data-ds-split-divider]');
+            return divider && divider.parentElement === root && usable(divider) ? divider : null;
+        };
+
+        function onKeyDown(event) {
+            const divider = target(event);
+            const p = divider && pair(divider);
+            if (!p) return;
+            const total = room();
+            const now = px(p.before);
+            const grow = p.controlled === p.before ? 1 : -1;
+            let want = null;
+            if (['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown'].includes(event.key)) {
+                const by = ((event.shiftKey ? BIG_STEP : STEP) / 100) * total;
+                want = now + (['ArrowRight', 'ArrowDown'].includes(event.key) ? by : -by);
+            } else if (event.key === 'Home' || event.key === 'End') {
+                // The controlled pane to its smallest or largest.
+                const small = event.key === 'Home';
+                want = (grow > 0) === small ? -Infinity : Infinity;
+            } else if (event.key === 'Enter') {
+                event.preventDefault();
+                fold(divider);
+                return;
+            } else {
+                return;
+            }
+            event.preventDefault();
+            if (p.controlled.hasAttribute('data-collapsed')) p.controlled.removeAttribute('data-collapsed');
+            resizeTo(p, want);
+            tell('resize');
+            tell('resized');
+        }
+
+        function onDoubleClick(event) {
+            const divider = target(event);
+            if (divider) fold(divider);
+        }
+
+        function onPointerDown(event) {
+            const divider = target(event);
+            const p = divider && pair(divider);
+            if (!p || event.button !== 0) return;
+            event.preventDefault();
+            divider.focus({ preventScroll: true });
+            const at = across === 'width' ? event.clientX : event.clientY;
+            drag = { divider, p, at, start: { a: px(p.before), b: px(p.after) }, id: event.pointerId, now: at };
+            try {
+                divider.setPointerCapture(event.pointerId);
+            } catch {}
+            divider.setAttribute('data-dragging', '');
+            root.setAttribute('data-dragging', '');
+            if (shield) shield.hidden = false;
+        }
+
+        function onPointerMove(event) {
+            if (!drag || event.pointerId !== drag.id) return;
+            drag.now = across === 'width' ? event.clientX : event.clientY;
+            if (frame) return;
+            frame = requestAnimationFrame(() => {
+                frame = 0;
+                if (!drag) return;
+                if (drag.p.controlled.hasAttribute('data-collapsed')) drag.p.controlled.removeAttribute('data-collapsed');
+                resizeTo(drag.p, drag.start.a + drag.now - drag.at, drag.start);
+                tell('resize');
+            });
+        }
+
+        function onPointerUp(event) {
+            if (!drag || event.pointerId !== drag.id) return;
+            const { divider } = drag;
+            cancelAnimationFrame(frame);
+            frame = 0;
+            resizeTo(drag.p, drag.start.a + drag.now - drag.at, drag.start);
+            drag = null;
+            if (divider.hasPointerCapture?.(event.pointerId)) divider.releasePointerCapture(event.pointerId);
+            divider.removeAttribute('data-dragging');
+            root.removeAttribute('data-dragging');
+            if (shield) shield.hidden = true;
+            tell('resized');
+        }
+
+        root.addEventListener('keydown', onKeyDown);
+        root.addEventListener('dblclick', onDoubleClick);
+        root.addEventListener('pointerdown', onPointerDown);
+        root.addEventListener('pointermove', onPointerMove);
+        root.addEventListener('pointerup', onPointerUp);
+        root.addEventListener('pointercancel', onPointerUp);
+
+        return {
+            value,
+            teardown() {
+                cancelAnimationFrame(frame);
+                root.removeEventListener('keydown', onKeyDown);
+                root.removeEventListener('dblclick', onDoubleClick);
+                root.removeEventListener('pointerdown', onPointerDown);
+                root.removeEventListener('pointermove', onPointerMove);
+                root.removeEventListener('pointerup', onPointerUp);
+                root.removeEventListener('pointercancel', onPointerUp);
+            },
+        };
+    }
+
+    return { split };
+})();
+
 // behaviours/tag-input.js
 const __ds_behaviours_tag_input = (() => {
     /*
@@ -5770,6 +6764,7 @@ const __ds_blade_ui = (() => {
     const { clamp } = __ds_behaviours_clamp;
     const { clear } = __ds_behaviours_clear;
     const { clipboard } = __ds_behaviours_clipboard;
+    const { commandPalette } = __ds_behaviours_command_palette;
     const { contextMenu } = __ds_behaviours_context_menu;
     const { confirmDialog } = __ds_behaviours_confirm_dialog;
     const { dismiss } = __ds_behaviours_dismiss;
@@ -5785,6 +6780,8 @@ const __ds_blade_ui = (() => {
     const { roll } = __ds_behaviours_roll;
     const { scrollShadows } = __ds_behaviours_scroll_shadows;
     const { slider } = __ds_behaviours_slider;
+    const { sortable } = __ds_behaviours_sortable;
+    const { split } = __ds_behaviours_split;
     const { tagInput } = __ds_behaviours_tag_input;
     const { theme } = __ds_behaviours_theme;
     const { timePicker } = __ds_behaviours_time_picker;
@@ -5792,7 +6789,7 @@ const __ds_blade_ui = (() => {
     const { toolbar } = __ds_behaviours_toolbar;
     const { tree } = __ds_behaviours_tree;
 
-    const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows];
+    const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split];
 
     // Symbol.for, not a module-level flag. Two copies of this script, say the
     // inlined one AND a Vite import, are two separate modules with two separate

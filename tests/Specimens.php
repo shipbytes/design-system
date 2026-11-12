@@ -1215,6 +1215,47 @@ final class Specimens
                 <x-ds::scroll-area maxHeight="calc(100dvh - 4rem)" orientation="both" scrollbar="auto" :shadows="false"><a href="#a">A link, so the region is not a stop</a></x-ds::scroll-area>
                 <x-ds::scroll-area maxHeight="50%" label="Form"><input type="hidden" name="x"><button type="button">Press</button></x-ds::scroll-area>
                 BLADE,
+            'command-palette/all' => <<<'BLADE'
+                <x-ds::command-palette name="main" placeholder="Search or jump to…" @search="find($event.detail.query)">
+                    <x-ds::command-group label="Go to">
+                        <x-ds::command-item label="Invoices" href="/invoices" icon="document-text" keywords="bill receipt" shortcut="G+I" />
+                        <x-ds::command-item label="Settings &amp; billing" href="/settings?tab=billing&from=palette" icon="cog" :keywords="['account', 'plan']" :disabled="true" wire:navigate />
+                    </x-ds::command-group>
+                    <x-ds::command-group label="Actions" id="actions">
+                        <x-ds::command-item label="Archive invoice" action="archive" value="12" icon="archive-box" :shortcut="['⌘', 'Shift', 'A']">Moves it out of the inbox</x-ds::command-item>
+                        <x-ds::command-item label="New invoice" action="create" />
+                    </x-ds::command-group>
+                    <x-ds::command-item label="Sign out" action="sign-out" id="sign-out" />
+                    <x-slot:footer><x-ds::kbd>↵</x-ds::kbd> to open</x-slot:footer>
+                </x-ds::command-palette>
+                <x-ds::command-palette :shortcut="false" label="Search people" emptyText="Nobody by that name" :loading="true" :filter="false" id="people" />
+                <x-ds::command-palette shortcut="/"><x-ds::command-item label="Only" /></x-ds::command-palette>
+                BLADE,
+            'sortable-list/all' => <<<'BLADE'
+                <x-ds::sortable-list name="steps" label="Checklist" @reorder="save($event.detail.order)">
+                    <x-ds::sortable-item value="1" label="Write the brief">Write the brief</x-ds::sortable-item>
+                    <x-ds::sortable-item value="2">Review <strong>the draft</strong></x-ds::sortable-item>
+                    <x-ds::sortable-item value="3" label="Ship" :disabled="true" wire:key="step-3">Ship it</x-ds::sortable-item>
+                </x-ds::sortable-list>
+                <x-ds::sortable-list label="Columns" :handle="false" :disabled="true" pickedText="Got :item" grabText="Move :item" moveUpText="Up: :item" moveDownText="Down: :item">
+                    <x-ds::sortable-item value="name">Name</x-ds::sortable-item>
+                </x-ds::sortable-list>
+                <x-ds::sortable-list><x-ds::sortable-item value="solo">Unnamed, posting nothing</x-ds::sortable-item></x-ds::sortable-list>
+                BLADE,
+            'split/all' => <<<'BLADE'
+                <x-ds::split name="editor" label="Resize sidebar" stackBelow="md" @resized="save($event.detail.sizes)">
+                    <x-ds::split-pane size="25%" min="160" max="50%" :collapsible="true">Files</x-ds::split-pane>
+                    <x-ds::split-pane>
+                        <x-ds::split orientation="vertical" label="Resize console" stackBelow="sm">
+                            <x-ds::split-pane>Editor</x-ds::split-pane>
+                            <x-ds::split-pane size="12rem" min="4rem" :collapsible="true" id="console">Console</x-ds::split-pane>
+                        </x-ds::split>
+                    </x-ds::split-pane>
+                    <x-ds::split-pane size="240px" min="nonsense" max="30%">Outline</x-ds::split-pane>
+                </x-ds::split>
+                <x-ds::split stackBelow="lg"><x-ds::split-pane :size="320">A</x-ds::split-pane><x-ds::split-pane>B</x-ds::split-pane></x-ds::split>
+                <x-ds::split stackBelow="xl" orientation="nonsense"><x-ds::split-pane size="1.5em">C</x-ds::split-pane><x-ds::split-pane>D</x-ds::split-pane></x-ds::split>
+                BLADE,
 
             // Not a visual component, but it renders inside a host's layout and
             // so inside a Livewire render too; this puts it through the markers

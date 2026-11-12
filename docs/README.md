@@ -1,6 +1,6 @@
 # Shipbytes Blade UI — documentation
 
-Ninety-four Blade components for Laravel, plus two pagination views. Presentation
+101 Blade components for Laravel, plus two pagination views. Presentation
 only: no state, no framework assumptions beyond Blade itself.
 
 **New here?** Start with [Getting started](getting-started.md) — install, three
@@ -23,6 +23,7 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Slider](components/slider.md) | A number, or a range of two, on a track — needs Alpine and the script |
 | [Time picker](components/time-picker.md) | A time of day, typed or picked from a list; posts HH:MM — needs Alpine and the script |
 | [Inline edit](components/inline-edit.md) | Text that turns into a field in place: rename a title, edit a cell — needs Alpine and the script |
+| [Sortable list](components/sortable-list.md) | Rows put in order by drag, keyboard or buttons; posts the order — needs Alpine and the script |
 | [Password strength](components/password-strength.md) | A strength hint for a new password, and `reveal` — needs Alpine and the script |
 | [Copy button](components/copy-button.md) | Copies a value and confirms in place — needs Alpine and the script |
 | [Confirm button](components/confirm-button.md) | A destructive button that asks in place first — needs Alpine and the script |
@@ -60,6 +61,7 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Kbd](components/kbd.md) | A key on the keyboard, inline in text |
 | [Expandable text](components/expandable-text.md) | Text held to a few lines with Read more — needs Alpine and the script |
 | [Scroll area](components/scroll-area.md) | A bounded box that scrolls natively, with a quiet scrollbar and edge shadows |
+| [Split](components/split.md) | Panes with a divider to drag between them, nested if need be — needs Alpine and the script |
 
 ### Data
 
@@ -99,6 +101,7 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Confirm popover](components/confirm-popover.md) | A question anchored to its button, with optional type-to-confirm — needs Alpine and the script |
 | [Hover card](components/hover-card.md) | A preview of a person or a link on hover or focus — needs Alpine and the script |
 | [Context menu](components/context-menu.md) | The dropdown's menu at the pointer: right-click, long press, Shift+F10 — needs Alpine and the script |
+| [Command palette](components/command-palette.md) | Actions and destinations, searched from a shortcut (Cmd+K) — needs Alpine and the script |
 | [Tooltip](components/tooltip.md) | A short label on hover or focus — Alpine |
 | [Toast](components/toast.md) | Something already happened |
 
@@ -129,7 +132,7 @@ plain Blade view. The one opt-in exception is the pagination views' Livewire
 variants, which emit `wire:click` for a component that uses `WithPagination`.
 
 [Alpine](https://alpinejs.dev) — a single 15 kB script, not a framework — is
-needed by thirty components, and by nine optional props:
+needed by thirty-three components, and by nine optional props:
 
 | | Needs Alpine |
 |---|---|
@@ -140,6 +143,9 @@ needed by thirty components, and by nine optional props:
 | `tree` | **Always, and the package's script too.** Without them it is drawn as PHP rendered it (open folders, the selection, every link reachable) and posts what it shows, but does not open, close or choose. |
 | `expandable-text` | **Always, and the package's script too.** Without them the text is shown in full and no button appears. |
 | `slider` `time-picker` `inline-edit` | **Always, and the package's script too.** Without them each is the native field it is drawn on and posts its value: a single slider works fully (its fill stays put) and a range's two thumbs can cross, the time picker is the browser's own time field, and the inline edit is a plain field inside its form. |
+| `command-palette` | **Always, and the package's script too.** Without them it stays closed and does nothing; keep a visible route to everything in it. |
+| `sortable-list` | **Always, and the package's script too.** Without them it is a plain list in the server's order, which posts that order, with no handles. |
+| `split` | **Always, and the package's script too.** Without them the panes are fixed at their sizes and the dividers are plain lines. |
 | `scroll-area` | **Never.** It scrolls natively. With Alpine and the package's script it also draws its edge shadows in a browser that cannot from CSS. |
 | `sub-nav` | **Only to open and close.** Without it the section holding the current page is open and the rest are closed, as the server rendered them. |
 | `counter` | **Never**, unless its `value` is bound to Alpine state. With Alpine and the package's script its digits roll; without them it shows the number the server rendered, and a re-render changes it. Bound with `::value`, it needs both. |
@@ -158,7 +164,7 @@ needed by thirty components, and by nine optional props:
 
 The package also ships a small script of its own, the behaviours several
 components share, which goes in the layout as `<x-ds::scripts />` above Alpine.
-The fourteen above that need it, and `input`'s `reveal` and `announcement-bar`'s
+The twenty-two above that need it, and `input`'s `reveal` and `announcement-bar`'s
 dismissal, say so at the top of
 their pages. See [Add the script](getting-started.md#3-add-the-script).
 

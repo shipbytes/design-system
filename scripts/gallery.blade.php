@@ -2531,6 +2531,79 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Command palette --}}
+<section class="ds-spec" id="command-palette">
+    <header class="ds-spec-head">
+        <h2>Command palette</h2>
+        <p>Actions and destinations, searched from a shortcut (Cmd+K or Ctrl+K), in the modal's layer. Focus stays in the field; the arrows move through the options and Enter runs one.</p>
+    </header>
+
+    <div class="ds-note">The palette is on this page, closed: it opens only with Alpine and the package's script, which the gallery does not load, and without them it stays closed and does nothing. Below is the trigger recipe from its docs; the open palette is in the documentation screenshot.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">The trigger <span>&middot; a button that names the shortcut</span></div>
+        <div class="mx-auto flex max-w-md justify-center">
+            <x-ds::button variant="secondary">
+                <x-ds::icon name="magnifying-glass" size="4" />
+                Search…
+                <x-ds::kbd :keys="['⌘', 'K']" separator="" />
+            </x-ds::button>
+            <x-ds::command-palette name="gallery">
+                <x-ds::command-group label="Go to">
+                    <x-ds::command-item label="Invoices" href="#command-palette" icon="document-text" keywords="bills" />
+                </x-ds::command-group>
+                <x-ds::command-item label="New invoice" action="create" icon="plus" />
+            </x-ds::command-palette>
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Sortable list --}}
+<section class="ds-spec" id="sortable-list">
+    <header class="ds-spec-head">
+        <h2>Sortable list</h2>
+        <p>Rows put in order by dragging a handle, from the keyboard, or with Move up and Move down. The order posts as <code>name[]</code>.</p>
+    </header>
+
+    <div class="ds-note">Without the script this is what a reader gets: the rows in the server's order, posting that order, with no handles (a handle that did nothing would be worse than none). The script adds the handles and the buttons.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Without the script <span>&middot; three steps, the last one fixed</span></div>
+        <div class="mx-auto max-w-md">
+            <x-ds::sortable-list name="g-steps" label="Checklist">
+                <x-ds::sortable-item value="1" label="Write the brief">Write the brief</x-ds::sortable-item>
+                <x-ds::sortable-item value="2" label="Review the draft">Review the draft</x-ds::sortable-item>
+                <x-ds::sortable-item value="3" label="Ship it" :disabled="true">Ship it</x-ds::sortable-item>
+            </x-ds::sortable-list>
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Split --}}
+<section class="ds-spec" id="split">
+    <header class="ds-spec-head">
+        <h2>Split</h2>
+        <p>Panes with a divider to drag between them; here a vertical split nested in a horizontal one. Sizes are CSS variables written by PHP, so the first paint is the final one.</p>
+    </header>
+
+    <div class="ds-note">With no script the panes stay at their sizes and the dividers are plain lines, which is what this page shows. The script makes each divider a focusable separator you can drag or move with the arrow keys.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Files, editor and console <span>&middot; 30% and a console of 35%</span></div>
+        <div class="mx-auto h-64 max-w-2xl overflow-hidden rounded-panel border border-border bg-surface">
+            <x-ds::split label="Resize the file list">
+                <x-ds::split-pane size="30%" min="120"><div class="p-3 text-body text-fg-body">Files</div></x-ds::split-pane>
+                <x-ds::split-pane>
+                    <x-ds::split orientation="vertical" label="Resize the console">
+                        <x-ds::split-pane><div class="p-3 text-body text-fg-body">Editor</div></x-ds::split-pane>
+                        <x-ds::split-pane size="35%" :collapsible="true"><div class="p-3 text-meta text-fg-muted">Console</div></x-ds::split-pane>
+                    </x-ds::split>
+                </x-ds::split-pane>
+            </x-ds::split>
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── In situ --}}
 <section class="ds-spec" id="in-situ">
     <header class="ds-spec-head">

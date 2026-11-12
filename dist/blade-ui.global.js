@@ -636,6 +636,233 @@ return ok;
 }
 return { clipboard };
 })();
+const __ds_behaviours_command_palette = (() => {
+const EDITABLE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
+const SEARCH_DELAY = 200;
+function commandPalette(Alpine) {
+Alpine.data('dsCommandPalette', (options = {}) => {
+let control = null;
+return {
+dsOpen: false,
+init() {
+control = wire(this.$el, options, {
+isOpen: () => this.dsOpen,
+setOpen: (open) => {
+this.dsOpen = open;
+},
+});
+this.$watch('dsOpen', (open) => control.changed(open));
+},
+destroy() {
+control?.teardown();
+},
+};
+});
+}
+function wire(root, options, api) {
+const input = root.querySelector('[data-ds-command-input]');
+const list = root.querySelector('[data-ds-command-list]');
+const empty = root.querySelector('[data-ds-command-empty]');
+const filtering = options.filter !== false;
+const combo = parse(options.shortcut);
+let active = null;
+let shown = [];
+let timer = null;
+let sent = '';
+const items = () => [...list.querySelectorAll('[data-ds-command-item]')];
+const usable = (item) => item.getAttribute('aria-disabled') !== 'true';
+function query() {
+return fold(input.value).trim();
+}
+function setActive(item, scroll = true) {
+if (active && active !== item) active.setAttribute('aria-selected', 'false');
+active = item ?? null;
+if (active) {
+active.setAttribute('aria-selected', 'true');
+input.setAttribute('aria-activedescendant', active.id);
+if (scroll) active.scrollIntoView({ block: 'nearest' });
+} else {
+input.removeAttribute('aria-activedescendant');
+}
+observer.takeRecords();
+}
+function arrange() {
+const q = query();
+const all = items();
+const scores = new Map();
+for (const item of all) {
+const score = !filtering || !q ? 1 : Math.max(rank(fold(item.dataset.dsLabel ?? item.textContent), q), rank(fold(item.dataset.dsKeywords ?? ''), q) - 0.5);
+scores.set(item, score);
+item.hidden = score <= 0;
+}
+const groups = [...list.querySelectorAll('[data-ds-command-group]')];
+const best = new Map(groups.map((group) => [group, Math.max(0, ...all.filter((i) => i.closest('[data-ds-command-group]') === group).map((i) => scores.get(i)))]));
+for (const group of groups) group.hidden = best.get(group) <= 0;
+for (const box of [list, ...groups]) {
+const kids = [...box.children].filter((el) => scores.has(el) || best.has(el));
+order(kids, (el) => scores.get(el) ?? best.get(el), q);
+}
+shown = all.filter((item) => !item.hidden && item.getClientRects().length);
+shown.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
+const busy = list.getAttribute('aria-busy') === 'true';
+if (empty) empty.hidden = busy || all.some((item) => !item.hidden);
+}
+function refresh(keep = true) {
+arrange();
+const still = keep && active && shown.includes(active) ? active : keep && active ? shown.find((item) => item.id === active.id) : null;
+setActive(still && usable(still) ? still : shown.find(usable), false);
+observer.takeRecords();
+}
+function move(key) {
+const live = shown.filter(usable);
+if (!live.length) return;
+const at = live.indexOf(active);
+const to = key === 'Home' ? 0
+: key === 'End' ? live.length - 1
+: key === 'ArrowUp' ? (at <= 0 ? live.length - 1 : at - 1)
+: (at === live.length - 1 ? 0 : at + 1);
+setActive(live[to]);
+}
+function search() {
+clearTimeout(timer);
+timer = setTimeout(() => {
+const q = input.value.trim();
+if (q === sent) return;
+sent = q;
+root.dispatchEvent(new CustomEvent('search', { bubbles: true, detail: { query: q } }));
+}, SEARCH_DELAY);
+}
+function clear() {
+if (!input.value) return;
+input.value = '';
+search();
+}
+function onKeyDown(event) {
+if (event.isComposing) return;
+if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+event.preventDefault();
+move(event.key);
+} else if (event.key === 'Enter') {
+event.preventDefault();
+if (active && usable(active)) active.click();
+} else if (event.key === 'Escape' && input.value) {
+event.preventDefault();
+event.stopPropagation();
+clear();
+refresh(false);
+}
+}
+function onInput() {
+refresh(false);
+list.scrollTop = 0;
+search();
+}
+function onClick(event) {
+const item = event.target.closest('[data-ds-command-item]');
+if (!item || !list.contains(item)) return;
+if (!usable(item)) {
+event.preventDefault();
+return;
+}
+const action = item.dataset.dsAction;
+if (action) item.dispatchEvent(new CustomEvent(action, { bubbles: true, detail: { value: item.dataset.value ?? null } }));
+api.setOpen(false);
+}
+function onPointerMove(event) {
+const item = event.target.closest('[data-ds-command-item]');
+if (item && item !== active && usable(item)) setActive(item, false);
+}
+function onPointerDown(event) {
+event.preventDefault();
+}
+function onShortcut(event) {
+if (!combo || event.defaultPrevented || event.isComposing || !matches(combo, event)) return;
+if (!combo.chord && event.target.closest?.(EDITABLE)) return;
+event.preventDefault();
+api.setOpen(!api.isOpen());
+}
+const named = (event) => (event.detail?.name ?? null) === (options.name ?? null);
+const onOpen = (event) => named(event) && api.setOpen(true);
+const onClose = (event) => named(event) && api.setOpen(false);
+const observer = new MutationObserver(() => refresh());
+observer.observe(list, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'style', 'aria-selected', 'aria-disabled', 'aria-busy', 'data-ds-label', 'data-ds-keywords'] });
+input.addEventListener('keydown', onKeyDown);
+input.addEventListener('input', onInput);
+list.addEventListener('click', onClick);
+list.addEventListener('pointermove', onPointerMove);
+list.addEventListener('mousedown', onPointerDown);
+window.addEventListener('keydown', onShortcut);
+window.addEventListener('open-command-palette', onOpen);
+window.addEventListener('close-command-palette', onClose);
+return {
+changed(open) {
+if (open) {
+requestAnimationFrame(() => refresh(false));
+} else {
+clear();
+refresh(false);
+setActive(null);
+}
+},
+teardown() {
+clearTimeout(timer);
+observer.disconnect();
+input.removeEventListener('keydown', onKeyDown);
+input.removeEventListener('input', onInput);
+list.removeEventListener('click', onClick);
+list.removeEventListener('pointermove', onPointerMove);
+list.removeEventListener('mousedown', onPointerDown);
+window.removeEventListener('keydown', onShortcut);
+window.removeEventListener('open-command-palette', onOpen);
+window.removeEventListener('close-command-palette', onClose);
+},
+};
+}
+function fold(text) {
+return String(text).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
+}
+function rank(text, q) {
+let at = text.indexOf(q);
+if (at === 0) return 4;
+const inside = at > 0;
+while (at > 0) {
+if (!/[\p{L}\p{N}]/u.test(text[at - 1])) return 3;
+at = text.indexOf(q, at + 1);
+}
+if (inside) return 2;
+const letters = q.replace(/ /g, '');
+let i = 0;
+for (const ch of text) if (ch === letters[i] && ++i === letters.length) return 1;
+return 0;
+}
+function order(nodes, score, q) {
+const ranked = nodes.map((node, i) => [node, score(node), i]).sort((a, b) => b[1] - a[1] || a[2] - b[2]);
+ranked.forEach(([node], i) => (q ? node.style.setProperty('order', String(i + 1)) : node.style.removeProperty('order')));
+}
+function parse(shortcut) {
+if (!shortcut) return null;
+const parts = String(shortcut).toLowerCase().split('+').map((p) => p.trim()).filter(Boolean);
+const key = parts.pop();
+if (!key) return null;
+const mac = /mac|iphone|ipad|ipod/i.test(navigator.userAgentData?.platform ?? navigator.platform ?? '');
+const want = { key, ctrl: false, meta: false, alt: false, shift: false };
+for (const part of parts) {
+if (part === 'mod') want[mac ? 'meta' : 'ctrl'] = true;
+else if (part === 'cmd' || part === 'meta') want.meta = true;
+else if (part === 'ctrl' || part === 'control') want.ctrl = true;
+else if (part === 'alt' || part === 'option') want.alt = true;
+else if (part === 'shift') want.shift = true;
+}
+want.chord = want.ctrl || want.meta;
+return want;
+}
+function matches(combo, event) {
+if (String(event.key).toLowerCase() !== combo.key) return false;
+if (event.ctrlKey !== combo.ctrl || event.metaKey !== combo.meta || event.altKey !== combo.alt) return false;
+return combo.key.length === 1 && !/[a-z]/.test(combo.key) ? true : event.shiftKey === combo.shift;
+}
+return { commandPalette };
+})();
 const __ds_behaviours_context_menu = (() => {
 const NATIVE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"]), a[href]';
 const HOLD_MS = 500;
@@ -2710,6 +2937,491 @@ for (const [target, type, fn] of listeners) target.removeEventListener(type, fn)
 }
 return { slider };
 })();
+const __ds_behaviours_sortable = (() => {
+const CONTROL = 'a[href], button, input, select, textarea, label, [contenteditable]';
+const SLOP = 4;
+const EDGE = 48;
+function sortable(Alpine) {
+Alpine.data('dsSortable', (options = {}) => {
+let control = null;
+return {
+dsReady: false,
+init() {
+control = wire(this.$el, options);
+this.dsReady = true;
+},
+destroy() {
+control?.teardown();
+},
+};
+});
+}
+function wire(root, options) {
+const list = root.querySelector('[data-ds-sortable-list]');
+const placeholder = root.querySelector('[data-ds-sortable-placeholder]');
+const status = root.querySelector('[data-ds-sortable-status]');
+const words = options.words ?? {};
+const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const rows = () => [...list.children].filter((el) => el.matches('[data-ds-sortable-item]'));
+const movable = (row) => !options.disabled && !row.hasAttribute('data-ds-sortable-fixed');
+const handleOf = (row) => row.querySelector('[data-ds-sortable-handle]');
+let lifted = null;
+let drag = null;
+let moving = false;
+function say(template, row) {
+const all = rows();
+const text = String(template ?? '')
+.replaceAll(':item', row.dataset.dsLabel ?? '')
+.replaceAll(':position', String(all.indexOf(row) + 1))
+.replaceAll(':total', String(all.length));
+status.textContent = '';
+requestAnimationFrame(() => {
+status.textContent = text;
+});
+}
+function settle() {
+const all = rows();
+all.forEach((row, i) => {
+row.querySelector('[data-ds-sortable-up]')?.setAttribute('aria-disabled', String(i === 0));
+row.querySelector('[data-ds-sortable-down]')?.setAttribute('aria-disabled', String(i === all.length - 1));
+});
+}
+function commit(row, from) {
+settle();
+const all = rows();
+const to = all.indexOf(row);
+if (to === from) return;
+root.dispatchEvent(new CustomEvent('reorder', {
+bubbles: true,
+detail: { order: all.map((r) => r.dataset.value), moved: row.dataset.value, from, to },
+}));
+}
+function place(row, to) {
+const all = rows();
+const first = new Map(all.map((r) => [r, r.getBoundingClientRect().top]));
+const had = row.contains(document.activeElement) ? document.activeElement : null;
+const others = all.filter((r) => r !== row);
+moving = true;
+list.insertBefore(row, others[to] ?? null);
+if (had && document.activeElement !== had) had.focus({ preventScroll: true });
+moving = false;
+for (const r of all) {
+r.setAttribute('data-instant', '');
+r.style.removeProperty('transform');
+}
+if (reduced()) {
+for (const r of all) r.removeAttribute('data-instant');
+return;
+}
+for (const r of all) {
+const delta = first.get(r) - r.getBoundingClientRect().top;
+if (delta) r.style.transform = `translateY(${delta}px)`;
+}
+void list.offsetHeight;
+for (const r of all) {
+r.removeAttribute('data-instant');
+r.style.removeProperty('transform');
+}
+}
+function pick(row) {
+lifted = { row, from: rows().indexOf(row) };
+row.setAttribute('data-lifted', '');
+handleOf(row)?.setAttribute('aria-pressed', 'true');
+say(words.picked, row);
+}
+function put(cancelled) {
+if (!lifted) return;
+const { row, from } = lifted;
+lifted = null;
+if (cancelled && rows().indexOf(row) !== from) place(row, from);
+row.removeAttribute('data-lifted');
+handleOf(row)?.setAttribute('aria-pressed', 'false');
+say(cancelled ? words.cancelled : words.dropped, row);
+if (!cancelled) commit(row, from);
+else settle();
+}
+function step(row, by) {
+const at = rows().indexOf(row);
+const to = at + by;
+if (to < 0 || to >= rows().length) return false;
+place(row, to);
+return true;
+}
+function onDocumentKey(event) {
+if (!drag?.started || event.key !== 'Escape') return;
+event.preventDefault();
+event.stopPropagation();
+endDrag(true);
+}
+function onKeyDown(event) {
+if (drag) return;
+const handle = event.target.closest?.('[data-ds-sortable-handle]');
+const row = handle?.closest('[data-ds-sortable-item]');
+if (!row || !list.contains(row) || !movable(row)) return;
+const key = event.key;
+if (!lifted) {
+if (key === ' ' || key === 'Enter') {
+event.preventDefault();
+pick(row);
+}
+return;
+}
+if (lifted.row !== row) return;
+if (key === 'ArrowUp' || key === 'ArrowDown') {
+event.preventDefault();
+if (step(row, key === 'ArrowUp' ? -1 : 1)) say(words.moved, row);
+} else if (key === ' ' || key === 'Enter') {
+event.preventDefault();
+put(false);
+} else if (key === 'Escape') {
+event.preventDefault();
+event.stopPropagation();
+put(true);
+}
+}
+function onKeyUp(event) {
+if (event.key === ' ' && event.target.closest?.('[data-ds-sortable-handle]')) event.preventDefault();
+}
+function onFocusOut(event) {
+if (moving || !lifted || !lifted.row.contains(event.target)) return;
+if (event.relatedTarget && lifted.row.contains(event.relatedTarget)) return;
+put(false);
+}
+function onClick(event) {
+const button = event.target.closest?.('[data-ds-sortable-up], [data-ds-sortable-down]');
+const row = button?.closest('[data-ds-sortable-item]');
+if (!row || !list.contains(row) || !movable(row) || button.getAttribute('aria-disabled') === 'true') return;
+const from = rows().indexOf(row);
+if (step(row, button.matches('[data-ds-sortable-up]') ? -1 : 1)) {
+say(words.moved, row);
+commit(row, from);
+}
+}
+function onPointerDown(event) {
+if (event.button !== 0 || drag || lifted) return;
+const row = event.target.closest('[data-ds-sortable-item]');
+if (!row || !list.contains(row) || !movable(row)) return;
+if (!event.target.closest('[data-ds-sortable-handle]')) {
+if (options.handle !== false || event.pointerType === 'touch' || event.target.closest(CONTROL)) return;
+}
+if (event.pointerType !== 'touch') event.preventDefault();
+drag = { row, id: event.pointerId, x: event.clientX, y: event.clientY, started: false };
+try {
+row.setPointerCapture(event.pointerId);
+} catch {}
+row.addEventListener('pointermove', onPointerMove);
+row.addEventListener('pointerup', onPointerUp);
+row.addEventListener('pointercancel', onPointerCancel);
+}
+function startDrag() {
+const all = rows();
+const { row } = drag;
+const from = all.indexOf(row);
+const tops = all.map((r) => r.offsetTop);
+const heights = all.map((r) => r.offsetHeight);
+const gap = all.length > 1 ? Math.max(0, tops[1] - tops[0] - heights[0]) : 0;
+Object.assign(drag, {
+started: true, all, from, to: from, tops, heights, shift: heights[from] + gap,
+origin: root.getBoundingClientRect().top, scroller: scrollParent(root), frame: 0,
+});
+row.setAttribute('data-dragging', '');
+root.setAttribute('data-dragging', '');
+placeholder.style.height = `${heights[from]}px`;
+placeholder.style.transform = `translateY(${tops[from]}px)`;
+placeholder.hidden = false;
+}
+function frame() {
+if (!drag?.started) return;
+const { row, all, from, tops, heights, shift } = drag;
+const dy = drag.y - drag.y0 - (root.getBoundingClientRect().top - drag.origin);
+row.style.transform = `translateY(${dy}px)`;
+const top = tops[from] + dy;
+const bottom = top + heights[from];
+let to = from;
+for (let j = from + 1; j < all.length; j++) if (bottom > tops[j] + heights[j] / 2) to = j;
+for (let j = from - 1; j >= 0; j--) if (top < tops[j] + heights[j] / 2) to = j;
+drag.to = to;
+all.forEach((r, j) => {
+if (r === row) return;
+const by = from < j && j <= to ? -shift : to <= j && j < from ? shift : 0;
+if (by) r.style.transform = `translateY(${by}px)`;
+else r.style.removeProperty('transform');
+});
+const slot = to > from ? tops[to] + heights[to] - heights[from] : tops[to];
+placeholder.style.transform = `translateY(${slot}px)`;
+const box = drag.scroller === document.scrollingElement
+? { top: 0, bottom: innerHeight }
+: drag.scroller.getBoundingClientRect();
+const speed = drag.y < box.top + EDGE ? -(box.top + EDGE - drag.y) / 3
+: drag.y > box.bottom - EDGE ? (drag.y - box.bottom + EDGE) / 3 : 0;
+if (speed) {
+drag.scroller.scrollBy(0, Math.max(-24, Math.min(24, speed)));
+drag.frame = requestAnimationFrame(frame);
+} else {
+drag.frame = 0;
+}
+}
+function onPointerMove(event) {
+if (!drag || event.pointerId !== drag.id) return;
+if (!drag.started) {
+if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < SLOP) return;
+drag.y0 = drag.y;
+startDrag();
+}
+drag.y = event.clientY;
+if (!drag.frame) drag.frame = requestAnimationFrame(frame);
+}
+function endDrag(cancelled) {
+const current = drag;
+drag = null;
+const { row } = current;
+row.removeEventListener('pointermove', onPointerMove);
+row.removeEventListener('pointerup', onPointerUp);
+row.removeEventListener('pointercancel', onPointerCancel);
+if (row.hasPointerCapture?.(current.id)) row.releasePointerCapture(current.id);
+if (!current.started) return;
+cancelAnimationFrame(current.frame);
+placeholder.hidden = true;
+row.removeAttribute('data-dragging');
+root.removeAttribute('data-dragging');
+place(row, cancelled ? current.from : current.to);
+if (cancelled) settle();
+else commit(row, current.from);
+}
+function onPointerUp(event) {
+if (drag && event.pointerId === drag.id) endDrag(false);
+}
+function onPointerCancel(event) {
+if (drag && event.pointerId === drag.id) endDrag(true);
+}
+settle();
+list.addEventListener('keydown', onKeyDown);
+list.addEventListener('keyup', onKeyUp);
+list.addEventListener('focusout', onFocusOut);
+list.addEventListener('click', onClick);
+list.addEventListener('pointerdown', onPointerDown);
+document.addEventListener('keydown', onDocumentKey, true);
+return {
+teardown() {
+if (drag) endDrag(true);
+list.removeEventListener('keydown', onKeyDown);
+list.removeEventListener('keyup', onKeyUp);
+list.removeEventListener('focusout', onFocusOut);
+list.removeEventListener('click', onClick);
+list.removeEventListener('pointerdown', onPointerDown);
+document.removeEventListener('keydown', onDocumentKey, true);
+},
+};
+}
+function scrollParent(el) {
+for (let n = el.parentElement; n && n !== document.body; n = n.parentElement) {
+const { overflowY } = getComputedStyle(n);
+if (/(auto|scroll)/.test(overflowY) && n.scrollHeight > n.clientHeight) return n;
+}
+return document.scrollingElement;
+}
+return { sortable };
+})();
+const __ds_behaviours_split = (() => {
+const STEP = 1;
+const BIG_STEP = 10;
+function split(Alpine) {
+Alpine.data('dsSplit', (options = {}) => {
+let control = null;
+return {
+dsReady: false,
+init() {
+control = wire(this.$el, options);
+this.dsReady = true;
+this.$nextTick(() => control.value());
+},
+destroy() {
+control?.teardown();
+},
+};
+});
+}
+function wire(root, options) {
+const across = root.dataset.orientation === 'vertical' ? 'height' : 'width';
+const own = (selector) => [...root.children].filter((el) => el.matches(selector));
+const shield = own('[data-ds-split-shield]')[0];
+const panes = () => own('[data-ds-split-pane]');
+const dividers = () => own('[data-ds-split-divider]');
+const folded = new WeakMap();
+let drag = null;
+let frame = 0;
+const px = (el) => el.getBoundingClientRect()[across];
+const room = () => panes().reduce((sum, pane) => sum + px(pane), 0);
+function limit(pane, which) {
+if (pane.hasAttribute('data-collapsed')) return which === 'min' ? 0 : Infinity;
+const value = getComputedStyle(pane)[`${which}${across === 'width' ? 'Width' : 'Height'}`];
+if (!value || value === 'none' || value === 'auto') return which === 'min' ? 0 : Infinity;
+return value.endsWith('%') ? (parseFloat(value) / 100) * px(root) : parseFloat(value);
+}
+function pair(divider) {
+const all = panes();
+const before = divider.previousElementSibling;
+const at = all.indexOf(before);
+const after = all[at + 1];
+if (at < 0 || !after) return null;
+const folds = (p) => p.hasAttribute('data-ds-collapsible');
+const controlled = folds(after) && !folds(before) ? after : before;
+return { before, after, controlled };
+}
+function write(pane, size, total) {
+pane.style.setProperty('--ds-split-size', `${Math.round((size / total) * 10000) / 100}%`);
+}
+function resizeTo(p, want, start = null) {
+const total = room();
+const a = start?.a ?? px(p.before);
+const b = start?.b ?? px(p.after);
+const sum = a + b;
+const low = Math.max(limit(p.before, 'min'), sum - limit(p.after, 'max'));
+const high = Math.min(limit(p.before, 'max'), sum - limit(p.after, 'min'));
+const next = Math.max(low, Math.min(high, want));
+write(p.before, next, total);
+write(p.after, sum - next, total);
+value();
+}
+function value() {
+const total = room();
+if (!total) return;
+for (const divider of dividers()) {
+const p = pair(divider);
+if (!p) continue;
+const share = (pane) => Math.round((px(pane) / total) * 100);
+const folds = p.controlled.hasAttribute('data-ds-collapsible');
+const min = folds ? 0 : Math.round((limit(p.controlled, 'min') / total) * 100);
+const max = Math.min(100, Math.round((limit(p.controlled, 'max') / total) * 100));
+divider.setAttribute('aria-controls', p.controlled.id);
+divider.setAttribute('aria-valuenow', String(share(p.controlled)));
+divider.setAttribute('aria-valuemin', String(min));
+divider.setAttribute('aria-valuemax', String(max));
+}
+}
+function tell(type) {
+const total = room();
+const sizes = panes().map((pane) => (total ? Math.round((px(pane) / total) * 10000) / 100 : 0));
+root.dispatchEvent(new CustomEvent(type, { bubbles: true, detail: { name: options.name ?? null, sizes } }));
+}
+function fold(divider) {
+const p = pair(divider);
+if (!p || !p.controlled.hasAttribute('data-ds-collapsible')) return;
+const pane = p.controlled;
+const other = pane === p.before ? p.after : p.before;
+const total = room();
+if (pane.hasAttribute('data-collapsed')) {
+pane.removeAttribute('data-collapsed');
+const back = folded.get(pane) ?? total / 2;
+const sum = px(pane) + px(other);
+resizeTo(p, pane === p.before ? back : sum - back);
+} else {
+folded.set(pane, px(pane));
+const sum = px(pane) + px(other);
+pane.setAttribute('data-collapsed', '');
+write(pane, 0, total);
+write(other, sum, total);
+value();
+}
+tell('resized');
+}
+const usable = (divider) => divider.getClientRects().length > 0;
+const target = (event) => {
+const divider = event.target.closest?.('[data-ds-split-divider]');
+return divider && divider.parentElement === root && usable(divider) ? divider : null;
+};
+function onKeyDown(event) {
+const divider = target(event);
+const p = divider && pair(divider);
+if (!p) return;
+const total = room();
+const now = px(p.before);
+const grow = p.controlled === p.before ? 1 : -1;
+let want = null;
+if (['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown'].includes(event.key)) {
+const by = ((event.shiftKey ? BIG_STEP : STEP) / 100) * total;
+want = now + (['ArrowRight', 'ArrowDown'].includes(event.key) ? by : -by);
+} else if (event.key === 'Home' || event.key === 'End') {
+const small = event.key === 'Home';
+want = (grow > 0) === small ? -Infinity : Infinity;
+} else if (event.key === 'Enter') {
+event.preventDefault();
+fold(divider);
+return;
+} else {
+return;
+}
+event.preventDefault();
+if (p.controlled.hasAttribute('data-collapsed')) p.controlled.removeAttribute('data-collapsed');
+resizeTo(p, want);
+tell('resize');
+tell('resized');
+}
+function onDoubleClick(event) {
+const divider = target(event);
+if (divider) fold(divider);
+}
+function onPointerDown(event) {
+const divider = target(event);
+const p = divider && pair(divider);
+if (!p || event.button !== 0) return;
+event.preventDefault();
+divider.focus({ preventScroll: true });
+const at = across === 'width' ? event.clientX : event.clientY;
+drag = { divider, p, at, start: { a: px(p.before), b: px(p.after) }, id: event.pointerId, now: at };
+try {
+divider.setPointerCapture(event.pointerId);
+} catch {}
+divider.setAttribute('data-dragging', '');
+root.setAttribute('data-dragging', '');
+if (shield) shield.hidden = false;
+}
+function onPointerMove(event) {
+if (!drag || event.pointerId !== drag.id) return;
+drag.now = across === 'width' ? event.clientX : event.clientY;
+if (frame) return;
+frame = requestAnimationFrame(() => {
+frame = 0;
+if (!drag) return;
+if (drag.p.controlled.hasAttribute('data-collapsed')) drag.p.controlled.removeAttribute('data-collapsed');
+resizeTo(drag.p, drag.start.a + drag.now - drag.at, drag.start);
+tell('resize');
+});
+}
+function onPointerUp(event) {
+if (!drag || event.pointerId !== drag.id) return;
+const { divider } = drag;
+cancelAnimationFrame(frame);
+frame = 0;
+resizeTo(drag.p, drag.start.a + drag.now - drag.at, drag.start);
+drag = null;
+if (divider.hasPointerCapture?.(event.pointerId)) divider.releasePointerCapture(event.pointerId);
+divider.removeAttribute('data-dragging');
+root.removeAttribute('data-dragging');
+if (shield) shield.hidden = true;
+tell('resized');
+}
+root.addEventListener('keydown', onKeyDown);
+root.addEventListener('dblclick', onDoubleClick);
+root.addEventListener('pointerdown', onPointerDown);
+root.addEventListener('pointermove', onPointerMove);
+root.addEventListener('pointerup', onPointerUp);
+root.addEventListener('pointercancel', onPointerUp);
+return {
+value,
+teardown() {
+cancelAnimationFrame(frame);
+root.removeEventListener('keydown', onKeyDown);
+root.removeEventListener('dblclick', onDoubleClick);
+root.removeEventListener('pointerdown', onPointerDown);
+root.removeEventListener('pointermove', onPointerMove);
+root.removeEventListener('pointerup', onPointerUp);
+root.removeEventListener('pointercancel', onPointerUp);
+},
+};
+}
+return { split };
+})();
 const __ds_behaviours_tag_input = (() => {
 function tagInput(Alpine) {
 Alpine.data('dsTagInput', (options = {}) => {
@@ -3659,6 +4371,7 @@ const { chart } = __ds_behaviours_chart;
 const { clamp } = __ds_behaviours_clamp;
 const { clear } = __ds_behaviours_clear;
 const { clipboard } = __ds_behaviours_clipboard;
+const { commandPalette } = __ds_behaviours_command_palette;
 const { contextMenu } = __ds_behaviours_context_menu;
 const { confirmDialog } = __ds_behaviours_confirm_dialog;
 const { dismiss } = __ds_behaviours_dismiss;
@@ -3674,13 +4387,15 @@ const { popover } = __ds_behaviours_popover;
 const { roll } = __ds_behaviours_roll;
 const { scrollShadows } = __ds_behaviours_scroll_shadows;
 const { slider } = __ds_behaviours_slider;
+const { sortable } = __ds_behaviours_sortable;
+const { split } = __ds_behaviours_split;
 const { tagInput } = __ds_behaviours_tag_input;
 const { theme } = __ds_behaviours_theme;
 const { timePicker } = __ds_behaviours_time_picker;
 const { toggleGroup } = __ds_behaviours_toggle_group;
 const { toolbar } = __ds_behaviours_toolbar;
 const { tree } = __ds_behaviours_tree;
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split];
 const REGISTERED = Symbol.for('shipbytes.blade-ui');
 function bladeUi(Alpine) {
 if (!Alpine || Alpine[REGISTERED]) return;

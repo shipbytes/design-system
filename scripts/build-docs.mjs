@@ -330,6 +330,37 @@ const OPERATE = {
     // past them and the image shows both shadows.
     'scroll-area': async (pane) =>
         pane.locator('[data-ds-scroll-viewport]').evaluate((el) => { el.scrollTop = 56; }),
+    // Opened by the event that names each pane's palette, and "in" typed
+    // into it the way the reader would, so the image shows the filter and
+    // its ranking. Focus is then taken off the field, or its ring would show
+    // in one pane and not the other.
+    'command-palette': async (pane) => {
+        await pane.locator('[data-ds-command]').evaluate((el) => {
+            window.dispatchEvent(new CustomEvent('open-command-palette', { detail: { name: el.dataset.shotName } }));
+        });
+        await tab.waitForTimeout(350);
+        await pane.locator('[data-ds-command-input]').evaluate((el) => {
+            el.value = 'in';
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        await tab.waitForTimeout(50);
+        await tab.evaluate(() => document.activeElement?.blur());
+    },
+    // A drag part way along, as dsSortable hears one: a press on the second
+    // row's handle and a pointer moved 40px down, its edge past the third
+    // row's middle, so that row has slid up and the placeholder shows where
+    // it lands;
+    // dispatched on the row so both panes can be mid-drag at once.
+    'sortable-list': async (pane) =>
+        pane.locator('[data-shot-drag]').evaluate(async (row) => {
+            const handle = row.querySelector('[data-ds-sortable-handle]').getBoundingClientRect();
+            const at = { clientX: handle.left + handle.width / 2, clientY: handle.top + handle.height / 2, pointerId: 7, pointerType: 'mouse', bubbles: true, button: 0, buttons: 1 };
+            row.querySelector('[data-ds-sortable-handle]').dispatchEvent(new PointerEvent('pointerdown', at));
+            for (const dy of [6, 20, 40]) {
+                row.dispatchEvent(new PointerEvent('pointermove', { ...at, clientY: at.clientY + dy }));
+                await new Promise((done) => requestAnimationFrame(done));
+            }
+        }),
     // Real files, set on the real input, so the list and the thumbnail are the
     // component's own doing rather than a pose arranged for the photograph.
     'file-upload': async (pane) =>

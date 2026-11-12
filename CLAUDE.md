@@ -47,6 +47,10 @@ src/              the service provider
                                 has (see the class, and ButtonGroupTest)
   View/Components/Tree.php      ds::tree's props, a class for the same reason:
                                 the items @aware `dsTree`, not `name`
+  View/Components/SortableList.php  ds::sortable-list's props: the rows
+                                @aware `dsSortable` (name, disabled, words)
+  View/Components/Split.php     ds::split's props: the panes @aware `dsSplit`
+                                (orientation, stackBelow, label)
   Http/ScriptController.php     serves the script at the route the include links
   Support/Behaviour.php         the x-data expression for a shared behaviour
   Support/Field.php             reads the field recipe (partials/field.php)
@@ -66,6 +70,7 @@ src/              the service provider
                                 highlighter's HTML balanced per line; the
                                 `highlight` ranges (CodeTest)
   Support/Listbox.php           reads the listbox recipe (partials/listbox.php)
+  Support/Modal.php             reads the modal recipe (partials/modal.php)
 config/           blade-ui.php — icon aliases, default icon size
 resources/views/  the Blade components + the two pagination views and
                   their two Livewire variants
@@ -94,7 +99,16 @@ resources/views/  the Blade components + the two pagination views and
                                 handler), read through Support\Menu
   partials/listbox.php          the listbox recipe combobox and time-picker
                                 share (panel, option, empty, the arrow-key
-                                handler), read through Support\Listbox
+                                handler), read through Support\Listbox; and
+                                `activeOption`, the command palette's option,
+                                ringed on aria-selected because focus stays
+                                in the field
+  partials/modal.php            the modal layer modal and command-palette
+                                share (backdrop, both transitions, the focus
+                                trap, focus in and back out with the scroll
+                                lock), read through Support\Modal; the modal
+                                is held to its pre-recipe output by
+                                ModalUnchangedTest
   partials/chart.php            the chart recipe: a mark's colour class per
                                 tone and per series slot, read through
                                 Support\Chart::colour()
@@ -249,7 +263,7 @@ composer require shipbytes/blade-ui
 
 Three lines, not four — `theme.css` brings its own `@custom-variant dark`. It
 also carries `[x-cloak] { display: none !important }`, which Alpine expects every
-project to write by hand: fourteen components mark an overlay `x-cloak`, so
+project to write by hand: fifteen components mark an overlay `x-cloak`, so
 without it every dialog on the page renders open, backdrop and all, until Alpine
 boots. That is our failure to ship, not the consumer's to remember.
 No npm step: the composer package ships `dist/`.
@@ -713,17 +727,17 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 94 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 101 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
 accordion, accordion-item, activity-heatmap, alert, announcement-bar, avatar, avatar-group, badge, bar-chart, bottom-nav,
 bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, chip,
-button-group, chip-group, code-block, combobox, confirm-button, confirm-popover, copy-button, counter, date-picker, donut-chart, drawer, dropdown,
+button-group, chip-group, code-block, combobox, command-group, command-item, command-palette, confirm-button, confirm-popover, copy-button, counter, date-picker, donut-chart, drawer, dropdown,
 context-menu, dropdown-item, empty-state, expandable-text, file-upload, filter-bar, filter-chip, gauge, hold-button, hover-card, icon,
 inline-edit, input, kbd, line-chart, modal,
 nav-item, number-field, otp-input, panel, panel-row, password-strength,
 popover, progress, radio, radio-card, radio-cards, radio-group, rating,
-scroll-area, segment, segmented-control, select, sheet, sheet-item, skeleton, slider, sparkline, stat-tile,
+scroll-area, segment, segmented-control, select, sheet, sheet-item, skeleton, slider, sortable-item, sortable-list, sparkline, split, split-pane, stat-tile,
 step, stepper, sub-nav, switch, tab,
 tab-panel, table, table-cell, table-row, tabs, tag-input, theme-switcher,
 time-picker, timeline, timeline-group, timeline-item,
@@ -741,7 +755,9 @@ accordion (with accordion-item), file-upload, tooltip, otp-input, tag-input,
 number-field, password-strength, copy-button, toolbar (with toolbar-button and
 toolbar-separator), toggle-group (with toggle), popover, hover-card, context-menu, theme-switcher,
 confirm-button, hold-button, confirm-popover, tree (with tree-item),
-expandable-text, slider, time-picker, inline-edit, sub-nav —
+expandable-text, slider, time-picker, inline-edit, command-palette (with
+command-group and command-item), sortable-list (with sortable-item), split
+(with split-pane), sub-nav —
 always (sub-nav only to toggle: its open state is rendered from PHP; tree's
 structure, selection and open folders are rendered from PHP too). Plus ONE optional prop each on
 checkbox (`indeterminate`), nav-item (`collapsedWhen`), toast (`dismiss`),
@@ -769,8 +785,9 @@ hold-button (`dsHold`), confirm-popover (`dsConfirmDialog`, on `dsPopover` and
 expandable-text and code-block's `expandable` (`dsClamp`), code-block's copy
 (`dsClipboard`, through copy-button), filter-bar's `collapsible` (`dsPopover`,
 `x-ds-anchor`), counter when bound to Alpine state (`dsRoll`), slider
-(`dsSlider`), time-picker (`dsTimePicker`, `dsClear`, `x-ds-anchor`) and
-inline-edit (`dsInlineEdit`). kbd and
+(`dsSlider`), time-picker (`dsTimePicker`, `dsClear`, `x-ds-anchor`),
+inline-edit (`dsInlineEdit`), command-palette (`dsCommandPalette`, in the
+modal recipe's layer), sortable-list (`dsSortable`) and split (`dsSplit`). kbd and
 filter-chip are plain Blade and CSS; a chip's `remove` and the bar's `reset`
 are plain inline `onclick` dispatches.
 `<x-ds::theme-script />` is a class component like

@@ -949,4 +949,63 @@
         <output id="c-model-out" x-text="JSON.stringify({ vol, range, at, name })"></output>
     </div>
 
+    {{-- ── batch 12: command palette, sortable list, split. After the modal
+         in the page, so the modal's checks still find the modal first. The
+         block marked #b12 is also cut out for a host page with no Alpine at
+         all, by its id and the closing comment. ── --}}
+    <div class="mt-6 w-[640px]" id="b12">
+        <button type="button" id="cmd-open" onclick="window.dispatchEvent(new CustomEvent('open-command-palette', { detail: { name: 'main' } }))">Search</button>
+        <input id="cmd-field" aria-label="Elsewhere">
+        <x-ds::command-palette id="cmd" name="main"
+            x-on:search="(window.cmdSearches ??= []).push($event.detail.query)"
+            x-on:create-invoice="(window.cmdActions ??= []).push('create:' + $event.detail.value)"
+            x-on:archive="(window.cmdActions ??= []).push('archive:' + $event.detail.value)">
+            <x-ds::command-group label="Go to" id="cmd-go">
+                <x-ds::command-item id="ci-invoices" label="Invoices" href="#invoices" keywords="bills receipts" />
+                <x-ds::command-item id="ci-customers" label="Customers" href="#customers" shortcut="G+C" />
+                <x-ds::command-item id="ci-settings" label="Settings" href="#settings" :disabled="true" />
+            </x-ds::command-group>
+            <x-ds::command-group label="Actions" id="cmd-actions">
+                <x-ds::command-item id="ci-new" label="New invoice" action="create-invoice" value="draft" />
+                <x-ds::command-item id="ci-archive" label="Archive" action="archive" value="42" keywords="hide" />
+            </x-ds::command-group>
+        </x-ds::command-palette>
+        {{-- Searched on the server: no filter, still loading, a bare-key shortcut. --}}
+        <x-ds::command-palette id="cmd-remote" name="remote" shortcut="/" :filter="false" :loading="true" emptyText="Nothing found" />
+
+        <form id="so-form" class="mt-4" onsubmit="event.preventDefault()">
+            <x-ds::sortable-list id="so" name="steps" label="Steps" x-on:reorder="(window.soEvents ??= []).push($event.detail)">
+                <x-ds::sortable-item value="a" label="Alpha">Alpha</x-ds::sortable-item>
+                <x-ds::sortable-item value="b" label="Bravo">Bravo</x-ds::sortable-item>
+                <x-ds::sortable-item value="c">Charlie <span>third</span></x-ds::sortable-item>
+                <x-ds::sortable-item value="d" label="Delta" :disabled="true">Delta</x-ds::sortable-item>
+            </x-ds::sortable-list>
+            <button type="button" id="so-after">after the list</button>
+        </form>
+
+        <div class="mt-4 h-64 w-[600px] border border-border" id="sp-box">
+            <x-ds::split id="sp" name="outer" label="Resize the files"
+                x-on:resize="(window.spEvents ??= []).push('resize:' + $event.detail.name)"
+                x-on:resized="(window.spEvents ??= []).push('resized:' + $event.detail.name + ':' + $event.detail.sizes.join('/'))">
+                <x-ds::split-pane id="sp-files" size="30%" min="100" max="60%" :collapsible="true">Files</x-ds::split-pane>
+                <x-ds::split-pane id="sp-main">
+                    <x-ds::split id="sp-inner" orientation="vertical" name="inner" label="Resize the console">
+                        <x-ds::split-pane id="sp-editor">
+                            <iframe id="sp-frame" title="Preview" class="block size-full" srcdoc="preview"></iframe>
+                        </x-ds::split-pane>
+                        <x-ds::split-pane id="sp-console" size="40%" min="40" :collapsible="true">Console</x-ds::split-pane>
+                    </x-ds::split>
+                </x-ds::split-pane>
+            </x-ds::split>
+        </div>
+        {{-- Stacked below xl, and the page is 1200px wide. --}}
+        <div class="mt-4 h-40 w-[600px]">
+            <x-ds::split id="sp-stack" label="Resize" stackBelow="xl">
+                <x-ds::split-pane id="sp-stack-a" size="50%">One</x-ds::split-pane>
+                <x-ds::split-pane id="sp-stack-b">Two</x-ds::split-pane>
+            </x-ds::split>
+        </div>
+    </div>
+    <!-- /b12 -->
+
 </div>

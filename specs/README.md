@@ -74,6 +74,9 @@ independent implementations the same component rather than three lookalikes.
 | [slider.md](slider.md) | Native range inputs, one or two on a track; the thumb, the fill, thumbs that do not cross |
 | [time-picker.md](time-picker.md) | A native time field the script turns into a combobox; forgiving typing that never changes the time |
 | [inline-edit.md](inline-edit.md) | Read state as a button, a field in the same box, save and fail as attributes the host sets |
+| [command-palette.md](command-palette.md) | The modal's layer, a combobox that keeps focus, ranking by CSS order, options that change under it |
+| [sortable-list.md](sortable-list.md) | Pointer drag with capture and FLIP, the keyboard pick-up, the buttons for WCAG 2.5.7, what survives a morph |
+| [split.md](split.md) | Sizes as CSS variables for the first paint, the window splitter pattern, which pane a divider controls |
 | [password-strength.md](password-strength.md) | The four-level hint and its heuristic |
 | [copy-button.md](copy-button.md) | Copy, the in-place confirmation, the failure event |
 | [rating.md](rating.md) | Stars over radios, "No rating", the readonly image |
