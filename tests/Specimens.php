@@ -785,6 +785,35 @@ final class Specimens
                 </x-ds::dropdown>
                 BLADE,
 
+            /*
+             * Every placement once, so each fallback position class is
+             * rendered and checked; every width; both ways of naming it;
+             * host-owned state; not dismissible.
+             */
+            'popover/all' => <<<'BLADE'
+                <x-ds::popover label="Filters">
+                    <x-slot:trigger><x-ds::button size="sm">Filters</x-ds::button></x-slot:trigger>
+                    <x-ds::checkbox name="failed" label="Only failed runs" />
+                </x-ds::popover>
+                <x-ds::popover labelledby="share-title" open="shareOpen" placement="bottom-end" width="lg">
+                    <x-slot:trigger><x-ds::button size="sm">Share</x-ds::button></x-slot:trigger>
+                    <h3 id="share-title">Share this report</h3>
+                </x-ds::popover>
+                <x-ds::popover label="Note" width="sm" :dismissible="false" placement="bottom">
+                    <x-slot:trigger><x-ds::button size="sm">Note</x-ds::button></x-slot:trigger>
+                    Body
+                </x-ds::popover>
+                <x-ds::popover label="Named" id="named-panel" placement="top-start"><x-slot:trigger><button type="button">T</button></x-slot:trigger> Body </x-ds::popover>
+                <x-ds::popover label="t" placement="top"><x-slot:trigger><button type="button">T</button></x-slot:trigger> Body </x-ds::popover>
+                <x-ds::popover label="t" placement="top-end"><x-slot:trigger><button type="button">T</button></x-slot:trigger> Body </x-ds::popover>
+                <x-ds::popover label="t" placement="left-start"><x-slot:trigger><button type="button">T</button></x-slot:trigger> Body </x-ds::popover>
+                <x-ds::popover label="t" placement="left"><x-slot:trigger><button type="button">T</button></x-slot:trigger> Body </x-ds::popover>
+                <x-ds::popover label="t" placement="left-end"><x-slot:trigger><button type="button">T</button></x-slot:trigger> Body </x-ds::popover>
+                <x-ds::popover label="t" placement="right-start"><x-slot:trigger><button type="button">T</button></x-slot:trigger> Body </x-ds::popover>
+                <x-ds::popover label="t" placement="right"><x-slot:trigger><button type="button">T</button></x-slot:trigger> Body </x-ds::popover>
+                <x-ds::popover label="t" placement="right-end"><x-slot:trigger><button type="button">T</button></x-slot:trigger> Body </x-ds::popover>
+                BLADE,
+
             // Not a visual component, but it renders inside a host's layout and
             // so inside a Livewire render too; this puts it through the markers
             // test with everything else.

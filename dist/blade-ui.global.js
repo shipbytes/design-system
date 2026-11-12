@@ -898,6 +898,109 @@ return [trim(lower), plain(trim(lower)), trim(plain(lower))]
 }
 return { password };
 })();
+const __ds_behaviours_popover = (() => {
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable="true"]';
+const CONTROL = 'button, a[href], input, select, textarea, [role="button"], [tabindex]';
+function popover(Alpine) {
+Alpine.data('dsPopover', (options = {}) => {
+const dismissible = options.dismissible !== false;
+let control = null;
+return {
+dsOpen: false,
+init() {
+control = wire(this.$el, {
+dismissible,
+isOpen: () => this.dsOpen,
+setOpen: (open) => {
+this.dsOpen = open;
+},
+later: (fn) => this.$nextTick(fn),
+});
+control.changed(this.dsOpen);
+this.$watch('dsOpen', (open) => control.changed(open));
+},
+destroy() {
+control?.teardown();
+},
+};
+});
+}
+function wire(root, api) {
+const own = (selector) => [...root.querySelectorAll(selector)].find((el) => el.closest('[data-ds-popover]') === root) ?? null;
+const trigger = own('[data-ds-popover-trigger]');
+const panel = own('[data-ds-popover-panel]');
+const control = trigger?.querySelector(CONTROL) ?? null;
+if (control && panel) {
+control.setAttribute('aria-controls', panel.id);
+if (!panel.hasAttribute('aria-label') && !panel.hasAttribute('aria-labelledby')) {
+if (!control.id) control.id = `${panel.id}-trigger`;
+panel.setAttribute('aria-labelledby', control.id);
+}
+}
+let ready = false;
+const frame = requestAnimationFrame(() => {
+ready = true;
+});
+let giveBack = true;
+function close(toControl) {
+giveBack = toControl;
+api.setOpen(false);
+}
+function onClick(event) {
+if (!trigger || !trigger.contains(event.target)) return;
+giveBack = true;
+api.setOpen(!api.isOpen());
+}
+function onKeyDown(event) {
+if (event.key !== 'Escape' || !api.dismissible || !api.isOpen()) return;
+event.stopPropagation();
+close(true);
+}
+function onFocusOut(event) {
+if (!api.dismissible || !api.isOpen()) return;
+const to = event.relatedTarget;
+if (!to || root.contains(to)) return;
+close(false);
+}
+function onPointerDown(event) {
+if (root.contains(event.target)) return;
+close(false);
+}
+function focusIn() {
+if (!panel) return;
+const visible = (el) => el.getClientRects().length > 0;
+const first = panel.querySelector('[autofocus]')
+?? [...panel.querySelectorAll(FOCUSABLE)].find(visible)
+?? panel;
+first.focus();
+}
+function changed(open) {
+control?.setAttribute('aria-expanded', open ? 'true' : 'false');
+if (open) {
+if (api.dismissible) document.addEventListener('pointerdown', onPointerDown, true);
+if (ready) api.later(focusIn);
+return;
+}
+document.removeEventListener('pointerdown', onPointerDown, true);
+if (giveBack && panel?.contains(document.activeElement)) control?.focus();
+giveBack = true;
+}
+root.addEventListener('click', onClick);
+root.addEventListener('keydown', onKeyDown);
+root.addEventListener('focusout', onFocusOut);
+return {
+changed,
+teardown() {
+cancelAnimationFrame(frame);
+document.removeEventListener('pointerdown', onPointerDown, true);
+root.removeEventListener('click', onClick);
+root.removeEventListener('keydown', onKeyDown);
+root.removeEventListener('focusout', onFocusOut);
+},
+};
+}
+return { popover };
+})();
 const __ds_behaviours_tag_input = (() => {
 function tagInput(Alpine) {
 Alpine.data('dsTagInput', (options = {}) => {
@@ -1307,10 +1410,11 @@ const { glide } = __ds_behaviours_glide;
 const { numberField } = __ds_behaviours_number_field;
 const { otp } = __ds_behaviours_otp;
 const { password } = __ds_behaviours_password;
+const { popover } = __ds_behaviours_popover;
 const { tagInput } = __ds_behaviours_tag_input;
 const { toggleGroup } = __ds_behaviours_toggle_group;
 const { toolbar } = __ds_behaviours_toolbar;
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover];
 const REGISTERED = Symbol.for('shipbytes.blade-ui');
 function bladeUi(Alpine) {
 if (!Alpine || Alpine[REGISTERED]) return;

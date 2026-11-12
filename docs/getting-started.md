@@ -194,7 +194,8 @@ use the component.
 | `dsToolbar` | Behind `ds::toolbar`. One Tab stop for the toolbar, with the arrow keys, Home and End moving between its buttons. |
 | `dsToggleGroup` | Behind `ds::toggle-group`. Presses and releases toggles, keeps the hidden inputs and the ARIA state in step, binds `wire:model` / `x-model` both ways, and gives a group outside a toolbar its own arrow keys. |
 | `x-ds-glide` | A directive, behind `ds::segmented-control`, `ds::toolbar` and `ds::toggle-group`: the highlight that slides to the chosen item, or with `.hover` follows the pointer and keyboard focus. |
-| `x-ds-anchor` | A directive, on an overlay's panel: `x-ds-anchor="{ open: …, reference: …, placement: 'bottom-start' }"`. Places the panel beside its reference with `position: fixed`, so an ancestor's `overflow: hidden` cannot clip it; flips to the other side when the preferred one lacks room, shifts to stay 8 px inside the viewport, and caps the height with a scroll when neither side fits. Follows scrolling and resizing while `open` is true. Writes the side it took as `data-side`. |
+| `dsPopover` | Behind `ds::popover`. Opens and closes it from its trigger, keeps the trigger's `aria-expanded` in step, moves focus in on open and back on Escape, and closes on Escape, a press outside, or focus leaving. Binds the host's `open` both ways through `dsOpen`. |
+| `x-ds-anchor` | A directive, behind `ds::popover`, and yours for an overlay of your own: `x-ds-anchor="{ open: …, reference: …, placement: 'bottom-start' }"`. Places the panel beside its reference with `position: fixed`, so an ancestor's `overflow: hidden` cannot clip it; flips to the other side when the preferred one lacks room, shifts to stay 8 px inside the viewport, and caps the height with a scroll when neither side fits. Follows scrolling and resizing while `open` is true. Writes the side it took as `data-side`. |
 
 ### When it is missing
 

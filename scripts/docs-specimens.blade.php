@@ -734,6 +734,34 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── popover
+     Open from the host's `shown`, which is true from the start, so it takes
+     no focus and both panes hold one open at once. --}}
+<div data-shot="popover" class="shot shot-tall">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex justify-center">
+                <x-ds::popover open="shown" labelledby="pop-title-{{ $loop->index }}" placement="bottom">
+                    <x-slot:trigger>
+                        <x-ds::button variant="secondary" size="sm">
+                            Filters <x-ds::icon name="chevron-down" variant="mini" size="4" />
+                        </x-ds::button>
+                    </x-slot:trigger>
+                    <h3 id="pop-title-{{ $loop->index }}" class="text-section font-semibold text-fg">Filter runs</h3>
+                    <div class="mt-3 flex flex-col gap-2">
+                        <x-ds::checkbox name="pf{{ $loop->index }}" label="Only failed runs" :checked="true" />
+                        <x-ds::checkbox name="pa{{ $loop->index }}" label="Include archived" />
+                    </div>
+                    <div class="mt-4 flex justify-end gap-2">
+                        <x-ds::button variant="ghost" size="sm">Reset</x-ds::button>
+                        <x-ds::button size="sm">Apply</x-ds::button>
+                    </div>
+                </x-ds::popover>
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── tooltip --}}
 <div data-shot="tooltip" class="shot">
     @foreach ($themes as $t)

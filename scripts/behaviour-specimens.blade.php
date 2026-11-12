@@ -393,6 +393,67 @@
         </div>
     </div>
 
+    {{-- ── popover (dsPopover, x-ds-anchor) ──
+         One that scopes its own state, one the host owns and closes from a
+         button inside it, a nested pair with a combobox in the outer one, one
+         that is not dismissible and holds nothing focusable, and one with no
+         name of its own at the right edge of a clipping box, for the edge
+         check at the end of the run. --}}
+    <div class="mt-6 flex items-center gap-4" x-data="{ shareOpen: false }">
+        <x-ds::popover label="Filters" id="pop-filters">
+            <x-slot:trigger>
+                <x-ds::button id="pop-trigger" variant="secondary" size="sm">Filters</x-ds::button>
+            </x-slot:trigger>
+            <x-ds::checkbox name="pop-failed" id="pop-first" label="Only failed runs" />
+            <x-ds::button id="pop-last" size="sm" class="mt-3">Apply</x-ds::button>
+        </x-ds::popover>
+        <button type="button" id="pop-after">After</button>
+
+        <x-ds::popover labelledby="pop-share-title" open="shareOpen" id="pop-share">
+            <x-slot:trigger>
+                <x-ds::button id="pop-share-trigger" size="sm">Share</x-ds::button>
+            </x-slot:trigger>
+            <h3 id="pop-share-title">Share this report</h3>
+            <x-ds::button id="pop-share-done" size="sm" @click="shareOpen = false">Done</x-ds::button>
+        </x-ds::popover>
+        <output id="pop-share-mirror" x-text="String(shareOpen)">false</output>
+        <button type="button" id="pop-share-host" @click="shareOpen = true">host opens</button>
+    </div>
+
+    <div class="mt-6">
+        <x-ds::popover label="Outer" id="pop-outer" width="lg">
+            <x-slot:trigger>
+                <x-ds::button id="pop-outer-trigger" size="sm">Outer</x-ds::button>
+            </x-slot:trigger>
+            <x-ds::popover label="Inner" id="pop-inner" placement="right-start">
+                <x-slot:trigger>
+                    <x-ds::button id="pop-inner-trigger" variant="secondary" size="sm">Inner</x-ds::button>
+                </x-slot:trigger>
+                <button type="button" id="pop-inner-button">Inside inner</button>
+            </x-ds::popover>
+            <x-ds::combobox name="pop-tags" id="pop-tags" label="Tags" class="mt-3"
+                :options="['a11y' => 'Accessibility', 'billing' => 'Billing']" :multiple="true" />
+        </x-ds::popover>
+    </div>
+
+    <div class="mt-6">
+        <x-ds::popover label="Pinned" id="pop-pinned" :dismissible="false" width="sm">
+            <x-slot:trigger>
+                <button type="button" id="pop-pinned-trigger">Pinned</button>
+            </x-slot:trigger>
+            Nothing focusable in here.
+        </x-ds::popover>
+    </div>
+
+    <div class="mt-6 flex h-10 justify-end overflow-hidden border border-border" id="pop-edge-box">
+        <x-ds::popover id="pop-edge" width="lg">
+            <x-slot:trigger>
+                <x-ds::button id="pop-edge-trigger" size="sm">Edge</x-ds::button>
+            </x-slot:trigger>
+            <p class="h-40">Named by its trigger, since it has no name of its own.</p>
+        </x-ds::popover>
+    </div>
+
     {{-- ── dsClipboard, from the shared script ──
          No component uses it yet, so this is the markup a component would
          emit, through the same helper. --}}

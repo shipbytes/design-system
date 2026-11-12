@@ -17,11 +17,12 @@ import { glide } from './behaviours/glide.js';
 import { numberField } from './behaviours/number-field.js';
 import { otp } from './behaviours/otp.js';
 import { password } from './behaviours/password.js';
+import { popover } from './behaviours/popover.js';
 import { tagInput } from './behaviours/tag-input.js';
 import { toggleGroup } from './behaviours/toggle-group.js';
 import { toolbar } from './behaviours/toolbar.js';
 
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover];
 
 // Symbol.for, not a module-level flag. Two copies of this script, say the
 // inlined one AND a Vite import, are two separate modules with two separate

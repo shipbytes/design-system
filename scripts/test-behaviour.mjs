@@ -1713,6 +1713,193 @@ await check('lands beside its reference inside a transformed ancestor (its conta
     return (gap === 4 && lean === 0) || `${gap}px right of and ${lean}px down from the reference`;
 });
 
+// ---------------------------------------------------------------- popover
+
+const shownById = (id) => page.evaluate((i) => {
+    const el = document.getElementById(i);
+    return Boolean(el) && getComputedStyle(el).display !== 'none';
+}, id);
+const inside = (id) => page.evaluate((i) => document.getElementById(i).contains(document.activeElement), id);
+
+group('popover (dsPopover, x-ds-anchor)');
+
+await page.evaluate(() => document.getElementById('pop-trigger').scrollIntoView({ block: 'center' }));
+
+await check('closed on load, and the trigger says so and names the panel it controls', async () => {
+    const r = await page.evaluate(() => {
+        const t = document.getElementById('pop-trigger');
+        return { expanded: t.getAttribute('aria-expanded'), controls: t.getAttribute('aria-controls') };
+    });
+    if (await shownById('pop-filters')) return 'visible before opening';
+    return (r.expanded === 'false' && r.controls === 'pop-filters') || JSON.stringify(r);
+});
+
+await check('a press opens it, flips aria-expanded, and moves focus to the first control inside', async () => {
+    await page.click('#pop-trigger');
+    await settle(250);
+    if (!(await shownById('pop-filters'))) return 'not shown';
+    const expanded = await page.getAttribute('#pop-trigger', 'aria-expanded');
+    if (expanded !== 'true') return `aria-expanded is ${expanded}`;
+    return (await active()) === 'pop-first' || `focus on ${await active()}`;
+});
+
+await check('a named, NON-modal dialog', async () => {
+    const r = await page.evaluate(() => {
+        const p = document.getElementById('pop-filters');
+        return { role: p.getAttribute('role'), label: p.getAttribute('aria-label'), modal: p.getAttribute('aria-modal') };
+    });
+    return (r.role === 'dialog' && r.label === 'Filters' && r.modal === null) || JSON.stringify(r);
+});
+
+await check('Tab is not trapped: past the last control it leaves, and the panel closes', async () => {
+    await page.keyboard.press('Tab');
+    if ((await active()) !== 'pop-last') return `the second Tab stop was ${await active()}`;
+    await page.keyboard.press('Tab');
+    await settle(250);
+    if ((await active()) !== 'pop-after') return `focus went to ${await active()}`;
+    return (await shownById('pop-filters')) === false || 'still open after focus left';
+});
+
+await check('Escape closes it and returns focus to the trigger', async () => {
+    await page.click('#pop-trigger');
+    await settle(250);
+    await page.keyboard.press('Escape');
+    await settle(250);
+    if (await shownById('pop-filters')) return 'still open';
+    return (await active()) === 'pop-trigger' || `focus on ${await active()}`;
+});
+
+await check('a press outside closes it, without pulling focus back to the trigger', async () => {
+    await page.click('#pop-trigger');
+    await settle(250);
+    await page.click('#pop-after');
+    await settle(250);
+    if (await shownById('pop-filters')) return 'still open';
+    return (await active()) === 'pop-after' || `focus on ${await active()}`;
+});
+
+await check('a press on the trigger closes it again', async () => {
+    await page.click('#pop-trigger');
+    await settle(250);
+    await page.click('#pop-trigger');
+    await settle(250);
+    if (await shownById('pop-filters')) return 'still open';
+    return (await page.getAttribute('#pop-trigger', 'aria-expanded')) === 'false' || 'aria-expanded stayed true';
+});
+
+await check('host-owned: the host opens it, and the panel is named by its heading', async () => {
+    await page.click('#pop-share-host');
+    await settle(250);
+    if (!(await shownById('pop-share'))) return 'the host set it and nothing opened';
+    const name = await page.evaluate(() => {
+        const id = document.getElementById('pop-share').getAttribute('aria-labelledby');
+        return document.getElementById(id)?.textContent.trim();
+    });
+    if (name !== 'Share this report') return `named ${JSON.stringify(name)}`;
+    return (await page.getAttribute('#pop-share-trigger', 'aria-expanded')) === 'true' || 'aria-expanded not in step';
+});
+
+await check('host-owned: closed by the host from inside, focus goes back to the trigger', async () => {
+    await page.click('#pop-share-done');
+    await settle(250);
+    if (await shownById('pop-share')) return 'still open';
+    if ((await page.textContent('#pop-share-mirror')) !== 'false') return 'the host still thinks it is open';
+    return (await active()) === 'pop-share-trigger' || `focus on ${await active()}`;
+});
+
+await check('host-owned: the trigger writes back to the host (two-way)', async () => {
+    await page.click('#pop-share-trigger');
+    await settle(250);
+    const mirror = await page.textContent('#pop-share-mirror');
+    await page.keyboard.press('Escape');
+    await settle(250);
+    const after = await page.textContent('#pop-share-mirror');
+    return (mirror === 'true' && after === 'false') || `host saw ${mirror}, then ${after}`;
+});
+
+await check('nested: a press inside the inner one leaves the outer one open', async () => {
+    await page.evaluate(() => document.getElementById('pop-outer-trigger').scrollIntoView({ block: 'center' }));
+    await page.click('#pop-outer-trigger');
+    await settle(250);
+    await page.click('#pop-inner-trigger');
+    await settle(250);
+    await page.click('#pop-inner-button');
+    await settle(150);
+    const outer = await shownById('pop-outer');
+    const inner = await shownById('pop-inner');
+    return (outer && inner) || `outer ${outer ? 'open' : 'closed'}, inner ${inner ? 'open' : 'closed'}`;
+});
+
+await check('nested: Escape closes the inner one only, and focus returns to ITS trigger', async () => {
+    await page.keyboard.press('Escape');
+    await settle(250);
+    if (await shownById('pop-inner')) return 'the inner one is still open';
+    if (!(await shownById('pop-outer'))) return 'Escape closed the outer one too';
+    return (await active()) === 'pop-inner-trigger' || `focus on ${await active()}`;
+});
+
+await check('a combobox inside: choosing an option leaves the popover open', async () => {
+    await page.click('#pop-tags');
+    await settle(200);
+    await page.locator('#pop-outer [role=option]:visible').first().click();
+    await settle(200);
+    if (!(await shownById('pop-outer'))) return 'the popover closed';
+    const chosen = await page.evaluate(() => [...document.querySelectorAll('#pop-outer input[type=hidden][name="pop-tags[]"]')].map((i) => i.value));
+    return chosen.includes('a11y') || `chosen ${JSON.stringify(chosen)}`;
+});
+
+await check('a combobox inside: its Escape closes its list, not the popover', async () => {
+    await page.click('#pop-tags');
+    await settle(200);
+    await page.keyboard.press('Escape');
+    await settle(250);
+    if (!(await shownById('pop-outer'))) return 'the popover closed too';
+    await page.keyboard.press('Escape');
+    await settle(250);
+    return (await shownById('pop-outer')) === false || 'a second Escape did not close the popover';
+});
+
+await check('nothing focusable inside: focus goes to the panel itself', async () => {
+    await page.evaluate(() => document.getElementById('pop-pinned-trigger').scrollIntoView({ block: 'center' }));
+    await page.click('#pop-pinned-trigger');
+    await settle(250);
+    return (await active()) === 'pop-pinned' || `focus on ${await active()}`;
+});
+
+await check('not dismissible: Escape and a press outside leave it open; the trigger closes it', async () => {
+    await page.keyboard.press('Escape');
+    await settle(150);
+    if (!(await shownById('pop-pinned'))) return 'Escape closed it';
+    await page.click('#pop-after');
+    await settle(150);
+    if (!(await shownById('pop-pinned'))) return 'a press outside closed it';
+    await page.click('#pop-pinned-trigger');
+    await settle(250);
+    return (await shownById('pop-pinned')) === false || 'the trigger did not close it';
+});
+
+await check('no name given: the panel is named by its trigger', async () => {
+    const name = await page.evaluate(() => {
+        const id = document.getElementById('pop-edge').getAttribute('aria-labelledby');
+        return id && document.getElementById(id)?.textContent.trim();
+    });
+    return name === 'Edge' || `named ${JSON.stringify(name)}`;
+});
+
+await check('with reduced motion it appears at once (no transition)', async () => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.click('#pop-pinned-trigger');
+    await settle(50);
+    const r = await page.evaluate(() => {
+        const s = getComputedStyle(document.getElementById('pop-pinned'));
+        return { duration: s.transitionDuration, opacity: s.opacity };
+    });
+    await page.click('#pop-pinned-trigger');
+    await settle(100);
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    return (r.duration === '0s' && r.opacity === '1') || JSON.stringify(r);
+});
+
 // ---------------------------------------------------------------- segmented control
 
 group('segmented control (radios and CSS; x-ds-glide when the script is there)');
@@ -2287,6 +2474,42 @@ for (const [name, triggerSelector, popoverSelector] of overlays) {
     }
 }
 
+/*
+  The same measurement, ENFORCED, for the overlays placed by x-ds-anchor. Each
+  is opened at the bottom right of the window, inside a box with overflow
+  hidden, and must come back wholly on screen (less the anchor's 8px margin),
+  flipped above its trigger, and painted rather than clipped.
+
+  Run from a bottom-of-the-window start, not the floor this page happens to
+  have: the trigger is scrolled to the bottom edge, which any element deep in
+  the page can reach.
+*/
+group('overlay edges, enforced (the overlays on x-ds-anchor)');
+
+const anchored = [
+    ['popover', 'pop-edge-trigger', 'pop-edge', async () => {
+        await page.click('#pop-edge-trigger');
+    }, async () => {
+        await page.keyboard.press('Escape');
+    }],
+];
+
+for (const [name, triggerId, panelId, open, close] of anchored) {
+    await check(`${name}: at the bottom right of the window, clipped box and all, it stays on screen`, async () => {
+        await page.evaluate((id) => document.getElementById(id).scrollIntoView({ block: 'end', inline: 'end' }), triggerId);
+        await settle(150);
+        await open();
+        await settle(700);
+        const b = await anchorBoxes(`#${panelId}`, `#${triggerId}`);
+        await close();
+        await settle(350);
+        if (!b.shown) return 'it did not open';
+        if (b.side !== 'top') return `data-side is ${b.side}: it did not flip`;
+        if (!b.onTop) return 'something else is painted where it is: clipped';
+        return insideViewport(b);
+    });
+}
+
 // ---------------------------------------------------------------- the other two host setups
 
 /*
@@ -2425,7 +2648,7 @@ group('host setup (b): Alpine bundled by the host, Alpine.plugin(bladeUi)');
     await check('the plugin works', () => copiesOn(tab));
     await check('plugin twice plus the include: each name registered exactly once', async () => {
         const names = await tab.evaluate(() => window.dsRegistered);
-        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup'];
+        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover'];
         return JSON.stringify(names) === JSON.stringify(expected) || `registered ${JSON.stringify(names)}`;
     });
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));

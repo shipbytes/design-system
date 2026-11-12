@@ -1170,6 +1170,45 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Popover --}}
+<section class="ds-spec" id="popover">
+    <header class="ds-spec-head">
+        <h2>Popover</h2>
+        <p>A small panel of anything, anchored to the button that opened it: filters, a share form, a few settings. A non-modal dialog &mdash; the dropdown stays a menu.</p>
+    </header>
+
+    <div class="ds-note">The gallery loads <em>no Alpine</em>, so these panels stay closed: they are <em>x-cloak</em>ed until Alpine shows them, and placed by the package's script. The open panel, flipped and on screen, is in the documentation screenshot and driven by the behaviour suite.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Triggers <span>&middot; your own button; the popover gives it aria-expanded and aria-controls</span></div>
+        <div class="{{ $row }}">
+            <x-ds::popover label="Filters">
+                <x-slot:trigger>
+                    <x-ds::button variant="secondary" size="sm">
+                        Filters
+                        <x-ds::icon name="chevron-down" variant="mini" size="4" />
+                    </x-ds::button>
+                </x-slot:trigger>
+                <x-ds::checkbox name="g-pop-failed" label="Only failed runs" />
+            </x-ds::popover>
+            <x-ds::popover labelledby="g-pop-share" placement="bottom-end" width="lg">
+                <x-slot:trigger>
+                    <x-ds::button size="sm">Share</x-ds::button>
+                </x-slot:trigger>
+                <h3 id="g-pop-share" class="text-section font-semibold text-fg">Share this report</h3>
+            </x-ds::popover>
+            <x-ds::popover label="Column settings" placement="right-start" width="sm">
+                <x-slot:trigger>
+                    <x-ds::button variant="ghost" size="sm" iconOnly aria-label="Column settings">
+                        <x-ds::icon name="cog" size="4" />
+                    </x-ds::button>
+                </x-slot:trigger>
+                <x-ds::checkbox name="g-pop-col" label="Show totals" />
+            </x-ds::popover>
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Avatar --}}
 <section class="ds-spec" id="avatar">
     <header class="ds-spec-head">
