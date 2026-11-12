@@ -283,6 +283,22 @@ final class Specimens
                 <x-ds::avatar />
                 BLADE,
 
+            'avatar-group/all' => <<<'BLADE'
+                @php
+                    $people = [
+                        ['name' => 'Ada Lovelace', 'src' => '/ada.jpg'],
+                        ['name' => 'Grace Hopper'],
+                        ['name' => 'Alan Turing'],
+                        ['name' => 'Acme Ltd', 'square' => true],
+                    ];
+                @endphp
+                <x-ds::avatar-group :avatars="$people" label="Project members" />
+                <x-ds::avatar-group :avatars="$people" :max="2" size="xs" />
+                <x-ds::avatar-group :avatars="$people" :max="3" size="md" :total="12" href="/team" />
+                <x-ds::avatar-group :avatars="array_slice($people, 0, 2)" size="lg" :total="40" />
+                <x-ds::avatar-group :avatars="[]" :total="5" />
+                BLADE,
+
             'progress/bar' => <<<'BLADE'
                 <x-ds::progress label="Uploading" :value="42" />
                 <x-ds::progress label="Uploading" :value="42" :showValue="true" size="sm" />

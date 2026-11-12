@@ -730,6 +730,42 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Avatar group --}}
+@php
+    $galleryTeam = [
+        ['name' => 'Ada Lovelace'],
+        ['name' => 'Grace Hopper'],
+        ['name' => 'Alan Turing'],
+        ['name' => 'Katherine Johnson'],
+        ['name' => 'Edsger Dijkstra'],
+        ['name' => 'Acme Holdings', 'square' => true],
+    ];
+@endphp
+<section class="ds-spec" id="avatar-group">
+    <header class="ds-spec-head">
+        <h2>Avatar group</h2>
+        <p>The existing avatar, stacked. Each one sits on an opaque surface backing ringed in the ground colour, so the overlap reads as a cut-out on the panel and on the sunken ground, in both themes.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Sizes <span>&middot; max, then +K; the size passes down to every avatar and the chip</span></div>
+        <div class="{{ $row }} gap-6 px-4">
+            <x-ds::avatar-group :avatars="$galleryTeam" :max="3" size="xs" />
+            <x-ds::avatar-group :avatars="$galleryTeam" :max="4" label="Project members" />
+            <x-ds::avatar-group :avatars="$galleryTeam" :max="3" size="md" :total="24" href="#avatar-group" />
+            <x-ds::avatar-group :avatars="$galleryTeam" size="lg" />
+        </div>
+        <div class="px-4 pb-4 ds-tick">A screen reader hears one sentence &mdash; &ldquo;Ada Lovelace, Grace Hopper, Alan Turing, and 3 more&rdquo; &mdash; not six images and a number.</div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">On the sunken ground</div>
+        <div class="rounded-control bg-surface-sunken p-4">
+            <x-ds::avatar-group :avatars="$galleryTeam" :max="4" />
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Progress --}}
 <section class="ds-spec" id="progress">
     <header class="ds-spec-head">

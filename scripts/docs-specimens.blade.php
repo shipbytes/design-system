@@ -108,6 +108,36 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── avatar group --}}
+{{-- On the panel AND on the sunken ground, because the ring is the surface
+     colour and has to look deliberate on both. --}}
+@php
+    $team = [
+        ['name' => 'Ada Lovelace'],
+        ['name' => 'Grace Hopper'],
+        ['name' => 'Alan Turing'],
+        ['name' => 'Katherine Johnson'],
+        ['name' => 'Edsger Dijkstra'],
+        ['name' => 'Barbara Liskov'],
+    ];
+@endphp
+<div data-shot="avatar-group" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="rounded-panel border border-border bg-surface p-4">
+                <div class="flex flex-wrap items-center gap-6">
+                    <x-ds::avatar-group :avatars="$team" :max="4" label="Project members" />
+                    <x-ds::avatar-group :avatars="$team" :max="3" size="md" :total="24" />
+                </div>
+            </div>
+            <div class="mt-4 flex flex-wrap items-center gap-6 px-4">
+                <x-ds::avatar-group :avatars="$team" :max="5" size="xs" />
+                <x-ds::avatar-group :avatars="array_slice($team, 0, 3)" size="lg" />
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── alert --}}
 <div data-shot="alert" class="shot">
     @foreach ($themes as $t)
