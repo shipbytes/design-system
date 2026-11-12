@@ -650,4 +650,91 @@
     <div class="mt-6 max-w-sm">
         <x-ds::progress id="busy-progress" label="Indexing" />
     </div>
+    {{-- ── announcement bar (dsDismiss) ──
+         One remembered under a key, one dismissed from its action slot, one
+         that cannot be dismissed, and the urgent outage. The remembered one's
+         pre-paint check has host pages of its own, which reload. --}}
+    <div class="mt-6" id="ab-box">
+        <x-ds::announcement-bar id="ab" tone="warning" dismissKey="behaviour-ab" href="#status"
+            @dismiss="window.abDismissed = (window.abDismissed ?? 0) + 1">Maintenance on Saturday.</x-ds::announcement-bar>
+        <x-ds::announcement-bar id="ab-action" dismissible>New: exports.
+            <x-slot:action><button type="button" id="ab-got" data-ds-dismiss>Got it</button></x-slot:action>
+        </x-ds::announcement-bar>
+        <x-ds::announcement-bar id="ab-plain" tone="accent">Not dismissible.</x-ds::announcement-bar>
+        <x-ds::announcement-bar id="ab-urgent" tone="danger" :urgent="true">Payments are failing.</x-ds::announcement-bar>
+        <button type="button" id="ab-after">After the bars</button>
+    </div>
+
+    {{-- ── confirm button (dsConfirm) ──
+         In a form of its own, so what it submits, and who submitted it, can
+         be read. The first sits end-aligned in a row, for the width check;
+         the second is driven by events and a host @click, with a short
+         timeout and the busy state; the third never times out. --}}
+    <form id="cb-form" class="mt-6" action="#cb-sent"
+        onsubmit="event.preventDefault(); window.cbSent = (window.cbSent ?? []); window.cbSent.push(event.submitter ? event.submitter.name + '=' + event.submitter.value : '?')">
+        <div class="flex w-[40rem] items-center justify-end gap-2 border border-border p-2" id="cb-row">
+            <button type="button" id="cb-before">Before</button>
+            <x-ds::confirm-button id="cb" name="intent" value="delete" question="Delete this report?"
+                @confirm="window.cbConfirmed = (window.cbConfirmed ?? 0) + 1"
+                @cancel="window.cbCancelled = (window.cbCancelled ?? 0) + 1" />
+        </div>
+        <div class="mt-3 flex items-center gap-2" x-data="{ outerEscapes: 0 }" @keydown.escape="outerEscapes++">
+            <x-ds::confirm-button id="cb-busy" type="button" :loading="true" :timeout="1" variant="ghost" size="sm" label="Remove"
+                @click="window.cbClicks = (window.cbClicks ?? 0) + 1"
+                @cancel="window.cbBusyCancelled = (window.cbBusyCancelled ?? 0) + 1" />
+            <output id="cb-outer-escapes" x-text="outerEscapes">0</output>
+            <x-ds::confirm-button id="cb-still" type="button" :timeout="0" variant="secondary" size="sm" label="Archive" />
+        </div>
+    </form>
+    <button type="button" id="cb-away" class="mt-3">Away from the confirm buttons</button>
+
+    {{-- ── hold button (dsHold) ──
+         One that submits its form with its own name and value, a short one
+         driven by events and a host @click, and a field that must be filled
+         before the third's form will go. --}}
+    <form id="hb-form" class="mt-6 flex items-center gap-3" action="#hb-sent"
+        onsubmit="event.preventDefault(); window.hbSent = (window.hbSent ?? []); window.hbSent.push(event.submitter ? event.submitter.name + '=' + event.submitter.value : '?')">
+        <x-ds::hold-button id="hb" label="Hold to delete" type="submit" name="intent" value="delete"
+            @confirm="window.hbConfirmed = (window.hbConfirmed ?? 0) + 1" />
+        <x-ds::hold-button id="hb-quick" label="Hold to archive" tone="neutral" :duration="600" size="sm"
+            @click="window.hbClicks = (window.hbClicks ?? 0) + 1"
+            @confirm="window.hbQuickConfirmed = (window.hbQuickConfirmed ?? 0) + 1" />
+        <button type="button" id="hb-away">Away</button>
+    </form>
+    <form id="hb-required-form" class="mt-3 flex items-center gap-3" onsubmit="event.preventDefault(); window.hbRequiredSent = true">
+        <input id="hb-required" name="reason" required>
+        <x-ds::hold-button id="hb-invalid" label="Hold to send" type="submit" :duration="400"
+            @confirm="window.hbInvalidConfirmed = true" />
+    </form>
+
+    {{-- ── confirm popover (dsConfirmDialog over dsPopover) ──
+         Plain, type-to-confirm in a form, relaxed type-to-confirm, busy, and
+         one at the right edge of a clipping box for the edge check. --}}
+    <form id="cp-form" class="mt-6 flex items-center gap-3" action="#cp-sent"
+        onsubmit="event.preventDefault(); window.cpSent = (window.cpSent ?? []); window.cpSent.push(event.submitter ? event.submitter.name + '=' + event.submitter.value : '?')">
+        <button type="submit" id="cp-form-save" name="save" value="1" class="sr-only">Save</button>
+        <x-ds::confirm-popover id="cp" title="Delete this report?" description="Its 12 runs go with it." name="intent" value="delete"
+            @confirm="window.cpConfirmed = (window.cpConfirmed ?? 0) + 1"
+            @cancel="window.cpCancelled = (window.cpCancelled ?? 0) + 1">
+            <x-slot:trigger><x-ds::button id="cp-trigger" variant="danger" size="sm">Delete</x-ds::button></x-slot:trigger>
+        </x-ds::confirm-popover>
+        <x-ds::confirm-popover id="cp-typed" title="Delete project?" description="This cannot be undone." confirmText="acme-prod"
+            confirmLabel="Delete project" name="intent" value="delete-project">
+            <x-slot:trigger><x-ds::button id="cp-typed-trigger" variant="secondary" tone="danger" size="sm">Delete project</x-ds::button></x-slot:trigger>
+        </x-ds::confirm-popover>
+        <x-ds::confirm-popover id="cp-loose" title="Leave the team?" confirmText="Leave" :strict="false" type="button" tone="neutral" confirmLabel="Leave"
+            @confirm="window.cpLooseConfirmed = (window.cpLooseConfirmed ?? 0) + 1">
+            <x-slot:trigger><x-ds::button id="cp-loose-trigger" size="sm">Leave</x-ds::button></x-slot:trigger>
+        </x-ds::confirm-popover>
+        <x-ds::confirm-popover id="cp-busy" title="Rotate the key?" type="button" :loading="true" confirmLabel="Rotate"
+            @click="window.cpBusyClicks = (window.cpBusyClicks ?? 0) + 1">
+            <x-slot:trigger><x-ds::button id="cp-busy-trigger" size="sm">Rotate</x-ds::button></x-slot:trigger>
+        </x-ds::confirm-popover>
+        <button type="button" id="cp-away">Away</button>
+    </form>
+    <div class="mt-6 flex h-10 justify-end overflow-hidden border border-border" id="cp-edge-box">
+        <x-ds::confirm-popover title="Delete?" description="At the edge of a clipping box." type="button">
+            <x-slot:trigger><x-ds::button id="cp-edge-trigger" size="sm">Edge confirm</x-ds::button></x-slot:trigger>
+        </x-ds::confirm-popover>
+    </div>
 </div>

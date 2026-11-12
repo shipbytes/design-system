@@ -830,6 +830,90 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── announcement-bar
+     Four tones over a stand-in for the app's header, so the image shows the
+     bar ABOVE the chrome, which is where it goes. The close controls are the
+     real ones, shown because the script is on this page. --}}
+<div data-shot="announcement-bar" class="shot shot-wide">
+    @foreach ($themes as $t)
+        <div class="pane bg-surface-sunken {{ $t }}" style="padding: 0">
+            <x-ds::announcement-bar dismissible href="#status">Scheduled maintenance on Saturday, 02:00 to 03:00 UTC.</x-ds::announcement-bar>
+            <div class="flex h-12 items-center gap-3 border-b border-border bg-surface px-4 text-body font-semibold text-fg">Acme <span class="font-normal text-fg-muted">Reports</span></div>
+            <div class="flex flex-col gap-3 p-6">
+                <x-ds::announcement-bar tone="accent" icon="sparkles">Exports are here: CSV and PDF from every report.
+                    <x-slot:action><x-ds::button size="sm" variant="secondary">Try it</x-ds::button></x-slot:action>
+                </x-ds::announcement-bar>
+                <x-ds::announcement-bar tone="warning" dismissible>Your trial ends in 3 days.</x-ds::announcement-bar>
+                <x-ds::announcement-bar tone="danger" href="#status" actionLabel="Status page">Card payments are failing. We are on it.</x-ds::announcement-bar>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── confirm-button
+     At rest, and asking: the second row is pressed by build-docs.mjs, and
+     never times out, so the photograph cannot catch it putting itself away.
+     End-aligned rows, the way a table's action cell holds them. --}}
+<div data-shot="confirm-button" class="shot">
+    @foreach ($themes as $t)
+        <div class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-3">
+                <div class="flex items-center justify-between gap-3 rounded-control border border-border bg-surface px-3 py-2">
+                    <span class="text-body text-fg">Q3 revenue</span>
+                    <x-ds::confirm-button type="button" size="sm" variant="ghost" />
+                </div>
+                <div class="flex items-center justify-between gap-3 rounded-control border border-border bg-surface px-3 py-2" data-shot-press>
+                    <span class="text-body text-fg">Q2 revenue</span>
+                    <x-ds::confirm-button type="button" size="sm" variant="ghost" question="Delete this report?" :timeout="0" />
+                </div>
+                <div class="flex items-center justify-end gap-2">
+                    <x-ds::confirm-button type="button" label="Remove member" confirmLabel="Remove" />
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── hold-button
+     At rest, part held (the fill set as the script would set it, since a
+     photograph cannot hold a button down), armed by a press that did not hold
+     (pressed by build-docs.mjs, the way a screen reader would), and neutral. --}}
+<div data-shot="hold-button" class="shot">
+    @foreach ($themes as $t)
+        <div class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col items-start gap-3">
+                <div class="flex flex-wrap items-center gap-3">
+                    <x-ds::hold-button label="Hold to delete" />
+                    <x-ds::hold-button label="Hold to delete" style="--ds-hold-rest: 38%" />
+                </div>
+                <div class="flex flex-wrap items-center gap-3">
+                    <x-ds::hold-button label="Hold to delete" data-shot-press />
+                    <x-ds::hold-button label="Hold to archive" tone="neutral" size="sm" style="--ds-hold-rest: 62%" />
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── confirm-popover
+     Open from the host's `shown`, as the popover's image is, with
+     type-to-confirm. Opened at load, so it takes no focus. --}}
+<div data-shot="confirm-popover" class="shot shot-tall">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex justify-center">
+                <x-ds::confirm-popover open="shown" placement="bottom" type="button"
+                    title="Delete acme-prod?" description="Its 12 reports and every run go with it."
+                    confirmLabel="Delete project" confirmText="acme-prod">
+                    <x-slot:trigger>
+                        <x-ds::button variant="secondary" tone="danger" size="sm">Delete project</x-ds::button>
+                    </x-slot:trigger>
+                </x-ds::confirm-popover>
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── popover
      Open from the host's `shown`, which is true from the start, so it takes
      no focus and both panes hold one open at once. --}}

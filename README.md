@@ -12,7 +12,7 @@
 A design system for Laravel and Blade, with design tokens any other stack can
 use from plain CSS or JavaScript.
 
-**69 Blade components**, a spec and a documentation page for each, design tokens
+**73 Blade components**, a spec and a documentation page for each, design tokens
 with light and dark values, and three test suites — including one that drives
 every interactive component in a real browser.
 
@@ -38,7 +38,7 @@ compiled CSS; the install is one `composer require` and three lines of CSS. Add
 `@shipbytes/design-tokens` only if your own JavaScript needs the token *values*
 — a chart palette reading `tokens.js` rather than repeating hex literals.
 
-**Laravel with Inertia + React?** Skip `blade-ui` — 69 Blade components you
+**Laravel with Inertia + React?** Skip `blade-ui` — 73 Blade components you
 cannot render are not useful — and take `@shipbytes/design-tokens`: the same
 `tokens.css` and `theme.css`, so your own React components draw from the same
 values. If you have both, Blade marketing pages and a React app behind login,
@@ -182,7 +182,7 @@ source, in both themes.
 
 ### What you get
 
-Sixty-nine components, plus a pagination view.
+Seventy-three components, plus a pagination view.
 
 **Layout & content** — `panel` `panel-row` `table` `table-cell` `table-row`
 `stat-tile` `empty-state` `skeleton` `progress` `usage-meter` `accordion`
@@ -190,14 +190,15 @@ Sixty-nine components, plus a pagination view.
 **Forms** — `input` `select` `combobox` `checkbox` `radio` `radio-group`
 `radio-cards` `radio-card` `chip-group` `chip` `rating` `switch` `date-picker`
 `file-upload` `otp-input` `tag-input` `number-field` `password-strength`
-`button` `copy-button` `button-group` `segmented-control` `segment`
+`button` `copy-button` `confirm-button` `hold-button` `button-group` `segmented-control` `segment`
 `toggle-group` `toggle` `toolbar` `toolbar-button` `toolbar-separator`
 `theme-switcher`
 **Navigation** — `nav-item` `sub-nav` `bottom-nav` `bottom-nav-item` `tabs` `tab`
 `tab-panel` `breadcrumb` `breadcrumb-item` `stepper` `step`
 **Overlays** — `modal` `drawer` `sheet` `sheet-item` `dropdown` `dropdown-item`
-`popover` `hover-card` `context-menu` `tooltip` `toast` `toast-region`
-**Marks** — `icon` `avatar` `avatar-group` `badge` `alert`
+`popover` `confirm-popover` `hover-card` `context-menu` `tooltip` `toast`
+`toast-region`
+**Marks** — `icon` `avatar` `avatar-group` `badge` `alert` `announcement-bar`
 
 Wire pagination up in a service provider:
 
@@ -215,12 +216,15 @@ changes call the component instead of reloading the page.
 `illuminate/view` and `blade-heroicons`, and nothing else. It works the same in a
 plain Blade view or inside a Livewire component.
 
-Twenty need [Alpine](https://alpinejs.dev) — `modal`, `drawer`, `sheet`,
+Twenty-five need [Alpine](https://alpinejs.dev) — `modal`, `drawer`, `sheet`,
 `dropdown`, `select`, `combobox`, `date-picker`, `accordion`, `file-upload`,
 `tooltip`, `sub-nav`, `otp-input`, `tag-input`, `number-field`,
-`password-strength`, `copy-button`, `toolbar`, `toggle-group`, `popover` and
-`hover-card`, the last nine with the package's own script as well — plus one optional prop each on `checkbox`, `nav-item`,
-`toast` and `input`, and the pagination views' Livewire variants, which get it
+`password-strength`, `copy-button`, `toolbar`, `toggle-group`, `popover`,
+`hover-card`, `context-menu`, `theme-switcher`, `confirm-button`,
+`hold-button` and `confirm-popover`, the last fourteen with the package's own
+script as well — plus one optional prop each on `checkbox`, `nav-item`,
+`toast`, `input` and `announcement-bar` (whose dismissal also needs the
+script), and the pagination views' Livewire variants, which get it
 from Livewire. `segmented-control` slides its highlight when Alpine and the
 script are there and works the same without them, and the dropdown, select,
 combobox, date picker and tooltip use the script to stay on screen, opening at

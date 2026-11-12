@@ -14,6 +14,10 @@
 import { anchorDirective } from './behaviours/anchor.js';
 import { clipboard } from './behaviours/clipboard.js';
 import { contextMenu } from './behaviours/context-menu.js';
+import { confirmDialog } from './behaviours/confirm-dialog.js';
+import { dismiss } from './behaviours/dismiss.js';
+import { hold } from './behaviours/hold.js';
+import { inlineConfirm } from './behaviours/confirm.js';
 import { glide } from './behaviours/glide.js';
 import { hoverCard } from './behaviours/hover-card.js';
 import { numberField } from './behaviours/number-field.js';
@@ -25,7 +29,7 @@ import { theme } from './behaviours/theme.js';
 import { toggleGroup } from './behaviours/toggle-group.js';
 import { toolbar } from './behaviours/toolbar.js';
 
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog];
 
 // Symbol.for, not a module-level flag. Two copies of this script, say the
 // inlined one AND a Vite import, are two separate modules with two separate
