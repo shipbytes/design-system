@@ -34,6 +34,8 @@
  * and nothing else.
  */
 
+import { drag } from '../shared/drag.js';
+
 const CONTROL = 'a[href], button, input, select, textarea, label, [contenteditable]';
 // How far the pointer travels before a press becomes a drag, so a click on
 // the handle is still a click.
@@ -71,7 +73,7 @@ function wire(root, options) {
     const handleOf = (row) => row.querySelector('[data-ds-sortable-handle]');
 
     let lifted = null;
-    let drag = null;
+    let dragged = null;
     let moving = false;
 
     function say(template, row) {
@@ -174,14 +176,14 @@ function wire(root, options) {
 
     // Escape during a drag, wherever focus is.
     function onDocumentKey(event) {
-        if (!drag?.started || event.key !== 'Escape') return;
+        if (!dragged?.started || event.key !== 'Escape') return;
         event.preventDefault();
         event.stopPropagation();
-        endDrag(true);
+        dragging.cancel();
     }
 
     function onKeyDown(event) {
-        if (drag) return;
+        if (dragged) return;
         const handle = event.target.closest?.('[data-ds-sortable-handle]');
         const row = handle?.closest('[data-ds-sortable-item]');
         if (!row || !list.contains(row) || !movable(row)) return;
@@ -233,36 +235,29 @@ function wire(root, options) {
 
     // ------------------------------------------------------------ pointer
 
-    function onPointerDown(event) {
-        if (event.button !== 0 || drag || lifted) return;
+    function press(event) {
+        if (dragged || lifted) return null;
         const row = event.target.closest('[data-ds-sortable-item]');
-        if (!row || !list.contains(row) || !movable(row)) return;
+        if (!row || !list.contains(row) || !movable(row)) return null;
         if (!event.target.closest('[data-ds-sortable-handle]')) {
             // Touch only by the handle, whose touch-action is none: anywhere
             // else a finger scrolls the page.
-            if (options.handle !== false || event.pointerType === 'touch' || event.target.closest(CONTROL)) return;
+            if (options.handle !== false || event.pointerType === 'touch' || event.target.closest(CONTROL)) return null;
         }
         // No text selection starting under a mouse on its way to a drag.
         if (event.pointerType !== 'touch') event.preventDefault();
-        drag = { row, id: event.pointerId, x: event.clientX, y: event.clientY, started: false };
-        // Refused for a pointer the browser no longer counts as down; the
-        // listeners on the row still carry the drag as far as it reaches.
-        try {
-            row.setPointerCapture(event.pointerId);
-        } catch {}
-        row.addEventListener('pointermove', onPointerMove);
-        row.addEventListener('pointerup', onPointerUp);
-        row.addEventListener('pointercancel', onPointerCancel);
+        return row;
     }
 
-    function startDrag() {
+    function startDrag(state) {
+        const row = state.target;
+        dragged = { row, started: true, y0: state.y0, y: state.y };
         const all = rows();
-        const { row } = drag;
         const from = all.indexOf(row);
         const tops = all.map((r) => r.offsetTop);
         const heights = all.map((r) => r.offsetHeight);
         const gap = all.length > 1 ? Math.max(0, tops[1] - tops[0] - heights[0]) : 0;
-        Object.assign(drag, {
+        Object.assign(dragged, {
             started: true, all, from, to: from, tops, heights, shift: heights[from] + gap,
             origin: root.getBoundingClientRect().top, scroller: scrollParent(root), frame: 0,
         });
@@ -274,9 +269,9 @@ function wire(root, options) {
     }
 
     function frame() {
-        if (!drag?.started) return;
-        const { row, all, from, tops, heights, shift } = drag;
-        const dy = drag.y - drag.y0 - (root.getBoundingClientRect().top - drag.origin);
+        if (!dragged?.started) return;
+        const { row, all, from, tops, heights, shift } = dragged;
+        const dy = dragged.y - dragged.y0 - (root.getBoundingClientRect().top - dragged.origin);
         row.style.transform = `translateY(${dy}px)`;
 
         // A row gives way once the dragged row's leading edge passes its
@@ -287,7 +282,7 @@ function wire(root, options) {
         let to = from;
         for (let j = from + 1; j < all.length; j++) if (bottom > tops[j] + heights[j] / 2) to = j;
         for (let j = from - 1; j >= 0; j--) if (top < tops[j] + heights[j] / 2) to = j;
-        drag.to = to;
+        dragged.to = to;
 
         all.forEach((r, j) => {
             if (r === row) return;
@@ -300,40 +295,23 @@ function wire(root, options) {
 
         // Near the scrolling box's edge, scroll it, and keep coming back
         // here while the pointer stays there.
-        const box = drag.scroller === document.scrollingElement
+        const box = dragged.scroller === document.scrollingElement
             ? { top: 0, bottom: innerHeight }
-            : drag.scroller.getBoundingClientRect();
-        const speed = drag.y < box.top + EDGE ? -(box.top + EDGE - drag.y) / 3
-            : drag.y > box.bottom - EDGE ? (drag.y - box.bottom + EDGE) / 3 : 0;
+            : dragged.scroller.getBoundingClientRect();
+        const speed = dragged.y < box.top + EDGE ? -(box.top + EDGE - dragged.y) / 3
+            : dragged.y > box.bottom - EDGE ? (dragged.y - box.bottom + EDGE) / 3 : 0;
         if (speed) {
-            drag.scroller.scrollBy(0, Math.max(-24, Math.min(24, speed)));
-            drag.frame = requestAnimationFrame(frame);
+            dragged.scroller.scrollBy(0, Math.max(-24, Math.min(24, speed)));
+            dragged.frame = requestAnimationFrame(frame);
         } else {
-            drag.frame = 0;
+            dragged.frame = 0;
         }
-    }
-
-    function onPointerMove(event) {
-        if (!drag || event.pointerId !== drag.id) return;
-        if (!drag.started) {
-            if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < SLOP) return;
-            drag.y0 = drag.y;
-            startDrag();
-        }
-        drag.y = event.clientY;
-        if (!drag.frame) drag.frame = requestAnimationFrame(frame);
     }
 
     function endDrag(cancelled) {
-        const current = drag;
-        drag = null;
+        const current = dragged;
+        dragged = null;
         const { row } = current;
-        row.removeEventListener('pointermove', onPointerMove);
-        row.removeEventListener('pointerup', onPointerUp);
-        row.removeEventListener('pointercancel', onPointerCancel);
-        if (row.hasPointerCapture?.(current.id)) row.releasePointerCapture(current.id);
-        if (!current.started) return;
-
         cancelAnimationFrame(current.frame);
         placeholder.hidden = true;
         row.removeAttribute('data-dragging');
@@ -344,30 +322,32 @@ function wire(root, options) {
         else commit(row, current.from);
     }
 
-    function onPointerUp(event) {
-        if (drag && event.pointerId === drag.id) endDrag(false);
-    }
-
-    function onPointerCancel(event) {
-        if (drag && event.pointerId === drag.id) endDrag(true);
-    }
+    const dragging = drag(list, {
+        slop: SLOP,
+        press,
+        start: startDrag,
+        move(state) {
+            dragged.y = state.y;
+            if (!dragged.frame) dragged.frame = requestAnimationFrame(frame);
+        },
+        end: () => endDrag(false),
+        cancel: () => endDrag(true),
+    });
 
     settle();
     list.addEventListener('keydown', onKeyDown);
     list.addEventListener('keyup', onKeyUp);
     list.addEventListener('focusout', onFocusOut);
     list.addEventListener('click', onClick);
-    list.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('keydown', onDocumentKey, true);
 
     return {
         teardown() {
-            if (drag) endDrag(true);
+            dragging.stop();
             list.removeEventListener('keydown', onKeyDown);
             list.removeEventListener('keyup', onKeyUp);
             list.removeEventListener('focusout', onFocusOut);
             list.removeEventListener('click', onClick);
-            list.removeEventListener('pointerdown', onPointerDown);
             document.removeEventListener('keydown', onDocumentKey, true);
         },
     };

@@ -37,6 +37,8 @@
  * and nothing else.
  */
 
+import { drag } from '../shared/drag.js';
+
 const STEP = 1;
 const BIG_STEP = 10;
 
@@ -69,7 +71,7 @@ function wire(root, options) {
 
     // What a pane had before it was folded away, to bring it back to.
     const folded = new WeakMap();
-    let drag = null;
+    let moving = null;
     let frame = 0;
 
     const px = (el) => el.getBoundingClientRect()[across];
@@ -201,66 +203,60 @@ function wire(root, options) {
         if (divider) fold(divider);
     }
 
-    function onPointerDown(event) {
-        const divider = target(event);
-        const p = divider && pair(divider);
-        if (!p || event.button !== 0) return;
-        event.preventDefault();
-        divider.focus({ preventScroll: true });
-        const at = across === 'width' ? event.clientX : event.clientY;
-        drag = { divider, p, at, start: { a: px(p.before), b: px(p.after) }, id: event.pointerId, now: at };
-        try {
-            divider.setPointerCapture(event.pointerId);
-        } catch {}
-        divider.setAttribute('data-dragging', '');
-        root.setAttribute('data-dragging', '');
-        if (shield) shield.hidden = false;
-    }
+    const at = (state) => (across === 'width' ? state.x : state.y);
 
-    function onPointerMove(event) {
-        if (!drag || event.pointerId !== drag.id) return;
-        drag.now = across === 'width' ? event.clientX : event.clientY;
-        if (frame) return;
-        frame = requestAnimationFrame(() => {
-            frame = 0;
-            if (!drag) return;
-            if (drag.p.controlled.hasAttribute('data-collapsed')) drag.p.controlled.removeAttribute('data-collapsed');
-            resizeTo(drag.p, drag.start.a + drag.now - drag.at, drag.start);
-            tell('resize');
-        });
-    }
+    const dragging = drag(root, {
+        press(event) {
+            const divider = target(event);
+            const p = divider && pair(divider);
+            if (!p) return null;
+            event.preventDefault();
+            divider.focus({ preventScroll: true });
+            moving = { divider, p, start: { a: px(p.before), b: px(p.after) } };
+            return divider;
+        },
+        start(state) {
+            moving.at = moving.now = at(state);
+            moving.divider.setAttribute('data-dragging', '');
+            root.setAttribute('data-dragging', '');
+            if (shield) shield.hidden = false;
+        },
+        move(state) {
+            moving.now = at(state);
+            if (frame) return;
+            frame = requestAnimationFrame(() => {
+                frame = 0;
+                if (!moving) return;
+                if (moving.p.controlled.hasAttribute('data-collapsed')) moving.p.controlled.removeAttribute('data-collapsed');
+                resizeTo(moving.p, moving.start.a + moving.now - moving.at, moving.start);
+                tell('resize');
+            });
+        },
+        end: release,
+        cancel: release,
+    });
 
-    function onPointerUp(event) {
-        if (!drag || event.pointerId !== drag.id) return;
-        const { divider } = drag;
+    function release() {
         cancelAnimationFrame(frame);
         frame = 0;
-        resizeTo(drag.p, drag.start.a + drag.now - drag.at, drag.start);
-        drag = null;
-        if (divider.hasPointerCapture?.(event.pointerId)) divider.releasePointerCapture(event.pointerId);
-        divider.removeAttribute('data-dragging');
+        resizeTo(moving.p, moving.start.a + moving.now - moving.at, moving.start);
+        moving.divider.removeAttribute('data-dragging');
         root.removeAttribute('data-dragging');
         if (shield) shield.hidden = true;
+        moving = null;
         tell('resized');
     }
 
     root.addEventListener('keydown', onKeyDown);
     root.addEventListener('dblclick', onDoubleClick);
-    root.addEventListener('pointerdown', onPointerDown);
-    root.addEventListener('pointermove', onPointerMove);
-    root.addEventListener('pointerup', onPointerUp);
-    root.addEventListener('pointercancel', onPointerUp);
 
     return {
         value,
         teardown() {
             cancelAnimationFrame(frame);
+            dragging.stop();
             root.removeEventListener('keydown', onKeyDown);
             root.removeEventListener('dblclick', onDoubleClick);
-            root.removeEventListener('pointerdown', onPointerDown);
-            root.removeEventListener('pointermove', onPointerMove);
-            root.removeEventListener('pointerup', onPointerUp);
-            root.removeEventListener('pointercancel', onPointerUp);
         },
     };
 }
