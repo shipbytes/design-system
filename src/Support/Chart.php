@@ -30,7 +30,7 @@ final class Chart
     /** U+2212, not a hyphen: it reads as "minus" and is as wide as a plus. */
     public const MINUS = "\u{2212}";
 
-    /** @var array{tones: array<string, string>, series: array<int, string>, track: string}|null */
+    /** @var array<string, mixed>|null */
     private static ?array $recipe = null;
 
     /**
@@ -39,7 +39,7 @@ final class Chart
      * written in src/ compiles in this repo's tests and is missing in every
      * app.
      *
-     * @return array{tones: array<string, string>, series: array<int, string>, track: string}
+     * @return array{tones: array<string, string>, series: array<int, string>, heat: array{tones: array<string, string>, series: array<int, string>, steps: list<string>}, track: string}
      */
     public static function recipe(): array
     {
@@ -70,6 +70,15 @@ final class Chart
         $slot = self::series($series);
 
         return $slot !== null ? self::recipe()['series'][$slot] : self::recipe()['tones'][self::tone($tone, $default)];
+    }
+
+    /** The class that sets a heatmap's hue, by the same rule as colour(). */
+    public static function heat(?string $tone, mixed $series = null, string $default = 'accent'): string
+    {
+        $slot = self::series($series);
+        $heat = self::recipe()['heat'];
+
+        return $slot !== null ? $heat['series'][$slot] : $heat['tones'][self::tone($tone, $default)];
     }
 
     /**
@@ -396,6 +405,75 @@ final class Chart
             'suffix' => (string) ($format['suffix'] ?? ''),
             'compact' => $compact,
         ];
+    }
+
+    /**
+     * The lowest count that reaches each level above zero, ascending.
+     *
+     * `$levels` as a number (2 to 5, counting the zero level) splits the
+     * non-zero counts at quantiles: the first threshold is the smallest
+     * non-zero count, so every day with something is at least level 1, and
+     * each next one a further equal share of the days up. Equal counts can
+     * merge two thresholds, and then fewer levels are used; nothing is
+     * invented to fill them. As a list, it is the thresholds, given.
+     *
+     * @return list<float>
+     */
+    public static function thresholds(iterable $counts, int|array $levels = 5): array
+    {
+        if (is_array($levels)) {
+            $given = array_values(array_unique(array_map('floatval', array_filter($levels, 'is_numeric'))));
+            sort($given);
+
+            return array_slice(array_values(array_filter($given, fn ($t) => $t > 0)), 0, 4);
+        }
+
+        $levels = max(2, min(5, $levels));
+        $present = array_values(array_filter(self::values($counts), fn ($v) => $v !== null && $v > 0));
+        sort($present);
+
+        if ($present === []) {
+            return [];
+        }
+
+        // Level k (1 up) starts (k - 1) / (levels - 1) of the way through the
+        // sorted counts, so with five levels each of 1 to 4 holds about a
+        // quarter of the days that had anything.
+        $thresholds = [];
+
+        for ($k = 1; $k < $levels; $k++) {
+            $thresholds[] = $present[min(count($present) - 1, (int) floor(($k - 1) / ($levels - 1) * count($present)))];
+        }
+
+        return array_values(array_unique($thresholds, SORT_REGULAR));
+    }
+
+    /** The level a count reaches: 0 for nothing, else the highest threshold it meets. */
+    public static function level(int|float|null $count, array $thresholds): int
+    {
+        $level = 0;
+
+        foreach (array_values($thresholds) as $i => $threshold) {
+            if ($count !== null && $count > 0 && $count >= $threshold) {
+                $level = $i + 1;
+            }
+        }
+
+        return $level;
+    }
+
+    /**
+     * Which of the five colour steps (0 to 4) each level draws with. Five
+     * levels take all five; fewer are spread across them so the lightest and
+     * the darkest are always the ends.
+     *
+     * @return list<int>
+     */
+    public static function steps(int $levels): array
+    {
+        $levels = max(2, min(5, $levels));
+
+        return array_map(fn ($k) => (int) round($k * 4 / ($levels - 1)), range(0, $levels - 1));
     }
 
     /**

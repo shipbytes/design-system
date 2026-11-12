@@ -10,6 +10,30 @@
 // than repeating literals, which is how the six admin chart palettes drifted.
 
 export const tokens = {
+  "chart": {
+    "heat": {
+      "0": {
+        "hue": 0,
+        "fg": 0.06
+      },
+      "1": {
+        "hue": 0.45,
+        "fg": 0
+      },
+      "2": {
+        "hue": 0.75,
+        "fg": 0
+      },
+      "3": {
+        "hue": 1,
+        "fg": 0
+      },
+      "4": {
+        "hue": 0.65,
+        "fg": 0.35
+      }
+    }
+  },
   "color": {
     "white": "#ffffff",
     "black": "#000000",

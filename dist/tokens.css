@@ -12,6 +12,16 @@
   explicitly — set `class="light"` to opt a subtree back out.
 */
 :root {
+  --ds-chart-heat-0-hue: 0;
+  --ds-chart-heat-0-fg: 0.06;
+  --ds-chart-heat-1-hue: 0.45;
+  --ds-chart-heat-1-fg: 0;
+  --ds-chart-heat-2-hue: 0.75;
+  --ds-chart-heat-2-fg: 0;
+  --ds-chart-heat-3-hue: 1;
+  --ds-chart-heat-3-fg: 0;
+  --ds-chart-heat-4-hue: 0.65;
+  --ds-chart-heat-4-fg: 0.35;
   --ds-color-white: #ffffff;
   --ds-color-black: #000000;
   --ds-color-zinc-50: oklch(98.5% 0 0);

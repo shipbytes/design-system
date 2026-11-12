@@ -206,6 +206,31 @@ for (const file of await bladeFiles(VIEWS)) {
 }
 const iconSizeList = [...iconSizes].sort((a, b) => Number(a) - Number(b));
 
+// --- the heatmap's five steps --------------------------------------
+//
+// One utility per step, heat-0 to heat-4, each a mix in OKLab of the hue the
+// heatmap sets as --ds-heat with fg and the surface, in the shares
+// tokens/chart.json gives. Built here rather than written by hand so the
+// shares test-tokens.mjs measures are the shares that ship. The mix reads
+// --color-fg and --color-surface where the CELL is, so a .dark ancestor
+// re-points it with no second set of rules.
+const heatSteps = Object.entries(byPath.has('chart.heat.0.hue') ? tree.chart.heat : {})
+    .filter(([step]) => /^\d+$/.test(step))
+    .map(([step, shares]) => ({ step, hue: Number(shares.hue.$value), fg: Number(shares.fg.$value) }));
+
+const pct = (n) => `${Math.round(n * 1000) / 10}%`;
+function heatColour({ hue, fg }) {
+    const HUE = 'var(--ds-heat, var(--color-accent))';
+    if (hue + fg > 1 + 1e-9) throw new Error(`chart.heat: hue ${hue} + fg ${fg} is more than the whole`);
+    if (fg === 0) return `color-mix(in oklab, ${HUE} ${pct(hue)}, var(--color-surface))`;
+    if (hue === 0) return `color-mix(in oklab, var(--color-fg) ${pct(fg)}, var(--color-surface))`;
+    const inner = `color-mix(in oklab, ${HUE} ${pct(hue / (hue + fg))}, var(--color-fg))`;
+    return Math.abs(hue + fg - 1) < 1e-9 ? inner : `color-mix(in oklab, ${inner} ${pct(hue + fg)}, var(--color-surface))`;
+}
+const heatUtilities = heatSteps
+    .map((s) => `@utility heat-${s.step} {\n  background-color: ${heatColour(s)};\n}`)
+    .join('\n\n');
+
 // --- theme.css (Tailwind v4) --------------------------------------
 
 const themeLines = [];
@@ -364,6 +389,14 @@ const themeCss = `${banner('Tailwind CSS v4 theme, mapping the tokens onto utili
   from { translate: -100% 0; }
   to { translate: 250% 0; }
 }
+
+/*
+  The activity heatmap's five steps, from ONE hue the heatmap sets as
+  --ds-heat (its tone or series slot): heat-0 is a day with nothing, heat-4
+  the busiest. GENERATED from tokens/chart.json, whose description says why
+  the recipe is what it is; test-tokens.mjs measures it for every hue.
+*/
+${heatUtilities}
 
 /*
   The rule Alpine depends on and does not ship.

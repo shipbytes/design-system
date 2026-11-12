@@ -207,4 +207,43 @@ final class ChartTest extends TestCase
         $this->assertSame(2, substr_count($html, '<th scope="row">'));
         $this->assertStringContainsString('<td>1,200</td>', $html);
     }
+
+    #[Test]
+    public function quantile_thresholds_give_each_level_a_share_of_the_busy_days(): void
+    {
+        $this->assertSame([1.0, 3.0, 5.0, 7.0], Chart::thresholds([0, 1, 2, 3, 4, 5, 6, 7, 8]));
+        $this->assertSame([1.0, 10.0], Chart::thresholds([1, 10, 100], 3));
+        // Equal counts merge thresholds rather than inventing levels.
+        $this->assertSame([5.0], Chart::thresholds([5, 5, 5, 5]));
+        $this->assertSame([], Chart::thresholds([0, 0, null]));
+    }
+
+    #[Test]
+    public function given_thresholds_are_sorted_kept_positive_and_capped_at_four(): void
+    {
+        $this->assertSame([1.0, 4.0, 8.0, 12.0], Chart::thresholds([], [8, 1, 4, 'x', 0, 12, 20]));
+    }
+
+    #[Test]
+    public function a_count_reaches_the_highest_threshold_it_meets_and_nothing_is_zero(): void
+    {
+        $t = [1.0, 3.0, 5.0, 7.0];
+
+        $this->assertSame(0, Chart::level(0, $t));
+        $this->assertSame(0, Chart::level(null, $t));
+        $this->assertSame(1, Chart::level(2, $t));
+        $this->assertSame(4, Chart::level(7, $t));
+        $this->assertSame(4, Chart::level(100, $t));
+        $this->assertSame(0, Chart::level(1, [2.0, 4.0]), 'under a given first threshold is level 0');
+    }
+
+    #[Test]
+    public function fewer_levels_spread_across_the_five_steps_keeping_both_ends(): void
+    {
+        $this->assertSame([0, 1, 2, 3, 4], Chart::steps(5));
+        $this->assertSame([0, 1, 3, 4], Chart::steps(4));
+        $this->assertSame([0, 2, 4], Chart::steps(3));
+        $this->assertSame([0, 4], Chart::steps(2));
+        $this->assertSame([0, 1, 2, 3, 4], Chart::steps(9));
+    }
 }

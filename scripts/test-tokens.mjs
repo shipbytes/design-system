@@ -286,6 +286,89 @@ function cssOver(fg, bg) {
     return `#${[r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('')}`;
 }
 
+// ------------------------------------------------------- the heatmap's steps
+
+/*
+  The activity heatmap draws five steps from ONE hue, mixed in OKLab with fg
+  and the surface in the shares tokens/chart.json gives (build-tokens.mjs
+  turns them into the heat-0..4 utilities). No five steps from one hue can be
+  3:1 apart, so the bar is that each step is visibly a step: at least 1.15:1
+  and ΔE 7 (OKLab x100) from its neighbour, and each further from the surface
+  than the one before, for every hue the heatmap accepts, in both themes.
+  The cell's count is always in words as well.
+*/
+head('heatmap steps (one hue, five steps, both themes)');
+
+{
+    const toLab = (css) => {
+        const [r, g, b] = toLinearRgb(css).map((c) => Math.max(0, c));
+        const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+        const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+        const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+        return [
+            0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+            1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+            0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+        ];
+    };
+    const labLuminance = ([L, a, b]) => {
+        const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+        const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+        const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
+        return luminance([
+            4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+            -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+            -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+        ].map((c) => Math.min(1, c)));
+    };
+    const ratio = (x, y) => {
+        const [hi, lo] = [labLuminance(x), labLuminance(y)].sort((p, q) => q - p);
+        return (hi + 0.05) / (lo + 0.05);
+    };
+    const deltaE = (x, y) => 100 * Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]);
+
+    const steps = Object.entries(tree.chart?.heat ?? {})
+        .filter(([k]) => /^\d+$/.test(k))
+        .map(([, s]) => ({ hue: Number(s.hue.$value), fg: Number(s.fg.$value) }));
+
+    expect(steps.length === 5 && steps.every((s) => s.hue >= 0 && s.fg >= 0 && s.hue + s.fg <= 1),
+        'tokens/chart.json defines five steps, each a share of the hue and of fg that fits in the whole',
+        `chart.heat has ${steps.length} steps, or a share outside 0..1: ${JSON.stringify(steps)}`);
+
+    // The heatmap's tones and series, as the view maps them (neutral is fg-muted).
+    const hues = { neutral: 'fg-muted', accent: 'accent', success: 'success', warning: 'warning', danger: 'danger' };
+    for (let n = 1; n <= 8; n++) hues[`series ${n}`] = `series-${n}`;
+
+    const problems = [];
+    let tightest = { ratio: Infinity }, closest = { de: Infinity };
+
+    for (const theme of ['light', 'dark']) {
+        const surface = toLab(val('surface', theme));
+        const fg = toLab(val('fg', theme));
+        for (const [name, token] of Object.entries(hues)) {
+            const hue = toLab(val(token, theme));
+            const ramp = steps.map((s) => [0, 1, 2].map((i) => hue[i] * s.hue + fg[i] * s.fg + surface[i] * (1 - s.hue - s.fg)));
+            for (let i = 0; i < ramp.length - 1; i++) {
+                const r = ratio(ramp[i], ramp[i + 1]);
+                const de = deltaE(ramp[i], ramp[i + 1]);
+                if (r < tightest.ratio) tightest = { ratio: r, at: `${name} ${i}→${i + 1}, ${theme}` };
+                if (de < closest.de) closest = { de, at: `${name} ${i}→${i + 1}, ${theme}` };
+                if (r < 1.15 || de < 7) problems.push(`${name} (${theme}) step ${i}→${i + 1}: ${r.toFixed(2)}:1, ΔE ${de.toFixed(1)}`);
+                if (ratio(ramp[i + 1], surface) <= ratio(ramp[i], surface)) problems.push(`${name} (${theme}) step ${i + 1} is no further from the surface than step ${i}`);
+            }
+        }
+    }
+
+    expect(!problems.length,
+        `every adjacent step is 1.15:1 and ΔE 7 apart, and further from the ground, for ${Object.keys(hues).length} hues in both themes (tightest ${tightest.ratio.toFixed(2)}:1 at ${tightest.at}; closest ΔE ${closest.de.toFixed(1)} at ${closest.at})`,
+        `${problems.length} too close:\n      ${problems.join('\n      ')}`);
+
+    const theme = await readFile(join(ROOT, 'dist/theme.css'), 'utf8');
+    const built = [0, 1, 2, 3, 4].filter((n) => new RegExp(`@utility heat-${n} \\{`).test(theme));
+    expect(built.length === 5, 'theme.css carries the heat-0 to heat-4 utilities built from them',
+        `theme.css has heat utilities for ${built.join(', ') || 'none'} — run npm run build`);
+}
+
 // ------------------------------------------------------- 3. theme collisions
 
 head('theme collisions (must not silently redefine a Tailwind default)');
