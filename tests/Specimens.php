@@ -181,6 +181,27 @@ final class Specimens
                 <x-ds::rating :readonly="true" :value="null" size="lg" />
                 BLADE,
 
+            'chip-group/all' => <<<'BLADE'
+                <x-ds::chip-group name="status" label="Status">
+                    <x-ds::chip value="open" :checked="true" :count="12">Open</x-ds::chip>
+                    <x-ds::chip value="closed" :count="4">Closed</x-ds::chip>
+                    <x-ds::chip value="spam" :disabled="true">Spam</x-ds::chip>
+                </x-ds::chip-group>
+                <x-ds::chip-group name="tags" label="Tags" :multiple="true" size="sm" :hideLabel="true" wire:model.live="tags">
+                    <x-ds::chip value="billing" icon="credit-card" :checked="true">Billing</x-ds::chip>
+                    <x-ds::chip value="bug" icon="bug-ant" :checked="true" :disabled="true">Bug</x-ds::chip>
+                    <x-ds::chip value="sales">Sales</x-ds::chip>
+                </x-ds::chip-group>
+                <x-ds::chip-group label="Show" size="lg">
+                    <x-ds::chip href="/tickets" :active="true" :count="16">All</x-ds::chip>
+                    <x-ds::chip href="/tickets?mine=1" icon="user">Mine</x-ds::chip>
+                    <x-ds::chip href="/tickets?archived=1" :disabled="true">Archived</x-ds::chip>
+                </x-ds::chip-group>
+                <x-ds::chip-group name="when" label="When" x-model="when">
+                    <x-ds::chip value="today">Today</x-ds::chip>
+                </x-ds::chip-group>
+                BLADE,
+
             'number-field/all' => <<<'BLADE'
                 <x-ds::number-field name="seats" label="Seats" :value="3" :min="1" :max="10" help="Up to ten on this plan." />
                 <x-ds::number-field name="seats" label="Seats" :value="1" :min="1" :max="10" />

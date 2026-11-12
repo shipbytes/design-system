@@ -318,6 +318,53 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Chip group --}}
+<section class="ds-spec" id="chip-group">
+    <header class="ds-spec-head">
+        <h2>Chip group</h2>
+        <p>Pressable filters. Each chip is a real radio or checkbox under a pill, so the group posts with the form and binds with <code>wire:model</code> on the group. Or each is a link, for filtering by URL. A chosen chip opens a check before its words, by a width transition, so the row slides rather than jumps.</p>
+    </header>
+
+    <div class="ds-note">No script. <code>ds::badge</code> is the static pill; this is the one you press. A group is all inputs or all links, never both, and says so when the view renders.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">One of (radios) <span>&middot; with counts</span></div>
+        <div class="px-4">
+            <x-ds::chip-group name="g-c1" label="Status" :hideLabel="true">
+                <x-ds::chip value="open" :checked="true" :count="12">Open</x-ds::chip>
+                <x-ds::chip value="pending" :count="5">Pending</x-ds::chip>
+                <x-ds::chip value="closed" :count="48">Closed</x-ds::chip>
+                <x-ds::chip value="spam" :disabled="true">Spam</x-ds::chip>
+            </x-ds::chip-group>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Any of (checkboxes) <span>&middot; <code>sm</code>, <code>md</code>, <code>lg</code>, with icons</span></div>
+        <div class="flex flex-col gap-4 px-4">
+            @foreach (['sm', 'md', 'lg'] as $s)
+                <x-ds::chip-group name="g-c2{{ $s }}" label="Labels, {{ $s }}" :multiple="true" :size="$s" :hideLabel="true">
+                    <x-ds::chip value="billing" icon="credit-card" :checked="true">Billing</x-ds::chip>
+                    <x-ds::chip value="bug" icon="bug-ant">Bug</x-ds::chip>
+                    <x-ds::chip value="sales" icon="banknotes" :checked="true">Sales</x-ds::chip>
+                    <x-ds::chip value="legal" icon="scale" :checked="true" :disabled="true">Legal</x-ds::chip>
+                </x-ds::chip-group>
+            @endforeach
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Links <span>&middot; <code>href</code> and <code>active</code>, a nav with <code>aria-current</code></span></div>
+        <div class="px-4">
+            <x-ds::chip-group label="Show">
+                <x-ds::chip href="#chip-group" :active="true" :count="16">All</x-ds::chip>
+                <x-ds::chip href="#chip-group">Assigned to me</x-ds::chip>
+                <x-ds::chip href="#chip-group" :disabled="true">Archived</x-ds::chip>
+            </x-ds::chip-group>
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Tag input --}}
 <section class="ds-spec" id="tag-input">
     <header class="ds-spec-head">

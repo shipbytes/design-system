@@ -1382,6 +1382,78 @@ await check('readonly is one image, named for the value, half a star drawn as ha
     return r.ratio === 0.5 || `the fourth star is ${r.ratio} filled`;
 });
 
+// ---------------------------------------------------------------- chip group
+
+group('chip group (inputs and CSS, no script)');
+
+const checkWidths = (scope) => page.evaluate((sel) =>
+    [...document.querySelectorAll(`${sel} label > span[aria-hidden]`)].map((c) => Math.round(c.getBoundingClientRect().width)), scope);
+const chip = (scope, value) => `${scope} input[value="${value}"] >> xpath=..`;
+
+await check('posts what it was rendered with: one value from radios, an array from checkboxes', async () => {
+    const p = await posted();
+    return (JSON.stringify(p.status) === '["open"]' && JSON.stringify(p['labels[]']) === '["billing"]') || JSON.stringify(p);
+});
+
+await check('the chosen chip shows its check, the others give it no width', async () =>
+    JSON.stringify(await checkWidths('#chips-single')) === '[20,0,0]' || `check widths ${JSON.stringify(await checkWidths('#chips-single'))}`);
+
+await check('a press chooses it natively; the check moves, by a width transition', async () => {
+    await page.click(chip('#chips-single', 'closed'));
+    const style = await page.evaluate(() => {
+        const c = getComputedStyle(document.querySelector('#chips-single input[value="closed"] ~ span'));
+        return `${c.transitionProperty} ${c.transitionDuration}`;
+    });
+    await settle(300);
+    const p = await posted();
+    if (JSON.stringify(p.status) !== '["closed"]') return `posted ${JSON.stringify(p.status)}`;
+    if (style !== 'width 0.15s') return `the check moves by ${style}`;
+    return JSON.stringify(await checkWidths('#chips-single')) === '[0,20,0]' || `check widths ${JSON.stringify(await checkWidths('#chips-single'))}`;
+});
+
+await check('with reduced motion the check appears at once', async () => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const duration = await page.evaluate(() =>
+        getComputedStyle(document.querySelector('#chips-single input[value="closed"] ~ span')).transitionDuration);
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    return duration === '0s' || `transition-duration ${duration}`;
+});
+
+await check('a disabled chip cannot be chosen', async () => {
+    await page.click(chip('#chips-single', 'spam'), { force: true });
+    return JSON.stringify((await posted()).status) === '["closed"]' || `posted ${JSON.stringify((await posted()).status)}`;
+});
+
+await check('single: the arrow keys move the choice, past the disabled chip', async () => {
+    await page.focus('#chips-single input[value="closed"]');
+    await page.keyboard.press('ArrowRight');
+    await settle(50);
+    return JSON.stringify((await posted()).status) === '["open"]' || `posted ${JSON.stringify((await posted()).status)}`;
+});
+
+await check('multiple: Space toggles the focused chip, and focus is drawn on the chip', async () => {
+    await page.focus('#chips-multi input[value="bug"]');
+    await page.keyboard.press('Space');
+    await settle(250);
+    const ring = await page.evaluate(() => getComputedStyle(document.activeElement.parentElement).outlineStyle);
+    const p = await posted();
+    if (JSON.stringify(p['labels[]']) !== '["billing","bug"]') return `posted ${JSON.stringify(p['labels[]'])}`;
+    if (ring === 'none') return 'no outline on the focused chip';
+    return JSON.stringify(await checkWidths('#chips-multi')) === '[18,18,0]' || `check widths ${JSON.stringify(await checkWidths('#chips-multi'))}`;
+});
+
+await check('x-model on the group: a press reaches the host, and the host sets the chips', async () => {
+    await page.click(chip('#chips-model', 'billing'));
+    await settle(50);
+    const mirrored = await page.textContent('#picked-mirror');
+    if (mirrored !== '["bug","billing"]') return `the host has ${mirrored}`;
+    await page.click('#picked-host-set');
+    await settle(250);
+    const p = await posted();
+    return (JSON.stringify(p['picked[]']) === '["sales"]' && JSON.stringify(await checkWidths('#chips-model')) === '[0,0,20]')
+        || `posted ${JSON.stringify(p['picked[]'])}, check widths ${JSON.stringify(await checkWidths('#chips-model'))}`;
+});
+
 // ---------------------------------------------------------------- number field
 
 group('number field (dsNumberField)');
@@ -1808,7 +1880,7 @@ group('host setup (c): Livewire\'s bundled Alpine, include loaded twice');
     await tab.close();
 }
 
-group('wire:model on otp-input and tag-input, in a real Livewire component');
+group('wire:model on otp-input, tag-input and chip-group, in a real Livewire component');
 {
     const { tab, errors } = await openHost('_ds/livewire', LARAVEL);
     const wire = (name) => tab.evaluate((n) => JSON.parse(JSON.stringify(window.Livewire.first()[n])), name);
@@ -1849,6 +1921,19 @@ group('wire:model on otp-input and tag-input, in a real Livewire component');
         await tab.evaluate(() => { window.Livewire.first().tags = ['zed@example.com']; });
         await tab.waitForTimeout(100);
         return JSON.stringify(await lwTags()) === '["zed@example.com"]' || `the chips post ${JSON.stringify(await lwTags())}`;
+    });
+
+    await check('chips: a chip the reader presses reaches $wire.filters', async () => {
+        await tab.click('#lw-chips input[value="billing"] >> xpath=..');
+        await tab.waitForTimeout(100);
+        return JSON.stringify(await wire('filters')) === '["bug","billing"]' || `$wire.filters is ${JSON.stringify(await wire('filters'))}`;
+    });
+
+    await check('chips: a list Livewire sets on $wire.filters checks those chips', async () => {
+        await tab.evaluate(() => { window.Livewire.first().filters = ['billing']; });
+        await tab.waitForTimeout(100);
+        const on = await tab.evaluate(() => [...document.querySelectorAll('#lw-chips input:checked')].map((i) => i.value));
+        return JSON.stringify(on) === '["billing"]' || `checked: ${JSON.stringify(on)}`;
     });
 
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));

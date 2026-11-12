@@ -233,6 +233,32 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── chip-group --}}
+<div data-shot="chip-group" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-5">
+                <x-ds::chip-group name="status{{ $loop->index }}" label="Status">
+                    <x-ds::chip value="open" :checked="true" :count="12">Open</x-ds::chip>
+                    <x-ds::chip value="pending" :count="5">Pending</x-ds::chip>
+                    <x-ds::chip value="closed" :count="48">Closed</x-ds::chip>
+                </x-ds::chip-group>
+                <x-ds::chip-group name="labels{{ $loop->index }}" label="Labels" :multiple="true">
+                    <x-ds::chip value="billing" icon="credit-card" :checked="true">Billing</x-ds::chip>
+                    <x-ds::chip value="bug" icon="bug-ant" :checked="true">Bug</x-ds::chip>
+                    <x-ds::chip value="sales" icon="banknotes">Sales</x-ds::chip>
+                    <x-ds::chip value="legal" icon="scale" :disabled="true">Legal</x-ds::chip>
+                </x-ds::chip-group>
+                <x-ds::chip-group label="Show" size="sm">
+                    <x-ds::chip href="#all" :active="true">All tickets</x-ds::chip>
+                    <x-ds::chip href="#mine">Assigned to me</x-ds::chip>
+                    <x-ds::chip href="#unassigned">Unassigned</x-ds::chip>
+                </x-ds::chip-group>
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── number-field --}}
 <div data-shot="number-field" class="shot">
     @foreach ($themes as $t)

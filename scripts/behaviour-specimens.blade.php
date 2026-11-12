@@ -211,6 +211,31 @@
             <x-ds::rating id="avg" :readonly="true" :value="3.5" label="Average" />
         </div>
 
+        {{-- ── chip groups: inputs and CSS, no script ── --}}
+        <div class="mt-6" id="chips-single">
+            <x-ds::chip-group name="status" label="Status">
+                <x-ds::chip value="open" :checked="true" :count="12">Open</x-ds::chip>
+                <x-ds::chip value="closed" :count="4">Closed</x-ds::chip>
+                <x-ds::chip value="spam" :disabled="true">Spam</x-ds::chip>
+            </x-ds::chip-group>
+        </div>
+        <div class="mt-6" id="chips-multi">
+            <x-ds::chip-group name="labels" label="Labels" :multiple="true" size="sm">
+                <x-ds::chip value="billing" :checked="true">Billing</x-ds::chip>
+                <x-ds::chip value="bug" icon="bug-ant">Bug</x-ds::chip>
+                <x-ds::chip value="sales">Sales</x-ds::chip>
+            </x-ds::chip-group>
+        </div>
+        <div class="mt-6" id="chips-model" x-data="{ picked: ['bug'] }">
+            <x-ds::chip-group name="picked" label="Picked" :multiple="true" x-model="picked">
+                <x-ds::chip value="billing">Billing</x-ds::chip>
+                <x-ds::chip value="bug">Bug</x-ds::chip>
+                <x-ds::chip value="sales">Sales</x-ds::chip>
+            </x-ds::chip-group>
+            <output id="picked-mirror" x-text="JSON.stringify(picked)"></output>
+            <button type="button" id="picked-host-set" @click="picked = ['sales']">host sets sales</button>
+        </div>
+
         {{-- ── number field, from the shared script ── --}}
         <div class="mt-6 max-w-xs">
             <x-ds::number-field name="seats" id="seats" label="Seats" :value="2" :min="1" :max="5" />
