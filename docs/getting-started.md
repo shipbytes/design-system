@@ -89,7 +89,7 @@ In your layout's `head`, **above** Alpine's script tag:
 
 The package ships one small script of its own: the behaviours that several
 components share, registered with Alpine under a `ds` prefix. `ds::scripts`
-writes it into the page inline, about 3 kB, so there is nothing to publish, no
+writes it into the page inline, about 19 kB (6 kB compressed), so there is nothing to publish, no
 route, no build step, and no copy in `public/` to go stale after a
 `composer update`. A component that needs it says so at the top of its page;
 put the include in the layout once and it is there for all of them.
@@ -150,11 +150,19 @@ include takes that one and you pass nothing.
 
 ### What it registers
 
-You can use these in your own markup as well as through the components.
+`dsClipboard` is yours to use in your own markup as well as through the
+components. The other five work against the markup their component renders,
+found by its `data-ds-*` attributes, and are not meant to be written by hand:
+use the component.
 
 | Name | What it does |
 |---|---|
 | `dsClipboard` | `x-data="dsClipboard({ text: '…' })"`. `copy()` copies `text`, or `copy(value)` copies `value`, and resolves to `true` or `false`. `copied` is `true` for 1.5 s after a copy. No UI of its own. Falls back to the older copy command where the async clipboard API is missing, as on a plain-`http` page. |
+| `dsOtp` | Behind `ds::otp-input`. Moves characters and focus between the boxes, spreads a paste, keeps the posted field joined, and dispatches `complete`. |
+| `dsTagInput` | Behind `ds::tag-input`. Turns typed and pasted text into chips, refuses with a reason, and announces adds and removes. |
+| `dsNumberField` | Behind `ds::number-field`. The step buttons: one press, press-and-hold, the disabled state at a bound. |
+| `dsPassword` | Behind `ds::input`'s `reveal`. Toggles the field it `aria-controls` between hidden and shown, and hides it again on submit. |
+| `dsPasswordStrength` | Behind `ds::password-strength`. Scores the input named by `for` and sets `data-level` and the words. |
 
 ### When it is missing
 
@@ -198,13 +206,14 @@ How you decide to put it there is yours: a user setting, a cookie, or
 `illuminate/view` and `blade-heroicons`, and nothing else. Every component works
 in a plain Blade view.
 
-Ten need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
+Fourteen need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
 framework: **modal, drawer, sheet, dropdown, select, combobox, date-picker,
-accordion, file-upload, tooltip**.
+accordion, file-upload, tooltip, otp-input, tag-input, number-field,
+password-strength**.
 
-Three more use it for **one optional prop** each, and work without it otherwise:
-`checkbox`'s `indeterminate`, `nav-item`'s `collapsedWhen`, and `toast`'s
-`dismiss`. Skip those props and you need no JavaScript at all.
+Four more use it for **one optional prop** each, and work without it otherwise:
+`checkbox`'s `indeterminate`, `nav-item`'s `collapsedWhen`, `toast`'s
+`dismiss`, and `input`'s `reveal`. Skip those props and you need no JavaScript at all.
 
 The pagination views' Livewire variants also use Alpine, for the scroll back to
 the top on a page change, and get it from Livewire.
@@ -213,9 +222,9 @@ the top on a page change, and get it from Livewire.
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
 ```
 
-None of the ten needs the package's own script today. Components that do, need
-Alpine **and** [`<x-ds::scripts />`](#3-add-the-script) above it, and say so on
-their page.
+Four of them, **otp-input, tag-input, number-field and password-strength**, and
+`input`'s `reveal`, need Alpine **and** [`<x-ds::scripts />`](#3-add-the-script)
+above it, and say so on their page.
 
 **You do not need to add an `[x-cloak]` rule.** Nine components hide themselves
 with `x-cloak` until Alpine boots, and Alpine does not ship the CSS rule that

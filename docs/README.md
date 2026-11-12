@@ -1,6 +1,6 @@
 # Shipbytes Blade UI — documentation
 
-Forty-six Blade components for Laravel, plus two pagination views. Presentation
+Fifty Blade components for Laravel, plus two pagination views. Presentation
 only: no state, no framework assumptions beyond Blade itself.
 
 **New here?** Start with [Getting started](getting-started.md) — install, three
@@ -17,6 +17,10 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 |---|---|
 | [Button](components/button.md) | Does something, or goes somewhere |
 | [Input](components/input.md) | Text field, textarea, native select |
+| [OTP input](components/otp-input.md) | A one-time code, one box per character — needs Alpine and the script |
+| [Tag input](components/tag-input.md) | Typed values kept as chips — needs Alpine and the script |
+| [Number field](components/number-field.md) | A bounded number with step buttons — needs Alpine and the script |
+| [Password strength](components/password-strength.md) | A strength hint for a new password, and `reveal` — needs Alpine and the script |
 | [Select](components/select.md) | Styled listbox — needs Alpine |
 | [Combobox](components/combobox.md) | Filtering select, single or multiple — needs Alpine |
 | [Switch](components/switch.md) | A setting that takes effect |
@@ -86,11 +90,13 @@ plain Blade view. The one opt-in exception is the pagination views' Livewire
 variants, which emit `wire:click` for a component that uses `WithPagination`.
 
 [Alpine](https://alpinejs.dev) — a single 15 kB script, not a framework — is
-needed by ten components, and by three optional props:
+needed by fourteen components, and by four optional props:
 
 | | Needs Alpine |
 |---|---|
 | `modal` `drawer` `sheet` `dropdown` `select` `combobox` `date-picker` `accordion` `file-upload` `tooltip` | **Always.** Their whole behaviour is state the browser has no markup for. |
+| `otp-input` `tag-input` `number-field` `password-strength` | **Always, and the package's script too.** Each renders its value from PHP and posts without JavaScript, but its behaviour is the script's. |
+| `input` | Only for `reveal`, which also needs the package's script. |
 | `checkbox` | Only for `indeterminate`. Without it the box renders unchecked — which is what a screen reader announces, so the feature is absent rather than lying. |
 | `nav-item` | Only for `collapsedWhen`. Omit it for a permanently expanded rail. |
 | `toast` | Only for `dismiss`, which takes an expression that removes the toast. |
@@ -99,8 +105,8 @@ needed by ten components, and by three optional props:
 
 The package also ships a small script of its own, the behaviours several
 components share, which goes in the layout as `<x-ds::scripts />` above Alpine.
-None of the components above needs it yet; one that does says so at the top of
-its page. See [Add the script](getting-started.md#3-add-the-script).
+The four above that need it, and `input`'s `reveal`, say so at the top of
+their pages. See [Add the script](getting-started.md#3-add-the-script).
 
 `stat-tile` pushes its own count-up script to a `scripts` stack — plain
 JavaScript, no framework. Without `@stack('scripts')` in your layout the tile
