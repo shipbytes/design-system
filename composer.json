@@ -1,6 +1,6 @@
 {
     "name": "shipbytes/blade-ui",
-    "description": "Blade UI components for Laravel — 83 accessible components with design tokens, dark mode and Tailwind v4 CSS included. Presentation only: no Livewire, no state.",
+    "description": "Blade UI components for Laravel — 90 accessible components with design tokens, dark mode and Tailwind v4 CSS included. Presentation only: no Livewire, no state.",
     "keywords": [
         "laravel",
         "blade",

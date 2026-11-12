@@ -27,8 +27,8 @@ independent implementations the same component rather than three lookalikes.
 | [color.md](color.md) | Token selection and the accessibility rules |
 | [chart-series.md](chart-series.md) | The eight series colours, why they mean nothing, and the order that is the safety property |
 | [button.md](button.md) | Button, icon button, the FAB |
-| [input.md](input.md) | Input, select, textarea, the two-layer construction, and `reveal` |
-| [panel.md](panel.md) | Bordered card, header, action, divided rows |
+| [input.md](input.md) | Input, select, textarea, the two-layer construction, `reveal` and `clearable` |
+| [panel.md](panel.md) | Bordered card, header, action, divided rows, `collapsible` |
 | [stat-tile.md](stat-tile.md) | Metric tile, delta, caption |
 | [table.md](table.md) | Table, row, cell, alignment and density |
 | [nav-item.md](nav-item.md) | Sidebar item, active state, collapsed state, chip |
@@ -89,6 +89,11 @@ independent implementations the same component rather than three lookalikes.
 | [context-menu.md](context-menu.md) | The dropdown's menu at the pointer, Shift+F10, the long press |
 | [sub-nav.md](sub-nav.md) | A rail section holding its pages, the indent, the collapsed rail |
 | [theme-switcher.md](theme-switcher.md) | Light, dark or system, the pre-paint script, the view transition |
+| [tree.md](tree.md) | Navigation, single and checkbox trees, structure counted in PHP, the keyboard model |
+| [filter-bar.md](filter-bar.md) | Search, controls and chips as layout, the collapsible fold rendered once, filter-chip |
+| [code-block.md](code-block.md) | Chrome without a highlighter, the token colours, the indentation trap, lines that copy |
+| [kbd.md](kbd.md) | A key sized by its text, and combinations |
+| [expandable-text.md](expandable-text.md) | A measured clamp that fails open, the fade, the button that moves no focus |
 
 Sub-components are covered by their parent: `accordion-item` in accordion.md,
 `table-cell` and `table-row` in
@@ -97,7 +102,8 @@ dropdown.md, `bottom-nav-item` in bottom-nav.md, `breadcrumb-item` in
 breadcrumb.md, `tab` and `tab-panel` in tabs.md, `step` in stepper.md, `radio-group` in radio.md,
 `chip` in chip-group.md, `radio-card` in radio-cards.md, `segment` in
 segmented-control.md, `toolbar-button` and `toolbar-separator` in toolbar.md,
-`toggle` in toggle-group.md, and `toast-region` in toast.md.
+`toggle` in toggle-group.md, `tree-item` in tree.md, `filter-chip` in
+filter-bar.md, and `toast-region` in toast.md.
 
 **Every built component now has a spec.** Specs are written **alongside** their
 implementation, not before it and not after — a speculative spec for a component

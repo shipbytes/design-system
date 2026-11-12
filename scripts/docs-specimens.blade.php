@@ -1361,6 +1361,122 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── tree --}}
+<div data-shot="tree" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="grid grid-cols-2 gap-4">
+                <x-ds::tree label="Files">
+                    <x-ds::tree-item label="app" icon="folder" :open="true">
+                        <x-ds::tree-item label="Http" icon="folder" :open="true">
+                            <x-ds::tree-item label="Kernel.php" icon="document" />
+                        </x-ds::tree-item>
+                        <x-ds::tree-item label="Models" icon="folder" :count="8" />
+                        <x-ds::tree-item label="helpers.php" icon="document" />
+                    </x-ds::tree-item>
+                    <x-ds::tree-item label="config" icon="folder">
+                        <x-ds::tree-item label="app.php" icon="document" />
+                    </x-ds::tree-item>
+                    <x-ds::tree-item label="routes" icon="folder">
+                        <x-ds::tree-item label="web.php" icon="document" :selected="false" />
+                    </x-ds::tree-item>
+                </x-ds::tree>
+                <x-ds::tree label="Permissions" selectable="multiple" name="perms">
+                    <x-ds::tree-item label="Billing" :open="true">
+                        <x-ds::tree-item label="View invoices" :selected="true" />
+                        <x-ds::tree-item label="Refund" />
+                        <x-ds::tree-item label="Void" :disabled="true" />
+                    </x-ds::tree-item>
+                    <x-ds::tree-item label="Reports" :selected="true" :open="true">
+                        <x-ds::tree-item label="Export" />
+                        <x-ds::tree-item label="Schedule" />
+                    </x-ds::tree-item>
+                    <x-ds::tree-item label="Team">
+                        <x-ds::tree-item label="Invite" />
+                    </x-ds::tree-item>
+                </x-ds::tree>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── filter-bar --}}
+<div data-shot="filter-bar" class="shot shot-wide">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <x-ds::filter-bar :active="2" :reset="true">
+                <x-slot:search>
+                    <x-ds::input type="search" name="q" aria-label="Search invoices" icon="magnifying-glass" :clearable="true" value="acme" />
+                </x-slot:search>
+                <x-ds::input as="select" name="status" aria-label="Status"><option>Any status</option><option selected>Open</option><option>Paid</option></x-ds::input>
+                <x-slot:applied>
+                    <x-ds::filter-chip label="Status" value="Open" />
+                    <x-ds::filter-chip label="Owner" value="Ada Lovelace" />
+                </x-slot:applied>
+                <x-slot:actions>
+                    <x-ds::button variant="secondary" size="sm">Export</x-ds::button>
+                </x-slot:actions>
+            </x-ds::filter-bar>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── code-block --}}
+<div data-shot="code-block" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-3">
+                <x-ds::code-block language="PHP" filename="app/Models/Invoice.php" :lineNumbers="true" highlight="5"
+                    :code="implode(PHP_EOL, ['final class Invoice extends Model', '{', '    public function total(): int', '    {', '        return $this->lines->sum(\'amount\');', '    }', '}'])" />
+                <x-ds::code-block language="Bash" :code="'composer require shipbytes/blade-ui'" />
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── kbd --}}
+<div data-shot="kbd" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-3 text-body text-fg-body">
+                <p>Press <x-ds::kbd>/</x-ds::kbd> to search, <x-ds::kbd>Esc</x-ds::kbd> to close.</p>
+                <p>Open the palette with <x-ds::kbd :keys="['Ctrl', 'K']" />, or <x-ds::kbd :keys="['⌘', 'K']" separator="" /> on a Mac.</p>
+                <h3 class="text-section text-fg">Save with <x-ds::kbd :keys="['Ctrl', 'S']" /></h3>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── expandable-text --}}
+<div data-shot="expandable-text" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <x-ds::panel title="Ticket #1042" body="plain">
+                <x-ds::expandable-text>
+                    The invoice for September was charged twice. Both charges show on the card statement, on the first and the second of the month, for the same amount. The receipt in the app shows only one of them. Could you refund the second charge and tell me whether the October invoice will be affected as well? I would also like to know why it happened, so that it does not happen again next month.
+                </x-ds::expandable-text>
+            </x-ds::panel>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── panel-collapsible --}}
+<div data-shot="panel-collapsible" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-4">
+                <x-ds::panel title="Billing" name="billing-{{ $t }}" :collapsible="true" action="Manage" actionHref="#">
+                    <x-ds::panel-row>Card ending 4242</x-ds::panel-row>
+                    <x-ds::panel-row>Next invoice on 1 October</x-ds::panel-row>
+                </x-ds::panel>
+                <x-ds::panel title="Advanced" name="advanced-{{ $t }}" :collapsible="true" :open="false" body="plain">
+                    Webhooks and API access.
+                </x-ds::panel>
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── accordion --}}
 <div data-shot="accordion" class="shot">
     @foreach ($themes as $t)

@@ -770,4 +770,139 @@
     </div>
     <!-- /charts -->
 
+    {{-- ── batch 10: tree (dsTree), filter bar, clearable input, code block,
+         expandable text (dsClamp) and the collapsible panel. The block marked
+         #lists is also cut out for a host page with no Alpine at all, by its
+         id and the closing comment. ── --}}
+    <div class="mt-6 w-[640px]" id="lists">
+        <button type="button" id="lists-before">before the lists</button>
+
+        <div class="mt-4 w-72">
+            <x-ds::tree label="Files" id="tr-files"
+                @expand="(window.treeEvents ??= []).push('expand:' + $event.detail.value)"
+                @collapse="(window.treeEvents ??= []).push('collapse:' + $event.detail.value)">
+                <x-ds::tree-item label="app" value="app" icon="folder">
+                    <x-ds::tree-item label="Http" value="app/Http" icon="folder">
+                        <x-ds::tree-item label="Kernel.php" value="app/Http/Kernel.php" icon="document" />
+                    </x-ds::tree-item>
+                    <x-ds::tree-item label="Models" value="app/Models" icon="folder" :expandable="true" />
+                    <x-ds::tree-item label="helpers.php" value="app/helpers.php" icon="document" />
+                </x-ds::tree-item>
+                <x-ds::tree-item label="bootstrap" value="bootstrap" icon="folder">
+                    <x-ds::tree-item label="app.php" value="bootstrap/app.php" icon="document" />
+                </x-ds::tree-item>
+                <x-ds::tree-item label="config" value="config" icon="folder">
+                    <x-ds::tree-item label="cache.php" value="config/cache.php" icon="document" />
+                </x-ds::tree-item>
+                <x-ds::tree-item label="composer.json" value="composer.json" icon="document" :disabled="true" />
+                <x-ds::tree-item label="routes" value="routes" icon="folder" :open="true">
+                    <x-ds::tree-item label="web.php" value="routes/web.php" icon="document" />
+                </x-ds::tree-item>
+            </x-ds::tree>
+        </div>
+
+        <div class="mt-4 w-72">
+            <x-ds::tree label="Documentation" id="tr-nav">
+                <x-ds::tree-item label="Guides" href="#guides">
+                    <x-ds::tree-item label="Install" href="#install" :selected="true" />
+                    <x-ds::tree-item label="Upgrade" href="#upgrade" />
+                </x-ds::tree-item>
+                <x-ds::tree-item label="Reference" href="#reference">
+                    <x-ds::tree-item label="Props" href="#props" />
+                </x-ds::tree-item>
+                <x-ds::tree-item label="API" href="#api" />
+            </x-ds::tree>
+        </div>
+        <button type="button" id="lists-after-nav">after the nav tree</button>
+    </div>
+    <!-- /lists -->
+
+    <form id="tree-form" class="mt-6 flex w-[640px] gap-6" x-data="{ bound: ['reports.export'] }" onsubmit="event.preventDefault()">
+        <div class="w-60">
+            <x-ds::tree label="Folder" selectable="single" name="folder" id="tr-single">
+                <x-ds::tree-item label="Inbox" value="inbox">
+                    <x-ds::tree-item label="Receipts" value="receipts" :selected="true" />
+                    <x-ds::tree-item label="Travel" value="travel" />
+                </x-ds::tree-item>
+                <x-ds::tree-item label="Archive" value="archive" :disabled="true" />
+                <x-ds::tree-item label="Sent" value="sent" />
+            </x-ds::tree>
+        </div>
+        <div class="w-60">
+            <x-ds::tree label="Permissions" selectable="multiple" name="perms" id="tr-multi">
+                <x-ds::tree-item label="Billing" value="billing" :open="true">
+                    <x-ds::tree-item label="View invoices" value="billing.view" :selected="true" />
+                    <x-ds::tree-item label="Refund" value="billing.refund" />
+                    <x-ds::tree-item label="Void" value="billing.void" :disabled="true" />
+                </x-ds::tree-item>
+                <x-ds::tree-item label="Reports" value="reports" :selected="true" :open="true">
+                    <x-ds::tree-item label="Export" value="reports.export" />
+                    <x-ds::tree-item label="Schedule" value="reports.schedule" />
+                </x-ds::tree-item>
+            </x-ds::tree>
+        </div>
+        <div class="w-60">
+            <x-ds::tree label="Bound" selectable="multiple" name="bound" id="tr-bound" x-model="bound">
+                <x-ds::tree-item label="Reports" value="reports" :open="true">
+                    <x-ds::tree-item label="Export" value="reports.export" />
+                    <x-ds::tree-item label="Schedule" value="reports.schedule" :selected="true" />
+                </x-ds::tree-item>
+            </x-ds::tree>
+            <output id="tr-bound-out" x-text="JSON.stringify(bound)"></output>
+            <button type="button" id="tr-bound-set" x-on:click="bound = ['reports.export', 'reports.schedule']">Set both</button>
+        </div>
+    </form>
+
+    {{-- ── filter bar: collapsible, a clearable search, chips that dispatch
+         and link, a reset that dispatches ── --}}
+    <form id="fb-form" class="mt-6 w-[900px]" onsubmit="event.preventDefault()">
+        <x-ds::filter-bar id="fbar" :active="2" :reset="true" :collapsible="true"
+            @reset="window.fbReset = (window.fbReset ?? 0) + 1">
+            <x-slot:search>
+                <x-ds::input type="search" name="q" id="fb-q" label="Search" icon="magnifying-glass" :clearable="true" value="acme"
+                    @input="window.fbInput = (window.fbInput ?? 0) + 1"
+                    @change="window.fbChange = (window.fbChange ?? 0) + 1" />
+            </x-slot:search>
+            <x-ds::select name="fbstatus" id="fb-status" label="Status" :options="['open' => 'Open', 'paid' => 'Paid']" />
+            <x-ds::chip-group name="fbsize" label="Size" :hideLabel="true" size="sm">
+                <x-ds::chip value="s">Small</x-ds::chip>
+                <x-ds::chip value="l">Large</x-ds::chip>
+            </x-ds::chip-group>
+            <x-slot:applied>
+                <x-ds::filter-chip id="fb-chip" label="Status" value="Open" @remove="window.fbRemoved = $event.detail" />
+                <x-ds::filter-chip label="Owner" value="Ada" removeHref="#owner-removed" />
+            </x-slot:applied>
+        </x-ds::filter-bar>
+        <button type="button" id="fb-after">after the bar</button>
+    </form>
+
+    {{-- ── code block: copy, line numbers, a highlight, Show more; and one
+         that fits under its limit ── --}}
+    <div class="mt-6 w-[480px]" id="code">
+        <x-ds::code-block id="cb" language="PHP" filename="Invoice.php" :lineNumbers="true" highlight="2" :maxHeight="3" :expandable="true"
+            :code="implode(PHP_EOL, ['<?php', '', 'final class Invoice', '{', '    public function total(): int', '    {', '        return 42;', '    }', '}'])" />
+        <x-ds::code-block id="cb-short" :maxHeight="5" :expandable="true" :copy="false" :code="'one' . PHP_EOL . 'two'" />
+    </div>
+
+    {{-- ── expandable text (dsClamp): long, short, and one whose box widens ── --}}
+    <div class="mt-6 w-64" id="et-box">
+        <x-ds::expandable-text id="et" :lines="2">
+            Every invoice is checked against its order before it is sent, and anything that does not match is held back for a person to look at, with the reason written beside it so nobody has to guess.
+        </x-ds::expandable-text>
+        <x-ds::expandable-text id="et-short" :lines="3">Short enough.</x-ds::expandable-text>
+    </div>
+
+    {{-- ── collapsible panel ── --}}
+    <div class="mt-6 w-96">
+        <x-ds::panel id="pc" title="Billing" name="billing" :collapsible="true"
+            @expand="(window.panelEvents ??= []).push('expand:' + $event.detail.name)"
+            @collapse="(window.panelEvents ??= []).push('collapse:' + $event.detail.name)">
+            <x-ds::panel-row href="#card">Card ending 4242</x-ds::panel-row>
+        </x-ds::panel>
+        <x-ds::panel id="pc-closed" title="Advanced" :collapsible="true" :open="false" body="plain">
+            <a href="#advanced" id="pc-link">An advanced link</a>
+        </x-ds::panel>
+        <button type="button" id="pc-after">after the panels</button>
+    </div>
+
 </div>

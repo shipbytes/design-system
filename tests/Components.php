@@ -24,6 +24,7 @@ final class Components
         'breadcrumb-item' => 'breadcrumb',
         'chip' => 'chip-group',
         'dropdown-item' => 'dropdown',
+        'filter-chip' => 'filter-bar',
         'panel-row' => 'panel',
         'radio-card' => 'radio-cards',
         'radio-group' => 'radio',
@@ -40,6 +41,7 @@ final class Components
         'toggle' => 'toggle-group',
         'toolbar-button' => 'toolbar',
         'toolbar-separator' => 'toolbar',
+        'tree-item' => 'tree',
     ];
 
     /** @return list<string> every component view, by its tag name */

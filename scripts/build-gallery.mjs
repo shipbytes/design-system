@@ -377,6 +377,12 @@ table.ref .samp { color: var(--g-ink); font-family: Inter, ui-sans-serif, system
       <a href="#date-picker">Date</a>
       <a href="#file-upload">Upload</a>
       <a href="#accordion">Accordion</a>
+      <a href="#tree">Tree</a>
+      <a href="#filter-bar">Filter bar</a>
+      <a href="#code-block">Code</a>
+      <a href="#kbd">Kbd</a>
+      <a href="#expandable-text">Expandable</a>
+      <a href="#panel-collapsible">Panel, collapsible</a>
       <a href="#tabs">Tabs</a>
       <a href="#tooltip">Tooltip</a>
       <a href="#toast">Toast</a>

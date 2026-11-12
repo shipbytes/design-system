@@ -1,6 +1,6 @@
 # Shipbytes Blade UI — documentation
 
-Eighty-three Blade components for Laravel, plus two pagination views. Presentation
+Ninety Blade components for Laravel, plus two pagination views. Presentation
 only: no state, no framework assumptions beyond Blade itself.
 
 **New here?** Start with [Getting started](getting-started.md) — install, three
@@ -26,6 +26,7 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Hold button](components/hold-button.md) | Confirmed by holding it, or by pressing twice — needs Alpine and the script |
 | [Rating](components/rating.md) | Stars to choose a score, or to show one |
 | [Chip group](components/chip-group.md) | Pressable filter chips, one or many, or links |
+| [Filter bar](components/filter-bar.md) | Search, controls, applied filters as chips, Clear all; folds on a phone |
 | [Segmented control](components/segmented-control.md) | One of a few views or modes, side by side |
 | [Button group](components/button-group.md) | Related buttons joined into one shape, and the split button |
 | [Toolbar](components/toolbar.md) | A row of tools that is one Tab stop — needs Alpine and the script |
@@ -52,6 +53,9 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Skeleton](components/skeleton.md) | A picture of content that is still loading |
 | [Progress](components/progress.md) | How far along a task is, as a bar or a ring |
 | [Usage meter](components/usage-meter.md) | An allowance and what fills it |
+| [Code block](components/code-block.md) | Code to read and copy, with line numbers and highlighted lines; bring your own highlighter |
+| [Kbd](components/kbd.md) | A key on the keyboard, inline in text |
+| [Expandable text](components/expandable-text.md) | Text held to a few lines with Read more — needs Alpine and the script |
 
 ### Data
 
@@ -77,6 +81,7 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Breadcrumb](components/breadcrumb.md) | Where this page sits |
 | [Stepper](components/stepper.md) | Where someone is in an ordered flow |
 | [Pagination](components/pagination.md) | Two Laravel paginator views, each with a Livewire variant |
+| [Tree](components/tree.md) | Nested items: a file browser, a docs sidebar, a checkbox tree — needs Alpine and the script |
 
 ### Overlays
 
@@ -120,7 +125,7 @@ plain Blade view. The one opt-in exception is the pagination views' Livewire
 variants, which emit `wire:click` for a component that uses `WithPagination`.
 
 [Alpine](https://alpinejs.dev) — a single 15 kB script, not a framework — is
-needed by twenty-five components, and by five optional props:
+needed by twenty-seven components, and by nine optional props:
 
 | | Needs Alpine |
 |---|---|
@@ -128,11 +133,16 @@ needed by twenty-five components, and by five optional props:
 | `otp-input` `tag-input` `number-field` `password-strength` `copy-button` `toolbar` `toggle-group` `theme-switcher` | **Always, and the package's script too.** Each renders its value from PHP and posts without JavaScript, but its behaviour is the script's. |
 | `popover` `hover-card` `context-menu` | **Always, and the package's script too.** Without them the panel never opens. |
 | `confirm-button` `hold-button` `confirm-popover` | **Always, and the package's script too.** Without them each renders its first face and does nothing, so no single press ever carries out the action. |
+| `tree` | **Always, and the package's script too.** Without them it is drawn as PHP rendered it (open folders, the selection, every link reachable) and posts what it shows, but does not open, close or choose. |
+| `expandable-text` | **Always, and the package's script too.** Without them the text is shown in full and no button appears. |
 | `sub-nav` | **Only to open and close.** Without it the section holding the current page is open and the rest are closed, as the server rendered them. |
 | `counter` | **Never**, unless its `value` is bound to Alpine state. With Alpine and the package's script its digits roll; without them it shows the number the server rendered, and a re-render changes it. Bound with `::value`, it needs both. |
 | `bar-chart` `line-chart` `donut-chart` | **Never.** With Alpine and the package's script, a readout on hover and focus, every mark reachable by keyboard, and legend toggles; without them each is a static SVG with a generated text alternative, which is complete. |
 | `segmented-control` | **Never.** With Alpine and the package's script, its highlight slides; without them, the chosen segment draws its own face, and nothing throws. |
-| `input` | Only for `reveal`, which also needs the package's script. |
+| `input` | Only for `reveal` and `clearable`, which also need the package's script. |
+| `code-block` | Only for its copy button (on by default) and `expandable`, which also need the package's script. Without them the code shows and scrolls. |
+| `filter-bar` | Only for `collapsible`, which also needs the package's script. |
+| `panel` | Only for `collapsible`. Without it the body shows as `open` says. |
 | `checkbox` | Only for `indeterminate`. Without it the box renders unchecked — which is what a screen reader announces, so the feature is absent rather than lying. |
 | `nav-item` | Only for `collapsedWhen`. Omit it for a permanently expanded rail. |
 | `toast` | Only for `dismiss`, which takes an expression that removes the toast. |

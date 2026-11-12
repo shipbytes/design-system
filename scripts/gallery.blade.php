@@ -2216,6 +2216,179 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Tree --}}
+<section class="ds-spec" id="tree">
+    <header class="ds-spec-head">
+        <h2>Tree</h2>
+        <p>Nested items: a file browser, a docs sidebar, a checkbox tree. Level, set size and position are counted in PHP, so every row says where it is before any script runs.</p>
+    </header>
+
+    <div class="ds-note">One Tab stop per tree, the arrow keys inside it. A navigation tree's links stay each their own stop until the script arrives, so every page is reachable without it.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Three kinds <span>&middot; navigation (the current page and its folders open) &middot; single selection &middot; checkboxes, tri-state, a disabled leaf</span></div>
+        <div class="grid gap-6 sm:grid-cols-3">
+            <x-ds::tree label="Documentation">
+                <x-ds::tree-item label="Guides" href="#" icon="book-open">
+                    <x-ds::tree-item label="Install" href="#" :selected="true" />
+                    <x-ds::tree-item label="Upgrade" href="#" />
+                </x-ds::tree-item>
+                <x-ds::tree-item label="Reference" href="#" icon="code-bracket">
+                    <x-ds::tree-item label="Props" href="#" />
+                </x-ds::tree-item>
+                <x-ds::tree-item label="Changelog" href="#" icon="clock" :count="12" />
+            </x-ds::tree>
+            <x-ds::tree label="Move to" selectable="single" name="g-folder">
+                <x-ds::tree-item label="Inbox" icon="inbox">
+                    <x-ds::tree-item label="Receipts" :selected="true" />
+                    <x-ds::tree-item label="Travel" />
+                </x-ds::tree-item>
+                <x-ds::tree-item label="Archive" icon="archive-box" :disabled="true" />
+                <x-ds::tree-item label="Sent" icon="paper-airplane">
+                    <x-slot:badge><x-ds::badge tone="accent">3 new</x-ds::badge></x-slot:badge>
+                </x-ds::tree-item>
+            </x-ds::tree>
+            <x-ds::tree label="Permissions" selectable="multiple" name="g-perms">
+                <x-ds::tree-item label="Billing" :open="true">
+                    <x-ds::tree-item label="View invoices" :selected="true" />
+                    <x-ds::tree-item label="Refund" />
+                    <x-ds::tree-item label="Void" :disabled="true" />
+                </x-ds::tree-item>
+                <x-ds::tree-item label="Reports" :selected="true" :open="true">
+                    <x-ds::tree-item label="Export" />
+                    <x-ds::tree-item label="Schedule" />
+                </x-ds::tree-item>
+            </x-ds::tree>
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Filter bar --}}
+<section class="ds-spec" id="filter-bar">
+    <header class="ds-spec-head">
+        <h2>Filter bar</h2>
+        <p>The row above a list: a clearable search, a few controls, the filters applied as chips, Clear all. Layout only: the controls post their own names, and what is applied is the host's to say.</p>
+    </header>
+
+    <div class="ds-note">Every chip's ✕ is named for what it removes: "Remove filter Status: Open". With <code>collapsible</code>, below <code>md</code> the controls fold behind a Filters (2) button, rendered once, never twice.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">With chips <span>&middot; a clearable search (its ✕ shows while it holds something) &middot; an action at the end</span></div>
+        <x-ds::filter-bar :active="2" :reset="true">
+            <x-slot:search>
+                <x-ds::input type="search" name="g-q" aria-label="Search invoices" icon="magnifying-glass" :clearable="true" value="acme" />
+            </x-slot:search>
+            <x-ds::input as="select" name="g-status" aria-label="Status"><option>Any status</option><option selected>Open</option><option>Paid</option></x-ds::input>
+            <x-ds::input as="select" name="g-owner" aria-label="Owner"><option>Anyone</option><option selected>Ada Lovelace</option><option>Alan Turing</option></x-ds::input>
+            <x-slot:applied>
+                <x-ds::filter-chip label="Status" value="Open" />
+                <x-ds::filter-chip label="Owner" value="Ada Lovelace" removeHref="#" />
+            </x-slot:applied>
+            <x-slot:actions>
+                <x-ds::button variant="secondary" size="sm">Export</x-ds::button>
+            </x-slot:actions>
+        </x-ds::filter-bar>
+    </div>
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Nothing applied <span>&middot; no count, no Clear all</span></div>
+        <x-ds::filter-bar :active="0" resetHref="#">
+            <x-slot:search>
+                <x-ds::input type="search" name="g-q2" aria-label="Search" icon="magnifying-glass" :clearable="true" />
+            </x-slot:search>
+            <x-ds::input as="select" name="g-status2" aria-label="Status"><option>Any status</option><option>Open</option></x-ds::input>
+        </x-ds::filter-bar>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Code block --}}
+<section class="ds-spec" id="code-block">
+    <header class="ds-spec-head">
+        <h2>Code block</h2>
+        <p>Code to read and copy. No highlighter: the frame, the header, the copy button and the lines, with the token colours as variables a highlighter's theme can point at.</p>
+    </header>
+
+    <div class="ds-note">Line numbers are a CSS counter, never selected, copied or read out. The scroll box is a named region with a Tab stop, so the keyboard can scroll it. Always left to right.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Filename, language, line numbers, line 5 highlighted</div>
+        <x-ds::code-block language="PHP" filename="app/Models/Invoice.php" :lineNumbers="true" highlight="5"
+            :code="implode(PHP_EOL, ['final class Invoice extends Model', '{', '    public function total(): int', '    {', '        return $this->lines->sum(\'amount\');', '    }', '}'])" />
+    </div>
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Highlighted HTML <span>&middot; through <code>:html</code>, coloured by the code tokens</span></div>
+        @php
+            // What a highlighter with a CSS-variables theme hands back, by hand.
+            $tok = fn (string $kind, string $text) => '<span style="color: var(--ds-code-'.$kind.')">'.e($text).'</span>';
+            $highlighted = $tok('keyword', 'return').' '.$tok('function', 'view').$tok('punctuation', '(').$tok('string', "'invoices.index'").$tok('punctuation', ');').' '.$tok('comment', '// the list');
+        @endphp
+        <x-ds::code-block language="PHP" :html="$highlighted" />
+    </div>
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">No header <span>&middot; the copy button floats in the corner &middot; a limit of three lines with Show more (hidden until the script measures)</span></div>
+        <div class="grid gap-3 sm:grid-cols-2">
+            <x-ds::code-block :code="'composer require shipbytes/blade-ui'" />
+            <x-ds::code-block :maxHeight="3" :expandable="true" :code="implode(PHP_EOL, ['one', 'two', 'three', 'four', 'five'])" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Kbd --}}
+<section class="ds-spec" id="kbd">
+    <header class="ds-spec-head">
+        <h2>Kbd</h2>
+        <p>A key, inline in text, sized by the text it sits in.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">In body text, a combination, and in a heading</div>
+        <div class="flex flex-col gap-2 text-body text-fg-body">
+            <p>Press <x-ds::kbd>/</x-ds::kbd> to search, <x-ds::kbd>Esc</x-ds::kbd> to close.</p>
+            <p>Open the palette with <x-ds::kbd :keys="['Ctrl', 'K']" />, or <x-ds::kbd :keys="['⌘', 'K']" separator="" /> on a Mac.</p>
+            <h3 class="text-section text-fg">Save with <x-ds::kbd :keys="['Ctrl', 'S']" /></h3>
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Expandable text --}}
+<section class="ds-spec" id="expandable-text">
+    <header class="ds-spec-head">
+        <h2>Expandable text</h2>
+        <p>Text held to a few lines with a fade and Read more, the button shown only when the text really overflows, measured.</p>
+    </header>
+
+    <div class="ds-note">It fails open: the clamp is the script's, so here, with no Alpine, the text is all there and no button shows. That is what a reader the script never reached gets.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Without the script <span>&middot; full text</span></div>
+        <div class="max-w-md">
+            <x-ds::expandable-text>
+                The invoice for September was charged twice. Both charges show on the card statement, on the first and the second of the month, for the same amount. The receipt in the app shows only one of them. Could you refund the second charge?
+            </x-ds::expandable-text>
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Panel, collapsible --}}
+<section class="ds-spec" id="panel-collapsible">
+    <header class="ds-spec-head">
+        <h2>Panel, collapsible</h2>
+        <p>The header becomes a button inside the heading, with a chevron; the action link stays beside it. Open or closed is rendered from PHP.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Open, with an action <span>&middot; closed, a feature panel</span></div>
+        <div class="mx-auto flex max-w-lg flex-col gap-4">
+            <x-ds::panel title="Billing" name="g-billing" :collapsible="true" action="Manage" actionHref="#">
+                <x-ds::panel-row>Card ending 4242</x-ds::panel-row>
+                <x-ds::panel-row>Next invoice on 1 October</x-ds::panel-row>
+            </x-ds::panel>
+            <x-ds::panel title="Webhooks" subtitle="Three endpoints" icon="bolt" name="g-hooks" :collapsible="true" :open="false" body="plain">
+                Endpoints and their signing secrets.
+            </x-ds::panel>
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Combobox --}}
 <section class="ds-spec" id="combobox">
     <header class="ds-spec-head">
