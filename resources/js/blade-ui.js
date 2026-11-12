@@ -36,14 +36,17 @@ import { otp } from './behaviours/otp.js';
 import { password } from './behaviours/password.js';
 import { phoneInput } from './behaviours/phone-input.js';
 import { popover } from './behaviours/popover.js';
+import { pullRefresh } from './behaviours/pull-refresh.js';
 import { roll } from './behaviours/roll.js';
 import { scrollShadows } from './behaviours/scroll-shadows.js';
 import { search } from './behaviours/search.js';
+import { sheet } from './behaviours/sheet.js';
 import { shortcutInput } from './behaviours/shortcut-input.js';
 import { slider } from './behaviours/slider.js';
 import { sortable } from './behaviours/sortable.js';
 import { split } from './behaviours/split.js';
 import { swap } from './behaviours/swap.js';
+import { swipe } from './behaviours/swipe.js';
 import { tagInput } from './behaviours/tag-input.js';
 import { teamSwitcher } from './behaviours/team-switcher.js';
 import { theme } from './behaviours/theme.js';
@@ -52,7 +55,7 @@ import { toggleGroup } from './behaviours/toggle-group.js';
 import { toolbar } from './behaviours/toolbar.js';
 import { tree } from './behaviours/tree.js';
 
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split, swap, teamSwitcher, moneyInput, phoneInput, search, kbdShortcut, shortcutInput, colour, mention, calendar, avatarUpload];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split, swap, teamSwitcher, moneyInput, phoneInput, search, kbdShortcut, shortcutInput, colour, mention, calendar, avatarUpload, sheet, swipe, pullRefresh];
 
 // Symbol.for, not a module-level flag. Two copies of this script, say the
 // inlined one AND a Vite import, are two separate modules with two separate

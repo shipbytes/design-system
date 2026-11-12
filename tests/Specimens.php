@@ -1512,6 +1512,53 @@ final class Specimens
                 <p>Press <x-ds::kbd shortcut="Shift+Mod+K" />, <x-ds::kbd shortcut="mod+/" separator="" class="ms-1" />, <x-ds::kbd shortcut="alt+arrowup" /> or <x-ds::kbd shortcut="" />.</p>
                 BLADE,
 
+            'sheet/snap' => <<<'BLADE'
+                <x-ds::sheet open="show.places" title="Places" :snap="['25%', '60%', 'full']" initialSnap="60%" wire:key="places">
+                    <x-ds::sheet-item href="/a" label="Cafe Nero" description="0.2 mi" />
+                </x-ds::sheet>
+                <x-ds::sheet open="show.map" title="Nearby" :snap="[120, '50%']" :modal="false" :dismissible="false" />
+                <x-ds::sheet open="show.plain" :handle="false" :draggable="false">Body</x-ds::sheet>
+                BLADE,
+            'share-sheet/all' => <<<'BLADE'
+                <x-ds::share-sheet url="https://example.com/r/q3" label="Share Q3 report" title="Q3 report" text="The numbers"
+                    access="restricted" :accessOptions="['restricted' => 'Restricted', 'link' => 'Anyone with the link']"
+                    :roles="['viewer' => 'Viewer', 'editor' => 'Editor']"
+                    :people="[['id' => 1, 'name' => 'Maya Patel', 'email' => 'maya@example.com', 'role' => 'owner', 'locked' => true], ['id' => 2, 'name' => 'Omar Malik', 'email' => 'omar@example.com', 'avatar' => 'https://example.com/omar.jpg', 'role' => 'editor']]">
+                    <x-slot:invite>
+                        <x-ds::input name="email" label="Invite" placeholder="name@example.com" class="flex-1" />
+                        <x-ds::button>Invite</x-ds::button>
+                    </x-slot:invite>
+                </x-ds::share-sheet>
+                <x-ds::share-sheet url="https://example.com/x" :roles="['viewer' => 'Viewer']" :people="[['id' => 'u-9', 'name' => 'Ada', 'role' => 'viewer']]" />
+                BLADE,
+            'swipe-actions/all' => <<<'BLADE'
+                <ul role="list">
+                    <li>
+                        <x-ds::swipe-actions :full="true" threshold="48">
+                            <a href="/m/1" class="block px-4 py-3">Invoice overdue</a>
+                            <x-slot:start><x-ds::swipe-action label="Archive" icon="archive-box" tone="accent" /></x-slot:start>
+                            <x-slot:end>
+                                <x-ds::swipe-action label="Flag" icon="flag" />
+                                <x-ds::swipe-action label="Delete" icon="trash" tone="danger" type="submit" name="delete" value="1" />
+                            </x-slot:end>
+                        </x-ds::swipe-actions>
+                    </li>
+                    <li>
+                        <x-ds::swipe-actions group="inbox" :disabled="true" moreLabel="Actions">
+                            Plain row
+                            <x-slot:end><x-ds::swipe-action label="Delete" tone="danger" /></x-slot:end>
+                        </x-ds::swipe-actions>
+                    </li>
+                </ul>
+                BLADE,
+            'pull-refresh/all' => <<<'BLADE'
+                <x-ds::pull-refresh label="Inbox" href="/inbox">
+                    <p>Messages</p>
+                </x-ds::pull-refresh>
+                <x-ds::pull-refresh :refreshing="true" :button="false" :threshold="96" :timeout="0">Feed</x-ds::pull-refresh>
+                <x-ds::pull-refresh button="Check for new" updatedLabel="Up to date">List</x-ds::pull-refresh>
+                BLADE,
+
             // Not a visual component, but it renders inside a host's layout and
             // so inside a Livewire render too; this puts it through the markers
             // test with everything else.

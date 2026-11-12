@@ -2781,6 +2781,77 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Share sheet --}}
+<section class="ds-spec" id="share-sheet">
+    <header class="ds-spec-head">
+        <h2>Share sheet</h2>
+        <p>Who has access and how to send the link: people with their roles, general access, the link with a copy button, and the device&rsquo;s own share sheet where the browser has one. It lays out and reports; the host keeps who has access.</p>
+    </header>
+
+    <div class="ds-note">Every control is a named form control, so with no script it posts: <code>roles[id]</code>, <code>access</code>, and a <code>remove</code> button carrying the id. With Alpine each change is also dispatched for a Livewire host. The device share button stays hidden here: the gallery loads no Alpine to look for one.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">A report shared with three people <span>&middot; the owner&rsquo;s role locked</span></div>
+        <div class="mx-auto max-w-md rounded-panel border border-border bg-surface p-5">
+            <x-ds::share-sheet id="g-share" url="https://example.com/r/q3-report" label="Share Q3 report"
+                access="restricted" :accessOptions="['restricted' => 'Restricted: only people added', 'link' => 'Anyone with the link']"
+                :roles="['viewer' => 'Viewer', 'editor' => 'Editor']"
+                :people="[['id' => 1, 'name' => 'Maya Patel', 'email' => 'maya@example.com', 'role' => 'Owner', 'locked' => true], ['id' => 2, 'name' => 'Omar Malik', 'email' => 'omar@example.com', 'role' => 'editor'], ['id' => 3, 'name' => 'Lena Fischer', 'email' => 'lena@example.com', 'role' => 'viewer']]" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Swipe actions --}}
+<section class="ds-spec" id="swipe-actions">
+    <header class="ds-spec-head">
+        <h2>Swipe actions</h2>
+        <p>A list row that slides sideways to show the actions under it. The swipe is a shortcut: every action is also a button, reached by the More button or the keyboard.</p>
+    </header>
+
+    <div class="ds-note">The gallery loads no script, so these rows are what a page without it gets: the actions sit after the content as ordinary buttons, and there is no More button, because nothing is hidden.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">An inbox <span>&middot; Archive at the start, Flag and Delete at the end</span></div>
+        <ul role="list" class="mx-auto max-w-md divide-y divide-divider overflow-hidden rounded-panel border border-border bg-surface">
+            @foreach (['Invoice #1042 is overdue', 'Omar left a comment'] as $subject)
+                <li>
+                    <x-ds::swipe-actions>
+                        <a href="#swipe-actions" class="block px-4 py-3"><span class="block text-body font-medium text-fg">{{ $subject }}</span><span class="block text-meta text-fg-muted">Yesterday</span></a>
+                        <x-slot:start><x-ds::swipe-action label="Archive" icon="archive-box" tone="accent" /></x-slot:start>
+                        <x-slot:end>
+                            <x-ds::swipe-action label="Flag" icon="flag" />
+                            <x-ds::swipe-action label="Delete" icon="trash" tone="danger" />
+                        </x-slot:end>
+                    </x-ds::swipe-actions>
+                </li>
+            @endforeach
+        </ul>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Pull to refresh --}}
+<section class="ds-spec" id="pull-refresh">
+    <header class="ds-spec-head">
+        <h2>Pull to refresh</h2>
+        <p>Pull a list down at its top to refresh it, on a touch screen. Everyone else gets the Refresh button, which does the same; with no script it is a link or a submit.</p>
+    </header>
+
+    <div class="ds-note">The gesture is touch only and the indicator is <code>ds::progress</code>. Rendered <code>refreshing</code>, the region is <code>aria-busy</code> and the spinner shows; a re-render without it ends the refresh.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">A feed <span>&middot; at rest, and rendered refreshing</span></div>
+        <div class="mx-auto grid max-w-2xl gap-4 sm:grid-cols-2">
+            @foreach ([false, true] as $busy)
+                <x-ds::pull-refresh href="#pull-refresh" label="Feed" :refreshing="$busy" :timeout="0" class="h-56 rounded-panel border border-border bg-surface">
+                    @foreach (['Deploy finished', 'New sign-up', 'Invoice paid', 'Backup completed'] as $item)
+                        <p class="border-t border-divider px-4 py-3 text-body text-fg">{{ $item }}</p>
+                    @endforeach
+                </x-ds::pull-refresh>
+            @endforeach
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── File upload --}}
 <section class="ds-spec" id="file-upload">
     <header class="ds-spec-head">

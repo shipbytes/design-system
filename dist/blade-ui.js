@@ -6958,6 +6958,333 @@ const __ds_behaviours_popover = (() => {
     return { popover };
 })();
 
+// shared/drag.js
+const __ds_shared_drag = (() => {
+    /*
+     * One pointer, from press to release: what every drag in the script shares
+     * (split's dividers, sortable's rows, the sheet, swipe actions, pull to
+     * refresh). Hand-written on Pointer Events; no gesture library.
+     *
+     *   const handle = drag(root, { press, start, move, end, cancel, axis, slop, swallowClick });
+     *
+     * press(event) decides whether a primary press inside `root` is a drag: it
+     * returns the element to capture the pointer on, or nothing. Capture waits
+     * for the drag to start: a press captured at once on a box would make the
+     * box the target of the click that follows, and a link or a button inside it
+     * would never hear it. It is refused quietly for a pointer the browser no
+     * longer counts as down; the move, up and cancel listeners are on the window
+     * for the length of the press either way, so a drag reaches its end
+     * whatever capture did.
+     *
+     * Nothing is a drag until the pointer has moved `slop` pixels (0: at once).
+     * With `axis` ('x' or 'y'), a press that first travels further along the
+     * other axis is let go without a word, so a vertical scroll that starts on a
+     * horizontal swipe stays the page's (the element's touch-action lets the
+     * browser have it, and the browser's pointercancel then ends it here too).
+     *
+     * start, move, end and cancel are each given the one state object:
+     * { target, pressed, type, x0, y0, x, y, dx, dy, vx, vy, event }, pressed
+     * being what was under the pointer at the press, the velocities in
+     * pixels a millisecond over the last 100 ms, so a flick is told from a slow
+     * drag. start returning false lets the press go. end is a release, cancel a
+     * pointercancel or handle.cancel(). Callers throttle their own drawing.
+     *
+     * swallowClick: the click a mouse sends after a drag that ended on a link or
+     * a button is not a click the reader meant, so the next one is dropped.
+     */
+
+    const WINDOW = 100;
+
+    function drag(root, options) {
+        const slop = options.slop ?? 0;
+        let d = null;
+        let swallow = false;
+
+        function track(event) {
+            const t = event.timeStamp;
+            d.trail.push([t, event.clientX, event.clientY]);
+            while (d.trail.length > 2 && t - d.trail[0][0] > WINDOW) d.trail.shift();
+            const [t0, x0, y0] = d.trail[0];
+            const dt = t - t0;
+            Object.assign(d, {
+                event, x: event.clientX, y: event.clientY, dx: event.clientX - d.x0, dy: event.clientY - d.y0,
+                vx: dt > 0 ? (event.clientX - x0) / dt : 0, vy: dt > 0 ? (event.clientY - y0) / dt : 0,
+            });
+        }
+
+        function listen(on) {
+            const method = on ? addEventListener : removeEventListener;
+            method('pointermove', onMove);
+            method('pointerup', onUp);
+            method('pointercancel', onCancel);
+        }
+
+        function finish(how) {
+            const state = d;
+            d = null;
+            listen(false);
+            if (state.target.hasPointerCapture?.(state.id)) state.target.releasePointerCapture(state.id);
+            if (!state.started) return;
+            if (how === 'end' && options.swallowClick) {
+                swallow = true;
+                setTimeout(() => (swallow = false));
+            }
+            options[how]?.(state);
+        }
+
+        function begin() {
+            if (options.start?.(d) === false) return finish('cancel');
+            d.started = true;
+            try {
+                d.target.setPointerCapture(d.id);
+            } catch {}
+        }
+
+        function onDown(event) {
+            if (d || event.button !== 0 || !event.isPrimary) return;
+            const target = options.press(event);
+            if (!target) return;
+            d = {
+                target, pressed: event.target, id: event.pointerId, type: event.pointerType, started: false, event,
+                x0: event.clientX, y0: event.clientY, x: event.clientX, y: event.clientY,
+                dx: 0, dy: 0, vx: 0, vy: 0, trail: [[event.timeStamp, event.clientX, event.clientY]],
+            };
+            listen(true);
+            if (!slop) begin();
+        }
+
+        function onMove(event) {
+            if (!d || event.pointerId !== d.id) return;
+            if (!d.started) {
+                const dx = Math.abs(event.clientX - d.x0);
+                const dy = Math.abs(event.clientY - d.y0);
+                if (Math.hypot(dx, dy) < slop) return;
+                if (options.axis === 'x' ? dy > dx : options.axis === 'y' && dx > dy) return finish('cancel');
+                track(event);
+                begin();
+                if (!d) return;
+            } else {
+                track(event);
+            }
+            options.move?.(d);
+        }
+
+        function onUp(event) {
+            if (!d || event.pointerId !== d.id) return;
+            if (d.started) track(event);
+            finish('end');
+        }
+
+        function onCancel(event) {
+            if (d && event.pointerId === d.id) finish('cancel');
+        }
+
+        function onClick(event) {
+            if (!swallow) return;
+            swallow = false;
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        root.addEventListener('pointerdown', onDown);
+        root.addEventListener('click', onClick, true);
+
+        return {
+            cancel() {
+                if (d) finish('cancel');
+            },
+            stop() {
+                if (d) finish('cancel');
+                root.removeEventListener('pointerdown', onDown);
+                root.removeEventListener('click', onClick, true);
+            },
+        };
+    }
+
+    return { drag };
+})();
+
+// behaviours/pull-refresh.js
+const __ds_behaviours_pull_refresh = (() => {
+    /*
+     * dsPullRefresh: pull down at the top to refresh, behind ds::pull-refresh.
+     *
+     *   x-data="dsPullRefresh({ threshold: 72, timeout: 10000, updated: 'Updated' })"
+     *
+     * The markup is the view's: the root data-ds-pull (the scrolling box, or a
+     * box the page scrolls), an indicator holding a ring data-ds-pull-ring, the
+     * content data-ds-pull-content, the Refresh button data-ds-pull-button and
+     * a status region.
+     *
+     *   - Touch only: a finger pulling down while the box (or the page) is at
+     *     its top brings the content down after it, against a resistance that
+     *     grows, and fills the ring on the way to `threshold`. Let go past it to
+     *     refresh. touch-action is pan-x pan-down at the top, so the browser
+     *     scrolls a push up and leaves the pull to us, and pan-x pan-y anywhere
+     *     else.
+     *   - The button, for every other pointer and the keyboard, refreshes too.
+     *
+     * Refreshing: the root is data-refreshing and aria-busy, and `refresh` is
+     * dispatched from it, bubbling and cancelable. A host that answers calls
+     * preventDefault() (x-on:refresh.prevent) and, when it is done, dispatches
+     * `refreshed` on the root, or re-renders it, which a morph does by dropping
+     * the attribute. Not answered, the button does what it does without the
+     * script: follows its link, or submits its form. `timeout` ends a refresh
+     * no one ends. The end is said in the status region.
+     */
+    const { drag } = __ds_shared_drag;
+
+    const HOLD = 52;
+
+    function pullRefresh(Alpine) {
+        Alpine.data('dsPullRefresh', (options = {}) => {
+            let control = null;
+
+            return {
+                init() {
+                    control = wire(this.$el, options);
+                },
+
+                destroy() {
+                    control?.teardown();
+                },
+            };
+        });
+    }
+
+    function wire(root, options) {
+        const content = root.querySelector('[data-ds-pull-content]');
+        const indicator = root.querySelector('[data-ds-pull-indicator]');
+        const ring = root.querySelector('[data-ds-pull-ring]');
+        const status = root.querySelector('[data-ds-pull-status]');
+        const threshold = options.threshold ?? 72;
+        let timer = 0;
+        let frame = 0;
+        let pulled = 0;
+        let quiet = false;
+
+        const scroller = () => (root.scrollHeight > root.clientHeight && getComputedStyle(root).overflowY !== 'visible' ? root : document.scrollingElement);
+        const atTop = () => scroller().scrollTop <= 0;
+        const refreshing = () => root.hasAttribute('data-refreshing');
+        // Comes down quickly, then ever slower, and never past twice the threshold.
+        const resist = (dy) => threshold * 2 * (1 - Math.exp(-Math.max(0, dy) / (threshold * 2)));
+
+        function draw(y) {
+            pulled = y;
+            content.style.transform = y ? `translateY(${y}px)` : '';
+            indicator.style.transform = y ? `translateY(${y - HOLD}px)` : '';
+            ring?.style.setProperty('--ds-progress', String(Math.min(100, Math.round((y / threshold) * 100))));
+        }
+
+        function mark(on) {
+            quiet = true;
+            root.toggleAttribute('data-refreshing', on);
+            root.setAttribute('aria-busy', String(on));
+            quiet = false;
+        }
+
+        function start() {
+            if (refreshing()) return;
+            mark(true);
+            draw(HOLD);
+            status.textContent = '';
+            clearTimeout(timer);
+            if (options.timeout) timer = setTimeout(done, options.timeout);
+            const answered = !root.dispatchEvent(new CustomEvent('refresh', { bubbles: true, cancelable: true }));
+            if (answered) return;
+            const button = root.querySelector('[data-ds-pull-button]');
+            if (button?.href) location.assign(button.href);
+            else if (button?.form) button.form.requestSubmit(button);
+        }
+
+        function done() {
+            clearTimeout(timer);
+            const was = refreshing() || pulled || root.getAttribute('aria-busy') === 'true';
+            mark(false);
+            draw(0);
+            if (was) status.textContent = options.updated ?? 'Updated';
+            scrolled();
+        }
+
+        function scrolled() {
+            root.style.touchAction = atTop() ? 'pan-x pan-down' : '';
+        }
+
+        const dragging = drag(root, {
+            axis: 'y',
+            slop: 4,
+            press(event) {
+                return event.pointerType === 'touch' && !refreshing() && atTop() ? root : null;
+            },
+            start(state) {
+                if (state.dy <= 0) return false;
+                content.setAttribute('data-dragging', '');
+                indicator.setAttribute('data-dragging', '');
+                root.setAttribute('data-pulling', '');
+            },
+            move(state) {
+                cancelAnimationFrame(frame);
+                frame = requestAnimationFrame(() => draw(resist(state.dy)));
+            },
+            end(state) {
+                settle();
+                if (resist(state.dy) >= threshold) start();
+                else draw(0);
+            },
+            cancel() {
+                settle();
+                draw(0);
+            },
+        });
+
+        function settle() {
+            cancelAnimationFrame(frame);
+            content.removeAttribute('data-dragging');
+            indicator.removeAttribute('data-dragging');
+            root.removeAttribute('data-pulling');
+        }
+
+        function onClick(event) {
+            if (!event.target.closest('[data-ds-pull-button]')) return;
+            event.preventDefault();
+            start();
+        }
+
+        // A re-render that drops data-refreshing ends the refresh; one that
+        // brings it starts showing it.
+        const watch = new MutationObserver(() => {
+            if (quiet) return;
+            scrolled();
+            if (refreshing() && !pulled) draw(HOLD);
+            else if (!refreshing() && pulled) done();
+        });
+
+        const onDone = () => done();
+        root.addEventListener('click', onClick);
+        root.addEventListener('refreshed', onDone);
+        root.addEventListener('scroll', scrolled, { passive: true });
+        addEventListener('scroll', scrolled, { passive: true });
+        watch.observe(root, { attributes: true, attributeFilter: ['data-refreshing'] });
+        scrolled();
+        if (refreshing()) draw(HOLD);
+
+        return {
+            teardown() {
+                clearTimeout(timer);
+                cancelAnimationFrame(frame);
+                dragging.stop();
+                watch.disconnect();
+                root.removeEventListener('click', onClick);
+                root.removeEventListener('refreshed', onDone);
+                root.removeEventListener('scroll', scrolled);
+                removeEventListener('scroll', scrolled);
+            },
+        };
+    }
+
+    return { pullRefresh };
+})();
+
 // shared/format.js
 const __ds_shared_format = (() => {
     /*
@@ -7387,6 +7714,251 @@ const __ds_behaviours_search = (() => {
     }
 
     return { search };
+})();
+
+// behaviours/sheet.js
+const __ds_behaviours_sheet = (() => {
+    /*
+     * x-ds-sheet: snap points and drag for ds::sheet (partials/sheet-layer).
+     *
+     *   x-ds-sheet="{ open: 'show.map', snap: ['25%', '60%', 'full'], initial: 0, draggable, dismissible, words }"
+     *
+     * An enhancement: without it the sheet opens at its natural height. With it
+     * the panel is drawn as tall as its highest point and slid down by a
+     * transform to show the one it is at; the move between points is the
+     * panel's CSS transition, on the motion tokens.
+     *
+     *   - Drag the handle or the header, any pointer. Below the highest point a
+     *     finger on the content drags too, and the content does not scroll; at
+     *     the highest it scrolls, and a pull down from its top drags the sheet
+     *     (touch-action pan-down there, so the browser leaves that gesture to
+     *     us). Release settles on the nearest point by where it is and how fast
+     *     it was going; past the lowest, a dismissible sheet closes.
+     *   - The handle is a button: Enter, Space and a press step up through the
+     *     points and wrap, ArrowUp and ArrowDown move one, and the state is spoken from
+     *     `words` (expanded, half, collapsed) in the status region. Keyboard
+     *     focus moving into the content below the highest point raises it.
+     *   - Percentages are of the visual viewport, and the frame sits on top of an
+     *     on-screen keyboard, where the browser reports one.
+     *
+     * Dispatches `snap` from the panel, bubbling, with { index, value } (the
+     * index into `snap` as written) whenever the reader moves it.
+     */
+    const { drag } = __ds_shared_drag;
+
+    const LOOKAHEAD = 200;
+
+    function sheet(Alpine) {
+        Alpine.directive('ds-sheet', (el, { expression }, { evaluate, effect, cleanup }) => {
+            const options = evaluate(expression) ?? {};
+            const control = wire(el, options, () => evaluate(`${options.open} = false`));
+            effect(() => control.toggle(Boolean(evaluate(options.open))));
+            cleanup(() => control.teardown());
+        });
+    }
+
+    function wire(panel, options, close) {
+        const frame = panel.closest('[data-ds-sheet-frame]') ?? panel.parentElement;
+        const body = panel.querySelector('[data-ds-sheet-body]');
+        const handle = panel.querySelector('[data-ds-sheet-handle]');
+        const status = panel.querySelector('[data-ds-sheet-status]');
+        const points = options.snap ?? [];
+        const words = options.words ?? {};
+        const viewport = window.visualViewport;
+
+        let heights = [];
+        let order = [];
+        let tallest = 0;
+        let at = options.initial ?? 0;
+        let offset = 0;
+        let shown = false;
+        let frameId = 0;
+
+        const highest = () => order[order.length - 1];
+        const lowest = () => order[0];
+        const atTop = () => at === highest();
+
+        function measure() {
+            const room = viewport?.height ?? innerHeight;
+            const cap = Math.min(room, parseFloat(getComputedStyle(panel).maxHeight) || room);
+            if (!points.length) {
+                panel.style.removeProperty('height');
+                heights = [panel.offsetHeight];
+            } else {
+                heights = points.map((p) => Math.min(cap, p === 'full' ? cap : p.endsWith('%') ? (parseFloat(p) / 100) * room : parseFloat(p)));
+            }
+            order = heights.map((_, i) => i).sort((a, b) => heights[a] - heights[b]);
+            tallest = Math.max(...heights);
+            if (points.length) panel.style.height = `${tallest}px`;
+            if (viewport) frame.style.bottom = `${Math.max(0, innerHeight - viewport.height - viewport.offsetTop)}px`;
+        }
+
+        function draw(y) {
+            offset = y;
+            panel.style.transform = y ? `translateY(${y}px)` : '';
+        }
+
+        // Placed with no transition: the panel's own first frame, or a resize.
+        function still(fn) {
+            panel.setAttribute('data-dragging', '');
+            fn();
+            void panel.offsetHeight;
+            panel.removeAttribute('data-dragging');
+        }
+
+        function scrollRule() {
+            if (!body) return;
+            body.style.overflowY = atTop() ? '' : 'hidden';
+            body.style.touchAction = !atTop() ? 'pan-x' : body.scrollTop > 0 ? '' : 'pan-x pan-down';
+        }
+
+        function say() {
+            if (!status || order.length < 2) return;
+            status.textContent = atTop() ? words.expanded : at === lowest() ? words.collapsed : words.half;
+        }
+
+        function go(index, tell = true) {
+            const changed = index !== at;
+            at = index;
+            draw(tallest - heights[at]);
+            scrollRule();
+            if (!changed) return;
+            say();
+            if (tell) panel.dispatchEvent(new CustomEvent('snap', { bubbles: true, detail: { index: at, value: points[at] ?? null } }));
+        }
+
+        function step(by, wrap = false) {
+            const rank = order.indexOf(at) + by;
+            if (rank >= order.length) return go(wrap ? lowest() : at);
+            go(order[Math.max(0, rank)]);
+        }
+
+        function onResize() {
+            if (!shown) return;
+            still(() => {
+                measure();
+                draw(tallest - heights[at]);
+            });
+        }
+
+        function toggle(open) {
+            if (open === shown) return;
+            shown = open;
+            if (!open) {
+                viewport?.removeEventListener('resize', onResize);
+                viewport?.removeEventListener('scroll', onResize);
+                return;
+            }
+            at = points[options.initial] !== undefined ? options.initial : 0;
+            // After x-show has drawn the frame, so there is a height to measure.
+            requestAnimationFrame(() => {
+                if (!shown) return;
+                still(() => {
+                    measure();
+                    draw(tallest - heights[at]);
+                });
+                scrollRule();
+                if (status) status.textContent = '';
+                viewport?.addEventListener('resize', onResize);
+                viewport?.addEventListener('scroll', onResize);
+            });
+        }
+
+        function onKeyDown(event) {
+            if (!event.target.closest('[data-ds-sheet-handle]')) return;
+            const by = { ArrowUp: 1, ArrowDown: -1 }[event.key];
+            if (by) step(by);
+            else if (event.key === 'Enter' || event.key === ' ') step(1, true);
+            else return;
+            event.preventDefault();
+        }
+
+        // A press on the handle, by a pointer, steps as Enter does. (Enter and
+        // Space are taken at keydown, so the click they would make never comes.)
+        function onClick(event) {
+            if (event.detail && event.target.closest('[data-ds-sheet-handle]')) step(1, true);
+        }
+
+        // A Space released on the handle would press it a second time.
+        function onKeyUp(event) {
+            if (event.key === ' ' && event.target.closest('[data-ds-sheet-handle]')) event.preventDefault();
+        }
+
+        function onFocusIn(event) {
+            if (!atTop() && body?.contains(event.target) && event.target.matches(':focus-visible')) go(highest());
+        }
+
+        let from = 0;
+        const dragging = drag(panel, {
+            axis: 'y',
+            slop: 4,
+            swallowClick: true,
+            press(event) {
+                if (!options.draggable || !shown) return null;
+                if (event.target.closest('[data-ds-sheet-grip]')) return panel;
+                if (event.pointerType !== 'touch' || !body?.contains(event.target)) return null;
+                return atTop() && body.scrollTop > 0 ? null : panel;
+            },
+            start(state) {
+                // At the top, content that can scroll up takes an upward drag.
+                if (atTop() && state.dy < 0 && body.contains(state.pressed) && body.scrollHeight > body.clientHeight) return false;
+                from = offset;
+                panel.setAttribute('data-dragging', '');
+                return true;
+            },
+            move(state) {
+                const top = tallest - heights[highest()];
+                const floor = options.dismissible ? tallest : tallest - heights[lowest()];
+                let y = from + state.dy;
+                // Past either end it gives a quarter of the way: there is nothing there.
+                if (y < top) y = top - (top - y) / 4;
+                if (y > floor) y = floor + (y - floor) / 4;
+                cancelAnimationFrame(frameId);
+                frameId = requestAnimationFrame(() => draw(y));
+            },
+            end(state) {
+                cancelAnimationFrame(frameId);
+                panel.removeAttribute('data-dragging');
+                const seen = tallest - (from + state.dy) - state.vy * LOOKAHEAD;
+                let best = at;
+                for (const i of order) if (Math.abs(heights[i] - seen) < Math.abs(heights[best] - seen)) best = i;
+                if (options.dismissible && Math.abs(seen) < Math.abs(heights[best] - seen)) {
+                    close();
+                    return;
+                }
+                go(best);
+            },
+            cancel() {
+                cancelAnimationFrame(frameId);
+                panel.removeAttribute('data-dragging');
+                draw(tallest - heights[at]);
+            },
+        });
+
+        handle?.removeAttribute('tabindex');
+        handle?.removeAttribute('aria-hidden');
+        panel.addEventListener('keydown', onKeyDown);
+        panel.addEventListener('keyup', onKeyUp);
+        panel.addEventListener('click', onClick);
+        panel.addEventListener('focusin', onFocusIn);
+        body?.addEventListener('scroll', scrollRule, { passive: true });
+
+        return {
+            toggle,
+            teardown() {
+                toggle(false);
+                dragging.stop();
+                cancelAnimationFrame(frameId);
+                panel.removeEventListener('keydown', onKeyDown);
+                panel.removeEventListener('keyup', onKeyUp);
+            panel.removeEventListener('click', onClick);
+                panel.removeEventListener('focusin', onFocusIn);
+                body?.removeEventListener('scroll', scrollRule);
+            },
+        };
+    }
+
+    return { sheet };
 })();
 
 // behaviours/shortcut-input.js
@@ -7980,6 +8552,8 @@ const __ds_behaviours_sortable = (() => {
      * and nothing else.
      */
 
+    const { drag } = __ds_shared_drag;
+
     const CONTROL = 'a[href], button, input, select, textarea, label, [contenteditable]';
     // How far the pointer travels before a press becomes a drag, so a click on
     // the handle is still a click.
@@ -8017,7 +8591,7 @@ const __ds_behaviours_sortable = (() => {
         const handleOf = (row) => row.querySelector('[data-ds-sortable-handle]');
 
         let lifted = null;
-        let drag = null;
+        let dragged = null;
         let moving = false;
 
         function say(template, row) {
@@ -8120,14 +8694,14 @@ const __ds_behaviours_sortable = (() => {
 
         // Escape during a drag, wherever focus is.
         function onDocumentKey(event) {
-            if (!drag?.started || event.key !== 'Escape') return;
+            if (!dragged?.started || event.key !== 'Escape') return;
             event.preventDefault();
             event.stopPropagation();
-            endDrag(true);
+            dragging.cancel();
         }
 
         function onKeyDown(event) {
-            if (drag) return;
+            if (dragged) return;
             const handle = event.target.closest?.('[data-ds-sortable-handle]');
             const row = handle?.closest('[data-ds-sortable-item]');
             if (!row || !list.contains(row) || !movable(row)) return;
@@ -8179,36 +8753,29 @@ const __ds_behaviours_sortable = (() => {
 
         // ------------------------------------------------------------ pointer
 
-        function onPointerDown(event) {
-            if (event.button !== 0 || drag || lifted) return;
+        function press(event) {
+            if (dragged || lifted) return null;
             const row = event.target.closest('[data-ds-sortable-item]');
-            if (!row || !list.contains(row) || !movable(row)) return;
+            if (!row || !list.contains(row) || !movable(row)) return null;
             if (!event.target.closest('[data-ds-sortable-handle]')) {
                 // Touch only by the handle, whose touch-action is none: anywhere
                 // else a finger scrolls the page.
-                if (options.handle !== false || event.pointerType === 'touch' || event.target.closest(CONTROL)) return;
+                if (options.handle !== false || event.pointerType === 'touch' || event.target.closest(CONTROL)) return null;
             }
             // No text selection starting under a mouse on its way to a drag.
             if (event.pointerType !== 'touch') event.preventDefault();
-            drag = { row, id: event.pointerId, x: event.clientX, y: event.clientY, started: false };
-            // Refused for a pointer the browser no longer counts as down; the
-            // listeners on the row still carry the drag as far as it reaches.
-            try {
-                row.setPointerCapture(event.pointerId);
-            } catch {}
-            row.addEventListener('pointermove', onPointerMove);
-            row.addEventListener('pointerup', onPointerUp);
-            row.addEventListener('pointercancel', onPointerCancel);
+            return row;
         }
 
-        function startDrag() {
+        function startDrag(state) {
+            const row = state.target;
+            dragged = { row, started: true, y0: state.y0, y: state.y };
             const all = rows();
-            const { row } = drag;
             const from = all.indexOf(row);
             const tops = all.map((r) => r.offsetTop);
             const heights = all.map((r) => r.offsetHeight);
             const gap = all.length > 1 ? Math.max(0, tops[1] - tops[0] - heights[0]) : 0;
-            Object.assign(drag, {
+            Object.assign(dragged, {
                 started: true, all, from, to: from, tops, heights, shift: heights[from] + gap,
                 origin: root.getBoundingClientRect().top, scroller: scrollParent(root), frame: 0,
             });
@@ -8220,9 +8787,9 @@ const __ds_behaviours_sortable = (() => {
         }
 
         function frame() {
-            if (!drag?.started) return;
-            const { row, all, from, tops, heights, shift } = drag;
-            const dy = drag.y - drag.y0 - (root.getBoundingClientRect().top - drag.origin);
+            if (!dragged?.started) return;
+            const { row, all, from, tops, heights, shift } = dragged;
+            const dy = dragged.y - dragged.y0 - (root.getBoundingClientRect().top - dragged.origin);
             row.style.transform = `translateY(${dy}px)`;
 
             // A row gives way once the dragged row's leading edge passes its
@@ -8233,7 +8800,7 @@ const __ds_behaviours_sortable = (() => {
             let to = from;
             for (let j = from + 1; j < all.length; j++) if (bottom > tops[j] + heights[j] / 2) to = j;
             for (let j = from - 1; j >= 0; j--) if (top < tops[j] + heights[j] / 2) to = j;
-            drag.to = to;
+            dragged.to = to;
 
             all.forEach((r, j) => {
                 if (r === row) return;
@@ -8246,40 +8813,23 @@ const __ds_behaviours_sortable = (() => {
 
             // Near the scrolling box's edge, scroll it, and keep coming back
             // here while the pointer stays there.
-            const box = drag.scroller === document.scrollingElement
+            const box = dragged.scroller === document.scrollingElement
                 ? { top: 0, bottom: innerHeight }
-                : drag.scroller.getBoundingClientRect();
-            const speed = drag.y < box.top + EDGE ? -(box.top + EDGE - drag.y) / 3
-                : drag.y > box.bottom - EDGE ? (drag.y - box.bottom + EDGE) / 3 : 0;
+                : dragged.scroller.getBoundingClientRect();
+            const speed = dragged.y < box.top + EDGE ? -(box.top + EDGE - dragged.y) / 3
+                : dragged.y > box.bottom - EDGE ? (dragged.y - box.bottom + EDGE) / 3 : 0;
             if (speed) {
-                drag.scroller.scrollBy(0, Math.max(-24, Math.min(24, speed)));
-                drag.frame = requestAnimationFrame(frame);
+                dragged.scroller.scrollBy(0, Math.max(-24, Math.min(24, speed)));
+                dragged.frame = requestAnimationFrame(frame);
             } else {
-                drag.frame = 0;
+                dragged.frame = 0;
             }
-        }
-
-        function onPointerMove(event) {
-            if (!drag || event.pointerId !== drag.id) return;
-            if (!drag.started) {
-                if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < SLOP) return;
-                drag.y0 = drag.y;
-                startDrag();
-            }
-            drag.y = event.clientY;
-            if (!drag.frame) drag.frame = requestAnimationFrame(frame);
         }
 
         function endDrag(cancelled) {
-            const current = drag;
-            drag = null;
+            const current = dragged;
+            dragged = null;
             const { row } = current;
-            row.removeEventListener('pointermove', onPointerMove);
-            row.removeEventListener('pointerup', onPointerUp);
-            row.removeEventListener('pointercancel', onPointerCancel);
-            if (row.hasPointerCapture?.(current.id)) row.releasePointerCapture(current.id);
-            if (!current.started) return;
-
             cancelAnimationFrame(current.frame);
             placeholder.hidden = true;
             row.removeAttribute('data-dragging');
@@ -8290,30 +8840,32 @@ const __ds_behaviours_sortable = (() => {
             else commit(row, current.from);
         }
 
-        function onPointerUp(event) {
-            if (drag && event.pointerId === drag.id) endDrag(false);
-        }
-
-        function onPointerCancel(event) {
-            if (drag && event.pointerId === drag.id) endDrag(true);
-        }
+        const dragging = drag(list, {
+            slop: SLOP,
+            press,
+            start: startDrag,
+            move(state) {
+                dragged.y = state.y;
+                if (!dragged.frame) dragged.frame = requestAnimationFrame(frame);
+            },
+            end: () => endDrag(false),
+            cancel: () => endDrag(true),
+        });
 
         settle();
         list.addEventListener('keydown', onKeyDown);
         list.addEventListener('keyup', onKeyUp);
         list.addEventListener('focusout', onFocusOut);
         list.addEventListener('click', onClick);
-        list.addEventListener('pointerdown', onPointerDown);
         document.addEventListener('keydown', onDocumentKey, true);
 
         return {
             teardown() {
-                if (drag) endDrag(true);
+                dragging.stop();
                 list.removeEventListener('keydown', onKeyDown);
                 list.removeEventListener('keyup', onKeyUp);
                 list.removeEventListener('focusout', onFocusOut);
                 list.removeEventListener('click', onClick);
-                list.removeEventListener('pointerdown', onPointerDown);
                 document.removeEventListener('keydown', onDocumentKey, true);
             },
         };
@@ -8372,6 +8924,8 @@ const __ds_behaviours_split = (() => {
      * and nothing else.
      */
 
+    const { drag } = __ds_shared_drag;
+
     const STEP = 1;
     const BIG_STEP = 10;
 
@@ -8404,7 +8958,7 @@ const __ds_behaviours_split = (() => {
 
         // What a pane had before it was folded away, to bring it back to.
         const folded = new WeakMap();
-        let drag = null;
+        let moving = null;
         let frame = 0;
 
         const px = (el) => el.getBoundingClientRect()[across];
@@ -8536,66 +9090,60 @@ const __ds_behaviours_split = (() => {
             if (divider) fold(divider);
         }
 
-        function onPointerDown(event) {
-            const divider = target(event);
-            const p = divider && pair(divider);
-            if (!p || event.button !== 0) return;
-            event.preventDefault();
-            divider.focus({ preventScroll: true });
-            const at = across === 'width' ? event.clientX : event.clientY;
-            drag = { divider, p, at, start: { a: px(p.before), b: px(p.after) }, id: event.pointerId, now: at };
-            try {
-                divider.setPointerCapture(event.pointerId);
-            } catch {}
-            divider.setAttribute('data-dragging', '');
-            root.setAttribute('data-dragging', '');
-            if (shield) shield.hidden = false;
-        }
+        const at = (state) => (across === 'width' ? state.x : state.y);
 
-        function onPointerMove(event) {
-            if (!drag || event.pointerId !== drag.id) return;
-            drag.now = across === 'width' ? event.clientX : event.clientY;
-            if (frame) return;
-            frame = requestAnimationFrame(() => {
-                frame = 0;
-                if (!drag) return;
-                if (drag.p.controlled.hasAttribute('data-collapsed')) drag.p.controlled.removeAttribute('data-collapsed');
-                resizeTo(drag.p, drag.start.a + drag.now - drag.at, drag.start);
-                tell('resize');
-            });
-        }
+        const dragging = drag(root, {
+            press(event) {
+                const divider = target(event);
+                const p = divider && pair(divider);
+                if (!p) return null;
+                event.preventDefault();
+                divider.focus({ preventScroll: true });
+                moving = { divider, p, start: { a: px(p.before), b: px(p.after) } };
+                return divider;
+            },
+            start(state) {
+                moving.at = moving.now = at(state);
+                moving.divider.setAttribute('data-dragging', '');
+                root.setAttribute('data-dragging', '');
+                if (shield) shield.hidden = false;
+            },
+            move(state) {
+                moving.now = at(state);
+                if (frame) return;
+                frame = requestAnimationFrame(() => {
+                    frame = 0;
+                    if (!moving) return;
+                    if (moving.p.controlled.hasAttribute('data-collapsed')) moving.p.controlled.removeAttribute('data-collapsed');
+                    resizeTo(moving.p, moving.start.a + moving.now - moving.at, moving.start);
+                    tell('resize');
+                });
+            },
+            end: release,
+            cancel: release,
+        });
 
-        function onPointerUp(event) {
-            if (!drag || event.pointerId !== drag.id) return;
-            const { divider } = drag;
+        function release() {
             cancelAnimationFrame(frame);
             frame = 0;
-            resizeTo(drag.p, drag.start.a + drag.now - drag.at, drag.start);
-            drag = null;
-            if (divider.hasPointerCapture?.(event.pointerId)) divider.releasePointerCapture(event.pointerId);
-            divider.removeAttribute('data-dragging');
+            resizeTo(moving.p, moving.start.a + moving.now - moving.at, moving.start);
+            moving.divider.removeAttribute('data-dragging');
             root.removeAttribute('data-dragging');
             if (shield) shield.hidden = true;
+            moving = null;
             tell('resized');
         }
 
         root.addEventListener('keydown', onKeyDown);
         root.addEventListener('dblclick', onDoubleClick);
-        root.addEventListener('pointerdown', onPointerDown);
-        root.addEventListener('pointermove', onPointerMove);
-        root.addEventListener('pointerup', onPointerUp);
-        root.addEventListener('pointercancel', onPointerUp);
 
         return {
             value,
             teardown() {
                 cancelAnimationFrame(frame);
+                dragging.stop();
                 root.removeEventListener('keydown', onKeyDown);
                 root.removeEventListener('dblclick', onDoubleClick);
-                root.removeEventListener('pointerdown', onPointerDown);
-                root.removeEventListener('pointermove', onPointerMove);
-                root.removeEventListener('pointerup', onPointerUp);
-                root.removeEventListener('pointercancel', onPointerUp);
             },
         };
     }
@@ -8680,6 +9228,203 @@ const __ds_behaviours_swap = (() => {
     }
 
     return { swap };
+})();
+
+// behaviours/swipe.js
+const __ds_behaviours_swipe = (() => {
+    /*
+     * dsSwipe: a row that slides sideways to show the actions under it, behind
+     * ds::swipe-actions.
+     *
+     *   x-data="dsSwipe({ threshold: 56, full: false, disabled: false, group: null })"
+     *
+     * The markup is the view's: the root data-ds-swipe, its content
+     * data-ds-swipe-content (with the More button data-ds-swipe-more in it) and
+     * up to two groups of real buttons, data-ds-swipe-actions="start" and "end".
+     * Without this the buttons sit after the content; marking the root
+     * data-ds-ready puts them under it.
+     *
+     *   - Pointer: a horizontal drag on the content (touch-action pan-y, so a
+     *     drag that starts vertical is the page's scroll). Swiping toward the
+     *     inline end shows `start`, toward the inline start shows `end`, which
+     *     flips in a right-to-left page. On release past `threshold` (or flung)
+     *     it opens to the width of the actions; with `full`, past most of the
+     *     row's width it dispatches `swipe` with { side } and presses the action
+     *     at that side's outer edge (start's first, end's last).
+     *   - More: opens the end side, then the start side, then closes.
+     *   - Keyboard focus on an action opens its side; Escape closes the row and
+     *     puts focus on More; focus leaving the row closes it.
+     *   - A press on the content of an open row closes it and goes no further.
+     *
+     * Opening one row closes the others of its group: the rows with the same
+     * data-ds-swipe-group, or else the rows of the nearest list.
+     */
+    const { drag } = __ds_shared_drag;
+
+    const FULL = 0.6;
+    const FLING = 150;
+
+    function swipe(Alpine) {
+        Alpine.data('dsSwipe', (options = {}) => {
+            let control = null;
+
+            return {
+                init() {
+                    if (!options.disabled) control = wire(this.$el, options);
+                },
+
+                destroy() {
+                    control?.teardown();
+                },
+            };
+        });
+    }
+
+    function wire(root, options) {
+        const content = root.querySelector('[data-ds-swipe-content]');
+        const more = root.querySelector('[data-ds-swipe-more]');
+        const sides = {
+            start: root.querySelector('[data-ds-swipe-actions="start"]'),
+            end: root.querySelector('[data-ds-swipe-actions="end"]'),
+        };
+        let open = null;
+        let x = 0;
+        let from = 0;
+        let frame = 0;
+
+        // +1 when showing that side moves the content right.
+        const rtl = () => getComputedStyle(root).direction === 'rtl';
+        const sign = (side) => ((side === 'start') !== rtl() ? 1 : -1);
+        const sideAt = (px) => (px === 0 ? null : (px > 0) !== rtl() ? 'start' : 'end');
+        const width = (side) => sides[side]?.offsetWidth ?? 0;
+
+        // Only the side being shown is drawn: at rest the edges of a solid
+        // action under the content bleed round it at a fractional pixel ratio.
+        function draw(px) {
+            x = px;
+            content.style.transform = px ? `translateX(${px}px)` : '';
+            for (const side in sides) if (sides[side]) sides[side].style.opacity = sideAt(px) === side ? '' : '0';
+        }
+
+        function set(side) {
+            open = side && sides[side] ? side : null;
+            draw(open ? sign(open) * width(open) : 0);
+            root.toggleAttribute('data-open', Boolean(open));
+            more?.setAttribute('aria-expanded', String(Boolean(open)));
+            if (!open) return;
+            const list = options.group
+                ? document.querySelectorAll(`[data-ds-swipe-group="${CSS.escape(options.group)}"]`)
+                : root.parentElement?.closest('ul, ol, [role=list]')?.querySelectorAll('[data-ds-swipe]') ?? [];
+            for (const other of list) if (other !== root) other.dispatchEvent(new CustomEvent('ds-swipe-close'));
+        }
+
+        function press(side) {
+            // The action at the edge the row slid away from: start's first, end's last.
+            const all = sides[side]?.querySelectorAll('button, a[href]') ?? [];
+            const first = side === 'start' ? all[0] : all[all.length - 1];
+            root.dispatchEvent(new CustomEvent('swipe', { bubbles: true, detail: { side } }));
+            set(null);
+            first?.click();
+        }
+
+        const dragging = drag(content, {
+            axis: 'x',
+            slop: 6,
+            swallowClick: true,
+            press(event) {
+                if (event.target.closest('input, select, textarea, [contenteditable]')) return null;
+                // No text selection on the way to a mouse drag.
+                if (event.pointerType === 'mouse') event.preventDefault();
+                return content;
+            },
+            start() {
+                from = x;
+                content.setAttribute('data-dragging', '');
+            },
+            move(state) {
+                let px = from + state.dx;
+                const side = sideAt(px);
+                const room = options.full ? content.offsetWidth : width(side);
+                // Past what there is to show it gives a quarter of the way.
+                if (!sides[side]) px /= 4;
+                else if (Math.abs(px) > room) px = sign(side) * (room + (Math.abs(px) - room) / 4);
+                cancelAnimationFrame(frame);
+                frame = requestAnimationFrame(() => draw(px));
+            },
+            end(state) {
+                cancelAnimationFrame(frame);
+                content.removeAttribute('data-dragging');
+                const px = from + state.dx;
+                const side = sideAt(px);
+                if (!sides[side]) return set(null);
+                const reach = Math.abs(px + state.vx * FLING);
+                if (options.full && Math.abs(px) > content.offsetWidth * FULL) return press(side);
+                set(sign(side) * (px + state.vx * FLING) > 0 && reach >= (options.threshold ?? 56) ? side : null);
+            },
+            cancel() {
+                cancelAnimationFrame(frame);
+                content.removeAttribute('data-dragging');
+                set(open);
+            },
+        });
+
+        function onClick(event) {
+            if (event.defaultPrevented) return;
+            if (event.target.closest('[data-ds-swipe-more]')) {
+                const both = sides.end && sides.start;
+                set(!open ? (sides.end ? 'end' : 'start') : open === 'end' && both ? 'start' : null);
+                return;
+            }
+            if (open && content.contains(event.target)) {
+                event.preventDefault();
+                event.stopPropagation();
+                set(null);
+            }
+        }
+
+        function onFocusIn(event) {
+            const side = event.target.closest?.('[data-ds-swipe-actions]')?.dataset.dsSwipeActions;
+            if (side && side !== open) set(side);
+        }
+
+        function onFocusOut(event) {
+            if (open && !root.contains(event.relatedTarget)) set(null);
+        }
+
+        function onKeyDown(event) {
+            if (event.key !== 'Escape' || !open) return;
+            event.stopPropagation();
+            const had = !content.contains(document.activeElement);
+            set(null);
+            if (had) more?.focus();
+        }
+
+        const close = () => set(null);
+        const listeners = [
+            [content, 'click', onClick, true],
+            [root, 'focusin', onFocusIn],
+            [root, 'focusout', onFocusOut],
+            [root, 'keydown', onKeyDown],
+            [root, 'ds-swipe-close', close],
+            // A link's own drag would take the pointer away mid-swipe.
+            [content, 'dragstart', (event) => event.preventDefault()],
+        ];
+        for (const [target, type, fn, capture] of listeners) target.addEventListener(type, fn, capture);
+        root.setAttribute('data-ds-ready', '');
+        draw(0);
+
+        return {
+            teardown() {
+                cancelAnimationFrame(frame);
+                dragging.stop();
+                for (const [target, type, fn, capture] of listeners) target.removeEventListener(type, fn, capture);
+                root.removeAttribute('data-ds-ready');
+                for (const side in sides) sides[side]?.style.removeProperty('opacity');
+            },
+        };
+    }
+
+    return { swipe };
 })();
 
 // behaviours/tag-input.js
@@ -10253,14 +10998,17 @@ const __ds_blade_ui = (() => {
     const { password } = __ds_behaviours_password;
     const { phoneInput } = __ds_behaviours_phone_input;
     const { popover } = __ds_behaviours_popover;
+    const { pullRefresh } = __ds_behaviours_pull_refresh;
     const { roll } = __ds_behaviours_roll;
     const { scrollShadows } = __ds_behaviours_scroll_shadows;
     const { search } = __ds_behaviours_search;
+    const { sheet } = __ds_behaviours_sheet;
     const { shortcutInput } = __ds_behaviours_shortcut_input;
     const { slider } = __ds_behaviours_slider;
     const { sortable } = __ds_behaviours_sortable;
     const { split } = __ds_behaviours_split;
     const { swap } = __ds_behaviours_swap;
+    const { swipe } = __ds_behaviours_swipe;
     const { tagInput } = __ds_behaviours_tag_input;
     const { teamSwitcher } = __ds_behaviours_team_switcher;
     const { theme } = __ds_behaviours_theme;
@@ -10269,7 +11017,7 @@ const __ds_blade_ui = (() => {
     const { toolbar } = __ds_behaviours_toolbar;
     const { tree } = __ds_behaviours_tree;
 
-    const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split, swap, teamSwitcher, moneyInput, phoneInput, search, kbdShortcut, shortcutInput, colour, mention, calendar, avatarUpload];
+    const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split, swap, teamSwitcher, moneyInput, phoneInput, search, kbdShortcut, shortcutInput, colour, mention, calendar, avatarUpload, sheet, swipe, pullRefresh];
 
     // Symbol.for, not a module-level flag. Two copies of this script, say the
     // inlined one AND a Vite import, are two separate modules with two separate

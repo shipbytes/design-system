@@ -236,6 +236,14 @@ const b17MorphBefore = await render(join(TMP, 'b17-morph-a.blade.php'));
 await writeFile(join(TMP, 'b17-morph-b.blade.php'), b17Blade(['Ask @Omar Malik', '#ff0000', '0, 40']));
 const b17MorphAfter = await render(join(TMP, 'b17-morph-b.blade.php'));
 
+// A snapping sheet for a host with Alpine and no include: it must open at its
+// natural height, with its handle still only a picture.
+await writeFile(join(TMP, 'b19-missing.blade.php'), `<div x-data="{ open: false }">
+<button type="button" id="nsh-open" @click="open = true">Open</button>
+<x-ds::sheet open="open" title="Places" :snap="['25%', '60%', 'full']" id="nsh"><p class="px-5 py-4">Places</p></x-ds::sheet>
+</div>`);
+const b19MissingMarkup = await render(join(TMP, 'b19-missing.blade.php'));
+
 await writeFile(
     join(TMP, 'in.css'),
     `@import "tailwindcss";
@@ -490,7 +498,7 @@ await check('the close button closes it', async () => {
     await settle(400);
     if (!(await drawerOpen())) return 'did not open';
 
-    await page.locator('[data-ds-drawer-panel] button[aria-label=Close]').click();
+    await page.locator('[data-ds-drawer-panel] button[aria-label=Close]').first().click();
     await settle(400);
     return (await drawerOpen()) === false || 'the ✕ did nothing';
 });
@@ -7276,6 +7284,206 @@ group('avatar upload (dsAvatarUpload)');
         || 'a request was made');
 }
 
+// ---------------------------------------------------------------- batch 19: the overlay stack
+
+group('overlay stack (the modal recipe: drawer, modal, command palette, sheet)');
+{
+    const stack = () => page.evaluate(() => {
+        const layer = (id) => document.getElementById(id).closest('[x-effect]');
+        const one = (id) => {
+            const root = layer(id);
+            const panel = document.getElementById(id);
+            const backdrop = root.querySelector(':scope > :first-child');
+            return {
+                at: root.dataset.dsLayer ?? '-',
+                covered: root.hasAttribute('data-ds-covered') && panel.hasAttribute('data-ds-covered'),
+                stacked: root.hasAttribute('data-ds-stacked'),
+                scale: panel.style.scale || '1',
+                backdrop: getComputedStyle(backdrop).opacity,
+                dim: getComputedStyle(panel, '::after').opacity,
+            };
+        };
+        return {
+            drawer: one('st-drawer'), one: one('st-one'), two: one('st-two'),
+            lock: document.body.classList.contains('overflow-hidden'),
+            focus: document.activeElement?.id || document.activeElement?.closest('[role=dialog]')?.id || document.activeElement?.tagName,
+            state: { ...Alpine.$data(document.getElementById('stack')).st },
+        };
+    });
+
+    await page.click('#st-open');
+    await settle(450);
+    await page.click('#st-open-one');
+    await settle(350);
+    await page.click('#st-open-two');
+    await settle(450);
+
+    await check('three open: each knows its place, the lower two covered and scaled back, the top one not', async () => {
+        const s = await stack();
+        return (s.drawer.at === '0' && s.one.at === '1' && s.two.at === '2' && s.drawer.covered && s.one.covered && !s.two.covered
+            && s.drawer.scale === '0.94' && s.one.scale === '0.94' && s.two.scale === '1' && s.lock) || JSON.stringify(s);
+    });
+
+    await check('the page is dimmed once: only the bottom layer draws its backdrop; the covered panels dim', async () => {
+        const s = await stack();
+        return (s.drawer.backdrop === '1' && s.one.backdrop === '0' && s.two.backdrop === '0' && !s.drawer.stacked && s.one.stacked && s.two.stacked
+            && s.drawer.dim === '0.5' && s.one.dim === '0.5' && s.two.dim === '0') || JSON.stringify(s);
+    });
+
+    await check('focus is in the top layer and Tab stays there — and moves', async () => {
+        const seen = new Set();
+        for (let i = 0; i < 6; i++) {
+            await page.keyboard.press('Tab');
+            const where = await page.evaluate(() => document.activeElement.closest('[role=dialog]')?.id);
+            if (where !== 'st-two') return `Tab reached ${where ?? await active()}`;
+            seen.add(await active());
+        }
+        return seen.size > 1 || `focus never moved from ${[...seen]}`;
+    });
+
+    await check('Escape closes the top layer only; focus goes back to what opened it; the one below is on top again', async () => {
+        await page.keyboard.press('Escape');
+        await settle(350);
+        const s = await stack();
+        return (!s.state.two && s.state.one && s.state.drawer && s.focus === 'st-open-two' && !s.one.covered && s.one.scale === '1'
+            && s.drawer.covered && s.lock) || JSON.stringify(s);
+    });
+
+    await check('closing the middle layer from code: nobody\'s focus moves, the top stays on top, the bottom stays covered', async () => {
+        await page.click('#st-open-two');
+        await settle(450);
+        await page.focus('#st-two-b');
+        await page.evaluate(() => (Alpine.$data(document.getElementById('stack')).st.one = false));
+        await settle(350);
+        const s = await stack();
+        return (s.state.two && !s.state.one && s.focus === 'st-two-b' && s.two.at === '2' && !s.two.covered && s.drawer.covered && s.lock) || JSON.stringify(s);
+    });
+
+    await check('then Escape closes the top, and focus lands where the closed middle layer would have sent it', async () => {
+        await page.keyboard.press('Escape');
+        await settle(350);
+        const s = await stack();
+        return (!s.state.two && s.state.drawer && s.focus === 'st-open-one' && !s.drawer.covered && s.drawer.scale === '1' && s.lock) || JSON.stringify(s);
+    });
+
+    await check('the last Escape closes the last layer, releases the scroll lock and returns focus to the page', async () => {
+        await page.keyboard.press('Escape');
+        await settle(450);
+        const s = await stack();
+        return (!s.state.drawer && !s.lock && s.focus === 'st-open') || JSON.stringify(s);
+    });
+
+    await check('a modal written inside another one\'s body: Tab moves one stop at a time, the outer is dimmed but not scaled', async () => {
+        await page.click('#st-outer-open');
+        await settle(350);
+        await page.click('#st-inner-open');
+        await settle(350);
+        const order = [];
+        for (let i = 0; i < 4; i++) {
+            await page.keyboard.press('Tab');
+            order.push(await active());
+        }
+        const outer = await page.evaluate(() => {
+            const p = document.getElementById('st-outer');
+            return { covered: p.hasAttribute('data-ds-covered'), scale: p.style.scale || '1' };
+        });
+        const ids = order.filter((id) => id.startsWith('st-inner-'));
+        return (ids.length >= 3 && new Set(order).size >= 3 && outer.covered && outer.scale === '1') || JSON.stringify({ order, outer });
+    });
+
+    await check('and Escape closes the inner one first', async () => {
+        await page.keyboard.press('Escape');
+        await settle(350);
+        const st = await page.evaluate(() => ({ ...Alpine.$data(document.getElementById('stack')).st }));
+        await page.keyboard.press('Escape');
+        await settle(350);
+        const after = await page.evaluate(() => ({ ...Alpine.$data(document.getElementById('stack')).st, lock: document.body.classList.contains('overflow-hidden') }));
+        return (st.outer && !st.inner && !after.outer && !after.lock) || JSON.stringify({ st, after });
+    });
+
+    await check('with reduced motion the layer below only dims: no scale', async () => {
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await page.click('#st-open');
+        await settle(450);
+        await page.click('#st-open-one');
+        await settle(350);
+        const s = await stack();
+        await page.keyboard.press('Escape');
+        await settle(300);
+        await page.keyboard.press('Escape');
+        await settle(450);
+        await page.emulateMedia({ reducedMotion: 'no-preference' });
+        return (s.drawer.covered && s.drawer.scale === '1' && s.drawer.dim === '0.5') || JSON.stringify(s);
+    });
+
+    await check('the order on screen is the order of opening: a layer earlier in the source opened second is on top', async () => {
+        await page.evaluate(() => (Alpine.$data(document.getElementById('stack')).st.one = true));
+        await settle(400);
+        await page.evaluate(() => (Alpine.$data(document.getElementById('stack')).st.drawer = true));
+        await settle(450);
+        const s = await page.evaluate(() => {
+            const r = document.getElementById('st-drawer').getBoundingClientRect();
+            const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            return { onTop: Boolean(hit?.closest('#st-drawer')), z: document.getElementById('st-drawer').closest('[x-effect]').style.zIndex, one: document.getElementById('st-one').hasAttribute('data-ds-covered') };
+        });
+        await page.keyboard.press('Escape');
+        await settle(450);
+        const after = await page.evaluate(() => ({ z: document.getElementById('st-drawer').closest('[x-effect]').style.zIndex, one: { ...Alpine.$data(document.getElementById('stack')).st }.one }));
+        await page.keyboard.press('Escape');
+        await settle(400);
+        return (s.onTop && s.z === '51' && s.one && after.z === '' && after.one) || JSON.stringify({ s, after });
+    });
+}
+
+// ---------------------------------------------------------------- batch 19: share sheet
+
+group('share sheet (form controls; events with Alpine)');
+{
+    await check('a region named by its heading; the device share button only where the browser has one', async () => {
+        const s = await page.evaluate(() => {
+            const root = document.getElementById('ss');
+            const share = [...root.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Share…');
+            return {
+                name: document.getElementById(root.getAttribute('aria-labelledby'))?.textContent.trim(),
+                has: typeof navigator.share === 'function',
+                shown: share?.checkVisibility() ?? null,
+            };
+        });
+        return (s.name === 'Share Q3 report' && s.shown === s.has) || JSON.stringify(s);
+    });
+
+    await check('each control is named: the role select by the person, the remove button by the person', async () => {
+        const s = await page.evaluate(() => ({
+            role: document.querySelector('#ss select[name="roles[u-2]"]')?.getAttribute('aria-label'),
+            remove: document.querySelector('#ss button[name=remove]')?.getAttribute('aria-label'),
+            locked: document.querySelectorAll('#ss select[name^=roles]').length,
+        }));
+        return (s.role === 'Role for Omar Malik' && s.remove === 'Remove Omar Malik' && s.locked === 1) || JSON.stringify(s);
+    });
+
+    await check('changing a role and the access dispatches role-change and access-change with the ids', async () => {
+        await page.selectOption('#ss select[name="roles[u-2]"]', 'viewer');
+        await page.selectOption('#ss select[name=access]', 'link');
+        const events = await page.evaluate(() => window.b19sEvents);
+        return JSON.stringify(events) === JSON.stringify([['role', { id: 'u-2', role: 'viewer' }], ['access', { value: 'link' }]]) || JSON.stringify(events);
+    });
+
+    await check('Remove dispatches remove with the id, and the form posts it with every field', async () => {
+        await page.click('#ss button[name=remove]');
+        await settle(100);
+        const s = await page.evaluate(() => ({ events: window.b19sEvents.at(-1), sent: window.b19sSent }));
+        const sent = Object.fromEntries(s.sent ?? []);
+        return (JSON.stringify(s.events) === JSON.stringify(['remove', { id: 'u-2' }]) && sent.remove === 'u-2' && sent['roles[u-2]'] === 'viewer' && sent.access === 'link') || JSON.stringify(s);
+    });
+
+    await check('the link copies', async () => {
+        await page.click('#ss button:has-text("Copy link")');
+        await settle(150);
+        return (await page.evaluate(() => navigator.clipboard.readText())) === 'https://example.com/r/q3' || 'clipboard did not get the link';
+    });
+}
+
+
 // ---------------------------------------------------------------- focus indicators
 
 /*
@@ -7449,6 +7657,8 @@ const overlays = [
     // Tab cannot leave the field, the only stop; Escape closes it, so the
     // ring is compared with the field gone.
     ['command palette, its field', '#f-cmd-open', 'Enter', 'Escape', 1],
+    // lg:hidden: walked at phone width only.
+    ['sheet with snap points: the handle, the close button, a row, round the trap', '#f-sheet-open', 'Enter', 'Tab', 4, 'phone'],
 ];
 
 const sections = await fpage.evaluate(() => [...document.querySelectorAll('[data-focus]')].map((el) => el.dataset.focus));
@@ -7473,7 +7683,9 @@ for (const [width, label] of [[1200, 'desktop'], [375, 'phone']]) {
             });
         }
 
-        for (const [name, ...walk] of overlays) {
+        for (const [name, opener, open, move, count, only] of overlays) {
+            if (only && only !== label) continue;
+            const walk = [opener, open, move, count];
             await check(`${name}: each focused one draws a ring`, async () => {
                 const bad = await overlayWalk(...walk);
                 return !bad.length || bad.join('; ');
@@ -7547,6 +7759,8 @@ const b12Markup = specimens.match(/<div class="mt-6 w-\[640px\]" id="b12"[\s\S]*
 const b15Markup = specimens.match(/<div class="mt-6 w-\[640px\]" id="b15"[\s\S]*?<!-- \/b15 -->/)?.[0];
 const b16Markup = specimens.match(/<div class="mt-6 w-\[640px\]" id="b16"[\s\S]*?<!-- \/b16 -->/)?.[0];
 const b17Markup = specimens.match(/<div class="mt-6 w-\[640px\]" id="b17"[\s\S]*?<!-- \/b17 -->/)?.[0];
+const b19Markup = specimens.match(/<div id="b19"[\s\S]*?<!-- \/b19 -->/)?.[0];
+const b19sMarkup = specimens.match(/<div class="mt-6 max-w-\[480px\]" id="b19s"[\s\S]*?<!-- \/b19s -->/)?.[0];
 const clipMarkup = specimens.match(/<div class="mt-6" id="clip"[\s\S]*?<\/span>\s*<\/div>/)?.[0];
 
 const hostPages = {
@@ -7659,6 +7873,27 @@ ${include}
     'b17-static.html': `<!doctype html><html><head><meta charset="utf-8">
 <style>${css}</style>
 </head><body>${b17Markup}</body></html>`,
+
+    // Batch 19's touch components, at a phone's size (see the touch groups).
+    'b19.html': `<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>${css}</style>
+${include}
+<script defer src="alpine.js"></script>
+</head><body class="bg-surface">${b19Markup}</body></html>`,
+
+    // Alpine and no include: the sheet with snap points opens all the same.
+    'b19-sheet-missing.html': `<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>${css}</style>
+<script defer src="alpine.js"></script>
+</head><body>${b19MissingMarkup}</body></html>`,
+
+    // Batch 19 with no Alpine at all: actions inline, a Refresh link, a form.
+    'b19-static.html': `<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>${css}</style>
+</head><body>${b19sMarkup}${b19Markup}</body></html>`,
 
     'b17-morph.html': `<!doctype html><html><head><meta charset="utf-8">
 <style>${css}</style>
@@ -7830,7 +8065,7 @@ group('host setup (b): Alpine bundled by the host, Alpine.plugin(bladeUi)');
     await check('the plugin works', () => copiesOn(tab));
     await check('plugin twice plus the include: each name registered exactly once', async () => {
         const names = await tab.evaluate(() => window.dsRegistered);
-        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme', 'dsDismiss', 'dsConfirm', 'dsHold', 'dsConfirmDialog', 'dsRoll', 'dsClamp', 'dsClear', 'dsTree', 'dsSlider', 'dsTimePicker', 'dsInlineEdit', 'dsCommandPalette', 'dsSortable', 'dsSplit', 'dsSwap', 'dsTeamSwitcher', 'dsMoneyInput', 'dsPhoneInput', 'dsSearch', 'dsShortcutInput', 'dsColour', 'dsMention', 'dsCalendar', 'dsAvatarUpload'];
+        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme', 'dsDismiss', 'dsConfirm', 'dsHold', 'dsConfirmDialog', 'dsRoll', 'dsClamp', 'dsClear', 'dsTree', 'dsSlider', 'dsTimePicker', 'dsInlineEdit', 'dsCommandPalette', 'dsSortable', 'dsSplit', 'dsSwap', 'dsTeamSwitcher', 'dsMoneyInput', 'dsPhoneInput', 'dsSearch', 'dsShortcutInput', 'dsColour', 'dsMention', 'dsCalendar', 'dsAvatarUpload', 'dsSwipe', 'dsPullRefresh'];
         return JSON.stringify(names) === JSON.stringify(expected) || `registered ${JSON.stringify(names)}`;
     });
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
@@ -8357,6 +8592,445 @@ group('announcement bar under a Content Security Policy');
   two tabs of one context share the storage, which is what the cross-tab
   check needs. Starts in a light system with nothing stored.
 */
+// ---------------------------------------------------------------- batch 19: touch
+
+/*
+  The sheet, swipe actions and pull to refresh on a page of their own, at a
+  phone's size with a touch screen: the sheet is lg:hidden, and a gesture has
+  to be a real one. Touches go in through the DevTools protocol, so the
+  browser makes the pointer events itself, pointerType touch, and applies
+  touch-action exactly as on a phone: a pan it takes for scrolling cancels
+  the pointer, which is what the components have to survive.
+*/
+const phone = await browser.newContext({ viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true, permissions: ['clipboard-read', 'clipboard-write'] });
+await phone.route(`${LARAVEL}/**`, serveFromLaravel);
+await phone.route(`${ORIGIN}/**`, serveHostPage);
+
+async function openPhone(name) {
+    const tab = await phone.newPage();
+    const errors = [];
+    tab.on('pageerror', (e) => errors.push(e.message));
+    tab.on('console', (m) => ['error', 'warning'].includes(m.type()) && errors.push(m.text()));
+    await tab.goto(`${ORIGIN}/${name}`, { waitUntil: 'networkidle' });
+    await tab.waitForTimeout(400);
+    const cdp = await phone.newCDPSession(tab);
+    const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+    // A finger from one point to another in `steps` moves `ms` apart.
+    const swipe = async (from, to, { steps = 10, ms = 16 } = {}) => {
+        await touch('touchStart', from[0], from[1]);
+        for (let i = 1; i <= steps; i++) {
+            await touch('touchMove', from[0] + ((to[0] - from[0]) * i) / steps, from[1] + ((to[1] - from[1]) * i) / steps);
+            await tab.waitForTimeout(ms);
+        }
+        await touch('touchEnd');
+    };
+    return { tab, errors, swipe };
+}
+
+group('sheet: snap points, drag, the handle, the stack (x-ds-sheet, phone size, touch)');
+{
+    const { tab, errors, swipe } = await openPhone('b19.html');
+    const log = () => tab.evaluate(() => Alpine.$data(document.getElementById('b19')).b19log.slice());
+    const sheet = (id = 'sh') => tab.evaluate((id) => {
+        const p = document.getElementById(id);
+        const body = p.querySelector('[data-ds-sheet-body]');
+        const handle = p.querySelector('[data-ds-sheet-handle]');
+        return {
+            seen: Math.round(innerHeight - p.getBoundingClientRect().top),
+            status: p.querySelector('[data-ds-sheet-status]')?.textContent ?? '',
+            overflow: body.style.overflowY || 'auto',
+            touch: body.style.touchAction || 'auto',
+            scrolled: Math.round(body.scrollTop),
+            handle: handle ? `${handle.getAttribute('tabindex')}|${handle.getAttribute('aria-hidden')}` : 'none',
+            open: getComputedStyle(p.closest('[data-ds-sheet-frame]')).display !== 'none',
+            lock: document.body.classList.contains('overflow-hidden'),
+            focus: document.activeElement?.id || document.activeElement?.closest('[role=dialog]')?.id || document.activeElement?.tagName,
+        };
+    }, id);
+    const handleAt = (id = 'sh') => tab.evaluate((id) => {
+        const r = document.querySelector(`#${id} [data-ds-sheet-handle], #${id} [data-ds-sheet-grip]`).getBoundingClientRect();
+        return [r.left + r.width / 2, r.top + r.height / 2];
+    }, id);
+
+    await check('the non-modal sheet is a region at its lowest point, and the page behind it stays usable', async () => {
+        const s = await tab.evaluate(() => {
+            const p = document.getElementById('sh-peek');
+            const hit = document.elementFromPoint(195, 200);
+            return {
+                role: p.getAttribute('role'), modal: p.getAttribute('aria-modal'), name: p.getAttribute('aria-label'),
+                seen: Math.round(innerHeight - p.getBoundingClientRect().top), behind: !hit.closest('[data-ds-sheet-frame]'),
+                lock: document.body.classList.contains('overflow-hidden'), layer: document.querySelectorAll('[data-ds-layer]').length,
+            };
+        });
+        return (s.role === 'region' && s.modal === null && s.name === 'Nearby' && Math.abs(s.seen - 96) <= 1 && s.behind && !s.lock && s.layer === 0) || JSON.stringify(s);
+    });
+
+    await tab.click('#sh-open');
+    await tab.waitForTimeout(500);
+
+    await check('the modal sheet opens at initialSnap (60% of the window), takes focus, locks the page; the handle is a button now', async () => {
+        const s = await sheet();
+        return (Math.abs(s.seen - 480) <= 2 && s.focus === 'sh' && s.lock && s.handle === 'null|null' && s.overflow === 'hidden') || JSON.stringify(s);
+    });
+
+    await check('the handle: ArrowUp to the top (85vh, the maxHeight), spoken "Expanded", and `snap` with its index and value', async () => {
+        await tab.focus('#sh [data-ds-sheet-handle]');
+        await tab.keyboard.press('ArrowUp');
+        await tab.waitForTimeout(400);
+        const s = await sheet();
+        const l = await log();
+        return (Math.abs(s.seen - 680) <= 2 && s.status === 'Expanded' && l.at(-1) === 'snap:2:full' && s.overflow === 'auto' && s.touch === 'pan-x pan-down') || JSON.stringify({ ...s, l });
+    });
+
+    await check('ArrowDown twice: "Collapsed" at 25%; Enter steps up again: "Half"', async () => {
+        await tab.keyboard.press('ArrowDown');
+        await tab.keyboard.press('ArrowDown');
+        await tab.waitForTimeout(400);
+        const low = await sheet();
+        await tab.keyboard.press('Enter');
+        await tab.waitForTimeout(400);
+        const half = await sheet();
+        return (Math.abs(low.seen - 200) <= 2 && low.status === 'Collapsed' && low.overflow === 'hidden' && low.touch === 'pan-x'
+            && Math.abs(half.seen - 480) <= 2 && half.status === 'Half') || JSON.stringify({ low, half });
+    });
+
+    await check('below the top, a finger on the content moves the sheet, and the content does not scroll', async () => {
+        await swipe([195, 600], [195, 300]);
+        await tab.waitForTimeout(450);
+        const s = await sheet();
+        return (Math.abs(s.seen - 680) <= 2 && s.scrolled === 0 && s.status === 'Expanded') || JSON.stringify(s);
+    });
+
+    await check('at the top the content scrolls under a finger, and the sheet stays where it is', async () => {
+        await swipe([195, 700], [195, 350]);
+        await tab.waitForTimeout(500);
+        const s = await sheet();
+        return (Math.abs(s.seen - 680) <= 2 && s.scrolled > 100 && s.touch === 'auto') || JSON.stringify(s);
+    });
+
+    await check('scrolled back to its top, a pull down on the content drags the sheet down (pan-down is ours)', async () => {
+        // Twice, apart: a fling from the last check may still be scrolling it.
+        for (let i = 0; i < 2; i++) {
+            await tab.evaluate(() => document.querySelector('#sh [data-ds-sheet-body]').scrollTo(0, 0));
+            await tab.waitForTimeout(400);
+        }
+        await swipe([195, 300], [195, 520]);
+        await tab.waitForTimeout(600);
+        const s = await sheet();
+        return (s.seen < 680 && s.open && s.touch !== 'auto') || JSON.stringify(s);
+    });
+
+    await check('dragging the handle settles on the nearest point', async () => {
+        // From the top point, put there by the keyboard, whatever the last check left.
+        await tab.focus('#sh [data-ds-sheet-handle]');
+        for (let i = 0; i < 2; i++) await tab.keyboard.press('ArrowUp');
+        await tab.waitForTimeout(600);
+        const [x, y] = await handleAt();
+        await swipe([x, y], [x, 800 - 470], { steps: 12, ms: 40 });
+        await tab.waitForTimeout(600);
+        const s = await sheet();
+        return (Math.abs(s.seen - 480) <= 2 && s.status === 'Half') || JSON.stringify(s);
+    });
+
+    await check('a sheet opened from a sheet: the one below is covered and scaled; Escape closes only the top one', async () => {
+        await tab.click('#sh-open-details');
+        await tab.waitForTimeout(500);
+        const covered = await tab.evaluate(() => {
+            const p = document.getElementById('sh');
+            return { covered: p.hasAttribute('data-ds-covered'), scale: p.style.scale, top: document.getElementById('sh-details').closest('[x-effect]').dataset.dsLayer };
+        });
+        await tab.keyboard.press('Escape');
+        await tab.waitForTimeout(500);
+        const s = await sheet();
+        const d = await sheet('sh-details');
+        return (covered.covered && covered.scale === '0.94' && covered.top === '1' && s.open && !d.open && s.focus === 'sh-open-details'
+            && !(await tab.evaluate(() => document.getElementById('sh').hasAttribute('data-ds-covered')))) || JSON.stringify({ covered, s, d });
+    });
+
+    await check('a flick down from the handle past the lowest point closes it: focus back on the trigger, the lock released', async () => {
+        const [x, y] = await handleAt();
+        await swipe([x, y], [x, 780], { steps: 4, ms: 16 });
+        await tab.waitForTimeout(500);
+        const s = await sheet();
+        const open = await tab.evaluate(() => Alpine.$data(document.getElementById('b19')).sh.places);
+        return (!open && !s.lock && s.focus === 'sh-open') || JSON.stringify({ ...s, open });
+    });
+
+    await check('without snap points it opens at its natural height; dragged down, it closes', async () => {
+        await tab.click('#sh-open-plain');
+        await tab.waitForTimeout(500);
+        const s = await tab.evaluate(() => {
+            const p = document.getElementById('sh-plain');
+            return { height: p.style.height, seen: Math.round(innerHeight - p.getBoundingClientRect().top), natural: p.scrollHeight, handle: p.querySelector('[data-ds-sheet-handle]') === null };
+        });
+        const [x, y] = await handleAt('sh-plain');
+        await swipe([x, y], [x, 790], { steps: 6 });
+        await tab.waitForTimeout(500);
+        const open = await tab.evaluate(() => Alpine.$data(document.getElementById('b19')).sh.plain);
+        return (s.height === '' && Math.abs(s.seen - s.natural) <= 2 && s.handle && !open) || JSON.stringify({ ...s, open });
+    });
+
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+
+group('swipe actions (dsSwipe, phone size, touch)');
+{
+    const { tab, errors, swipe } = await openPhone('b19.html');
+    const log = () => tab.evaluate(() => Alpine.$data(document.getElementById('b19')).b19log.slice());
+    const row = (id) => tab.evaluate((id) => {
+        const el = document.getElementById(id);
+        const c = el.querySelector('[data-ds-swipe-content]');
+        const r = el.getBoundingClientRect();
+        return {
+            x: Math.round(new DOMMatrix(getComputedStyle(c).transform).m41), open: el.hasAttribute('data-open'),
+            more: el.querySelector('[data-ds-swipe-more]').getAttribute('aria-expanded'),
+            box: [r.left, r.top, r.width, r.height], end: Math.round(el.querySelector('[data-ds-swipe-actions=end]')?.offsetWidth ?? 0),
+            start: Math.round(el.querySelector('[data-ds-swipe-actions=start]')?.offsetWidth ?? 0),
+            focus: document.activeElement?.id || document.activeElement?.tagName,
+        };
+    }, id);
+    const middle = (s, dx = 0) => [s.box[0] + s.box[2] / 2 + dx, s.box[1] + s.box[3] / 2];
+    await tab.evaluate(() => document.getElementById('sw-list').scrollIntoView());
+    await tab.waitForTimeout(100);
+
+    await check('ready: the actions under the content, More shown and collapsed, each action still a button in the tab order', async () => {
+        const s = await tab.evaluate(() => {
+            const el = document.getElementById('sw-one');
+            const end = el.querySelector('[data-ds-swipe-actions=end]');
+            return { position: getComputedStyle(end).position, opacity: end.style.opacity, more: el.querySelector('[data-ds-swipe-more]').checkVisibility(), tab: document.getElementById('sw-one-delete').tabIndex };
+        });
+        return (s.position === 'absolute' && s.opacity === '0' && s.more && s.tab === 0) || JSON.stringify(s);
+    });
+
+    await check('a swipe toward the start opens the end actions, as wide as they are', async () => {
+        const s0 = await row('sw-one');
+        await swipe(middle(s0, 80), middle(s0, -60), { steps: 8 });
+        await tab.waitForTimeout(350);
+        const s = await row('sw-one');
+        return (s.open && s.x === -s.end && s.more === 'true') || JSON.stringify(s);
+    });
+
+    await check('opening another row of the list closes the first; toward the end opens start', async () => {
+        const s0 = await row('sw-two');
+        await swipe(middle(s0, -80), middle(s0, 40), { steps: 8 });
+        await tab.waitForTimeout(350);
+        const a = await row('sw-one');
+        const b = await row('sw-two');
+        return (!a.open && a.x === 0 && b.open && b.x === b.start) || JSON.stringify({ a, b });
+    });
+
+    await check('a tap on the content of an open row closes it, and goes no further', async () => {
+        const s0 = await row('sw-two');
+        await tab.touchscreen.tap(...middle(s0, 40));
+        await tab.waitForTimeout(350);
+        const s = await row('sw-two');
+        const hash = await tab.evaluate(() => location.hash);
+        return (!s.open && s.x === 0 && hash === '') || JSON.stringify({ ...s, hash });
+    });
+
+    await check('a drag that starts vertical is the page\'s scroll: the row does not move', async () => {
+        const s0 = await row('sw-one');
+        const before = await tab.evaluate(() => scrollY);
+        await swipe(middle(s0), [middle(s0)[0] + 15, middle(s0)[1] - 120], { steps: 8 });
+        await tab.waitForTimeout(350);
+        const s = await row('sw-one');
+        const after = await tab.evaluate(() => scrollY);
+        await tab.evaluate(() => document.getElementById('sw-list').scrollIntoView());
+        return (s.x === 0 && !s.open && after > before) || JSON.stringify({ ...s, before, after });
+    });
+
+    await check('More opens the end, then the start, then closes — the route without a swipe', async () => {
+        const seen = [];
+        for (let i = 0; i < 3; i++) {
+            await tab.click('#sw-one [data-ds-swipe-more]');
+            await tab.waitForTimeout(250);
+            const s = await row('sw-one');
+            seen.push(s.x === 0 ? 'closed' : s.x < 0 ? 'end' : 'start');
+        }
+        return seen.join(',') === 'end,start,closed' || seen.join(',');
+    });
+
+    await check('keyboard focus on an action opens its side; Escape closes and puts focus on More', async () => {
+        await tab.focus('#sw-one-flag');
+        await tab.waitForTimeout(250);
+        const open = await row('sw-one');
+        await tab.keyboard.press('Escape');
+        await tab.waitForTimeout(250);
+        const s = await row('sw-one');
+        const more = await tab.evaluate(() => document.activeElement?.matches('#sw-one [data-ds-swipe-more]'));
+        return (open.open && open.x === -open.end && !s.open && more) || JSON.stringify({ open, s, more });
+    });
+
+    await check('a full swipe dispatches `swipe` and presses the action at the outer edge', async () => {
+        const s0 = await row('sw-one');
+        await swipe([s0.box[0] + s0.box[2] - 20, middle(s0)[1]], [s0.box[0] + 10, middle(s0)[1]], { steps: 12 });
+        await tab.waitForTimeout(350);
+        const l = await log();
+        const s = await row('sw-one');
+        return (l.slice(-2).join(',') === 'swipe:end,delete:one' && !s.open) || JSON.stringify({ l, s });
+    });
+
+    await check('right to left: the start actions are revealed by a swipe toward the left', async () => {
+        const s0 = await row('sw-rtl');
+        await swipe(middle(s0, 60), middle(s0, -60), { steps: 8 });
+        await tab.waitForTimeout(350);
+        const s = await row('sw-rtl');
+        return (s.open && s.x === -s.start) || JSON.stringify(s);
+    });
+
+    await check('a mouse drag opens a row too, and the click that ends it does not follow the link', async () => {
+        const s0 = await row('sw-two');
+        const [x, y] = middle(s0, 60);
+        await tab.mouse.move(x, y);
+        await tab.mouse.down();
+        for (let i = 1; i <= 8; i++) await tab.mouse.move(x - i * 15, y);
+        await tab.mouse.up();
+        await tab.waitForTimeout(350);
+        const s = await row('sw-two');
+        return (s.open && (await tab.evaluate(() => location.hash)) === '') || JSON.stringify(s);
+    });
+
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+
+group('pull to refresh (dsPullRefresh, phone size, touch)');
+{
+    const { tab, errors, swipe } = await openPhone('b19.html');
+    const log = () => tab.evaluate(() => Alpine.$data(document.getElementById('b19')).b19log.slice());
+    const pr = (id = 'pr') => tab.evaluate((id) => {
+        const el = document.getElementById(id);
+        const r = el.getBoundingClientRect();
+        return {
+            busy: el.getAttribute('aria-busy'), refreshing: el.hasAttribute('data-refreshing'),
+            y: Math.round(new DOMMatrix(getComputedStyle(el.querySelector('[data-ds-pull-content]')).transform).m42),
+            status: el.querySelector('[data-ds-pull-status]').textContent, touch: el.style.touchAction || 'auto',
+            top: el.scrollTop, box: [r.left + r.width / 2, r.top + 40], hash: location.hash,
+        };
+    }, id);
+    await tab.evaluate(() => document.getElementById('pr').scrollIntoView());
+    await tab.waitForTimeout(100);
+
+    await check('at its top the box hands a downward pull to the script (pan-x pan-down) and keeps the browser\'s own out (overscroll contain)', async () => {
+        const s = await pr();
+        const contain = await tab.evaluate(() => getComputedStyle(document.getElementById('pr')).overscrollBehaviorY);
+        return (s.touch === 'pan-x pan-down' && contain === 'contain' && s.busy === 'false') || JSON.stringify({ ...s, contain });
+    });
+
+    await check('a short pull springs back and refreshes nothing', async () => {
+        const s0 = await pr();
+        await swipe(s0.box, [s0.box[0], s0.box[1] + 50], { steps: 6 });
+        await tab.waitForTimeout(350);
+        const s = await pr();
+        return (!(await log()).includes('refresh') && s.y === 0 && !s.refreshing) || JSON.stringify(s);
+    });
+
+    await check('a long pull refreshes: `refresh`, busy, the content held down while it lasts', async () => {
+        const s0 = await pr();
+        await swipe(s0.box, [s0.box[0], s0.box[1] + 220], { steps: 12 });
+        await tab.waitForTimeout(350);
+        const s = await pr();
+        return ((await log()).filter((l) => l === 'refresh').length === 1 && s.busy === 'true' && s.refreshing && s.y > 0) || JSON.stringify(s);
+    });
+
+    await check('`refreshed` from the host ends it, and "Updated" is said', async () => {
+        await tab.evaluate(() => document.getElementById('pr').dispatchEvent(new Event('refreshed')));
+        await tab.waitForTimeout(350);
+        const s = await pr();
+        return (s.busy === 'false' && !s.refreshing && s.y === 0 && s.status === 'Updated') || JSON.stringify(s);
+    });
+
+    await check('scrolled down, a pull scrolls the box back up instead (pan-y is the browser\'s)', async () => {
+        await tab.evaluate(() => document.getElementById('pr').scrollTo(0, 300));
+        await tab.waitForTimeout(150);
+        const s0 = await pr();
+        const before = (await log()).length;
+        await swipe(s0.box, [s0.box[0], s0.box[1] + 150], { steps: 8 });
+        await tab.waitForTimeout(350);
+        const s = await pr();
+        return (s0.touch === 'auto' && s.top < 300 && (await log()).length === before && !s.refreshing) || JSON.stringify({ s0, s });
+    });
+
+    await check('the Refresh button does the same for every other pointer; a re-render without the flag ends it', async () => {
+        await tab.evaluate(() => document.getElementById('pr').scrollTo(0, 0));
+        await tab.click('#pr [data-ds-pull-button]');
+        await tab.waitForTimeout(100);
+        const during = await pr();
+        await tab.evaluate(() => document.getElementById('pr').removeAttribute('data-refreshing'));
+        await tab.waitForTimeout(300);
+        const s = await pr();
+        return (during.refreshing && during.busy === 'true' && (await log()).filter((l) => l === 'refresh').length === 2 && !s.refreshing && s.busy === 'false') || JSON.stringify({ during, s });
+    });
+
+    await check('no host answering: the button follows its link, and the timeout ends the wait', async () => {
+        await tab.click('#pr-link [data-ds-pull-button]');
+        await tab.waitForTimeout(100);
+        const during = await pr('pr-link');
+        await tab.waitForTimeout(500);
+        const s = await pr('pr-link');
+        return (during.hash === '#pr-followed' && during.refreshing && !s.refreshing) || JSON.stringify({ during, s });
+    });
+
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+
+group('batch 19 without the script, and without Alpine');
+{
+    const { tab, errors } = await openPhone('b19-sheet-missing.html');
+    await check('Alpine and no include: the snapping sheet opens at its natural height, its handle inert, and nothing is said', async () => {
+        await tab.click('#nsh-open');
+        await tab.waitForTimeout(500);
+        const s = await tab.evaluate(() => {
+            const p = document.getElementById('nsh');
+            const h = p.querySelector('[data-ds-sheet-handle]');
+            return { visible: p.checkVisibility(), height: p.style.height, transform: p.style.transform, handle: `${h.getAttribute('tabindex')}|${h.getAttribute('aria-hidden')}`, focus: document.activeElement?.id };
+        });
+        return (s.visible && s.height === '' && s.transform === '' && s.handle === '-1|true' && s.focus === 'nsh' && !errors.length) || JSON.stringify({ ...s, errors });
+    });
+    await check('and it still closes: Escape', async () => {
+        await tab.keyboard.press('Escape');
+        await tab.waitForTimeout(400);
+        return !(await tab.evaluate(() => document.getElementById('nsh').checkVisibility())) || 'still open';
+    });
+    await tab.close();
+
+    const plain = await openPhone('b19-static.html');
+    await check('no Alpine: swipe rows show their actions inline after the content, with no More', async () => {
+        const s = await plain.tab.evaluate(() => {
+            const el = document.getElementById('sw-one');
+            const end = el.querySelector('[data-ds-swipe-actions=end]');
+            const c = el.querySelector('[data-ds-swipe-content]').getBoundingClientRect();
+            return { position: getComputedStyle(end).position, after: end.getBoundingClientRect().left >= c.right - 1, more: el.querySelector('[data-ds-swipe-more]').checkVisibility(), seen: end.checkVisibility() };
+        });
+        return (s.position === 'static' && s.after && !s.more && s.seen) || JSON.stringify(s);
+    });
+    await check('no Alpine: pull to refresh is its Refresh button, a link', async () => {
+        const href = await plain.tab.evaluate(() => document.querySelector('#pr-link [data-ds-pull-button]').getAttribute('href'));
+        return href === '#pr-followed' || href;
+    });
+    await check('no Alpine: the share sheet posts as a form, and the device share button stays hidden', async () => {
+        // A finger on the remove button, where it is on the page.
+        const [x, y, hit] = await plain.tab.evaluate(() => {
+            const b = document.querySelector('#ss button[name=remove]');
+            b.scrollIntoView({ block: 'center', inline: 'center' });
+            const r = b.getBoundingClientRect();
+            const at = [r.x + r.width / 2, r.y + r.height / 2];
+            return [...at, Boolean(document.elementFromPoint(...at)?.closest('button[name=remove]'))];
+        });
+        if (!hit) return 'something covers the remove button';
+        await plain.tab.touchscreen.tap(x, y);
+        await plain.tab.waitForTimeout(150);
+        const s = await plain.tab.evaluate(() => ({ sent: Object.fromEntries(window.b19sSent ?? []), share: [...document.querySelectorAll('#ss button')].find((b) => b.textContent.trim() === 'Share…')?.checkVisibility() }));
+        return (s.sent.remove === 'u-2' && s.sent.access === 'restricted' && s.sent['roles[u-2]'] === 'editor' && s.share === false) || JSON.stringify(s);
+    });
+    await plain.tab.close();
+}
+
+await phone.close();
+
+
 const themeContext = await browser.newContext({ viewport: { width: 1000, height: 700 }, colorScheme: 'light' });
 await themeContext.route(`${ORIGIN}/**`, serveHostPage);
 await themeContext.route(`${LARAVEL}/**`, serveFromLaravel);

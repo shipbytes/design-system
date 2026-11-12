@@ -1269,6 +1269,104 @@
         </div>
     </div>
 
+    {{-- ── batch 19: the overlay stack, on the desktop page: a drawer, a
+         modal over it, a modal over that, and a modal written INSIDE
+         another's body. ── --}}
+    <div class="mt-6" id="stack" x-data="{ st: { drawer: false, one: false, two: false, outer: false, inner: false } }">
+        <button type="button" id="st-open" @click="st.drawer = true">Open the stack</button>
+        <x-ds::drawer open="st.drawer" title="Level one" id="st-drawer">
+            <button type="button" id="st-open-one" @click="st.one = true">Open level two</button>
+        </x-ds::drawer>
+        <x-ds::modal open="st.one" title="Level two" id="st-one">
+            <button type="button" id="st-open-two" @click="st.two = true">Open level three</button>
+        </x-ds::modal>
+        <x-ds::modal open="st.two" title="Level three" size="sm" id="st-two">
+            <button type="button" id="st-two-a">A</button>
+            <button type="button" id="st-two-b">B</button>
+        </x-ds::modal>
+
+        <button type="button" id="st-outer-open" @click="st.outer = true">Open nested</button>
+        <x-ds::modal open="st.outer" title="Outer" id="st-outer">
+            <button type="button" id="st-inner-open" @click="st.inner = true">Open inner</button>
+            <x-ds::modal open="st.inner" title="Inner" size="sm" id="st-inner">
+                <button type="button" id="st-inner-a">One</button>
+                <button type="button" id="st-inner-b">Two</button>
+                <button type="button" id="st-inner-c">Three</button>
+            </x-ds::modal>
+        </x-ds::modal>
+    </div>
+
+    {{-- ── batch 19: the share sheet, posting as a plain form. ── --}}
+    <div class="mt-6 max-w-[480px]" id="b19s">
+        <form id="b19s-form" onsubmit="event.preventDefault(); window.b19sSent = [...new FormData(event.target, event.submitter)]"
+            x-data x-on:access-change="(window.b19sEvents ??= []).push(['access', $event.detail])"
+            x-on:role-change="(window.b19sEvents ??= []).push(['role', $event.detail])"
+            x-on:remove="(window.b19sEvents ??= []).push(['remove', $event.detail])">
+            <x-ds::share-sheet id="ss" url="https://example.com/r/q3" label="Share Q3 report" title="Q3 report"
+                access="restricted" :accessOptions="['restricted' => 'Restricted', 'link' => 'Anyone with the link']"
+                :roles="['viewer' => 'Viewer', 'editor' => 'Editor']"
+                :people="[['id' => 1, 'name' => 'Maya Patel', 'email' => 'maya@example.com', 'role' => 'owner', 'locked' => true], ['id' => 'u-2', 'name' => 'Omar Malik', 'email' => 'omar@example.com', 'role' => 'editor']]" />
+        </form>
+    </div>
+    <!-- /b19s -->
+
+    {{-- ── batch 19: the touch components, driven on a phone-sized page of
+         their own (the sheet is lg:hidden). ── --}}
+    <div id="b19" x-data="{ sh: { places: false, details: false, peek: true, plain: false }, b19log: [] }">
+        <button type="button" id="sh-open" @click="sh.places = true">Places</button>
+        <button type="button" id="sh-open-plain" @click="sh.plain = true">Plain</button>
+        <x-ds::sheet open="sh.places" title="Places" :snap="['25%', '60%', 'full']" initialSnap="60%" id="sh"
+            x-on:snap="b19log.push('snap:' + $event.detail.index + ':' + $event.detail.value)">
+            <button type="button" id="sh-open-details" @click="sh.details = true" class="block w-full p-4 text-left">Details</button>
+            @for ($i = 1; $i <= 40; $i++)
+                <p class="px-5 py-2 text-fg">Place {{ $i }}</p>
+            @endfor
+            <button type="button" id="sh-last" class="block p-4">Last</button>
+        </x-ds::sheet>
+        <x-ds::sheet open="sh.details" title="Details" :snap="['50%']" id="sh-details">
+            <p class="px-5 text-fg">Opening hours</p>
+            <button type="button" id="sh-details-ok" @click="sh.details = false">Done</button>
+        </x-ds::sheet>
+        <x-ds::sheet open="sh.plain" :draggable="true" id="sh-plain">
+            <p class="px-5 py-4 text-fg">A sheet at its natural height.</p>
+        </x-ds::sheet>
+        <x-ds::sheet open="sh.peek" title="Nearby" :snap="[96, '50%']" :modal="false" :dismissible="false" id="sh-peek">
+            <p class="px-5 text-fg">Twelve places nearby</p>
+        </x-ds::sheet>
+
+        <ul role="list" id="sw-list" class="divide-y divide-divider" x-on:swipe="b19log.push('swipe:' + $event.detail.side)">
+            @foreach (['one', 'two'] as $n)
+                <li>
+                    <x-ds::swipe-actions id="sw-{{ $n }}" :full="true">
+                        <a href="#sw-{{ $n }}-open" id="sw-{{ $n }}-link" class="block px-4 py-3 text-fg">Message {{ $n }}</a>
+                        <x-slot:start><x-ds::swipe-action id="sw-{{ $n }}-archive" label="Archive" icon="archive-box" tone="accent" x-on:click="b19log.push('archive:{{ $n }}')" /></x-slot:start>
+                        <x-slot:end>
+                            <x-ds::swipe-action id="sw-{{ $n }}-flag" label="Flag" icon="flag" x-on:click="b19log.push('flag:{{ $n }}')" />
+                            <x-ds::swipe-action id="sw-{{ $n }}-delete" label="Delete" icon="trash" tone="danger" x-on:click="b19log.push('delete:{{ $n }}')" />
+                        </x-slot:end>
+                    </x-ds::swipe-actions>
+                </li>
+            @endforeach
+        </ul>
+        <div dir="rtl">
+            <x-ds::swipe-actions id="sw-rtl">
+                <span class="block px-4 py-3">رسالة</span>
+                <x-slot:start><x-ds::swipe-action id="sw-rtl-archive" label="Archive" /></x-slot:start>
+            </x-ds::swipe-actions>
+        </div>
+
+        <x-ds::pull-refresh id="pr" label="Inbox" class="h-64" x-on:refresh.prevent="b19log.push('refresh')">
+            @for ($i = 1; $i <= 30; $i++)
+                <p class="px-4 py-2 text-fg">Item {{ $i }}</p>
+            @endfor
+        </x-ds::pull-refresh>
+        <x-ds::pull-refresh id="pr-link" href="#pr-followed" :timeout="400" label="Feed">
+            <p class="px-4 py-2 text-fg">Feed</p>
+        </x-ds::pull-refresh>
+        <div class="h-[600px]"></div>
+    </div>
+    <!-- /b19 -->
+
     {{-- Outside #b17, which a page without Alpine reuses: a mention input in
          a modal, whose Escape must close the list and not the modal. --}}
     <div class="mt-6" x-data="{ mnModal: false }">

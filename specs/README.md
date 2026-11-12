@@ -32,7 +32,7 @@ independent implementations the same component rather than three lookalikes.
 | [stat-tile.md](stat-tile.md) | Metric tile, delta, caption |
 | [table.md](table.md) | Table, row, cell, alignment and density |
 | [nav-item.md](nav-item.md) | Sidebar item, active state, collapsed state, chip |
-| [sheet.md](sheet.md) | Mobile sheet, rows, the three tones |
+| [sheet.md](sheet.md) | Mobile sheet, rows, the three tones, snap points and drag |
 | [modal.md](modal.md) | Modal, sizes, the focus contract |
 | [drawer.md](drawer.md) | Edge panel, and which of the three overlays to reach for |
 | [dropdown.md](dropdown.md) | Menu, items, placement, the keyboard contract |
@@ -43,6 +43,9 @@ independent implementations the same component rather than three lookalikes.
 | [calendar.md](calendar.md) | The month grid the date picker shares, modes, markers, the server's today |
 | [file-upload.md](file-upload.md) | Drop zone, previews, and where the line is |
 | [avatar-upload.md](avatar-upload.md) | Choose, crop square in the browser, post as a file; never upload |
+| [share-sheet.md](share-sheet.md) | People, roles, general access and the link; posts as a form, reports by events |
+| [swipe-actions.md](swipe-actions.md) | A row that slides to show its actions; the swipe is a shortcut, never the only way |
+| [pull-refresh.md](pull-refresh.md) | Pull to refresh on touch, a button for everyone, and the three ways a refresh ends |
 | [accordion.md](accordion.md) | Disclosure sections, and the one piece of state |
 | [checkbox.md](checkbox.md) | Checkbox, indeterminate, the styled native input |
 | [radio.md](radio.md) | Radio, and why the group is a fieldset |
@@ -128,7 +131,7 @@ breadcrumb.md, `tab` and `tab-panel` in tabs.md, `step` in stepper.md, `radio-gr
 `chip` in chip-group.md, `radio-card` in radio-cards.md, `segment` in
 segmented-control.md, `toolbar-button` and `toolbar-separator` in toolbar.md,
 `toggle` in toggle-group.md, `tree-item` in tree.md, `filter-chip` in
-filter-bar.md, and `toast-region` in toast.md.
+filter-bar.md, `swipe-action` in swipe-actions.md, and `toast-region` in toast.md.
 
 **Every built component now has a spec.** Specs are written **alongside** their
 implementation, not before it and not after — a speculative spec for a component

@@ -384,7 +384,7 @@ const OPERATE = {
     'sortable-list': async (pane) =>
         pane.locator('[data-shot-drag]').evaluate(async (row) => {
             const handle = row.querySelector('[data-ds-sortable-handle]').getBoundingClientRect();
-            const at = { clientX: handle.left + handle.width / 2, clientY: handle.top + handle.height / 2, pointerId: 7, pointerType: 'mouse', bubbles: true, button: 0, buttons: 1 };
+            const at = { clientX: handle.left + handle.width / 2, clientY: handle.top + handle.height / 2, pointerId: 7, pointerType: 'mouse', isPrimary: true, bubbles: true, button: 0, buttons: 1 };
             row.querySelector('[data-ds-sortable-handle]').dispatchEvent(new PointerEvent('pointerdown', at));
             for (const dy of [6, 20, 40]) {
                 row.dispatchEvent(new PointerEvent('pointermove', { ...at, clientY: at.clientY + dy }));
@@ -413,6 +413,11 @@ const OPERATE = {
         await pane.locator('[data-ds-colour-trigger]').dispatchEvent('click', { bubbles: true });
         await tab.waitForTimeout(150);
         await tab.evaluate(() => document.activeElement?.blur());
+    },
+    // The row opened by its More button, which is where a swipe leaves it.
+    'swipe-actions': async (pane) => {
+        await pane.locator('[data-shot-open] [data-ds-swipe-more]').dispatchEvent('click', { bubbles: true });
+        await tab.waitForTimeout(350);
     },
     // A photo drawn in the page (the repository holds none), chosen through
     // the component's own picker, so the crop dialog is its own doing.
@@ -491,6 +496,26 @@ for (const name of order) {
         }
         await tab.waitForTimeout(400);
     }
+
+    /*
+      Every overlay specimen on this page is open at once, one per pane, so
+      the overlay stack (partials/modal.php) takes each for a layer over the
+      last: dims and scales back all but one, and drops the top one's
+      backdrop. Two panes are two pages, not a stack, so the page's layers
+      are made peers again before the picture.
+    */
+    const unstacked = await tab.evaluate(() => {
+        const marked = document.querySelectorAll('[data-ds-covered], [data-ds-stacked]');
+        for (const el of marked) {
+            el.removeAttribute('data-ds-covered');
+            el.removeAttribute('data-ds-stacked');
+            if (el.style.scale) el.style.transition = 'none';
+            el.style.scale = '';
+        }
+        for (const el of document.querySelectorAll('[data-ds-layer]')) el.style.zIndex = '';
+        return marked.length;
+    });
+    if (unstacked) await tab.waitForTimeout(350);
 
     const box = await target.boundingBox();
 

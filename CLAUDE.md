@@ -115,12 +115,19 @@ resources/views/  the Blade components + the two pagination views and
                                 `activeOption`, the command palette's option,
                                 ringed on aria-selected because focus stays
                                 in the field
-  partials/modal.php            the modal layer modal and command-palette
-                                share (backdrop, both transitions, the focus
-                                trap, focus in and back out with the scroll
-                                lock), read through Support\Modal; the modal
-                                is held to its pre-recipe output by
-                                ModalUnchangedTest
+  partials/modal.php            the modal layer modal, drawer,
+                                command-palette and a 2.0 sheet share
+                                (backdrop, both transitions, the focus trap,
+                                Escape, focus in and back out with the scroll
+                                lock, and the overlay stack: data-ds-layer,
+                                covered, stacked), read through
+                                Support\Modal; the modal is held to its
+                                output by ModalUnchangedTest, rewritten once
+                                for the stack in batch 19
+  partials/sheet-layer.blade.php  ds::sheet with any 2.0 prop (snap,
+                                initialSnap, draggable, dismissible, handle,
+                                modal): a partial so a sheet without them
+                                stays byte for byte 1.x (SheetUnchangedTest)
   partials/chart.php            the chart recipe: a mark's colour class per
                                 tone and per series slot, read through
                                 Support\Chart::colour()
@@ -147,7 +154,11 @@ resources/js/     the shared script's source: plain ES modules, hand-edited
                     and let fall; rank.js: fold and rank, the matching the
                     command palette and team switcher sort by; dates.js:
                     the calendar's Y-m-d arithmetic, mirroring
-                    Support\Calendar)
+                    Support\Calendar; drag.js: one pointer from press to
+                    release, slop, axis lock, capture once it moves,
+                    velocity, the click after a drag dropped — split,
+                    sortable, the sheet, swipe actions and pull to refresh
+                    all drag through it)
                   (export-ignored: consumers get dist/, not the modules)
 
 tokens/           DTCG source. Edited by hand, like resources/js/.
@@ -437,7 +448,9 @@ a bare `x-data="ds…"`. The exemption is a directive that is only an
 enhancement, listed in `ENHANCEMENTS` there: `x-ds-glide`, whose absence leaves
 a segmented control exactly as correct, with the face CSS draws, and
 `x-ds-anchor`, whose absence leaves the five overlays that predate it opening
-at their placement as in 1.x. Silence is the
+at their placement as in 1.x, and `x-ds-sheet`, whose absence leaves a sheet
+with snap points at its natural height, as in 1.x (the
+`b19-sheet-missing` host page proves it). Silence is the
 right failure for decoration and the wrong one for behaviour, so a directive
 joins that list only if the component works and looks right without it, and
 the behaviour suite renders it in a host with no script to prove so.
@@ -752,7 +765,7 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 119 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 123 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
 accordion, accordion-item, activity-heatmap, activity-rings, alert, announcement-bar, avatar, avatar-group, avatar-upload, badge, bar-chart, bottom-nav,
@@ -761,9 +774,9 @@ button-group, chip-group, code-block, color-picker, combobox, command-group, com
 context-menu, dropdown-item, empty-state, expandable-text, file-upload, filter-bar, filter-chip, funnel-chart, gauge, hold-button, hover-card, icon, icon-swap,
 inline-edit, input, kbd, line-chart, mention-input, modal, money-input,
 nav-item, number-field, otp-input, panel, panel-row, password-strength, phone-input,
-popover, progress, radar-chart, radio, radio-card, radio-cards, radio-group, rating,
-scroll-area, segment, segmented-control, select, sheet, sheet-item, shortcut-input, skeleton, slider, slope-chart, sortable-item, sortable-list, sparkline, split, split-bar, split-pane, stat-tile,
-step, stepper, sub-nav, swap-button, switch, tab,
+popover, progress, pull-refresh, radar-chart, radio, radio-card, radio-cards, radio-group, rating,
+scroll-area, segment, segmented-control, select, share-sheet, sheet, sheet-item, shortcut-input, skeleton, slider, slope-chart, sortable-item, sortable-list, sparkline, split, split-bar, split-pane, stat-tile,
+step, stepper, sub-nav, swap-button, swipe-action, swipe-actions, switch, tab,
 tab-panel, table, table-cell, table-row, tabs, tag-input, team-switcher, theme-switcher,
 time-picker, timeline, timeline-group, timeline-item,
 toast, toast-region,
@@ -784,7 +797,8 @@ expandable-text, slider, time-picker, inline-edit, command-palette (with
 command-group and command-item), sortable-list (with sortable-item), split
 (with split-pane), swap-button, team-switcher, money-input, phone-input,
 shortcut-input, mention-input, color-picker (but not with `presetsOnly`, native
-radios), user-menu (a dropdown), sub-nav —
+radios), swipe-actions (with swipe-action), pull-refresh, user-menu (a
+dropdown), sub-nav —
 always (sub-nav only to toggle: its open state is rendered from PHP; tree's
 structure, selection and open folders are rendered from PHP too). Plus ONE optional prop each on
 checkbox (`indeterminate`), nav-item (`collapsedWhen`), toast (`dismiss`),
@@ -838,7 +852,12 @@ from both sides; without the script both post from native date fields, which
 the script turns into hidden inputs; the 1.x picker's inline-Alpine grid was
 retired in batch 18 and DatePickerContractTest pins what consumers rely on),
 avatar-upload (`dsAvatarUpload`; its crop dialog is ds::modal; without the
-script a plain file input and a Remove checkbox), slider's `histogram` and `inputs`
+script a plain file input and a Remove checkbox), swipe-actions (`dsSwipe`;
+without the script its actions sit after the content), pull-refresh
+(`dsPullRefresh`; without the script its Refresh button, a link or a submit),
+sheet's snap points and drag (`x-ds-sheet`, an enhancement, so in
+`ENHANCEMENTS`: without it the sheet opens at its natural height; every drag
+goes through shared/drag.js, as split's and sortable's do), slider's `histogram` and `inputs`
 (in `dsSlider`) and input's
 `expanding` (`dsSearch`, partials/input-expanding.blade.php). icon-swap
 and button-group's `expanding` are plain Blade and CSS; user-menu is a
