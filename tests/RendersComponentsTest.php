@@ -126,6 +126,7 @@ final class RendersComponentsTest extends TestCase
                 'panel-row' => 'panel',
                 'radio-group' => 'radio',
                 'sheet-item' => 'sheet',
+                'step' => 'stepper',
                 'tab' => 'tabs',
                 'tab-panel' => 'tabs',
                 'table-cell' => 'table',

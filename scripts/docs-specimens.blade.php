@@ -378,6 +378,42 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── stepper --}}
+{{-- The widest shot, because the stepper collapses below 40rem of ITS OWN
+     width: at 900px a pane the horizontal one has room to show every title,
+     and the narrow box beside the vertical one shows what it collapses to. --}}
+<div data-shot="stepper" class="shot shot-widest">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="rounded-panel border border-border bg-surface p-5">
+                <x-ds::stepper label="Checkout progress">
+                    <x-ds::step status="complete" title="Account" description="ada@example.com" href="#account" />
+                    <x-ds::step status="current" title="Plan" description="Pick what you need" />
+                    <x-ds::step status="upcoming" title="Billing" />
+                    <x-ds::step status="upcoming" title="Review" />
+                </x-ds::stepper>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-4">
+                <div class="rounded-panel border border-border bg-surface p-5">
+                    <x-ds::stepper orientation="vertical" label="Setup">
+                        <x-ds::step status="complete" title="Connect the repository" description="github.com/acme/api" />
+                        <x-ds::step status="error" title="Install the app" description="Permission was refused" />
+                        <x-ds::step status="upcoming" title="Deploy" />
+                    </x-ds::stepper>
+                </div>
+                <div class="max-w-80 rounded-panel border border-border bg-surface p-5">
+                    <x-ds::stepper label="Checkout progress">
+                        <x-ds::step status="complete" title="Account" />
+                        <x-ds::step status="current" title="Plan" />
+                        <x-ds::step status="upcoming" title="Billing" />
+                        <x-ds::step status="upcoming" title="Review" />
+                    </x-ds::stepper>
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── dropdown --}}
 <div data-shot="dropdown" class="shot shot-tall">
     @foreach ($themes as $t)

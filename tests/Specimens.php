@@ -327,6 +327,32 @@ final class Specimens
                 <x-ds::usage-meter label="Storage" :limit="10" unit="GB" :segments="$overfull" />
                 BLADE,
 
+            'stepper/horizontal' => <<<'BLADE'
+                <x-ds::stepper label="Checkout progress">
+                    <x-ds::step status="complete" title="Account" href="/checkout/account" />
+                    <x-ds::step status="current" title="Plan" description="Pick what you need" />
+                    <x-ds::step status="upcoming" title="Billing" href="/checkout/billing" />
+                    <x-ds::step status="upcoming" title="Review" />
+                </x-ds::stepper>
+                <x-ds::stepper>
+                    <x-ds::step status="complete" title="One" />
+                    <x-ds::step status="error" title="Two" description="Card declined" />
+                    <x-ds::step title="Three" />
+                </x-ds::stepper>
+                <x-ds::stepper>
+                    <x-ds::step status="complete" title="One" />
+                    <x-ds::step status="complete" title="Two" />
+                </x-ds::stepper>
+                BLADE,
+            'stepper/vertical' => <<<'BLADE'
+                <x-ds::stepper orientation="vertical" label="Setup">
+                    <x-ds::step status="complete" title="Connect the repository" description="github.com/acme/api" href="/setup/repo" />
+                    <x-ds::step status="error" title="Install the app" description="Permission was refused" />
+                    <x-ds::step status="current" title="Configure" />
+                    <x-ds::step status="upcoming" title="Deploy" />
+                </x-ds::stepper>
+                BLADE,
+
             'breadcrumb/all' => <<<'BLADE'
                 <x-ds::breadcrumb>
                     <x-ds::breadcrumb-item href="/">Home</x-ds::breadcrumb-item>

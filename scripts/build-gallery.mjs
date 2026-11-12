@@ -366,6 +366,7 @@ table.ref .samp { color: var(--g-ink); font-family: Inter, ui-sans-serif, system
       <a href="#avatar">Avatar</a>
       <a href="#progress">Progress</a>
       <a href="#usage-meter">Usage</a>
+      <a href="#stepper">Stepper</a>
       <a href="#breadcrumb">Breadcrumb</a>
       <a href="#empty-state">Empty</a>
       <a href="#skeleton">Skeleton</a>

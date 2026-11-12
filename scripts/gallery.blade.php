@@ -795,6 +795,48 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Stepper --}}
+<section class="ds-spec" id="stepper">
+    <header class="ds-spec-head">
+        <h2>Stepper</h2>
+        <p>Where someone is in a flow. An ordered list; the current step is <code>aria-current="step"</code> and every status is spoken, not only coloured. The host says which step is current.</p>
+    </header>
+
+    <div class="ds-note">Below 40rem of <em>its own</em> width a horizontal stepper keeps the markers and prints &ldquo;Step 2 of 4&rdquo; and the current title underneath. Resize the window to watch the top one go.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Horizontal <span>&middot; a completed step links back</span></div>
+        <div class="px-4 pb-4">
+            <x-ds::stepper label="Checkout progress">
+                <x-ds::step status="complete" title="Account" description="ada@example.com" href="#stepper" />
+                <x-ds::step status="current" title="Plan" description="Pick what you need" />
+                <x-ds::step status="upcoming" title="Billing" />
+                <x-ds::step status="upcoming" title="Review" />
+            </x-ds::stepper>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Vertical, and collapsed <span>&middot; the right one is horizontal in 20rem</span></div>
+        <div class="grid gap-6 px-4 pb-4 sm:grid-cols-2">
+            <x-ds::stepper orientation="vertical" label="Setup">
+                <x-ds::step status="complete" title="Connect the repository" description="github.com/acme/api" />
+                <x-ds::step status="error" title="Install the app" description="Permission was refused" />
+                <x-ds::step status="current" title="Configure" />
+                <x-ds::step status="upcoming" title="Deploy" />
+            </x-ds::stepper>
+            <div class="max-w-80">
+                <x-ds::stepper label="Checkout progress">
+                    <x-ds::step status="complete" title="Account" />
+                    <x-ds::step status="current" title="Plan" />
+                    <x-ds::step status="upcoming" title="Billing" />
+                    <x-ds::step status="upcoming" title="Review" />
+                </x-ds::stepper>
+            </div>
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Breadcrumb --}}
 <section class="ds-spec" id="breadcrumb">
     <header class="ds-spec-head">
