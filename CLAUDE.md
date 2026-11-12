@@ -730,23 +730,23 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 105 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 108 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
 accordion, accordion-item, activity-heatmap, activity-rings, alert, announcement-bar, avatar, avatar-group, badge, bar-chart, bottom-nav,
 bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, chip,
 button-group, chip-group, code-block, combobox, command-group, command-item, command-palette, confirm-button, confirm-popover, copy-button, counter, date-picker, donut-chart, drawer, dropdown,
-context-menu, dropdown-item, empty-state, expandable-text, file-upload, filter-bar, filter-chip, gauge, hold-button, hover-card, icon,
+context-menu, dropdown-item, empty-state, expandable-text, file-upload, filter-bar, filter-chip, funnel-chart, gauge, hold-button, hover-card, icon,
 inline-edit, input, kbd, line-chart, modal,
 nav-item, number-field, otp-input, panel, panel-row, password-strength,
-popover, progress, radio, radio-card, radio-cards, radio-group, rating,
+popover, progress, radar-chart, radio, radio-card, radio-cards, radio-group, rating,
 scroll-area, segment, segmented-control, select, sheet, sheet-item, skeleton, slider, slope-chart, sortable-item, sortable-list, sparkline, split, split-bar, split-pane, stat-tile,
 step, stepper, sub-nav, switch, tab,
 tab-panel, table, table-cell, table-row, tabs, tag-input, theme-switcher,
 time-picker, timeline, timeline-group, timeline-item,
 toast, toast-region,
 toggle, toggle-group, toolbar, toolbar-button, toolbar-separator, tooltip,
-tree, tree-item, usage-meter, waffle-chart.
+tree, tree-item, treemap, usage-meter, waffle-chart.
 
 **Every built component has a spec.**
 
@@ -800,7 +800,8 @@ date-picker and tooltip use `x-ds-anchor` as an enhancement only: each works
 without the script exactly as in 1.x, and with it stays on screen. counter
 uses `x-ds-roll` as an enhancement only: without it the server's number is
 shown and a morph changes it, with it the digits roll. bar-chart, line-chart,
-donut-chart, split-bar, waffle-chart, activity-rings and slope-chart use
+donut-chart, split-bar, waffle-chart, activity-rings, slope-chart,
+funnel-chart, radar-chart and treemap use
 `x-ds-chart` as an enhancement only: without it each is a static
 `role="img"` image (SVG, or plain elements for the split bar and the waffle)
 named by its generated summary, with it a readout, keyboard access to every

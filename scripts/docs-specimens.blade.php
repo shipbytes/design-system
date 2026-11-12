@@ -1012,6 +1012,72 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── funnel-chart --}}
+<div data-shot="funnel-chart" class="shot shot-wide">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-3">
+                <div class="rounded-panel border border-border bg-surface p-4">
+                    <x-ds::funnel-chart label="Signups this month" showRate="both" height="sm" :interactive="false"
+                        :data="['Visits' => 12400, 'Sign-ups' => 3100, 'Activated' => 3500, 'Trial' => 1200, 'Paid' => 310]" />
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="w-56 shrink-0 rounded-panel border border-border bg-surface p-4">
+                        <x-ds::funnel-chart label="Trial to paid" shape="funnel" height="sm" tone="success" :interactive="false"
+                            :data="['Trial' => 1200, 'Card added' => 640, 'Paid' => 310]" />
+                    </div>
+                    <div class="min-w-0 flex-1 rounded-panel border border-border bg-surface p-4">
+                        <x-ds::funnel-chart label="Checkout" orientation="horizontal" shape="funnel" showRate="both"
+                            :data="['Cart' => 5200, 'Shipping' => 3900, 'Payment' => 2600, 'Done' => 2100]" data-shot-hover />
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── radar-chart --}}
+<div data-shot="radar-chart" class="shot shot-wide">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-3">
+                <div class="rounded-panel border border-border bg-surface p-4">
+                    <x-ds::radar-chart label="Vendor scores" size="sm" :axes="['Price', 'Support', 'Features', 'Reliability', 'Ease of use', 'Integrations']"
+                        :data="['Acme' => [8, 6, 9, 7, 5, 8], 'Globex' => [5, 9, 6, 8, 8, 4], 'Initech' => [6, 5, 4, 9, 7, 6]]" data-shot-hover />
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="min-w-0 flex-1 rounded-panel border border-border bg-surface p-4">
+                        <x-ds::radar-chart label="Skills" size="sm" shape="circle" :fill="false" :interactive="false"
+                            :axes="['Design', 'Frontend', 'Backend', 'Ops', 'Writing']" :data="['Ada' => [90, 80, 60, 40, 85]]" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── treemap --}}
+<div data-shot="treemap" class="shot shot-wide">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-3">
+                <div class="rounded-panel border border-border bg-surface p-4">
+                    <x-ds::treemap label="Spend by team" height="sm" :ratio="3" :format="['prefix' => '$', 'compact' => true]" :data="[
+                        ['label' => 'Engineering', 'children' => ['Salaries' => 420000, 'Cloud' => 120000, 'Tools' => 30000, 'Hardware' => 18000]],
+                        ['label' => 'Sales', 'children' => ['Salaries' => 210000, 'Travel' => 40000, 'Events' => 25000]],
+                        ['label' => 'Marketing', 'children' => ['Ads' => 90000, 'Content' => 30000, 'Swag' => 2000]],
+                        ['label' => 'Office', 'value' => 60000],
+                    ]" data-shot-hover />
+                </div>
+                <div class="rounded-panel border border-border bg-surface p-4">
+                    <x-ds::treemap label="Storage" colourBy="value" height="sm" :ratio="3.5" showValues="percent" :interactive="false" :format="['suffix' => ' GB']"
+                        :data="['Photos' => 150, 'Video' => 96, 'Backups' => 60, 'Documents' => 38, 'Music' => 30, 'Apps' => 22, 'Mail' => 12, 'Other' => 3]" />
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── timeline --}}
 <div data-shot="timeline" class="shot shot-wide">
     @foreach ($themes as $t)

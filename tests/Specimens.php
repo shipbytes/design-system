@@ -1085,6 +1085,42 @@ final class Specimens
                 <x-ds::slope-chart fromLabel="Then" toLabel="Now" :data="['a' => [1, 2]]" height="nonsense" colourBy="nonsense" :highlight="'nobody'" :format="'nonsense'" />
                 BLADE,
 
+            'funnel-chart/all' => <<<'BLADE'
+                <x-ds::funnel-chart label="Signups" :data="['Visits' => 12400, 'Sign-ups' => 3100, 'Activated' => 3500, 'Paid' => 310]" />
+                <x-ds::funnel-chart label="Checkout" shape="funnel" showRate="both" height="lg" tone="success" :table="true" :format="['suffix' => ' carts']"
+                    :data="[['label' => 'Cart', 'value' => 5200], ['label' => 'Payment', 'value' => 2600, 'tone' => 'warning'], ['label' => 'Done', 'value' => 0, 'series' => 3]]" />
+                <x-ds::funnel-chart label="Across" orientation="horizontal" shape="funnel" showRate="total" height="sm" :interactive="false" :data="['A stage with a long name' => 9, 'B' => 4, 'C' => 1]" />
+                <x-ds::funnel-chart orientation="horizontal" showRate="none" :data="['Only' => 5]" summary="One stage." />
+                <x-ds::funnel-chart :data="[]" empty="Nothing yet" />
+                <x-ds::funnel-chart :data="['a' => 0, 'b' => 0]" />
+                <x-ds::funnel-chart :data="['a' => 2, 'b' => 1]" orientation="nonsense" shape="nonsense" showRate="nonsense" height="nonsense" tone="nonsense" :format="'nonsense'" />
+                BLADE,
+
+            'radar-chart/all' => <<<'BLADE'
+                <x-ds::radar-chart label="Vendors" :axes="['Price', 'Support', 'Features', 'Reliability', 'Ease']"
+                    :data="['Acme' => [8, 6, 9, 7, 5], 'Globex' => [5, 9, 6, 8, 8], 'Initech' => ['label' => 'Initech', 'values' => ['Price' => 6, 'Support' => 5, 'Features' => 4, 'Reliability' => 9, 'Ease' => 7], 'series' => 6], 'Umbrella' => [9, 3, 7, 5, 6]]" />
+                <x-ds::radar-chart label="Skills" size="sm" shape="circle" :fill="false" legend="none" :rings="5" :table="false" :axes="['Design', 'Frontend', 'Backend']" :data="[['label' => 'Ada', 'values' => [90, 80, 60], 'tone' => 'success']]" />
+                <x-ds::radar-chart label="Mixed units" size="lg" legend="below" :interactive="false" :max="['Score' => 100, 'Rating' => 5, 'A very long axis name indeed' => 1000, 'Uptime' => 100]"
+                    :axes="['Score', 'Rating', 'A very long axis name indeed', 'Uptime']" :data="['This' => [80, 4, 600, 120], 'That' => [60, 4.5, 900, 99]]" :format="['decimals' => 1]" />
+                <x-ds::radar-chart :axes="['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']" :max="10" :data="['One' => [1, 2, 3, 4, 5, 6, 7, 8]]" summary="Eight axes." />
+                <x-ds::radar-chart :axes="['a', 'b', 'c']" :data="[]" empty="Nothing scored" />
+                <x-ds::radar-chart :axes="['a', 'b', 'c']" :data="['x' => [0, 0, 0]]" :rings="99" shape="nonsense" legend="nonsense" size="nonsense" :format="'nonsense'" />
+                BLADE,
+
+            'treemap/all' => <<<'BLADE'
+                <x-ds::treemap label="Storage" :format="['suffix' => ' GB']" :data="['Photos' => 150, 'Video' => 96, 'Documents' => 38, 'Mail' => 12, 'Backups' => 60, 'Empty' => 0]" />
+                <x-ds::treemap label="Spend" height="lg" :ratio="3" showValues="percent" :minLabel="24" :format="['prefix' => '$', 'compact' => true]" :data="[
+                    ['label' => 'Engineering', 'children' => ['Salaries' => 420000, 'Cloud' => ['value' => 120000, 'href' => '/spend/cloud'], 'Tools' => 30000, 'Refunds' => -5000]],
+                    ['label' => 'Sales', 'series' => 5, 'children' => [['label' => 'Salaries', 'value' => 210000], ['label' => 'Travel', 'value' => 40000]]],
+                    ['label' => 'Office', 'value' => 60000, 'tone' => 'neutral', 'href' => '/spend/office'],
+                ]" />
+                <x-ds::treemap label="By value" colourBy="value" tone="success" height="sm" showValues="none" :legend="false" :table="false" :interactive="false" :data="[50, 30, 20, 12, 8, 5, 3, 1]" />
+                <x-ds::treemap colourBy="value" :data="['One' => 1]" summary="All of it." />
+                <x-ds::treemap :data="[]" empty="Nothing stored" />
+                <x-ds::treemap :data="['a' => 0, 'b' => -1]" />
+                <x-ds::treemap :data="['a' => 2, 'b' => 1]" height="nonsense" :ratio="'nonsense'" colourBy="nonsense" showValues="nonsense" :minLabel="'nonsense'" tone="nonsense" :legend="false" :format="'nonsense'" />
+                BLADE,
+
             'timeline/all' => <<<'BLADE'
                 <x-ds::timeline label="Order history">
                     <x-ds::timeline-item title="Shipped" time="2026-11-12T10:42:00Z" icon="truck" tone="success">Two parcels.</x-ds::timeline-item>

@@ -64,6 +64,9 @@ independent implementations the same component rather than three lookalikes.
 | [waffle-chart.md](waffle-chart.md) | Cells by largest remainder, one image not a hundred cells, a mark drawn in pieces, reading order and rtl |
 | [activity-rings.md](activity-rings.md) | Dashes shortened by their round caps, rings narrowed to leave a hole, a goal passed said not drawn |
 | [slope-chart.md](slope-chart.md) | Two axes in the bar chart's frame, labels spread apart greedily, the change written on every label |
+| [funnel-chart.md](funnel-chart.md) | Centred bars on one hue's ramp, the drop written between stages, values inside or beside by container query |
+| [radar-chart.md](radar-chart.md) | Polygons from polar points, a marker and a dash per series, names anchored by angle, the table on by default |
+| [treemap.md](treemap.md) | The squarified layout, tiles that clip their own labels, ink chosen for contrast, links that stay links |
 | [timeline.md](timeline.md) | Timeline, timeline-item and timeline-group: the rail each item draws, time elements, sticky groups |
 | [stepper.md](stepper.md) | Steps, statuses, the narrow-width collapse |
 | [avatar-group.md](avatar-group.md) | Overlapping avatars, the ground ring, the spoken sentence |
