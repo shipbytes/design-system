@@ -55,6 +55,17 @@ keep their proportions to each other.
 A `limit` of `0` renders rather than throwing (a plan with none of something):
 nothing used is empty, anything used is over.
 
+## When to use which
+
+| | Use it for | Example |
+|---|---|---|
+| [Progress](progress.md) | A task moving towards done | Uploading, 64% |
+| **Usage meter** | An allowance being used up, in its units | 42 of 50 credits |
+| [Gauge](gauge.md) | A reading that goes up and down within a range | CPU at 42% |
+
+A usage meter is for something that is **spent**: the reader wants the units,
+and how many are left.
+
 ## Accessibility
 
 - The bar is `role="meter"`, named by `label`, with `aria-valuemin="0"`,
