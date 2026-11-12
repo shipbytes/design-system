@@ -8,7 +8,9 @@
  * Read through Support\Menu::recipe(), never copied. A plain PHP file under
  * resources/views for the reason partials/field.php is: a consumer's Tailwind
  * scans resources/views and nothing else, so every class here is a literal it
- * can see. Every string is what ds::dropdown emitted before this file existed.
+ * can see. Every string is what ds::dropdown emitted before this file existed,
+ * but one: the arrow keys walk `[role^="menuitem"]` since 2.0, so a
+ * menuitemradio (ds::theme-switcher's menu variant) is one of the stops.
  */
 
 return [
@@ -28,13 +30,14 @@ return [
     ],
 
     /*
-     * Arrow keys move between items, Home/End jump to the ends. role="menu" is a
+     * Arrow keys move between items, menuitem, menuitemradio and
+     * menuitemcheckbox alike; Home/End jump to the ends. role="menu" is a
      * PROMISE that this works: a menu that only responds to Tab is a keyboard
      * user being told one thing and given another. Bound to the four keys with
      * `.prevent`, on the panel.
      */
     'move' => <<<'JS'
-            const items = [...$el.querySelectorAll('[role="menuitem"]:not([aria-disabled="true"])')];
+            const items = [...$el.querySelectorAll('[role^="menuitem"]:not([aria-disabled="true"])')];
             if (!items.length) return;
             const at = items.indexOf(document.activeElement);
             const to = $event.key === 'Home' ? 0

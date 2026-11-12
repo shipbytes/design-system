@@ -43,6 +43,9 @@ and a name is the single most likely place in an interface to meet one; `mb_subs
 also takes the first *grapheme*, so an accented letter or an emoji survives
 instead of being cut in half.
 
+`initials` overrides them, upper-cased, for a name the rule gets wrong ("UL"
+for "Umbrella Labs" is the rule; "UMB" is a choice). It does not change `alt`.
+
 With neither `src` nor `name` the component renders a placeholder mark rather
 than an empty circle. A blank avatar is a bug the reader cannot report.
 

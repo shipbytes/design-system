@@ -48,9 +48,17 @@ or, in a header or a toolbar, the compact one:
 |---|---|---|
 | `segmented` | Light, Dark, System side by side, a [segmented control](segmented-control.md) | A settings page, an account menu: all three visible, one press each |
 | `button` | One icon button that steps Light → Dark → System | A header or a toolbar, where three segments do not fit |
+| `menu` | A row inside a menu: the label, then three small icon choices | The `theme` slot of a [user menu](user-menu.md), or any [dropdown](dropdown.md) |
 
 There is no dropdown variant: it would hide three short choices behind an extra
-press.
+press. `menu` is the other way round: a row for a menu that is already open.
+
+```blade
+<x-ds::user-menu :name="$user->name" :signOutAction="route('logout')">
+    …
+    <x-slot:theme><x-ds::theme-switcher variant="menu" /></x-slot:theme>
+</x-ds::user-menu>
+```
 
 ## Props
 
@@ -58,7 +66,7 @@ press.
 
 | Prop | Type | Default | What it does |
 |---|---|---|---|
-| `variant` | string | `segmented` | `segmented` or `button`. |
+| `variant` | string | `segmented` | `segmented`, `button` or `menu`. |
 | `storageKey` | string | `ds-theme` | The localStorage key. Give `theme-script` the same one. |
 | `label` | string | `Theme` | The segmented control's legend, and the first half of the button's name ("Theme: Dark"). |
 | `hideLabel` | bool | `false` | Keep the segmented control's label for screen readers only. |
@@ -95,7 +103,10 @@ press.
   it, arrows choose.
 - The button's name says what it is and what it is set to, "Theme: System",
   and changes as you press it.
-- Both show the system focus ring.
+- The menu variant is three `menuitemradio` items with `aria-checked`, named
+  Light, Dark and System: the menu's arrow keys stop on each, and Enter or a
+  press chooses and closes the menu.
+- All show the system focus ring.
 
 ## Limits
 
