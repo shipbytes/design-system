@@ -26,6 +26,9 @@ $padding = static fn (string $size): string => match ($size) {
     // 32px at every breakpoint: 24px of line, 3px each side, 1px border. The
     // text stays 16px below sm, because iOS zooms the page on a smaller field.
     'sm' => 'px-[calc(--spacing(2.5)-1px)] py-[calc(--spacing(1)-1px)]',
+    // md's height with no side padding: one centred character in a box that
+    // may have to narrow to fit a row of them on a phone.
+    'box' => 'px-0 py-[calc(--spacing(2.5)-1px)] sm:py-[calc(--spacing(1.5)-1px)]',
     // calc(step - 1px) absorbs the border so the control lands on the
     // 44px/36px grid rather than 2px over it.
     default => 'px-[calc(--spacing(3.5)-1px)] py-[calc(--spacing(2.5)-1px)] '
