@@ -199,6 +199,239 @@ cleanup(() => anchored?.stop());
 }
 return { anchorDirective };
 })();
+const __ds_shared_roving = (() => {
+const UNUSABLE = ':is(:disabled, [aria-disabled="true"])';
+function roving(root, options) {
+const axis = options.axis ?? (() => 'horizontal');
+const current = options.current ?? (() => null);
+const moved = options.moved ?? (() => {});
+let stop = null;
+const enabled = (item) => !item.matches(UNUSABLE);
+const usable = (item) => enabled(item) && item.getClientRects().length > 0;
+function settle() {
+const all = options.items();
+const live = all.filter(enabled);
+if (!stop || !live.includes(stop)) {
+const preferred = current();
+stop = preferred && live.includes(preferred) ? preferred : live[0] ?? null;
+}
+for (const item of all) {
+const want = item === stop ? '0' : '-1';
+if (item.getAttribute('tabindex') !== want) item.setAttribute('tabindex', want);
+}
+}
+function step(key) {
+const along = axis();
+const rtl = getComputedStyle(root).direction === 'rtl';
+const across = along !== 'vertical';
+const down = along !== 'horizontal';
+if (key === 'Home') return 'first';
+if (key === 'End') return 'last';
+if (across && key === 'ArrowRight') return rtl ? -1 : 1;
+if (across && key === 'ArrowLeft') return rtl ? 1 : -1;
+if (down && key === 'ArrowDown') return 1;
+if (down && key === 'ArrowUp') return -1;
+return null;
+}
+function onKeyDown(event) {
+if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+const live = options.items().filter(usable);
+const at = live.indexOf(event.target);
+if (at < 0) return;
+const by = step(event.key);
+if (by === null) return;
+event.preventDefault();
+const to = by === 'first' ? 0
+: by === 'last' ? live.length - 1
+: (at + by + live.length) % live.length;
+stop = live[to];
+settle();
+live[to].focus();
+moved(live[to]);
+}
+function onFocusIn(event) {
+if (!options.items().includes(event.target)) return;
+stop = event.target;
+settle();
+}
+root.addEventListener('keydown', onKeyDown);
+root.addEventListener('focusin', onFocusIn);
+const observer = new MutationObserver(settle);
+observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled', 'aria-disabled', 'hidden'] });
+settle();
+const stopRoving = () => {
+observer.disconnect();
+root.removeEventListener('keydown', onKeyDown);
+root.removeEventListener('focusin', onFocusIn);
+};
+stopRoving.settle = settle;
+return stopRoving;
+}
+return { roving };
+})();
+const __ds_behaviours_chart = (() => {
+const { roving } = __ds_shared_roving;
+const { anchor } = __ds_shared_anchor;
+const MARK = '[data-ds-chart-mark]';
+const OPPOSITE = { ArrowDown: 'ArrowUp', ArrowUp: 'ArrowDown', ArrowLeft: 'ArrowRight', ArrowRight: 'ArrowLeft' };
+function chart(Alpine) {
+Alpine.directive('ds-chart', (el, _, { cleanup }) => {
+const stop = enhance(el);
+cleanup(stop);
+});
+}
+function enhance(root) {
+const plot = root.querySelector('[data-ds-chart-plot]');
+if (!plot) return () => {};
+const readout = root.querySelector('[data-ds-chart-readout]');
+const axis = root.dataset.dsChartAxis || 'horizontal';
+const next = root.dataset.dsChartNext || '';
+const nearest = root.hasAttribute('data-ds-chart-nearest');
+const all = () => [...plot.querySelectorAll(MARK)];
+const shown = (mark) => !mark.closest('[data-ds-off]');
+const marks = () => all().filter(shown);
+plot.setAttribute('role', 'group');
+for (const mark of all()) mark.setAttribute('role', 'img');
+let active = null;
+let anchored = null;
+function fill(mark) {
+const part = (name) => readout.querySelector(`[data-ds-chart-readout-${name}]`);
+part('label').textContent = mark.dataset.dsLabel ?? '';
+part('series').textContent = mark.dataset.dsSeries ?? '';
+part('value').textContent = mark.dataset.dsValue ?? '';
+const swatch = part('swatch');
+if (swatch) {
+if (mark.dataset.dsSeries && mark.dataset.dsSlot) swatch.setAttribute('data-series', mark.dataset.dsSlot);
+else swatch.removeAttribute('data-series');
+}
+}
+function show(mark) {
+if (mark === active) return;
+active?.removeAttribute('data-ds-active');
+active = mark;
+mark.setAttribute('data-ds-active', '');
+if (!readout) return;
+fill(mark);
+readout.hidden = false;
+const settings = { reference: mark, placement: 'top', offset: 8, clamp: false };
+if (anchored) anchored.update(settings);
+else anchored = anchor(readout, settings);
+}
+function hide() {
+active?.removeAttribute('data-ds-active');
+active = null;
+if (readout) readout.hidden = true;
+anchored?.stop();
+anchored = null;
+}
+const rove = roving(plot, { items: marks, axis: () => axis });
+function onKeyDown(event) {
+if (event.key === 'Escape') {
+if (active && readout && !readout.hidden) {
+event.stopPropagation();
+hide();
+}
+return;
+}
+if (!next || (event.key !== next && event.key !== OPPOSITE[next])) return;
+if (event.altKey || event.ctrlKey || event.metaKey) return;
+const from = event.target.closest?.(MARK);
+if (!from) return;
+event.preventDefault();
+const live = marks();
+const series = [...new Set(live.map((m) => m.dataset.dsIn))];
+const by = event.key === next ? 1 : -1;
+const at = series.indexOf(from.dataset.dsIn);
+for (let step = 1; step < series.length; step++) {
+const wanted = series[(at + by * step + series.length * step) % series.length];
+const to = live.find((m) => m.dataset.dsIn === wanted && m.dataset.dsAt === from.dataset.dsAt);
+if (to) {
+to.focus();
+return;
+}
+}
+}
+function onFocusIn(event) {
+const mark = event.target.closest?.(MARK);
+if (mark) show(mark);
+}
+function onFocusOut(event) {
+if (!plot.contains(event.relatedTarget)) hide();
+}
+function closest(event) {
+let best = null;
+let gap = Infinity;
+for (const mark of marks()) {
+const r = mark.getBoundingClientRect();
+const dx = Math.abs(r.left + r.width / 2 - event.clientX);
+const dy = Math.abs(r.top + r.height / 2 - event.clientY);
+const score = dx * 1000 + dy;
+if (score < gap) {
+gap = score;
+best = mark;
+}
+}
+return best;
+}
+function onPointerMove(event) {
+const under = event.target.closest?.(MARK);
+const mark = nearest ? closest(event) : under && shown(under) ? under : null;
+if (mark) show(mark);
+else if (active && !plot.contains(document.activeElement)) hide();
+}
+function onPointerLeave() {
+if (!plot.contains(document.activeElement)) hide();
+}
+plot.addEventListener('keydown', onKeyDown);
+plot.addEventListener('focusin', onFocusIn);
+plot.addEventListener('focusout', onFocusOut);
+plot.addEventListener('pointermove', onPointerMove);
+plot.addEventListener('pointerdown', onPointerMove);
+plot.addEventListener('pointerleave', onPointerLeave);
+const keys = root.hasAttribute('data-ds-chart-toggles') ? [...root.querySelectorAll('[data-ds-chart-key]')] : [];
+const pressed = (key) => key.getAttribute('aria-pressed') !== 'false';
+function toggle(key) {
+const on = pressed(key);
+if (on && keys.filter(pressed).length === 1) return;
+key.setAttribute('aria-pressed', on ? 'false' : 'true');
+for (const part of root.querySelectorAll(`[data-ds-chart-series="${key.dataset.dsChartKey}"]`)) {
+part.toggleAttribute('data-ds-off', on);
+}
+if (active && !shown(active)) hide();
+rove.settle();
+}
+function onKeyClick(event) {
+toggle(event.currentTarget);
+}
+function onKeyKey(event) {
+if (event.key !== 'Enter' && event.key !== ' ') return;
+event.preventDefault();
+toggle(event.currentTarget);
+}
+for (const key of keys) {
+key.setAttribute('role', 'button');
+key.setAttribute('tabindex', '0');
+key.setAttribute('aria-pressed', 'true');
+key.addEventListener('click', onKeyClick);
+key.addEventListener('keydown', onKeyKey);
+}
+return () => {
+hide();
+rove();
+plot.removeEventListener('keydown', onKeyDown);
+plot.removeEventListener('focusin', onFocusIn);
+plot.removeEventListener('focusout', onFocusOut);
+plot.removeEventListener('pointermove', onPointerMove);
+plot.removeEventListener('pointerdown', onPointerMove);
+plot.removeEventListener('pointerleave', onPointerLeave);
+for (const key of keys) {
+key.removeEventListener('click', onKeyClick);
+key.removeEventListener('keydown', onKeyKey);
+}
+};
+}
+return { chart };
+})();
 const __ds_behaviours_clipboard = (() => {
 const COPIED_FOR = 1500;
 function clipboard(Alpine) {
@@ -2261,74 +2494,6 @@ if (onStorage) window.removeEventListener('storage', onStorage);
 }
 return { theme };
 })();
-const __ds_shared_roving = (() => {
-const UNUSABLE = ':is(:disabled, [aria-disabled="true"])';
-function roving(root, options) {
-const axis = options.axis ?? (() => 'horizontal');
-const current = options.current ?? (() => null);
-const moved = options.moved ?? (() => {});
-let stop = null;
-const enabled = (item) => !item.matches(UNUSABLE);
-const usable = (item) => enabled(item) && item.getClientRects().length > 0;
-function settle() {
-const all = options.items();
-const live = all.filter(enabled);
-if (!stop || !live.includes(stop)) {
-const preferred = current();
-stop = preferred && live.includes(preferred) ? preferred : live[0] ?? null;
-}
-for (const item of all) {
-const want = item === stop ? '0' : '-1';
-if (item.getAttribute('tabindex') !== want) item.setAttribute('tabindex', want);
-}
-}
-function step(key) {
-const along = axis();
-const rtl = getComputedStyle(root).direction === 'rtl';
-const across = along !== 'vertical';
-const down = along !== 'horizontal';
-if (key === 'Home') return 'first';
-if (key === 'End') return 'last';
-if (across && key === 'ArrowRight') return rtl ? -1 : 1;
-if (across && key === 'ArrowLeft') return rtl ? 1 : -1;
-if (down && key === 'ArrowDown') return 1;
-if (down && key === 'ArrowUp') return -1;
-return null;
-}
-function onKeyDown(event) {
-if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
-const live = options.items().filter(usable);
-const at = live.indexOf(event.target);
-if (at < 0) return;
-const by = step(event.key);
-if (by === null) return;
-event.preventDefault();
-const to = by === 'first' ? 0
-: by === 'last' ? live.length - 1
-: (at + by + live.length) % live.length;
-stop = live[to];
-settle();
-live[to].focus();
-moved(live[to]);
-}
-function onFocusIn(event) {
-if (!options.items().includes(event.target)) return;
-stop = event.target;
-settle();
-}
-root.addEventListener('keydown', onKeyDown);
-root.addEventListener('focusin', onFocusIn);
-const observer = new MutationObserver(settle);
-observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled', 'aria-disabled', 'hidden'] });
-settle();
-return () => {
-observer.disconnect();
-root.removeEventListener('keydown', onKeyDown);
-root.removeEventListener('focusin', onFocusIn);
-};
-}
-return { roving };
-})();
 const __ds_behaviours_toggle_group = (() => {
 const { roving } = __ds_shared_roving;
 function toggleGroup(Alpine) {
@@ -2436,6 +2601,7 @@ return { toolbar };
 })();
 const __ds_blade_ui = (() => {
 const { anchorDirective } = __ds_behaviours_anchor;
+const { chart } = __ds_behaviours_chart;
 const { clipboard } = __ds_behaviours_clipboard;
 const { contextMenu } = __ds_behaviours_context_menu;
 const { confirmDialog } = __ds_behaviours_confirm_dialog;
@@ -2453,7 +2619,7 @@ const { tagInput } = __ds_behaviours_tag_input;
 const { theme } = __ds_behaviours_theme;
 const { toggleGroup } = __ds_behaviours_toggle_group;
 const { toolbar } = __ds_behaviours_toolbar;
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart];
 const REGISTERED = Symbol.for('shipbytes.blade-ui');
 function bladeUi(Alpine) {
 if (!Alpine || Alpine[REGISTERED]) return;

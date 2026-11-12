@@ -205,6 +205,7 @@ use the component.
 | `x-ds-anchor` | A directive, behind `ds::popover`, `ds::confirm-popover`, `ds::hover-card`, `ds::context-menu`, `ds::dropdown`, `ds::select`, `ds::combobox`, `ds::date-picker` and `ds::tooltip`, and yours for an overlay of your own: `x-ds-anchor="{ open: …, reference: …, placement: 'bottom-start' }"`. Places the panel beside its reference with `position: fixed`, so an ancestor's `overflow: hidden` cannot clip it; flips to the other side when the preferred one lacks room, shifts to stay 8 px inside the viewport, and caps the height with a scroll when neither side fits. Follows scrolling and resizing while `open` is true. Writes the side it took as `data-side`. `at: { x, y, width, height }`, measured from the reference's corner, hangs it off that box instead: a point, for a menu at the pointer. |
 | `dsRoll` | Behind `ds::counter` when its `value` is bound to Alpine state (`::value="count"`). Follows the expression, formats it as the server does, keeps the hidden text in step, and rolls the digits to each new value. |
 | `x-ds-roll` | A directive, behind `ds::counter` when its value comes from the server. Rolls the digits when a re-render (a Livewire morph) changes the number; with `.in`, rolls up from zero the first time the counter is half in view. Instant under reduced motion. |
+| `x-ds-chart` | A directive, behind `ds::bar-chart`, `ds::line-chart` and `ds::donut-chart` when `interactive` (the default). Shows a readout (label, value, series) beside the mark under the pointer or keyboard focus; makes the marks reachable through one Tab stop per chart, the arrow keys moving along a series and across to the next, Home and End to the ends, Escape putting the readout away; and, on a chart with several series, turns the legend's entries into buttons that show and hide their series without re-scaling anything. |
 
 ### When it is missing
 
@@ -219,8 +220,8 @@ The component renders, because the server rendered it, and does nothing when
 pressed. In your own `x-data` the same cause reads as Alpine's
 `dsClipboard is not defined`.
 
-`x-ds-glide`, `x-ds-anchor` and `x-ds-roll` are the three registrations that
-are silent when missing, on purpose. `x-ds-glide` only adds the sliding highlight, and
+`x-ds-glide`, `x-ds-anchor`, `x-ds-roll` and `x-ds-chart` are the four
+registrations that are silent when missing, on purpose. `x-ds-glide` only adds the sliding highlight, and
 `ds::segmented-control`, which uses it without any `ds…` behaviour, works and
 posts the same without it: Alpine skips a directive it does not know, and the
 chosen segment keeps the face CSS draws. `x-ds-anchor` keeps an overlay on
@@ -231,6 +232,9 @@ cut off, and nothing reports it. `x-ds-roll` only animates a counter whose
 number the server already printed: without it the new number simply replaces
 the old one. A counter bound to Alpine state goes through `dsRoll` instead,
 which does report itself, because nothing else would write the number.
+`x-ds-chart` only adds the readout, the keyboard and the legend toggles: the
+chart itself is drawn by the server as an image named by its summary, which
+is what every reader gets without it.
 
 ## 4. Use a component
 

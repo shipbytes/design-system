@@ -11,6 +11,7 @@
  *       moved: (item) => {},           after a key moved focus to `item`
  *   });
  *   stop();                            remove the listeners
+ *   stop.settle();                     re-read the items and the tab stop now
  *
  * The arrows wrap, skip disabled items and follow the reading direction: in a
  * right-to-left page ArrowLeft is the next item. Home and End go to the ends.
@@ -104,9 +105,14 @@ export function roving(root, options) {
 
     settle();
 
-    return () => {
+    const stopRoving = () => {
         observer.disconnect();
         root.removeEventListener('keydown', onKeyDown);
         root.removeEventListener('focusin', onFocusIn);
     };
+    // For a set whose membership changes in a way the observer does not hear
+    // (a chart hiding a series by a data attribute): settle it now.
+    stopRoving.settle = settle;
+
+    return stopRoving;
 }

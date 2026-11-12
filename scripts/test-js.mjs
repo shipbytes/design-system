@@ -213,8 +213,14 @@ async function bladeFiles(dir) {
   changes it, so skipping the directive costs the roll and nothing else:
   test-behaviour.mjs morphs one on a page with no include. A counter bound to
   Alpine state is a different route, dsRoll, through Behaviour::data().
+
+  `ds-chart` makes a chart's marks reachable and readable one at a time, and
+  its legend a set of toggles. PHP draws the chart as an image named by its
+  summary, with the values in a hidden table on request, so skipping the
+  directive costs the readout and the keyboard and nothing else:
+  test-behaviour.mjs renders the three charts on a page with no include.
 */
-const ENHANCEMENTS = new Set(['ds-glide', 'ds-anchor', 'ds-roll']);
+const ENHANCEMENTS = new Set(['ds-glide', 'ds-anchor', 'ds-roll', 'ds-chart']);
 
 const used = new Map(); // "data:dsX" -> [files]
 const rawData = [];

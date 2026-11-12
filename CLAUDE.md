@@ -587,6 +587,20 @@ Add a new overlay to both. The docs images of the five were re-rasterised by
 the move (a fixed layer anti-aliases glyph edges a hair differently) with
 their geometry unchanged.
 
+**`x-ds-chart` is the one interaction every chart shares, decided once** (batch
+09). PHP draws the chart complete, an SVG with `role="img"` named by its
+summary; the directive adds a readout on the tooltip's surface beside the mark
+under the pointer or focus (placed by `shared/anchor.js`), every mark as a stop
+behind one roving tab stop (`shared/roving.js` along the categories, its own
+keys across the series), and, with `data-ds-chart-toggles`, legend entries that
+show and hide a series with no re-scaling. Because focusable marks cannot sit
+inside an image, it turns the plot into a group named by the same summary and
+each mark into an image named by the `aria-label` PHP wrote on it. It is in
+`ENHANCEMENTS`: without it the chart is the image it was rendered as, and the
+behaviour suite renders the charts on a page with no include to prove so. A
+new chart joins it by writing the same hooks (see the comment at the top of
+`behaviours/chart.js`), never a second interaction of its own.
+
 **What a behaviour's scope exposes is API.** Everything an `Alpine.data` object
 returns is visible to the markup inside it and shadows the host's variables of
 the same name. Return the state and methods the markup needs and keep options,
