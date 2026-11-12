@@ -167,6 +167,68 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── otp-input --}}
+<div data-shot="otp-input" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-5">
+                <x-ds::otp-input name="otp{{ $loop->index }}" label="Verification code" value="4821" help="We sent a six-digit code to your phone." />
+                <x-ds::otp-input name="pin{{ $loop->index }}" label="PIN" :length="4" value="12" :masked="true" />
+                <x-ds::otp-input name="bad{{ $loop->index }}" label="Verification code" value="123456" error="That code has expired. Request a new one." />
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── tag-input --}}
+<div data-shot="tag-input" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-5">
+                <x-ds::tag-input name="to{{ $loop->index }}" label="Invite by email" :value="['maya@example.com', 'ada@example.com', 'grace@example.com']" validate="email" placeholder="Add an address" help="Press Enter or comma after each address." />
+                <x-ds::tag-input name="tags{{ $loop->index }}" label="Tags" :value="['billing', 'urgent']" placeholder="Add a tag" error="Choose at most two tags." />
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── number-field --}}
+<div data-shot="number-field" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-5">
+                <x-ds::number-field name="seats{{ $loop->index }}" label="Seats" :value="3" :min="1" :max="10" help="Up to ten on this plan." class="max-w-48" />
+                <x-ds::number-field name="max{{ $loop->index }}" label="Seats" :value="10" :min="1" :max="10" error="This plan has ten seats. Upgrade for more." class="max-w-48" />
+                <div class="flex items-center gap-3">
+                    <span class="text-body text-fg-body">Quantity</span>
+                    <x-ds::number-field name="qty{{ $loop->index }}" aria-label="Quantity" :value="2" :min="0" size="sm" class="w-28" />
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── password-strength --}}
+{{-- Typed into by the screenshot script, so the meter shows the level the
+     component's own script scored, and the first field is revealed with its
+     own button. --}}
+<div data-shot="password-strength" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-5">
+                <div>
+                    <x-ds::input type="password" id="d-pw-a{{ $loop->index }}" name="pa{{ $loop->index }}" label="New password" :reveal="true" data-shot-type="Sunflower7" />
+                    <x-ds::password-strength for="d-pw-a{{ $loop->index }}" />
+                </div>
+                <div>
+                    <x-ds::input type="password" id="d-pw-b{{ $loop->index }}" name="pb{{ $loop->index }}" label="New password" :reveal="true" data-shot-type="correct horse battery staple" />
+                    <x-ds::password-strength for="d-pw-b{{ $loop->index }}" />
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── pagination --}}
 {{-- Wide: the count and the controls share one row from the sm breakpoint up,
      and at 500px a side they would collide. --}}

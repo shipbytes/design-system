@@ -245,6 +245,19 @@ const OPERATE = {
     'date-picker': async (pane) =>
         pane.locator('[data-ds-date-trigger]').dispatchEvent('click', { bubbles: false }),
     combobox: async (pane) => pane.locator('input[type="text"]').dispatchEvent('focus'),
+    // Typed the way the reader would, through the input event the meter
+    // listens for, and the first field revealed with its own button. Neither
+    // event bubbles past what it needs: the meter listens on the document for
+    // input, and the reveal on its button for the click.
+    'password-strength': async (pane) => {
+        for (const field of await pane.locator('[data-shot-type]').all()) {
+            await field.evaluate((el) => {
+                el.value = el.dataset.shotType;
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+        }
+        await pane.locator('button[aria-pressed]').first().dispatchEvent('click', { bubbles: false });
+    },
     // Real files, set on the real input, so the list and the thumbnail are the
     // component's own doing rather than a pose arranged for the photograph.
     'file-upload': async (pane) =>

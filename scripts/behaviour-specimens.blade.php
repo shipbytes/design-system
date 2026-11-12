@@ -175,6 +175,38 @@
         <div class="mt-6 max-w-sm">
             <x-ds::file-upload name="files[]" id="files" label="Files" :multiple="true" />
         </div>
+
+        {{-- ── otp input, from the shared script ──
+             The first is wired the two ways docs/components/otp-input.md shows:
+             x-model on the tag reaches the hidden input that posts, and
+             @complete on the tag hears the event dispatched from it. The host's
+             state starts at the server's value, as wire:model's would. --}}
+        <div class="mt-6" x-data="{ code: '12' }">
+            <x-ds::otp-input name="otp" id="otp" label="Verification code" value="12"
+                x-model="code" @complete="window.otpHeard = [...(window.otpHeard ?? []), $event.detail.value]" />
+            <span id="otp-mirror" x-text="code">12</span>
+        </div>
+        <div class="mt-6 flex gap-8">
+            <x-ds::otp-input name="pin" id="pin" label="PIN" :length="4" :masked="true" />
+            <x-ds::otp-input name="ref" id="ref" label="Reference" :length="5" :numeric="false" />
+        </div>
+
+        {{-- ── tag input, from the shared script ── --}}
+        <div class="mt-6 max-w-md">
+            <x-ds::tag-input name="emails" id="emails" label="Recipients" :value="['maya@example.com']"
+                validate="email" :max="5" help="Press Enter or comma after each address." />
+        </div>
+
+        {{-- ── number field, from the shared script ── --}}
+        <div class="mt-6 max-w-xs">
+            <x-ds::number-field name="seats" id="seats" label="Seats" :value="2" :min="1" :max="5" />
+        </div>
+
+        {{-- ── password: reveal and strength, from the shared script ── --}}
+        <div class="mt-6 max-w-xs">
+            <x-ds::input type="password" name="password" id="password" label="Password" :reveal="true" />
+            <x-ds::password-strength for="password" id="strength" />
+        </div>
     </form>
 
     {{-- ── dsClipboard, from the shared script ──

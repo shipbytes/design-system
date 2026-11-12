@@ -114,6 +114,879 @@ const __ds_behaviours_clipboard = (() => {
     return { clipboard };
 })();
 
+// behaviours/number-field.js
+const __ds_behaviours_number_field = (() => {
+    /*
+     * dsNumberField: the decrease and increase buttons beside a native number input.
+     *
+     *   x-data="dsNumberField"
+     *
+     * The input is a real type=number, rendered complete by PHP with its min, max
+     * and step, so the arrow keys, typing and what the form posts are the
+     * browser's. This adds only what the buttons do: one step per press, clamped by
+     * the browser's own stepUp() and stepDown(), repeating while held, and each
+     * button disabled at its bound.
+     *
+     * A step dispatches `input` on the input, and the press dispatches `change`
+     * once when it ends, the way a native spinner reports: wire:model and x-model
+     * follow every step, and wire:model.change sends one request per press rather
+     * than one per repeat.
+     *
+     * The scope exposes nothing but Alpine's own init and destroy.
+     */
+
+    // Long enough that a deliberate single press never repeats; the repeat after
+    // it is quick enough to cross a range of fifty in a few seconds.
+    const HOLD_DELAY = 400;
+    const HOLD_EVERY = 75;
+
+    function numberField(Alpine) {
+        Alpine.data('dsNumberField', () => {
+            let teardown = null;
+
+            return {
+                init() {
+                    teardown = wire(this.$el);
+                },
+
+                destroy() {
+                    teardown?.();
+                },
+            };
+        });
+    }
+
+    function wire(root) {
+        const input = root.querySelector('[data-ds-number-input]');
+        const buttons = [...root.querySelectorAll('[data-ds-step]')];
+
+        let press = null;
+        let moved = false;
+
+        const limit = (name) => {
+            const raw = input.getAttribute(name);
+            return raw === null || raw === '' || Number.isNaN(Number(raw)) ? null : Number(raw);
+        };
+
+        function refresh() {
+            const value = input.value === '' ? null : Number(input.value);
+            for (const button of buttons) {
+                const up = button.dataset.dsStep === 'up';
+                const bound = limit(up ? 'max' : 'min');
+                button.disabled = input.disabled
+                    || (value !== null && bound !== null && (up ? value >= bound : value <= bound));
+            }
+        }
+
+        /** One step; whether the value moved. */
+        function step(direction) {
+            const before = input.value;
+
+            try {
+                if (direction > 0) input.stepUp();
+                else input.stepDown();
+            } catch {
+                // step="any" has no step to take, and the browser throws rather than
+                // guess. One whole unit, inside the bounds, is what a person expects.
+                const min = limit('min');
+                const max = limit('max');
+                let next = (input.value === '' ? 0 : Number(input.value)) + direction;
+                if (max !== null) next = Math.min(next, max);
+                if (min !== null) next = Math.max(next, min);
+                input.value = String(next);
+            }
+
+            if (input.value === before) return false;
+
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            moved = true;
+            return true;
+        }
+
+        function end() {
+            if (press) {
+                clearTimeout(press.delay);
+                clearInterval(press.repeat);
+                press.listeners.abort();
+                press = null;
+            }
+            if (moved) {
+                moved = false;
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+
+        function onPointerDown(event) {
+            const button = event.target.closest('[data-ds-step]');
+            if (!button || button.disabled || event.button !== 0) return;
+
+            // Focus stays where it was, so a caret in the field keeps its place,
+            // and a long press on a phone selects no text and opens no menu.
+            event.preventDefault();
+            end();
+
+            const direction = button.dataset.dsStep === 'up' ? 1 : -1;
+            step(direction);
+
+            const listeners = new AbortController();
+            press = {
+                listeners,
+                repeat: null,
+                delay: setTimeout(() => {
+                    press.repeat = setInterval(() => {
+                        if (!step(direction)) end();
+                    }, HOLD_EVERY);
+                }, HOLD_DELAY),
+            };
+
+            // On the window, not the button: a button that reaches its bound is
+            // disabled mid-press, and a disabled button hears no pointerup.
+            window.addEventListener('pointerup', end, { signal: listeners.signal });
+            window.addEventListener('pointercancel', end, { signal: listeners.signal });
+            button.addEventListener('pointerleave', end, { signal: listeners.signal });
+        }
+
+        function onClick(event) {
+            const button = event.target.closest('[data-ds-step]');
+            if (!button || button.disabled) return;
+
+            // A pointer's press was handled on pointerdown. A click with no pointer
+            // behind it (detail 0) is a screen reader activating the button, which
+            // never sends pointerdown: one step, and its change.
+            if (event.detail !== 0) return;
+            step(button.dataset.dsStep === 'up' ? 1 : -1);
+            end();
+        }
+
+        function onMouseDown(event) {
+            if (event.target.closest('[data-ds-step]')) event.preventDefault();
+        }
+
+        function onContextMenu(event) {
+            if (event.target.closest('[data-ds-step]')) event.preventDefault();
+        }
+
+        const listeners = [
+            ['pointerdown', onPointerDown],
+            ['mousedown', onMouseDown],
+            ['click', onClick],
+            ['contextmenu', onContextMenu],
+            // Typing and the native arrow keys move the value too, and the buttons
+            // have to follow it to their bounds.
+            ['input', refresh],
+            ['change', refresh],
+        ];
+        for (const [type, fn] of listeners) root.addEventListener(type, fn);
+
+        refresh();
+
+        return () => {
+            end();
+            for (const [type, fn] of listeners) root.removeEventListener(type, fn);
+        };
+    }
+
+    return { numberField };
+})();
+
+// behaviours/otp.js
+const __ds_behaviours_otp = (() => {
+    /*
+     * dsOtp: a one-time code typed into one box per character, posted as ONE field.
+     *
+     *   x-data="dsOtp({ numeric: true })"
+     *
+     * The markup is the component's, rendered complete by PHP: the boxes, each
+     * marked data-ds-otp-box and carrying no name, and one hidden input marked
+     * data-ds-otp-value that the form posts. This moves characters and focus
+     * between the boxes and keeps the hidden input in step with them.
+     *
+     * Every change to the value dispatches `input` and `change` on the hidden
+     * input, so wire:model and x-model on it see it as they would a typed field,
+     * and a value that fills every box dispatches `complete` (bubbling, detail
+     * { value }) so a host can submit without a button press.
+     *
+     * The scope exposes nothing but Alpine's own init and destroy. The listeners
+     * are attached to the root here, so the view carries no Alpine expressions of
+     * its own and a host's expressions on the component never meet a name of ours.
+     */
+
+    const DIGIT = /^[0-9]$/;
+    const ALPHANUMERIC = /^[A-Za-z0-9]$/;
+
+    function otp(Alpine) {
+        Alpine.data('dsOtp', (options = {}) => {
+            const allowed = options.numeric === false ? ALPHANUMERIC : DIGIT;
+            let teardown = null;
+
+            return {
+                init() {
+                    teardown = wire(this.$el, allowed);
+                },
+
+                destroy() {
+                    teardown?.();
+                },
+            };
+        });
+    }
+
+    function wire(root, allowed) {
+        const boxes = [...root.querySelectorAll('[data-ds-otp-box]')];
+        const field = root.querySelector('[data-ds-otp-value]');
+
+        // What each box held after the last accepted edit, so a rejected character
+        // can be taken back out rather than left beside the one it tried to join.
+        const held = boxes.map((box) => box.value);
+
+        const accept = (text) => [...text].filter((c) => allowed.test(c));
+        const indexOf = (el) => boxes.indexOf(el);
+
+        function focusBox(i) {
+            const box = boxes[Math.max(0, Math.min(i, boxes.length - 1))];
+            box.focus();
+            box.select();
+        }
+
+        /** Fill boxes from `from` onwards; the index of the last one written. */
+        function write(from, chars) {
+            let at = from;
+            for (const c of chars) {
+                if (at >= boxes.length) break;
+                boxes[at].value = c;
+                held[at] = c;
+                at++;
+            }
+            return at - 1;
+        }
+
+        /*
+         * A code the length of the whole field fills it from the first box, wherever
+         * it was pasted: someone pasting the code they were sent means the code, not
+         * "these six characters from box three on". A shorter run fills from the box
+         * it landed in.
+         */
+        function distribute(from, chars) {
+            const last = write(chars.length >= boxes.length ? 0 : from, chars);
+            sync();
+            focusBox(last);
+        }
+
+        function sync() {
+            const value = boxes.map((box) => box.value).join('');
+            if (value === field.value) return;
+
+            field.value = value;
+            field.dispatchEvent(new Event('input', { bubbles: true }));
+            field.dispatchEvent(new Event('change', { bubbles: true }));
+
+            if (boxes.every((box) => box.value !== '')) {
+                field.dispatchEvent(new CustomEvent('complete', { bubbles: true, detail: { value } }));
+            }
+        }
+
+        function onInput(event) {
+            const box = event.target;
+            const i = indexOf(box);
+            if (i < 0) return;
+
+            // A key typed into a box that already holds a character arrives with
+            // both in it, in caret order. `data` is the one just typed, which is the
+            // one wanted: typing into a filled box replaces it.
+            const typed = event.inputType === 'insertText' && event.data ? event.data : box.value;
+            const chars = accept(typed);
+
+            if (!chars.length) {
+                // A deletion empties the box; anything else was a character the
+                // field does not take, and the box goes back to what it held.
+                box.value = String(event.inputType ?? '').startsWith('delete') ? '' : held[i];
+                held[i] = box.value;
+                sync();
+                return;
+            }
+
+            if (chars.length === 1) {
+                box.value = chars[0];
+                held[i] = chars[0];
+                sync();
+                if (i < boxes.length - 1) focusBox(i + 1);
+                return;
+            }
+
+            // Several characters at once into one box: the browser's one-time-code
+            // autofill, which writes the whole code into the box that asked for it.
+            distribute(i, chars);
+        }
+
+        function onPaste(event) {
+            const i = indexOf(event.target);
+            if (i < 0) return;
+
+            event.preventDefault();
+            // "123 456" and "123-456" are how codes are printed; anything the field
+            // does not take is dropped, so both paste as 123456.
+            const chars = accept(event.clipboardData?.getData('text') ?? '');
+            if (chars.length) distribute(i, chars);
+        }
+
+        function onKeydown(event) {
+            const box = event.target;
+            const i = indexOf(box);
+            if (i < 0 || event.ctrlKey || event.metaKey || event.altKey) return;
+
+            switch (event.key) {
+                case 'Backspace':
+                    // On a filled box the browser deletes the character and the input
+                    // handler above records it. On an empty one there is nothing to
+                    // delete, so it steps back and clears the box before.
+                    if (box.value === '' && i > 0) {
+                        event.preventDefault();
+                        boxes[i - 1].value = '';
+                        held[i - 1] = '';
+                        sync();
+                        focusBox(i - 1);
+                    }
+                    return;
+                case 'ArrowLeft':
+                    event.preventDefault();
+                    focusBox(i - 1);
+                    return;
+                case 'ArrowRight':
+                    event.preventDefault();
+                    focusBox(i + 1);
+                    return;
+                case 'Home':
+                    event.preventDefault();
+                    focusBox(0);
+                    return;
+                case 'End':
+                    event.preventDefault();
+                    focusBox(boxes.length - 1);
+                    return;
+            }
+        }
+
+        // Arriving in a filled box selects its character, so it shows what the next
+        // key will replace.
+        function onFocus(event) {
+            if (indexOf(event.target) >= 0) event.target.select();
+        }
+
+        const listeners = [
+            ['input', onInput],
+            ['paste', onPaste],
+            ['keydown', onKeydown],
+            ['focusin', onFocus],
+        ];
+        for (const [type, fn] of listeners) root.addEventListener(type, fn);
+
+        return () => {
+            for (const [type, fn] of listeners) root.removeEventListener(type, fn);
+        };
+    }
+
+    return { otp };
+})();
+
+// behaviours/password.js
+const __ds_behaviours_password = (() => {
+    /*
+     * The password behaviours, in one file because they serve one field.
+     *
+     * dsPassword: the reveal button inside ds::input's `reveal`.
+     *
+     *   x-data="dsPassword"   on the button, which names its input with aria-controls
+     *
+     * Switches the input between type=password and type=text and says which with
+     * aria-pressed. The icons swap in CSS off aria-pressed, so nothing here touches
+     * a class. It must not move the reader: a press keeps focus where it was and,
+     * when that was the field, the caret and selection where they were. The field
+     * goes back to hidden when its form submits, so the browser offers to save a
+     * password rather than a line of text, and the page restored by Back does not
+     * show it.
+     *
+     * dsPasswordStrength: the meter of ds::password-strength.
+     *
+     *   x-data="dsPasswordStrength({ for: 'password', minLength: 8, labels: [...] })"
+     *
+     * Scores the field named by `for` as it is typed, into four levels, and writes
+     * the level as data-level on the root (the bars are coloured from it in CSS)
+     * and as words into its live region. The words come from `labels`, written by
+     * the view. A hint, not a security control: the score is a small heuristic of
+     * our own, and the server's own rules are the ones that count.
+     *
+     * Both scopes expose nothing but Alpine's own init and destroy.
+     */
+
+    function password(Alpine) {
+        Alpine.data('dsPassword', () => {
+            let teardown = null;
+
+            return {
+                init() {
+                    teardown = reveal(this.$el);
+                },
+
+                destroy() {
+                    teardown?.();
+                },
+            };
+        });
+
+        Alpine.data('dsPasswordStrength', (options = {}) => {
+            let teardown = null;
+
+            return {
+                init() {
+                    teardown = meter(this.$el, options);
+                },
+
+                destroy() {
+                    teardown?.();
+                },
+            };
+        });
+    }
+
+    function reveal(button) {
+        const input = () => document.getElementById(button.getAttribute('aria-controls'));
+
+        function show(visible) {
+            const field = input();
+            if (!field) return;
+
+            // Changing type throws the selection away in some browsers, so it is
+            // read first and put back.
+            const focused = document.activeElement === field;
+            const { selectionStart, selectionEnd, selectionDirection } = field;
+
+            field.type = visible ? 'text' : 'password';
+            button.setAttribute('aria-pressed', String(visible));
+
+            if (focused && selectionStart !== null) {
+                field.setSelectionRange(selectionStart, selectionEnd, selectionDirection ?? 'none');
+            }
+        }
+
+        const onClick = () => show(button.getAttribute('aria-pressed') !== 'true');
+
+        // A press with the mouse would otherwise take focus from the field and
+        // leave the reader to click back into it.
+        const onMouseDown = (event) => {
+            if (document.activeElement === input()) event.preventDefault();
+        };
+
+        const onSubmit = (event) => {
+            const field = input();
+            if (field && event.target.contains(field)) show(false);
+        };
+
+        button.addEventListener('click', onClick);
+        button.addEventListener('mousedown', onMouseDown);
+        document.addEventListener('submit', onSubmit, true);
+
+        return () => {
+            button.removeEventListener('click', onClick);
+            button.removeEventListener('mousedown', onMouseDown);
+            document.removeEventListener('submit', onSubmit, true);
+        };
+    }
+
+    function meter(root, options) {
+        const target = String(options.for ?? '');
+        const minLength = Number.isInteger(options.minLength) ? options.minLength : 8;
+        const labels = Array.isArray(options.labels) ? options.labels : [];
+        const words = root.querySelector('[data-ds-strength-text]');
+        let level = null;
+
+        function update(value) {
+            const next = score(value, minLength);
+            if (next === level) return;
+
+            // Written only when the level changes, so the live region speaks once
+            // per change rather than on every key.
+            level = next;
+            root.dataset.level = String(next);
+            words.textContent = next ? String(labels[next - 1] ?? '') : '';
+        }
+
+        // Listened for on the document and matched by id, so a field that a
+        // Livewire morph replaced is still the field being measured.
+        const onInput = (event) => {
+            if (event.target?.id === target) update(event.target.value ?? '');
+        };
+
+        document.addEventListener('input', onInput);
+        update(document.getElementById(target)?.value ?? '');
+
+        return () => document.removeEventListener('input', onInput);
+    }
+
+    /*
+     * 0 for nothing typed; otherwise 1 weak, 2 fair, 3 good, 4 strong.
+     *
+     * Length carries most of the score, because it is what most raises the cost of
+     * guessing. Character variety helps a little. Runs ("aaaa", "1234", "qwer") and
+     * a password that is one of the commonest ones under a coat of capitals, digits
+     * and symbols ("P@ssw0rd!") count against it, because they are what is guessed
+     * first.
+     */
+    function score(value, minLength) {
+        if (!value) return 0;
+        if (value.length < minLength || isCommon(value)) return 1;
+
+        let points = 1;
+        if (value.length >= 12) points++;
+        if (value.length >= 16) points++;
+        if (value.length >= 20) points++;
+
+        const kinds = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((kind) => kind.test(value)).length;
+        if (kinds >= 3) points++;
+        if (kinds === 4) points++;
+
+        if (/(.)\1\1/.test(value)) points--;
+        if (hasRun(value.toLowerCase())) points--;
+        // Few distinct characters for the length ("abababab"). Capped, so a long
+        // passphrase, which repeats letters as any sentence does, is not marked
+        // down for it.
+        if (new Set(value).size < Math.min(value.length / 2, 6)) points--;
+
+        return Math.max(1, Math.min(4, points));
+    }
+
+    const RUNS = ['abcdefghijklmnopqrstuvwxyz', '01234567890', 'qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+
+    /** Four characters in a row along the alphabet, the digits or a keyboard row, either way. */
+    function hasRun(value) {
+        for (let i = 0; i + 4 <= value.length; i++) {
+            const piece = value.slice(i, i + 4);
+            const backwards = [...piece].reverse().join('');
+            if (RUNS.some((run) => run.includes(piece) || run.includes(backwards))) return true;
+        }
+        return false;
+    }
+
+    // The commonest passwords in the public breach lists, lower-cased. Short on
+    // purpose: a few dozen catch most of what is actually typed, and the script
+    // ships in every page.
+    const COMMON = new Set([
+        'password', 'passw0rd', 'password1', 'qwerty', 'qwertyuiop', 'asdfghjkl', 'letmein', 'welcome',
+        'iloveyou', 'admin', 'administrator', 'login', 'monkey', 'dragon', 'football', 'baseball',
+        'master', 'shadow', 'sunshine', 'princess', 'superman', 'batman', 'trustno1', 'starwars',
+        'whatever', 'freedom', 'hello', 'secret', 'changeme', 'default', 'abc123', 'qazwsx',
+        'zaq12wsx', '1q2w3e4r', '1qaz2wsx', '123456', '1234567', '12345678', '123456789',
+        '1234567890', '111111', '000000', '123123', '654321', '666666', '121212', 'michael',
+        'jennifer', 'charlie', 'jordan', 'thomas', 'summer', 'internet', 'computer',
+    ]);
+
+    // What a password looks like with its decoration taken off: the usual
+    // substitutions undone, and the digits and symbols tacked on either end gone.
+    const SWAPS = { 0: 'o', 1: 'i', 3: 'e', 4: 'a', 5: 's', 7: 't', '@': 'a', $: 's', '!': 'i' };
+
+    function isCommon(value) {
+        const lower = value.toLowerCase();
+        if (COMMON.has(lower)) return true;
+
+        const trim = (text) => text.replace(/^[^a-z]+|[^a-z]+$/g, '');
+        const plain = (text) => [...text].map((c) => SWAPS[c] ?? c).join('');
+
+        // Both orders: "P@ssw0rd!" is password once the ends are trimmed and then
+        // the swaps undone, "Pa55word" only with the swaps undone first.
+        return [trim(lower), plain(trim(lower)), trim(plain(lower))]
+            .some((candidate) => candidate.length >= 4 && COMMON.has(candidate));
+    }
+
+    return { password };
+})();
+
+// behaviours/tag-input.js
+const __ds_behaviours_tag_input = (() => {
+    /*
+     * dsTagInput: short values typed into a field and kept as removable chips.
+     *
+     *   x-data="dsTagInput({ separators: ['Enter', ','], unique: true, max: null,
+     *                        validate: 'email', messages: { … } })"
+     *
+     * The DOM is the state. Each chip is a list item carrying its own hidden input,
+     * rendered by PHP for the initial value and cloned from the component's
+     * template for every new one, so what is on screen and what the form posts
+     * cannot disagree, and a page whose script never runs still posts what it was
+     * rendered with. Text goes in with textContent and .value only, never as
+     * markup.
+     *
+     * An entry that cannot be added (invalid, a duplicate, one over `max`) stays in
+     * the text box with a message saying why. Nothing typed is ever dropped.
+     *
+     * Every word it shows or announces comes from `messages`, written by the view,
+     * so this file holds no copy. `:tag` and `:max` are filled in.
+     *
+     * The scope exposes nothing but Alpine's own init and destroy; the listeners are
+     * attached to the root here.
+     */
+
+    function tagInput(Alpine) {
+        Alpine.data('dsTagInput', (options = {}) => {
+            let teardown = null;
+
+            return {
+                init() {
+                    teardown = wire(this.$el, settings(options));
+                },
+
+                destroy() {
+                    teardown?.();
+                },
+            };
+        });
+    }
+
+    function settings(options) {
+        const separators = options.separators ?? ['Enter', ','];
+
+        return {
+            enter: separators.includes('Enter'),
+            characters: separators.filter((s) => s !== 'Enter' && s.length === 1),
+            unique: options.unique !== false,
+            max: Number.isInteger(options.max) ? options.max : null,
+            validate: options.validate ?? null,
+            messages: options.messages ?? {},
+        };
+    }
+
+    function wire(root, s) {
+        const text = root.querySelector('[data-ds-tag-text]');
+        const list = root.querySelector('[data-ds-tag-list]');
+        const template = root.querySelector('[data-ds-tag-template]');
+        const note = root.querySelector('[data-ds-tag-note]');
+        const noteText = note.querySelector('[data-ds-tag-note-text]');
+        const help = root.querySelector('[data-ds-tag-help]');
+        const status = root.querySelector('[data-ds-tag-status]');
+
+        // The server's verdict on the field, which a message about one entry
+        // overrides only while it is showing.
+        const invalid = text.getAttribute('aria-invalid');
+
+        // Entries that could not be added go back into the box joined the way the
+        // reader would have typed them, so committing again splits them the same.
+        const first = s.characters[0];
+        const joiner = !first || first === ' ' ? ' ' : first + ' ';
+
+        // Which kind of message is showing, so a removal can take back a "too
+        // many" without also hiding a "not an email address" that still stands.
+        let showing = null;
+
+        // The browser's own idea of an email address, the one it enforces on a
+        // type=email field, rather than a regular expression of ours.
+        const probe = document.createElement('input');
+        probe.type = 'email';
+
+        const say = (key, tag = '') =>
+            String(s.messages[key] ?? '').replaceAll(':tag', tag).replaceAll(':max', String(s.max ?? ''));
+
+        const chips = () => [...list.querySelectorAll('[data-ds-tag]')];
+        const valueOf = (chip) => chip.querySelector('[data-ds-tag-value]').value;
+        const removeButton = (chip) => chip?.querySelector('[data-ds-tag-remove]');
+
+        function announce(message) {
+            status.textContent = message;
+        }
+
+        function tell(message, kind = null) {
+            showing = message ? kind : null;
+            noteText.textContent = message;
+            note.hidden = !message;
+            // The message takes the help line's place while it shows, the way an
+            // error does: two lines of guidance under one field is one too many.
+            if (help) help.hidden = Boolean(message);
+            if (message) text.setAttribute('aria-invalid', 'true');
+            else if (invalid === null) text.removeAttribute('aria-invalid');
+            else text.setAttribute('aria-invalid', invalid);
+        }
+
+        /** Why `value` cannot be added, as [kind, message], or null when it can. */
+        function problem(value) {
+            if (s.max !== null && chips().length >= s.max) return ['max', say('max', value)];
+            if (s.validate === 'email') {
+                probe.value = value;
+                if (!probe.checkValidity()) return ['invalid', say('invalid', value)];
+            }
+            // Case-insensitive: Maya@Example.com and maya@example.com are one
+            // address, and Billing and billing are one tag.
+            const lower = value.toLowerCase();
+            if (s.unique && chips().some((chip) => valueOf(chip).toLowerCase() === lower)) {
+                return ['duplicate', say('duplicate', value)];
+            }
+            return null;
+        }
+
+        function add(value) {
+            const chip = template.content.firstElementChild.cloneNode(true);
+            chip.querySelector('[data-ds-tag-label]').textContent = value;
+            removeButton(chip).setAttribute('aria-label', say('remove', value));
+            chip.querySelector('[data-ds-tag-value]').value = value;
+            list.append(chip);
+            list.hidden = false;
+            announce(say('added', value));
+        }
+
+        function remove(chip) {
+            const value = valueOf(chip);
+            chip.remove();
+            list.hidden = chips().length === 0;
+            announce(say('removed', value));
+            if (showing === 'max') tell('');
+            text.focus();
+        }
+
+        /**
+         * Add every entry in `raw`. Leaves what could not be added in the box, and
+         * the first reason why under it; `tail` is text still being typed.
+         */
+        function commit(raw, splitters = s.characters, tail = '') {
+            const kept = [];
+            let wrong = null;
+
+            for (const part of split(raw, splitters)) {
+                const value = part.trim();
+                if (!value) continue;
+
+                const why = problem(value);
+                if (why) {
+                    kept.push(value);
+                    wrong ??= why;
+                } else {
+                    add(value);
+                }
+            }
+
+            if (tail) kept.push(tail);
+            text.value = kept.join(joiner);
+            tell(wrong?.[1] ?? '', wrong?.[0]);
+        }
+
+        function onTextKeydown(event) {
+            if (event.isComposing) return;
+            const caretAtStart = text.selectionStart === 0 && text.selectionEnd === 0;
+
+            if (event.key === 'Enter' && s.enter) {
+                // An empty box lets Enter do what it does in any field: submit.
+                if (!text.value.trim()) return;
+                event.preventDefault();
+                commit(text.value);
+                return;
+            }
+
+            if (s.characters.includes(event.key)) {
+                event.preventDefault();
+                commit(text.value);
+                return;
+            }
+
+            // Backspace in an empty box reaches the last chip, which shows its
+            // focus ring and is announced; a second press removes it. One press
+            // deleting a whole entry would be one press too easy to make by
+            // mistake. ArrowLeft from the start of the box goes the same way.
+            const back = event.key === 'Backspace' ? text.value === '' : event.key === 'ArrowLeft';
+            if (back && caretAtStart && chips().length) {
+                event.preventDefault();
+                removeButton(chips().at(-1)).focus();
+            }
+        }
+
+        function onChipKeydown(event, chip) {
+            const all = chips();
+            const at = all.indexOf(chip);
+
+            switch (event.key) {
+                case 'Backspace':
+                case 'Delete':
+                    event.preventDefault();
+                    remove(chip);
+                    return;
+                case 'ArrowLeft':
+                    event.preventDefault();
+                    if (at > 0) removeButton(all[at - 1]).focus();
+                    return;
+                case 'ArrowRight':
+                    event.preventDefault();
+                    if (at < all.length - 1) removeButton(all[at + 1]).focus();
+                    else text.focus();
+                    return;
+            }
+        }
+
+        function onKeydown(event) {
+            if (event.target === text) return onTextKeydown(event);
+            const chip = event.target.closest('[data-ds-tag-remove]')?.closest('[data-ds-tag]');
+            if (chip) onChipKeydown(event, chip);
+        }
+
+        function onInput(event) {
+            if (event.target !== text) return;
+            if (text.value.trim() === '' && !note.hidden) tell('');
+
+            // A phone's keyboard reports no key for the comma, so a separator can
+            // arrive only as text. Everything up to the last one is committed; what
+            // follows it is still being typed.
+            const at = Math.max(...s.characters.map((c) => text.value.lastIndexOf(c)));
+            if (at < 0) return;
+
+            commit(text.value.slice(0, at), s.characters, text.value.slice(at + 1).trimStart());
+        }
+
+        function onPaste(event) {
+            if (event.target !== text) return;
+            const pasted = event.clipboardData?.getData('text') ?? '';
+
+            // A single value pastes like text into any field. A list (a column from
+            // a spreadsheet, a line of addresses) commits every entry at once. A
+            // line break always splits: a one-line box cannot hold one, and the
+            // browser would otherwise join the lines together.
+            if (!/[\r\n]/.test(pasted) && !s.characters.some((c) => pasted.includes(c))) return;
+
+            event.preventDefault();
+            const whole = text.value.slice(0, text.selectionStart) + pasted + text.value.slice(text.selectionEnd);
+            commit(whole, [...s.characters, '\n', '\r']);
+        }
+
+        function onClick(event) {
+            const button = event.target.closest('[data-ds-tag-remove]');
+            if (button) {
+                remove(button.closest('[data-ds-tag]'));
+                return;
+            }
+            // Anywhere else in the field puts the caret in the box. A click on the
+            // padding or a chip's text leaving focus nowhere feels broken.
+            if (event.target.closest('[data-ds-tag-field]') && !text.disabled) text.focus();
+        }
+
+        function onFocusOut(event) {
+            if (event.target === text && text.value.trim()) commit(text.value);
+        }
+
+        const listeners = [
+            ['keydown', onKeydown],
+            ['input', onInput],
+            ['paste', onPaste],
+            ['click', onClick],
+            ['focusout', onFocusOut],
+        ];
+        for (const [type, fn] of listeners) root.addEventListener(type, fn);
+
+        return () => {
+            for (const [type, fn] of listeners) root.removeEventListener(type, fn);
+        };
+    }
+
+    function split(raw, splitters) {
+        let parts = [raw];
+        for (const c of splitters) parts = parts.flatMap((part) => part.split(c));
+        return parts;
+    }
+
+    return { tagInput };
+})();
+
 // blade-ui.js
 const __ds_blade_ui = (() => {
     /*
@@ -129,8 +1002,12 @@ const __ds_blade_ui = (() => {
      * BEHAVIOURS below. The conventions are in CLAUDE.md under "The shared script".
      */
     const { clipboard } = __ds_behaviours_clipboard;
+    const { numberField } = __ds_behaviours_number_field;
+    const { otp } = __ds_behaviours_otp;
+    const { password } = __ds_behaviours_password;
+    const { tagInput } = __ds_behaviours_tag_input;
 
-    const BEHAVIOURS = [clipboard];
+    const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password];
 
     // Symbol.for, not a module-level flag. Two copies of this script, say the
     // inlined one AND a Vite import, are two separate modules with two separate

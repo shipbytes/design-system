@@ -131,6 +131,47 @@ final class Specimens
                 <x-ds::input as="textarea" label="Notes" name="notes" :rows="4" />
                 <x-ds::input as="select" label="Plan" name="plan"><option>Free</option></x-ds::input>
                 BLADE,
+            'input/reveal' => <<<'BLADE'
+                <x-ds::input type="password" name="password" label="Password" :reveal="true" autocomplete="current-password" />
+                <x-ds::input type="password" name="password" label="Password" :reveal="true" error="That password is not right." />
+                <x-ds::input type="password" name="password" label="Password" :reveal="true" :disabled="true" />
+                <x-ds::input type="password" name="password" label="Password" icon="lock-closed" :reveal="true" />
+                <x-ds::input type="text" name="name" label="Ignored off a password field" :reveal="true" />
+                BLADE,
+            'password-strength/all' => <<<'BLADE'
+                <x-ds::input type="password" id="new-password" name="password" label="New password" :reveal="true" />
+                <x-ds::password-strength for="new-password" />
+                <x-ds::password-strength for="new-password" :minLength="12" :labels="['Too weak', 'Weak']" class="max-w-sm" />
+                BLADE,
+
+            'otp-input/all' => <<<'BLADE'
+                <x-ds::otp-input name="code" label="Verification code" help="We sent it to your phone." />
+                <x-ds::otp-input name="code" label="Verification code" value="4821" />
+                <x-ds::otp-input name="pin" label="PIN" :length="4" :masked="true" :autofocus="true" />
+                <x-ds::otp-input name="ref" label="Reference" :length="8" :numeric="false" value="AB12" />
+                <x-ds::otp-input name="code" label="Verification code" value="123456" error="That code has expired." />
+                <x-ds::otp-input name="code" label="Verification code" :disabled="true" />
+                <x-ds::otp-input name="code" wire:model.live="code" aria-label="Code" />
+                BLADE,
+
+            'tag-input/all' => <<<'BLADE'
+                <x-ds::tag-input name="tags" label="Tags" placeholder="Add a tag" />
+                <x-ds::tag-input name="emails" label="Recipients" :value="['maya@example.com', 'ada@example.com']" validate="email" :max="5" help="Press Enter or comma after each address." />
+                <x-ds::tag-input name="emails" label="Recipients" :value="['maya@']" validate="email" error="maya@ is not an email address." />
+                <x-ds::tag-input name="tags" label="Tags" :value="['billing']" :separators="[';', 'Enter']" :unique="false" />
+                <x-ds::tag-input name="tags" label="Locked" :value="['billing', 'security']" :disabled="true" />
+                BLADE,
+
+            'number-field/all' => <<<'BLADE'
+                <x-ds::number-field name="seats" label="Seats" :value="3" :min="1" :max="10" help="Up to ten on this plan." />
+                <x-ds::number-field name="seats" label="Seats" :value="1" :min="1" :max="10" />
+                <x-ds::number-field name="seats" label="Seats" :value="10" :min="1" :max="10" error="This plan has ten seats." />
+                <x-ds::number-field name="qty" label="Quantity" :value="2" :min="0" size="sm" />
+                <x-ds::number-field name="weight" label="Weight (kg)" :value="1.5" :min="0" :step="0.5" />
+                <x-ds::number-field name="offset" label="Offset" :value="-2" :min="-10" :max="10" step="any" />
+                <x-ds::number-field name="seats" label="Locked" :value="3" :disabled="true" />
+                <x-ds::number-field name="n" aria-label="Count" />
+                BLADE,
 
             'panel/all' => <<<'BLADE'
                 <x-ds::panel title="Recent" action="View all" actionHref="/all">
