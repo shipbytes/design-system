@@ -1,0 +1,325 @@
+<!-- single -->
+<div
+    x-data="typeof dsSlider === &#039;function&#039; ? dsSlider({&quot;minGap&quot;:0,&quot;format&quot;:{&quot;locale&quot;:&quot;en&quot;,&quot;minimumFractionDigits&quot;:0,&quot;maximumFractionDigits&quot;:2,&quot;useGrouping&quot;:true,&quot;prefix&quot;:&quot;&quot;,&quot;suffix&quot;:&quot;&quot;,&quot;compact&quot;:false}}) : (() =&gt; { throw new Error(&quot;dsSlider is not registered: add &lt;x-ds::scripts /&gt; above the Alpine script, or call Alpine.plugin(bladeUi) where Alpine is bundled.&quot;) })()"
+    x-modelable="dsValue"
+    
+    
+    data-ds-slider="single"
+        class="[--ds-slider-inset:2px]"
+>
+            <div class="flex items-baseline justify-between gap-3">
+                            
+                <label id="ds-ID-label" for="ds-ID" class="block text-body font-medium text-fg">Volume</label>
+                                </div>
+    
+    <div
+        class="relative h-11 sm:h-9 mt-1.5"
+        data-ds-slider-body
+        style="--ds-slider-low: 0; --ds-slider-high: 0.4"
+    >
+        <div class="pointer-events-none absolute inset-x-3 top-1/2 -translate-y-1/2 rounded-full bg-fg/10 h-1.5" aria-hidden="true" data-ds-slider-track>
+            <div class="absolute inset-y-0 start-[calc(var(--ds-slider-low)*100%)] end-[calc((1-var(--ds-slider-high))*100%)] rounded-full bg-surface-inverse" data-ds-slider-fill></div>
+                    </div>
+
+                                <input type="range" id="ds-ID" name="volume" min="0" max="100" step="1" value="40" aria-valuetext="40" class="absolute inset-x-0 top-1/2 h-6 w-full -translate-y-1/2 cursor-pointer disabled:cursor-not-allowed" data-ds-slider-input="high" />
+                        </div>
+
+    
+    </div>
+<div
+    x-data="typeof dsSlider === &#039;function&#039; ? dsSlider({&quot;minGap&quot;:0,&quot;format&quot;:{&quot;locale&quot;:&quot;en&quot;,&quot;minimumFractionDigits&quot;:2,&quot;maximumFractionDigits&quot;:2,&quot;useGrouping&quot;:true,&quot;prefix&quot;:&quot;&quot;,&quot;suffix&quot;:&quot;%&quot;,&quot;compact&quot;:false}}) : (() =&gt; { throw new Error(&quot;dsSlider is not registered: add &lt;x-ds::scripts /&gt; above the Alpine script, or call Alpine.plugin(bladeUi) where Alpine is bundled.&quot;) })()"
+    x-modelable="dsValue"
+    
+    
+    data-ds-slider="single"
+        class="[--ds-slider-inset:2px]"
+>
+            <div class="flex items-baseline justify-between gap-3">
+                            
+                <label id="ds-ID-label" for="ds-ID" class="block text-body font-medium text-fg">Opacity</label>
+                                        
+                <span class="ms-auto shrink-0 text-body tabular-nums text-fg-muted" data-ds-slider-output>
+                    <span data-ds-slider-output-high>0.35%</span>
+                </span>
+                    </div>
+    
+    <div
+        class="relative h-11 sm:h-9 mt-1.5"
+        data-ds-slider-body
+        style="--ds-slider-low: 0; --ds-slider-high: 0.35"
+    >
+        <div class="pointer-events-none absolute inset-x-3 top-1/2 -translate-y-1/2 rounded-full bg-fg/10 h-1.5" aria-hidden="true" data-ds-slider-track>
+            <div class="absolute inset-y-0 start-[calc(var(--ds-slider-low)*100%)] end-[calc((1-var(--ds-slider-high))*100%)] rounded-full bg-surface-inverse" data-ds-slider-fill></div>
+                    </div>
+
+                                <input type="range" id="ds-ID" name="opacity" min="0" max="1" step="0.05" value="0.35" aria-valuetext="0.35%" aria-describedby="ds-ID-help" class="absolute inset-x-0 top-1/2 h-6 w-full -translate-y-1/2 cursor-pointer disabled:cursor-not-allowed" data-ds-slider-input="high" />
+                        </div>
+
+    
+            <p id="ds-ID-help" class="mt-1.5 text-meta text-fg-muted">How see-through.</p>
+    </div>
+<div
+    x-data="typeof dsSlider === &#039;function&#039; ? dsSlider({&quot;minGap&quot;:0,&quot;format&quot;:{&quot;locale&quot;:&quot;en&quot;,&quot;minimumFractionDigits&quot;:0,&quot;maximumFractionDigits&quot;:2,&quot;useGrouping&quot;:true,&quot;prefix&quot;:&quot;&quot;,&quot;suffix&quot;:&quot;&quot;,&quot;compact&quot;:false}}) : (() =&gt; { throw new Error(&quot;dsSlider is not registered: add &lt;x-ds::scripts /&gt; above the Alpine script, or call Alpine.plugin(bladeUi) where Alpine is bundled.&quot;) })()"
+    x-modelable="dsValue"
+    
+    aria-label="Zoom"
+    data-ds-slider="single"
+        class="[--ds-slider-inset:4px]"
+>
+    
+    <div
+        class="relative h-8 "
+        data-ds-slider-body
+        style="--ds-slider-low: 0; --ds-slider-high: 0.6666666667"
+    >
+        <div class="pointer-events-none absolute inset-x-3 top-1/2 -translate-y-1/2 rounded-full bg-fg/10 h-1" aria-hidden="true" data-ds-slider-track>
+            <div class="absolute inset-y-0 start-[calc(var(--ds-slider-low)*100%)] end-[calc((1-var(--ds-slider-high))*100%)] rounded-full bg-surface-inverse" data-ds-slider-fill></div>
+                    </div>
+
+                                <input type="range" id="ds-ID" name="zoom" min="50" max="200" step="any" value="150" aria-valuetext="150" class="absolute inset-x-0 top-1/2 h-6 w-full -translate-y-1/2 cursor-pointer disabled:cursor-not-allowed" data-ds-slider-input="high" />
+                            
+                <span hidden aria-hidden="true" data-ds-slider-tip="high" class="pointer-events-none absolute bottom-full z-20 mb-1 w-max -translate-x-1/2 rtl:translate-x-1/2 rounded-control bg-surface-inverse px-2 py-1 text-meta text-on-inverse tabular-nums shadow-float" style="inset-inline-start: calc(0.75rem + (100% - 1.5rem) * var(--ds-slider-high))">150</span>
+                        </div>
+
+    
+    </div>
+<div
+    x-data="typeof dsSlider === &#039;function&#039; ? dsSlider({&quot;minGap&quot;:0,&quot;format&quot;:{&quot;locale&quot;:&quot;en&quot;,&quot;minimumFractionDigits&quot;:0,&quot;maximumFractionDigits&quot;:2,&quot;useGrouping&quot;:true,&quot;prefix&quot;:&quot;&quot;,&quot;suffix&quot;:&quot;&quot;,&quot;compact&quot;:false}}) : (() =&gt; { throw new Error(&quot;dsSlider is not registered: add &lt;x-ds::scripts /&gt; above the Alpine script, or call Alpine.plugin(bladeUi) where Alpine is bundled.&quot;) })()"
+    x-modelable="dsValue"
+    
+    
+    data-ds-slider="single"
+        class="[--ds-slider-inset:2px]"
+>
+            <div class="flex items-baseline justify-between gap-3">
+                            
+                <label id="ds-ID-label" for="ds-ID" class="block text-body font-medium text-fg">Level</label>
+                                </div>
+    
+    <div
+        class="relative h-11 sm:h-9 mt-1.5"
+        data-ds-slider-body
+        style="--ds-slider-low: 0; --ds-slider-high: 0.7"
+    >
+        <div class="pointer-events-none absolute inset-x-3 top-1/2 -translate-y-1/2 rounded-full bg-fg/10 h-1.5" aria-hidden="true" data-ds-slider-track>
+            <div class="absolute inset-y-0 start-[calc(var(--ds-slider-low)*100%)] end-[calc((1-var(--ds-slider-high))*100%)] rounded-full bg-fg-subtle" data-ds-slider-fill></div>
+                            <span class="absolute top-1/2 size-1 -translate-x-1/2 -translate-y-1/2 rtl:translate-x-1/2 rounded-full bg-fg-muted" style="inset-inline-start: calc(0 * 100%)"></span>
+                            <span class="absolute top-1/2 size-1 -translate-x-1/2 -translate-y-1/2 rtl:translate-x-1/2 rounded-full bg-fg-muted" style="inset-inline-start: calc(0.5 * 100%)"></span>
+                            <span class="absolute top-1/2 size-1 -translate-x-1/2 -translate-y-1/2 rtl:translate-x-1/2 rounded-full bg-fg-muted" style="inset-inline-start: calc(1 * 100%)"></span>
+                    </div>
+
+                                <input type="range" id="ds-ID" name="level" min="0" max="10" step="1" value="7" aria-valuetext="7" disabled="disabled" class="absolute inset-x-0 top-1/2 h-6 w-full -translate-y-1/2 cursor-pointer disabled:cursor-not-allowed" data-ds-slider-input="high" />
+                        </div>
+
+            
+        <div class="relative mx-3 h-5 text-meta text-fg-muted" aria-hidden="true">
+                            <span class="absolute top-0 w-max -translate-x-2 rtl:translate-x-2" style="inset-inline-start: calc(0 * 100%)">0</span>
+                            <span class="absolute top-0 w-max -translate-x-1/2 rtl:translate-x-1/2" style="inset-inline-start: calc(0.5 * 100%)">5</span>
+                            <span class="absolute top-0 w-max -translate-x-[calc(100%-0.5rem)] rtl:translate-x-[calc(100%-0.5rem)]" style="inset-inline-start: calc(1 * 100%)">10</span>
+                    </div>
+    
+    </div>
+<div
+    x-data="typeof dsSlider === &#039;function&#039; ? dsSlider({&quot;minGap&quot;:0,&quot;format&quot;:{&quot;locale&quot;:&quot;en&quot;,&quot;minimumFractionDigits&quot;:0,&quot;maximumFractionDigits&quot;:2,&quot;useGrouping&quot;:true,&quot;prefix&quot;:&quot;&quot;,&quot;suffix&quot;:&quot;&quot;,&quot;compact&quot;:false}}) : (() =&gt; { throw new Error(&quot;dsSlider is not registered: add &lt;x-ds::scripts /&gt; above the Alpine script, or call Alpine.plugin(bladeUi) where Alpine is bundled.&quot;) })()"
+    x-modelable="dsValue"
+    wire:model="score"
+    
+    data-ds-slider="single"
+        class="[--ds-slider-inset:2px]"
+>
+            <div class="flex items-baseline justify-between gap-3">
+                            
+                <label id="ds-ID-label" for="ds-ID" class="block text-body font-medium text-fg">Score</label>
+                                </div>
+    
+    <div
+        class="relative h-11 sm:h-9 mt-1.5"
+        data-ds-slider-body
+        style="--ds-slider-low: 0; --ds-slider-high: 0.5"
+    >
+        <div class="pointer-events-none absolute inset-x-3 top-1/2 -translate-y-1/2 rounded-full bg-fg/10 h-1.5" aria-hidden="true" data-ds-slider-track>
+            <div class="absolute inset-y-0 start-[calc(var(--ds-slider-low)*100%)] end-[calc((1-var(--ds-slider-high))*100%)] rounded-full bg-danger" data-ds-slider-fill></div>
+                    </div>
+
+                                <input type="range" id="ds-ID" name="score" min="0" max="100" step="1" value="50" aria-valuetext="50" aria-describedby="ds-ID-error" aria-invalid="true" class="absolute inset-x-0 top-1/2 h-6 w-full -translate-y-1/2 cursor-pointer disabled:cursor-not-allowed" data-ds-slider-input="high" />
+                        </div>
+
+    
+            <p id="ds-ID-error" class="mt-1.5 flex items-start gap-1.5 text-meta text-danger">
+            <svg aria-hidden="true" class="size-3.5 shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/>
+</svg>            <span>Pick a score.</span>
+        </p>
+    </div>
+
+<!-- range -->
+<div
+    x-data="typeof dsSlider === &#039;function&#039; ? dsSlider({&quot;minGap&quot;:10,&quot;format&quot;:{&quot;locale&quot;:&quot;en&quot;,&quot;minimumFractionDigits&quot;:0,&quot;maximumFractionDigits&quot;:2,&quot;useGrouping&quot;:true,&quot;prefix&quot;:&quot;$&quot;,&quot;suffix&quot;:&quot;&quot;,&quot;compact&quot;:false}}) : (() =&gt; { throw new Error(&quot;dsSlider is not registered: add &lt;x-ds::scripts /&gt; above the Alpine script, or call Alpine.plugin(bladeUi) where Alpine is bundled.&quot;) })()"
+    x-modelable="dsValue"
+    
+    
+    data-ds-slider="range"
+     role="group"  aria-labelledby="ds-ID-label"      class="[--ds-slider-inset:2px]"
+>
+            <div class="flex items-baseline justify-between gap-3">
+                            
+                <label id="ds-ID-label" for="ds-ID-low" class="block text-body font-medium text-fg">Price</label>
+                                        
+                <span class="ms-auto shrink-0 text-body tabular-nums text-fg-muted" data-ds-slider-output>
+                    <span data-ds-slider-output-low>$20</span> – <span data-ds-slider-output-high>$80</span>
+                </span>
+                    </div>
+    
+    <div
+        class="relative h-11 sm:h-9 mt-1.5"
+        data-ds-slider-body
+        style="--ds-slider-low: 0.2; --ds-slider-high: 0.8"
+    >
+        <div class="pointer-events-none absolute inset-x-3 top-1/2 -translate-y-1/2 rounded-full bg-fg/10 h-1.5" aria-hidden="true" data-ds-slider-track>
+            <div class="absolute inset-y-0 start-[calc(var(--ds-slider-low)*100%)] end-[calc((1-var(--ds-slider-high))*100%)] rounded-full bg-surface-inverse" data-ds-slider-fill></div>
+                            <span class="absolute top-1/2 size-1 -translate-x-1/2 -translate-y-1/2 rtl:translate-x-1/2 rounded-full bg-fg-muted" style="inset-inline-start: calc(0 * 100%)"></span>
+                            <span class="absolute top-1/2 size-1 -translate-x-1/2 -translate-y-1/2 rtl:translate-x-1/2 rounded-full bg-fg-muted" style="inset-inline-start: calc(0.5 * 100%)"></span>
+                            <span class="absolute top-1/2 size-1 -translate-x-1/2 -translate-y-1/2 rtl:translate-x-1/2 rounded-full bg-fg-muted" style="inset-inline-start: calc(1 * 100%)"></span>
+                    </div>
+
+                                <input type="range" id="ds-ID-low" name="price[low]" min="0" max="100" step="1" value="20" aria-label="Minimum price" aria-valuetext="$20" class="absolute inset-x-0 top-1/2 h-6 w-full -translate-y-1/2 cursor-pointer disabled:cursor-not-allowed data-ds-slider-top:z-10" data-ds-slider-input="low" />
+                                            <input type="range" id="ds-ID-high" name="price[high]" min="0" max="100" step="1" value="80" aria-label="Maximum price" aria-valuetext="$80" class="absolute inset-x-0 top-1/2 h-6 w-full -translate-y-1/2 cursor-pointer disabled:cursor-not-allowed data-ds-slider-top:z-10" data-ds-slider-input="high" />
+                        </div>
+
+            
+        <div class="relative mx-3 h-5 text-meta text-fg-muted" aria-hidden="true">
+                            <span class="absolute top-0 w-max -translate-x-2 rtl:translate-x-2" style="inset-inline-start: calc(0 * 100%)">Free</span>
+                            <span class="absolute top-0 w-max -translate-x-1/2 rtl:translate-x-1/2" style="inset-inline-start: calc(0.5 * 100%)">$50</span>
+                            <span class="absolute top-0 w-max -translate-x-[calc(100%-0.5rem)] rtl:translate-x-[calc(100%-0.5rem)]" style="inset-inline-start: calc(1 * 100%)">$100</span>
+                    </div>
+    
+    </div>
+<div
+    x-data="typeof dsSlider === &#039;function&#039; ? dsSlider({&quot;minGap&quot;:0,&quot;format&quot;:{&quot;locale&quot;:&quot;en&quot;,&quot;minimumFractionDigits&quot;:0,&quot;maximumFractionDigits&quot;:2,&quot;useGrouping&quot;:true,&quot;prefix&quot;:&quot;&quot;,&quot;suffix&quot;:&quot;&quot;,&quot;compact&quot;:false}}) : (() =&gt; { throw new Error(&quot;dsSlider is not registered: add &lt;x-ds::scripts /&gt; above the Alpine script, or call Alpine.plugin(bladeUi) where Alpine is bundled.&quot;) })()"
+    x-modelable="dsValue"
+    x-model="ages"
+    
+    data-ds-slider="range"
+     role="group"  aria-labelledby="ds-ID-label"      class="[--ds-slider-inset:4px]"
+>
+            <div class="flex items-baseline justify-between gap-3">
+                            
+                <label id="ds-ID-label" for="ds-ID-low" class="block text-body font-medium text-fg">Age</label>
+                                </div>
+    
+    <div
+        class="relative h-8 mt-1.5"
+        data-ds-slider-body
+        style="--ds-slider-low: 0; --ds-slider-high: 0.5185185185"
+    >
+        <div class="pointer-events-none absolute inset-x-3 top-1/2 -translate-y-1/2 rounded-full bg-fg/10 h-1" aria-hidden="true" data-ds-slider-track>
+            <div class="absolute inset-y-0 start-[calc(var(--ds-slider-low)*100%)] end-[calc((1-var(--ds-slider-high))*100%)] rounded-full bg-surface-inverse" data-ds-slider-fill></div>
+                    </div>
+
+                                <input type="range" id="ds-ID-low" name="age_min" min="18" max="99" step="1" value="18" aria-label="Youngest" aria-valuetext="18" class="absolute inset-x-0 top-1/2 h-6 w-full -translate-y-1/2 cursor-pointer disabled:cursor-not-allowed data-ds-slider-top:z-10" data-ds-slider-input="low" />
+                            
+                <span hidden aria-hidden="true" data-ds-slider-tip="low" class="pointer-events-none absolute bottom-full z-20 mb-1 w-max -translate-x-1/2 rtl:translate-x-1/2 rounded-control bg-surface-inverse px-2 py-1 text-meta text-on-inverse tabular-nums shadow-float" style="inset-inline-start: calc(0.75rem + (100% - 1.5rem) * var(--ds-slider-low))">18</span>
+                                            <input type="range" id="ds-ID-high" name="age_max" min="18" max="99" step="1" value="60" aria-label="Oldest" aria-valuetext="60" class="absolute inset-x-0 top-1/2 h-6 w-full -translate-y-1/2 cursor-pointer disabled:cursor-not-allowed data-ds-slider-top:z-10" data-ds-slider-input="high" />
+                            
+                <span hidden aria-hidden="true" data-ds-slider-tip="high" class="pointer-events-none absolute bottom-full z-20 mb-1 w-max -translate-x-1/2 rtl:translate-x-1/2 rounded-control bg-surface-inverse px-2 py-1 text-meta text-on-inverse tabular-nums shadow-float" style="inset-inline-start: calc(0.75rem + (100% - 1.5rem) * var(--ds-slider-high))">60</span>
+                        </div>
+
+    
+    </div>
+<div
+    x-data="typeof dsSlider === &#039;function&#039; ? dsSlider({&quot;minGap&quot;:0,&quot;format&quot;:{&quot;locale&quot;:&quot;en&quot;,&quot;minimumFractionDigits&quot;:0,&quot;maximumFractionDigits&quot;:2,&quot;useGrouping&quot;:true,&quot;prefix&quot;:&quot;&quot;,&quot;suffix&quot;:&quot;&quot;,&quot;compact&quot;:false}}) : (() =&gt; { throw new Error(&quot;dsSlider is not registered: add &lt;x-ds::scripts /&gt; above the Alpine script, or call Alpine.plugin(bladeUi) where Alpine is bundled.&quot;) })()"
+    x-modelable="dsValue"
+    
+    
+    data-ds-slider="range"
+     role="group"  aria-labelledby="ds-ID-label"      class="[--ds-slider-inset:2px]"
+>
+            <div class="flex items-baseline justify-between gap-3">
+                            
+                <label id="ds-ID-label" for="ds-ID-low" class="block text-body font-medium text-fg">Hours</label>
+                                </div>
+    
+    <div
+        class="relative h-11 sm:h-9 mt-1.5"
+        data-ds-slider-body
+        style="--ds-slider-low: 0; --ds-slider-high: 1"
+    >
+        <div class="pointer-events-none absolute inset-x-3 top-1/2 -translate-y-1/2 rounded-full bg-fg/10 h-1.5" aria-hidden="true" data-ds-slider-track>
+            <div class="absolute inset-y-0 start-[calc(var(--ds-slider-low)*100%)] end-[calc((1-var(--ds-slider-high))*100%)] rounded-full bg-fg-subtle" data-ds-slider-fill></div>
+                    </div>
+
+                                <input type="range" id="ds-ID-low" name="hours[low]" min="0" max="100" step="1" value="0" aria-label="From" aria-valuetext="0" aria-describedby="ds-ID-error" aria-invalid="true" disabled="disabled" class="absolute inset-x-0 top-1/2 h-6 w-full -translate-y-1/2 cursor-pointer disabled:cursor-not-allowed data-ds-slider-top:z-10" data-ds-slider-input="low" />
+                                            <input type="range" id="ds-ID-high" name="hours[high]" min="0" max="100" step="1" value="100" aria-label="To" aria-valuetext="100" aria-describedby="ds-ID-error" aria-invalid="true" disabled="disabled" class="absolute inset-x-0 top-1/2 h-6 w-full -translate-y-1/2 cursor-pointer disabled:cursor-not-allowed data-ds-slider-top:z-10" data-ds-slider-input="high" />
+                        </div>
+
+    
+            <p id="ds-ID-error" class="mt-1.5 flex items-start gap-1.5 text-meta text-danger">
+            <svg aria-hidden="true" class="size-3.5 shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/>
+</svg>            <span>Not available.</span>
+        </p>
+    </div>
+
+<!-- bound range -->
+<div
+    x-data="typeof dsSlider === &#039;function&#039; ? dsSlider({&quot;minGap&quot;:0,&quot;format&quot;:{&quot;locale&quot;:&quot;en&quot;,&quot;minimumFractionDigits&quot;:0,&quot;maximumFractionDigits&quot;:2,&quot;useGrouping&quot;:true,&quot;prefix&quot;:&quot;$&quot;,&quot;suffix&quot;:&quot;&quot;,&quot;compact&quot;:false}}) : (() =&gt; { throw new Error(&quot;dsSlider is not registered: add &lt;x-ds::scripts /&gt; above the Alpine script, or call Alpine.plugin(bladeUi) where Alpine is bundled.&quot;) })()"
+    x-modelable="dsValue"
+    wire:model.live="price"
+    
+    data-ds-slider="range"
+     role="group"  aria-labelledby="ds-ID-label"      class="[--ds-slider-inset:2px]"
+>
+            <div class="flex items-baseline justify-between gap-3">
+                            
+                <label id="ds-ID-label" for="ds-ID-low" class="block text-body font-medium text-fg">Price</label>
+                                        
+                <span class="ms-auto shrink-0 text-body tabular-nums text-fg-muted" data-ds-slider-output>
+                    <span data-ds-slider-output-low>$100</span> – <span data-ds-slider-output-high>$400</span>
+                </span>
+                    </div>
+    
+    <div
+        class="relative h-11 sm:h-9 mt-1.5"
+        data-ds-slider-body
+        style="--ds-slider-low: 0.2; --ds-slider-high: 0.8"
+    >
+        <div class="pointer-events-none absolute inset-x-3 top-1/2 -translate-y-1/2 rounded-full bg-fg/10 h-1.5" aria-hidden="true" data-ds-slider-track>
+            <div class="absolute inset-y-0 start-[calc(var(--ds-slider-low)*100%)] end-[calc((1-var(--ds-slider-high))*100%)] rounded-full bg-surface-inverse" data-ds-slider-fill></div>
+                    </div>
+
+                                <input type="range" id="ds-ID-low" name="price[low]" min="0" max="500" step="1" value="100" aria-label="Minimum price" aria-valuetext="$100" class="absolute inset-x-0 top-1/2 h-6 w-full -translate-y-1/2 cursor-pointer disabled:cursor-not-allowed data-ds-slider-top:z-10" data-ds-slider-input="low" />
+                                            <input type="range" id="ds-ID-high" name="price[high]" min="0" max="500" step="1" value="400" aria-label="Maximum price" aria-valuetext="$400" class="absolute inset-x-0 top-1/2 h-6 w-full -translate-y-1/2 cursor-pointer disabled:cursor-not-allowed data-ds-slider-top:z-10" data-ds-slider-input="high" />
+                        </div>
+
+    
+    </div>
+
+<!-- explicit id -->
+<div
+    x-data="typeof dsSlider === &#039;function&#039; ? dsSlider({&quot;minGap&quot;:0,&quot;format&quot;:{&quot;locale&quot;:&quot;en&quot;,&quot;minimumFractionDigits&quot;:0,&quot;maximumFractionDigits&quot;:2,&quot;useGrouping&quot;:true,&quot;prefix&quot;:&quot;&quot;,&quot;suffix&quot;:&quot;&quot;,&quot;compact&quot;:false}}) : (() =&gt; { throw new Error(&quot;dsSlider is not registered: add &lt;x-ds::scripts /&gt; above the Alpine script, or call Alpine.plugin(bladeUi) where Alpine is bundled.&quot;) })()"
+    x-modelable="dsValue"
+    
+    
+    data-ds-slider="single"
+        class="[--ds-slider-inset:2px] mt-4"
+>
+            <div class="flex items-baseline justify-between gap-3">
+                            
+                <label id="vol-label" for="vol" class="block text-body font-medium text-fg">Volume</label>
+                                </div>
+    
+    <div
+        class="relative h-11 sm:h-9 mt-1.5"
+        data-ds-slider-body
+        style="--ds-slider-low: 0; --ds-slider-high: 0.4"
+    >
+        <div class="pointer-events-none absolute inset-x-3 top-1/2 -translate-y-1/2 rounded-full bg-fg/10 h-1.5" aria-hidden="true" data-ds-slider-track>
+            <div class="absolute inset-y-0 start-[calc(var(--ds-slider-low)*100%)] end-[calc((1-var(--ds-slider-high))*100%)] rounded-full bg-surface-inverse" data-ds-slider-fill></div>
+                    </div>
+
+                                <input type="range" id="vol" name="volume" min="0" max="100" step="1" value="40" aria-valuetext="40" class="absolute inset-x-0 top-1/2 h-6 w-full -translate-y-1/2 cursor-pointer disabled:cursor-not-allowed" data-ds-slider-input="high" />
+                        </div>
+
+    
+    </div>
+

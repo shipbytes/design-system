@@ -172,6 +172,7 @@ ${css}
   .shot-short .pane { height: 220px; padding: 0; }
   .shot-tall .pane { height: 320px; }
   .shot-calendar .pane { height: 460px; }
+  .shot-colour .pane { height: 540px; }
   /* Animations are frozen: a pulsing skeleton or a spinning button photographs
      at a random frame, so the image would change on every run and the diff
      would be noise.
@@ -387,6 +388,29 @@ const OPERATE = {
                 await new Promise((done) => requestAnimationFrame(done));
             }
         }),
+    // Typed the way the reader would: the trigger as a typed character, then
+    // two letters, each an input event with the inputType and data the
+    // behaviour reads to tell typing from a paste. The field is never
+    // focused, so the other pane's typing cannot close this one's list.
+    'mention-input': async (pane) =>
+        pane.locator('[data-ds-mention-input][data-shot-type]').evaluate(async (el) => {
+            for (const ch of el.dataset.shotType) {
+                el.value += ch;
+                el.setSelectionRange(el.value.length, el.value.length);
+                el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: ch }));
+                await new Promise((done) => requestAnimationFrame(done));
+            }
+        }),
+    // The swatch pressed, a click bubbling to the popover's root where
+    // dsPopover hears it (nothing at the document closes on a click). It moves
+    // focus into the panel; that is taken off again with nothing to go to,
+    // which the popover does not count as leaving, so the other pane's press
+    // cannot close this one and neither pane draws a ring.
+    'color-picker': async (pane) => {
+        await pane.locator('[data-ds-colour-trigger]').dispatchEvent('click', { bubbles: true });
+        await tab.waitForTimeout(150);
+        await tab.evaluate(() => document.activeElement?.blur());
+    },
     // Real files, set on the real input, so the list and the thumbnail are the
     // component's own doing rather than a pose arranged for the photograph.
     'file-upload': async (pane) =>

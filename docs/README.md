@@ -1,6 +1,6 @@
 # Shipbytes Blade UI — documentation
 
-115 Blade components for Laravel, plus two pagination views. Presentation
+117 Blade components for Laravel, plus two pagination views. Presentation
 only: no state, no framework assumptions beyond Blade itself.
 
 **New here?** Start with [Getting started](getting-started.md) — install, three
@@ -24,6 +24,8 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Money input](components/money-input.md) | An amount, grouped for the locale as it is typed; posts a decimal string, never a float — needs Alpine and the script |
 | [Phone input](components/phone-input.md) | A country from a searchable list and a number formatted as typed; posts E.164 — needs Alpine and the script |
 | [Shortcut input](components/shortcut-input.md) | A keyboard shortcut set by pressing it; posts `mod+shift+k` — needs Alpine and the script |
+| [Mention input](components/mention-input.md) | A textarea that suggests people after `@` (or `#` for anything else) and posts their ids beside the text — needs Alpine and the script |
+| [Colour picker](components/color-picker.md) | A colour from a panel, typed in any common form, or from presets, with its contrast — needs Alpine and the script, but for presets alone |
 | [Time picker](components/time-picker.md) | A time of day, typed or picked from a list; posts HH:MM — needs Alpine and the script |
 | [Inline edit](components/inline-edit.md) | Text that turns into a field in place: rename a title, edit a cell — needs Alpine and the script |
 | [Sortable list](components/sortable-list.md) | Rows put in order by drag, keyboard or buttons; posts the order — needs Alpine and the script |
@@ -164,7 +166,7 @@ plain Blade view. The one opt-in exception is the pagination views' Livewire
 variants, which emit `wire:click` for a component that uses `WithPagination`.
 
 [Alpine](https://alpinejs.dev) — a single 15 kB script, not a framework — is
-needed by thirty-nine components, and by eleven optional props:
+needed by forty-one components, and by eleven optional props:
 
 | | Needs Alpine |
 |---|---|
@@ -174,13 +176,15 @@ needed by thirty-nine components, and by eleven optional props:
 | `confirm-button` `hold-button` `confirm-popover` | **Always, and the package's script too.** Without them each renders its first face and does nothing, so no single press ever carries out the action. |
 | `tree` | **Always, and the package's script too.** Without them it is drawn as PHP rendered it (open folders, the selection, every link reachable) and posts what it shows, but does not open, close or choose. |
 | `expandable-text` | **Always, and the package's script too.** Without them the text is shown in full and no button appears. |
-| `slider` `time-picker` `inline-edit` | **Always, and the package's script too.** Without them each is the native field it is drawn on and posts its value: a single slider works fully (its fill stays put) and a range's two thumbs can cross, the time picker is the browser's own time field, and the inline edit is a plain field inside its form. |
+| `slider` `time-picker` `inline-edit` | **Always, and the package's script too.** Without them each is the native field it is drawn on and posts its value: a single slider works fully (its fill stays put) and a range's two thumbs can cross (a histogram stays as the server drew it, and `inputs` stay hidden), the time picker is the browser's own time field, and the inline edit is a plain field inside its form. |
 | `command-palette` | **Always, and the package's script too.** Without them it stays closed and does nothing; keep a visible route to everything in it. |
 | `sortable-list` | **Always, and the package's script too.** Without them it is a plain list in the server's order, which posts that order, with no handles. |
 | `split` | **Always, and the package's script too.** Without them the panes are fixed at their sizes and the dividers are plain lines. |
 | `swap-button` | **Always, and the package's script too.** Without them it shows the face the server drew and is an ordinary button that still submits or links. |
 | `team-switcher` | **Always, and the package's script too.** Without them it is a native select in a form with a submit button, or a list of links. |
 | `money-input` `phone-input` `shortcut-input` | **Always, and the package's script too.** Without them each is a plain field that posts: the money input a text field posting what was typed, the phone input a select and a tel field posting `name[country]` and `name[number]` rather than E.164, the shortcut input a text field holding the string. |
+| `mention-input` | **Always, and the package's script too.** Without them it is an ordinary textarea posting its text, and the ids of the mentions the server found in it. |
+| `color-picker` | **Always, and the package's script too**, but for `presetsOnly`, which is native radios and needs neither. Without them the browser's own colour input stands in for the panel, posting `#rrggbb`. |
 | `icon-swap` | **Never.** It reads its button's state from CSS. |
 | `scroll-area` | **Never.** It scrolls natively. With Alpine and the package's script it also draws its edge shadows in a browser that cannot from CSS. |
 | `sub-nav` | **Only to open and close.** Without it the section holding the current page is open and the rest are closed, as the server rendered them. |

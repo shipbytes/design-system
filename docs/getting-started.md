@@ -115,7 +115,7 @@ group, so it starts no session and sets no cookie, and it works under
 
 **A page that cannot reach the route** (a static export, an HTML email
 preview, a host whose routing will not take a package's) can carry the script
-in the page instead, about 168 kB (41 kB compressed), uncached:
+in the page instead, about 194 kB (49 kB compressed), uncached:
 
 ```blade
 <x-ds::scripts inline />
@@ -217,6 +217,8 @@ use the component.
 | `dsMoneyInput` | Behind `ds::money-input`. Groups the amount for the locale as it is typed with the caret kept, takes either decimal separator and pasted amounts with symbols, pads and checks `min`, `max` and `step` on leaving, and posts the amount as digits from a hidden input (integer minor units with `minor`). |
 | `dsPhoneInput` | Behind `ds::phone-input`, with a `dsPopover` for the country. Shows the searchable country list in place of the no-script select, formats the number with the country's mask, chooses the country from a typed or pasted `+…`, drops the trunk 0 and posts E.164 from a hidden input. Checks length only. |
 | `dsShortcutInput` | Behind `ds::shortcut-input`. Records the next key combination pressed on its button as `mod+shift+k`, refuses bare keys and the browser's reserved shortcuts, warns on `conflicts`, never takes Tab, and dispatches `change` with `{ value, previous }`. |
+| `dsMention` | Behind `ds::mention-input`. Makes the textarea a combobox while a trigger (`@`) is being typed: the list under the trigger character (measured with a mirror, so wrapped, scrolled and right-to-left text all work), ranked as the command palette ranks, Up, Down, Enter, Tab and Escape while it is open and never while it is not; writes the chosen row in through Undo, posts its id from a hidden input and stops posting it when the text is broken; dispatches a debounced `search` with `{ trigger, query }` from the field; binds `wire:model` / `x-model` to the text. |
+| `dsColour` | Behind `ds::color-picker`, with a `dsPopover` for the panel. Shows the swatch and panel in place of the browser's colour input; drags and keys the saturation and brightness area and the hue and opacity sliders; reads typed colours forgivingly (hex, `rgb()`, `hsl()`, the basic names) and leaves text that is not one as typed and invalid; keeps the presets, the contrast ratio and the posted string (in `format`) in step; offers the EyeDropper where there is one; binds `wire:model` / `x-model` to the posted string. |
 | `dsSearch` | Behind `ds::input`'s `expanding`. Escape clears, then collapses with focus on the icon button; the button and a key typed on it go to the field; `shortcut` opens it from anywhere. |
 | `dsTree` | Behind `ds::tree`. One Tab stop for the tree; the arrow keys, Home, End, type-ahead and `*`; opens and closes folders (dispatching `expand` and `collapse`), selects or checks rows with tri-state parents, keeps the posted inputs in step, and binds `wire:model` / `x-model` both ways. |
 | `x-ds-roll` | A directive, behind `ds::counter` when its value comes from the server. Rolls the digits when a re-render (a Livewire morph) changes the number; with `.in`, rolls up from zero the first time the counter is half in view. Instant under reduced motion. |
@@ -298,14 +300,14 @@ lets them choose light, dark or system, and remembers it:
 `illuminate/view` and `blade-heroicons`, and nothing else. Every component works
 in a plain Blade view.
 
-Thirty-nine need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
+Forty-one need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
 framework: **modal, drawer, sheet, dropdown, select, combobox, date-picker,
 accordion, file-upload, tooltip, sub-nav, user-menu, otp-input, tag-input, number-field,
 password-strength, copy-button, toolbar, toggle-group, popover, hover-card,
 context-menu, theme-switcher, confirm-button, hold-button, confirm-popover,
 tree, expandable-text, slider, time-picker, inline-edit, command-palette,
 sortable-list, split, swap-button, team-switcher, money-input, phone-input,
-shortcut-input**.
+shortcut-input, mention-input, color-picker**.
 `sub-nav` only to open and close: without Alpine, the section holding the
 current page is open and the rest are closed, as the server rendered them.
 `tree` likewise draws its folders, selection and links from PHP and posts
@@ -321,8 +323,12 @@ face the server drew and is an ordinary button that still submits or links;
 links when every team has one. `money-input` is a text field posting what
 was typed, `phone-input` a select of dial codes and a tel field posting
 `name[country]` and `name[number]` rather than E.164, and `shortcut-input` a
-text field holding the string. `user-menu` is a dropdown, and so needs Alpine
-alone.
+text field holding the string. `mention-input` is an ordinary textarea that
+posts its text, and the ids of the mentions the server found in it.
+`color-picker` is the browser's own colour input beside the text field,
+posting `#rrggbb`; with `presetsOnly` it is native radios and needs neither.
+A slider's `histogram` stays as the server drew it, and its `inputs` stay
+hidden. `user-menu` is a dropdown, and so needs Alpine alone.
 
 Eight more use it for **optional props**, and work without them otherwise:
 `checkbox`'s `indeterminate`, `nav-item`'s `collapsedWhen`, `toast`'s
@@ -370,16 +376,16 @@ the top on a page change, and get it from Livewire.
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
 ```
 
-Twenty-seven of them, **otp-input, tag-input, number-field, password-strength,
+Twenty-nine of them, **otp-input, tag-input, number-field, password-strength,
 copy-button, toolbar, toggle-group, popover, hover-card, context-menu,
 theme-switcher, confirm-button, hold-button, confirm-popover, tree,
 expandable-text, slider, time-picker, inline-edit, command-palette,
-sortable-list, split, swap-button, team-switcher, money-input, phone-input
-and shortcut-input**, and
+sortable-list, split, swap-button, team-switcher, money-input, phone-input,
+shortcut-input, mention-input and color-picker**, and
 `input`'s `reveal` and `announcement-bar`'s dismissal, need Alpine **and** [`<x-ds::scripts />`](#3-add-the-script)
 above it, and say so on their page.
 
-**You do not need to add an `[x-cloak]` rule.** Fifteen components hide themselves
+**You do not need to add an `[x-cloak]` rule.** Sixteen components hide themselves
 with `x-cloak` until Alpine boots, and Alpine does not ship the CSS rule that
 makes the attribute mean anything — every project is normally expected to write
 it by hand. Since it is *our* components that break without it, `theme.css`

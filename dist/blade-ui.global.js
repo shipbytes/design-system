@@ -654,6 +654,358 @@ return ok;
 }
 return { clipboard };
 })();
+const __ds_shared_colour = (() => {
+const NAMED = {
+black: '000', silver: 'c0c0c0', gray: '808080', grey: '808080', white: 'fff', maroon: '800000', red: 'f00', purple: '800080',
+fuchsia: 'f0f', green: '008000', lime: '0f0', olive: '808000', yellow: 'ff0', navy: '000080', blue: '00f', teal: '008080', aqua: '0ff',
+};
+const NUMBER = /^[+-]?(\d+\.?\d*|\.\d+)(%|deg)?$/;
+const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
+function parse(text) {
+let s = String(text ?? '').trim().toLowerCase();
+if (NAMED[s]) s = NAMED[s];
+const hex = s.match(/^#?([\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/);
+if (hex) {
+let h = hex[1];
+if (h.length < 5) h = [...h].map((c) => c + c).join('');
+const n = (i) => parseInt(h.slice(i, i + 2), 16);
+return { r: n(0), g: n(2), b: n(4), a: h.length === 8 ? n(6) / 255 : 1 };
+}
+const fn = s.match(/^(rgba?|hsla?)\((.*)\)$/);
+if (!fn) return null;
+const parts = fn[2].split(/[\s,/]+/).filter(Boolean);
+if ((parts.length !== 3 && parts.length !== 4) || !parts.every((p) => NUMBER.test(p))) return null;
+const [x, y, z, w] = parts.map((p) => [parseFloat(p), p.endsWith('%')]);
+const a = w ? clamp(w[1] ? w[0] / 100 : w[0], 0, 1) : 1;
+if (fn[1].startsWith('rgb')) {
+const ch = ([v, pct]) => Math.round(clamp(pct ? (v * 255) / 100 : v, 0, 255));
+return { r: ch(x), g: ch(y), b: ch(z), a };
+}
+return { ...fromHsl(x[0], clamp(y[0], 0, 100), clamp(z[0], 0, 100)), a };
+}
+const pair = (n) => Math.round(n).toString(16).padStart(2, '0');
+const decimal = (n) => String(Math.round(n * 100) / 100);
+function hex(c, alpha = false) {
+return `#${pair(c.r)}${pair(c.g)}${pair(c.b)}${alpha ? pair(c.a * 255) : ''}`;
+}
+function write(c, format = 'hex', alpha = false) {
+if (format === 'rgb') return alpha ? `rgba(${c.r}, ${c.g}, ${c.b}, ${decimal(c.a)})` : `rgb(${c.r}, ${c.g}, ${c.b})`;
+if (format === 'hsl') {
+const [h, s, l] = toHsl(c).map(Math.round);
+return alpha ? `hsla(${h}, ${s}%, ${l}%, ${decimal(c.a)})` : `hsl(${h}, ${s}%, ${l}%)`;
+}
+return hex(c, alpha);
+}
+function toHsl({ r, g, b }) {
+[r, g, b] = [r / 255, g / 255, b / 255];
+const max = Math.max(r, g, b);
+const min = Math.min(r, g, b);
+const l = (max + min) / 2;
+const d = max - min;
+const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+return [hue(r, g, b, max, d), s * 100, l * 100];
+}
+function fromHsl(h, s, l) {
+s /= 100;
+l /= 100;
+const k = (n) => (n + h / 30) % 12;
+const f = (n) => l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+return { r: Math.round(f(0) * 255), g: Math.round(f(8) * 255), b: Math.round(f(4) * 255) };
+}
+function toHsv({ r, g, b }) {
+[r, g, b] = [r / 255, g / 255, b / 255];
+const max = Math.max(r, g, b);
+const d = max - Math.min(r, g, b);
+return [hue(r, g, b, max, d), max === 0 ? 0 : (d / max) * 100, max * 100];
+}
+function fromHsv(h, s, v) {
+s /= 100;
+v /= 100;
+const f = (n) => {
+const k = (n + h / 60) % 6;
+return v - v * s * Math.max(0, Math.min(k, 4 - k, 1));
+};
+return { r: Math.round(f(5) * 255), g: Math.round(f(3) * 255), b: Math.round(f(1) * 255) };
+}
+function hue(r, g, b, max, d) {
+if (d === 0) return 0;
+const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+return (h * 60 + 360) % 360;
+}
+function contrast(c, against) {
+const over = (ch) => Math.round(c[ch] * c.a + against[ch] * (1 - c.a));
+const lum = (x) => {
+const lin = (v) => {
+v /= 255;
+return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+};
+return 0.2126 * lin(x.r) + 0.7152 * lin(x.g) + 0.0722 * lin(x.b);
+};
+const [hi, lo] = [lum({ r: over('r'), g: over('g'), b: over('b') }), lum(against)].sort((p, q) => q - p);
+return (hi + 0.05) / (lo + 0.05);
+}
+const ratio = (n) => (Math.floor(n * 100 + 1e-4) / 100).toFixed(2);
+return { parse, hex, write, toHsl, fromHsl, toHsv, fromHsv, contrast, ratio };
+})();
+const __ds_behaviours_colour = (() => {
+const { parse, hex, write, toHsl, toHsv, fromHsl, fromHsv, contrast, ratio } = __ds_shared_colour;
+const { roving } = __ds_shared_roving;
+function colour(Alpine) {
+Alpine.data('dsColour', (options = {}) => {
+let control = null;
+return {
+dsValue: '',
+dsReady: false,
+init() {
+control = wire(this.$el, options, (value) => {
+this.dsValue = value;
+});
+this.dsValue = control.value();
+this.dsReady = true;
+this.$watch('dsValue', (value) => control.set(value));
+},
+destroy() {
+control?.teardown();
+},
+};
+});
+}
+const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
+const RANGE = { hue: 360, alpha: 1 };
+function wire(root, o, report) {
+const find = (selector) => root.querySelector(selector);
+const all = (selector) => [...root.querySelectorAll(selector)];
+const posted = find('[data-ds-colour-value]');
+const native = find('[data-ds-colour-native]');
+const tabs = all('[data-ds-colour-tab]');
+const words = o.words ?? {};
+const against = o.contrastWith ? parse(o.contrastWith) : null;
+const style = root.style;
+const css = (key) => Number(style.getPropertyValue(`--ds-colour-${key}`)) || 0;
+let h = css('h') * 360;
+let s = css('s') * 100;
+let v = css('v') * 100;
+let a = o.alpha ? (style.getPropertyValue('--ds-colour-a') === '' ? 1 : css('a')) : 1;
+let empty = posted.value === '';
+let committed = posted.value;
+let mine = posted.value;
+let dragging = null;
+const now = () => ({ ...fromHsv(h, s, v), a });
+const shown = () => (empty ? '' : hex(now(), o.alpha && a < 1));
+function take(c) {
+const [hue, sat, val] = toHsv(c);
+if (sat > 0) h = hue;
+if (val > 0) s = sat;
+v = val;
+a = o.alpha ? c.a : 1;
+empty = false;
+}
+function mark(field, bad) {
+if (bad || (o.invalid && field.dataset.dsColourText === 'field')) field.setAttribute('aria-invalid', 'true');
+else field.removeAttribute('aria-invalid');
+}
+function draw(from = null) {
+const c = now();
+const skip = (el) => from && (el === from || from.contains(el));
+const rgb = `rgb(${c.r} ${c.g} ${c.b}`;
+const vars = { '': empty ? 'transparent' : `${rgb} / ${a})`, solid: empty ? 'transparent' : `${rgb})`, hue: `hsl(${h} 100% 50%)`, h: h / 360, s: s / 100, v: v / 100, a };
+for (const [key, value] of Object.entries(vars)) style.setProperty(key ? `--ds-colour-${key}` : '--ds-colour', String(value));
+for (const field of all('[data-ds-colour-text]')) {
+if (skip(field)) continue;
+field.value = shown();
+mark(field, false);
+}
+const [, sl, l] = toHsl(c);
+const parts = { r: c.r, g: c.g, b: c.b, h, s: sl, l, a: a * 100 };
+for (const part of all('[data-ds-colour-part]')) if (!skip(part)) part.value = empty ? '' : String(Math.round(parts[part.dataset.dsColourPart]));
+const aria = { area: [s, `${words.saturation} ${Math.round(s)}%, ${words.brightness} ${Math.round(v)}%`], hue: [h, `${Math.round(h)}°`], alpha: [a * 100, `${Math.round(a * 100)}%`] };
+for (const slider of all('[data-ds-colour-slider]')) {
+const [value, text] = aria[slider.dataset.dsColourSlider];
+slider.setAttribute('aria-valuenow', String(Math.round(value)));
+slider.setAttribute('aria-valuetext', text);
+}
+const said = find('[data-ds-colour-said]');
+if (said) said.textContent = empty ? words.none : shown().toUpperCase();
+for (const preset of all('[data-ds-colour-preset]')) preset.checked = !empty && preset.value === shown();
+if (native && !empty) native.value = hex(c);
+if (against) {
+const r = empty ? null : ratio(contrast(c, against));
+const out = find('[data-ds-colour-ratio]');
+if (out) out.textContent = r ? `${r}:1` : '–';
+for (const m of all('[data-ds-colour-mark]')) m.toggleAttribute('data-pass', r !== null && Number(r) >= Number(m.dataset.dsColourMark));
+}
+const value = empty ? '' : write(c, o.format, o.alpha);
+if (value === posted.value) return false;
+posted.value = mine = value;
+return true;
+}
+function changed(from) {
+if (!draw(from)) return;
+report(posted.value);
+posted.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function commit() {
+if (posted.value === committed) return;
+committed = posted.value;
+posted.dispatchEvent(new Event('change', { bubbles: true }));
+}
+const usable = (slider) => slider.getAttribute('aria-disabled') !== 'true';
+function point(slider, event) {
+const box = slider.getBoundingClientRect();
+const x = clamp((event.clientX - box.left) / box.width, 0, 1);
+const y = clamp((event.clientY - box.top) / box.height, 0, 1);
+const name = slider.dataset.dsColourSlider;
+if (name === 'area') [s, v] = [x * 100, (1 - y) * 100];
+else if (name === 'hue') h = x * 360;
+else a = Math.round(x * 100) / 100;
+empty = false;
+changed();
+}
+function onPointerDown(event) {
+const slider = event.target.closest('[data-ds-colour-slider]');
+if (!slider || !usable(slider) || event.button !== 0) return;
+event.preventDefault();
+slider.focus();
+slider.setPointerCapture?.(event.pointerId);
+dragging = slider;
+point(slider, event);
+}
+function onPointerMove(event) {
+if (dragging) point(dragging, event);
+}
+function onPointerUp() {
+if (!dragging) return;
+dragging = null;
+commit();
+}
+function onKeyDown(event) {
+const slider = event.target.closest?.('[data-ds-colour-slider]');
+if (!slider || !usable(slider) || event.altKey || event.ctrlKey || event.metaKey) return;
+const name = slider.dataset.dsColourSlider;
+const by = event.shiftKey ? 10 : 1;
+const k = event.key;
+if (name === 'area') {
+const moves = { ArrowRight: [by, 0], ArrowLeft: [-by, 0], ArrowUp: [0, by], ArrowDown: [0, -by], PageUp: [0, 10], PageDown: [0, -10] };
+if (k === 'Home' || k === 'End') s = k === 'Home' ? 0 : 100;
+else if (moves[k]) [s, v] = [clamp(s + moves[k][0], 0, 100), clamp(v + moves[k][1], 0, 100)];
+else return;
+} else {
+const max = RANGE[name];
+const unit = name === 'alpha' ? 0.01 : 1;
+const step = { ArrowRight: by, ArrowUp: by, ArrowLeft: -by, ArrowDown: -by, PageUp: 10, PageDown: -10 }[k];
+const was = name === 'hue' ? h : a;
+const next = k === 'Home' ? 0 : k === 'End' ? max : step ? clamp(Math.round((was + step * unit) / unit) * unit, 0, max) : null;
+if (next === null) return;
+if (name === 'hue') h = next;
+else a = next;
+}
+event.preventDefault();
+empty = false;
+changed();
+commit();
+}
+function onInput(event) {
+const t = event.target;
+if (t.matches('[data-ds-colour-text]')) {
+const text = t.value.trim();
+const c = parse(text);
+mark(t, Boolean(text) && !c);
+if (c) take(c);
+else empty = true;
+changed(t);
+} else if (t.matches('[data-ds-colour-part]')) {
+const pane = t.closest('[data-ds-colour-pane]');
+const read = (k) => {
+const field = pane.querySelector(`[data-ds-colour-part="${k}"]`);
+return field ? Number(field.value === '' ? NaN : field.value) : null;
+};
+const keys = pane.dataset.dsColourPane === 'rgb' ? ['r', 'g', 'b'] : ['h', 's', 'l'];
+const n = keys.map(read);
+const alpha = read('a');
+if (n.some((x) => !Number.isFinite(x)) || Number.isNaN(alpha)) return;
+const [p, q, r] = n;
+const c = pane.dataset.dsColourPane === 'rgb'
+? { r: clamp(Math.round(p), 0, 255), g: clamp(Math.round(q), 0, 255), b: clamp(Math.round(r), 0, 255) }
+: fromHsl(clamp(p, 0, 360), clamp(q, 0, 100), clamp(r, 0, 100));
+take({ ...c, a: alpha === null ? a : clamp(alpha, 0, 100) / 100 });
+if (pane.dataset.dsColourPane === 'hsl' && q > 0) h = clamp(p, 0, 360);
+changed(pane);
+}
+}
+function onChange(event) {
+const t = event.target;
+if (t.matches('[data-ds-colour-preset]')) {
+const c = parse(t.value);
+if (c) take(c);
+changed();
+} else if (t.matches('[data-ds-colour-text]')) {
+if (!t.value.trim() || parse(t.value)) draw();
+} else if (t.matches('[data-ds-colour-part]')) {
+draw();
+} else {
+return;
+}
+commit();
+}
+function choose(tab) {
+for (const t of tabs) t.setAttribute('aria-selected', String(t === tab));
+for (const pane of all('[data-ds-colour-pane]')) pane.hidden = pane.dataset.dsColourPane !== tab.dataset.dsColourTab;
+}
+function onClick(event) {
+const tab = event.target.closest('[data-ds-colour-tab]');
+if (tab) {
+choose(tab);
+return;
+}
+if (!event.target.closest('[data-ds-colour-eyedropper]') || typeof window.EyeDropper !== 'function') return;
+new window.EyeDropper().open().then(({ sRGBHex }) => {
+const c = parse(sRGBHex);
+if (!c) return;
+take({ ...c, a });
+changed();
+commit();
+}, () => {});
+}
+const stopRoving = tabs.length
+? roving(find('[data-ds-colour-tabs]'), { items: () => tabs, current: () => tabs.find((t) => t.getAttribute('aria-selected') === 'true'), moved: choose })
+: null;
+function set(given) {
+const text = String(given ?? '').trim();
+if (text === posted.value) return;
+const c = parse(text);
+if (!text) empty = true;
+else if (c) take(c);
+draw();
+committed = posted.value;
+if (posted.value !== text) report(posted.value);
+}
+const observer = new MutationObserver(() => {
+if (posted.value !== mine) set(posted.value);
+});
+observer.observe(posted, { attributes: true, attributeFilter: ['value'] });
+const listeners = [
+[root, 'pointerdown', onPointerDown],
+[root, 'pointermove', onPointerMove],
+[root, 'pointerup', onPointerUp],
+[root, 'pointercancel', onPointerUp],
+[root, 'keydown', onKeyDown],
+[root, 'input', onInput],
+[root, 'change', onChange],
+[root, 'click', onClick],
+];
+for (const [el, type, fn] of listeners) el.addEventListener(type, fn);
+return {
+value: () => posted.value,
+set,
+teardown() {
+observer.disconnect();
+stopRoving?.();
+for (const [el, type, fn] of listeners) el.removeEventListener(type, fn);
+},
+};
+}
+return { colour };
+})();
 const __ds_shared_rank = (() => {
 function fold(text) {
 return String(text).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
@@ -2195,6 +2547,360 @@ root.removeEventListener('keydown', onKeyDown);
 }
 return { hoverCard };
 })();
+const __ds_shared_caret = (() => {
+function rewrite(field, text, keep) {
+const before = field.value;
+let count = 0;
+for (const ch of before.slice(0, field.selectionStart ?? before.length)) if (keep(ch)) count++;
+if (before !== text) field.value = text;
+if (document.activeElement !== field) return;
+let at = 0;
+while (at < text.length && count > 0) if (keep(text[at++])) count--;
+field.setSelectionRange(at, at);
+}
+function skipSeparators(event, field, keep) {
+const back = event.inputType === 'deleteContentBackward';
+if (!back && event.inputType !== 'deleteContentForward') return;
+const { selectionStart: start, selectionEnd: end, value } = field;
+if (start !== end) return;
+let at = back ? start - 1 : start;
+if (at < 0 || at >= value.length || keep(value[at])) return;
+while (at >= 0 && at < value.length && !keep(value[at])) at += back ? -1 : 1;
+if (at < 0 || at >= value.length) return;
+event.preventDefault();
+field.setRangeText('', at, at + 1, 'end');
+field.dispatchEvent(new Event('input', { bubbles: true }));
+}
+const COPIED = ['direction', 'fontFamily', 'fontSize', 'fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontFeatureSettings', 'fontVariationSettings',
+'lineHeight', 'letterSpacing', 'wordSpacing', 'textTransform', 'textIndent', 'textAlign', 'tabSize', 'wordBreak', 'overflowWrap',
+'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'];
+function caretBox(field, at = field.selectionStart ?? 0) {
+const cs = getComputedStyle(field);
+const mirror = document.createElement('div');
+for (const key of COPIED) mirror.style[key] = cs[key];
+const lined = field.tagName === 'TEXTAREA';
+Object.assign(mirror.style, {
+position: 'absolute', top: '0', left: '-9999px', visibility: 'hidden', overflow: 'hidden', border: '0', boxSizing: 'content-box',
+whiteSpace: lined ? 'pre-wrap' : 'pre',
+width: lined ? `${field.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)}px` : 'auto',
+});
+mirror.textContent = field.value.slice(0, at);
+const after = field.value.slice(at);
+const rest = document.createElement('span');
+rest.textContent = after[0] && after[0] !== '\n' ? after[0] : '.';
+mirror.append(rest, after.slice(rest.textContent === '.' ? 0 : 1));
+document.body.append(mirror);
+const box = mirror.getBoundingClientRect();
+const line = rest.getClientRects()[0] ?? rest.getBoundingClientRect();
+const x = (cs.direction === 'rtl' ? line.right : line.left) - box.left + field.clientLeft - field.scrollLeft;
+const y = line.top - box.top + field.clientTop - field.scrollTop;
+mirror.remove();
+const keep = (n, most) => Math.max(0, Math.min(n, most));
+return { x: keep(x, field.offsetWidth), y: keep(y, field.offsetHeight - line.height), width: 0, height: line.height };
+}
+return { rewrite, skipSeparators, caretBox };
+})();
+const __ds_behaviours_mention = (() => {
+const { fold, rank } = __ds_shared_rank;
+const { caretBox } = __ds_shared_caret;
+const SEARCH_DELAY = 200;
+const REACH = 64;
+function mention(Alpine) {
+Alpine.data('dsMention', (options = {}) => {
+let control = null;
+return {
+dsValue: '',
+dsReady: false,
+dsOpen: false,
+dsCaret: null,
+init() {
+control = wire(this.$el, options, {
+report: (value) => {
+this.dsValue = value;
+},
+open: (open, caret) => {
+if (caret) this.dsCaret = caret;
+this.dsOpen = open;
+},
+});
+this.dsValue = control.value();
+this.dsReady = true;
+this.$watch('dsValue', (value) => control.set(value));
+},
+destroy() {
+control?.teardown();
+},
+};
+});
+}
+const token = (template, trigger, label, id) => template.replace(/@|\blabel\b|\bid\b/g, (m) => (m === '@' ? trigger : m === 'label' ? label : id));
+const WORD = /[\p{L}\p{N}_]/u;
+function present(value, text) {
+for (let at = value.indexOf(text); text && at >= 0; at = value.indexOf(text, at + 1)) {
+if (!WORD.test(value[at - 1] ?? '') && !WORD.test(value[at + text.length] ?? '')) return true;
+}
+return false;
+}
+function wire(root, o, api) {
+const field = root.querySelector('[data-ds-mention-input]');
+const list = root.querySelector('[data-ds-mention-list]');
+const empty = root.querySelector('[data-ds-mention-empty]');
+const ids = root.querySelector('[data-ds-mention-ids]');
+const template = root.querySelector('[data-ds-mention-template]');
+const triggers = o.triggers ?? ['@'];
+const max = o.max ?? 8;
+let session = null;
+let active = null;
+let shown = [];
+let inserting = false;
+let timer = null;
+let sent = '';
+let open = false;
+const options = () => [...list.querySelectorAll('[data-ds-mention-option]')];
+const mentions = () => [...ids.querySelectorAll('input')];
+function candidate() {
+const v = field.value;
+const caret = field.selectionStart;
+if (caret !== field.selectionEnd) return null;
+for (let i = caret - 1; i >= 0 && caret - i <= REACH; i--) {
+if (v[i] === '\n') return null;
+if (triggers.includes(v[i]) && (i === 0 || /[\s([{"'“‘]/.test(v[i - 1]))) return { trigger: v[i], start: i, query: v.slice(i + 1, caret) };
+}
+return null;
+}
+function setActive(option) {
+if (active && active !== option) active.setAttribute('aria-selected', 'false');
+active = option ?? null;
+if (active) {
+active.setAttribute('aria-selected', 'true');
+field.setAttribute('aria-activedescendant', active.id);
+active.scrollIntoView({ block: 'nearest' });
+} else {
+field.removeAttribute('aria-activedescendant');
+}
+}
+function arrange() {
+const q = fold(session.query.trim());
+const scored = options().map((option, i) => {
+const mine = option.dataset.dsTrigger === session.trigger;
+const score = !mine ? 0 : !q ? 1 : Math.max(rank(fold(option.dataset.dsLabel ?? ''), q), rank(fold(option.dataset.dsKeywords ?? ''), q) - 0.5);
+return [option, score, i];
+});
+scored.sort((a, b) => b[1] - a[1] || a[2] - b[2]);
+shown = [];
+scored.forEach(([option, score], i) => {
+option.hidden = score <= 0 || shown.length >= max;
+if (!option.hidden) shown.push(option);
+option.style.setProperty('order', String(i));
+});
+if (empty) empty.hidden = shown.length > 0 || list.getAttribute('aria-busy') === 'true';
+observer.takeRecords();
+return shown.length;
+}
+function show(caret = true) {
+if (!open) {
+open = true;
+setActive(null);
+}
+if (!shown.includes(active)) setActive(shown[0]);
+api.open(true, caret ? caretBox(field, session.start) : null);
+observer.takeRecords();
+}
+function close() {
+session = null;
+clearTimeout(timer);
+if (!open) return;
+open = false;
+setActive(null);
+api.open(false);
+observer.takeRecords();
+}
+function refresh() {
+const c = candidate();
+if (!session || !c || c.start !== session.start) {
+close();
+return;
+}
+session.query = c.query;
+if (c.query.length < (o.minChars ?? 0)) {
+if (open) {
+open = false;
+setActive(null);
+api.open(false);
+}
+return;
+}
+const count = arrange();
+if (!count && /\s$/.test(c.query) && list.getAttribute('aria-busy') !== 'true') {
+close();
+return;
+}
+show();
+search();
+}
+function search() {
+clearTimeout(timer);
+timer = setTimeout(() => {
+if (!session) return;
+const key = `${session.trigger}\n${session.query}`;
+if (key === sent) return;
+sent = key;
+field.dispatchEvent(new CustomEvent('search', { bubbles: true, detail: { trigger: session.trigger, query: session.query } }));
+}, SEARCH_DELAY);
+}
+function reconcile() {
+for (const input of mentions()) input.disabled = field.disabled || !present(field.value, input.dataset.dsMentionText ?? '');
+}
+function remember(id, text) {
+if (mentions().some((input) => input.value === id && input.dataset.dsMentionText === text)) return;
+const input = template.content.firstElementChild.cloneNode(true);
+input.value = id;
+input.dataset.dsMentionText = text;
+ids.append(input);
+}
+function adopt() {
+let rest = field.value;
+const rows = options()
+.map((row) => ({ id: row.dataset.value ?? '', text: token(o.insert ?? '@label', row.dataset.dsTrigger ?? triggers[0], row.dataset.dsLabel ?? '', row.dataset.value ?? '') }))
+.sort((x, y) => y.text.length - x.text.length);
+const hits = [];
+for (const row of rows) {
+if (!row.text) continue;
+let at = -1;
+for (let i = rest.indexOf(row.text); i >= 0; i = rest.indexOf(row.text, i + 1)) {
+if (WORD.test(rest[i - 1] ?? '') || WORD.test(rest[i + row.text.length] ?? '')) continue;
+if (at < 0) at = i;
+rest = rest.slice(0, i) + '\0'.repeat(row.text.length) + rest.slice(i + row.text.length);
+}
+if (at >= 0) hits.push({ ...row, at });
+}
+for (const hit of hits.sort((x, y) => x.at - y.at)) remember(hit.id, hit.text);
+}
+function choose(option) {
+if (!session) return;
+const text = token(o.insert ?? '@label', session.trigger, option.dataset.dsLabel ?? '', option.dataset.value ?? '');
+const start = session.start;
+const end = start + 1 + session.query.length;
+const after = field.value[end];
+const add = text + (after === undefined || !/\s/.test(after) ? ' ' : '');
+close();
+field.focus();
+field.setSelectionRange(start, end);
+inserting = true;
+let done = false;
+try {
+done = document.execCommand('insertText', false, add);
+} catch {
+done = false;
+}
+if (!done || field.value.slice(start, start + add.length) !== add) {
+field.setRangeText(add, start, end, 'end');
+field.dispatchEvent(new Event('input', { bubbles: true }));
+}
+inserting = false;
+remember(option.dataset.value ?? '', text);
+reconcile();
+}
+function onInput(event) {
+reconcile();
+api.report(field.value);
+if (inserting) return;
+const c = candidate();
+const typedTrigger = c && c.query === '' && event.inputType?.startsWith('insert') && (event.data ?? '').endsWith(c.trigger);
+if (c && (typedTrigger || (session && c.start === session.start))) session = { trigger: c.trigger, start: c.start, query: c.query };
+refresh();
+}
+function onKeyDown(event) {
+if (event.isComposing) return;
+if (open) {
+if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+event.preventDefault();
+if (!shown.length) return;
+const at = shown.indexOf(active);
+setActive(shown[event.key === 'ArrowDown' ? (at + 1) % shown.length : (at <= 0 ? shown.length : at) - 1]);
+return;
+}
+if ((event.key === 'Enter' || event.key === 'Tab') && active && !event.shiftKey) {
+event.preventDefault();
+choose(active);
+return;
+}
+if (event.key === 'Escape') {
+event.preventDefault();
+event.stopPropagation();
+close();
+return;
+}
+}
+if (o.atomic && event.key === 'Backspace' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+const caret = field.selectionStart;
+if (caret !== field.selectionEnd) return;
+const hit = mentions().filter((input) => !input.disabled).map((input) => input.dataset.dsMentionText ?? '').find((t) => t && field.value.slice(caret - t.length, caret) === t && !WORD.test(field.value[caret - t.length - 1] ?? ''));
+if (!hit) return;
+event.preventDefault();
+field.setSelectionRange(caret - hit.length, caret);
+let done = false;
+try {
+done = document.execCommand('delete');
+} catch {
+done = false;
+}
+if (!done) {
+field.setRangeText('', caret - hit.length, caret, 'end');
+field.dispatchEvent(new Event('input', { bubbles: true }));
+}
+}
+}
+function onCaret() {
+if (session) refresh();
+}
+function onScroll() {
+if (open && session) api.open(true, caretBox(field, session.start));
+}
+function onClick(event) {
+const option = event.target.closest('[data-ds-mention-option]');
+if (option && list.contains(option)) choose(option);
+}
+function onPointerMove(event) {
+const option = event.target.closest('[data-ds-mention-option]');
+if (option && option !== active && !option.hidden) setActive(option);
+}
+const onPointerDown = (event) => event.preventDefault();
+const observer = new MutationObserver(() => {
+if (session && open) refresh();
+});
+observer.observe(list, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'style', 'aria-busy', 'data-ds-label', 'data-ds-keywords'] });
+const listeners = [
+[field, 'input', onInput],
+[field, 'keydown', onKeyDown],
+[field, 'keyup', onCaret],
+[field, 'click', onCaret],
+[field, 'blur', close],
+[field, 'scroll', onScroll],
+[list, 'click', onClick],
+[list, 'pointermove', onPointerMove],
+[list, 'mousedown', onPointerDown],
+];
+for (const [el, type, fn] of listeners) el.addEventListener(type, fn);
+return {
+value: () => field.value,
+set(value) {
+const text = String(value ?? '');
+if (text === field.value) return;
+field.value = text;
+close();
+adopt();
+reconcile();
+},
+teardown() {
+clearTimeout(timer);
+observer.disconnect();
+for (const [el, type, fn] of listeners) el.removeEventListener(type, fn);
+},
+};
+}
+return { mention };
+})();
 const __ds_shared_money = (() => {
 function shape(locale) {
 let nf;
@@ -2317,32 +3023,6 @@ if (by && (v - (min === null ? 0n : units(min, scale))) % by !== 0n) return 'ste
 return '';
 }
 return { shape, group, typed, read, given, round, machine, write, units, check };
-})();
-const __ds_shared_caret = (() => {
-function rewrite(field, text, keep) {
-const before = field.value;
-let count = 0;
-for (const ch of before.slice(0, field.selectionStart ?? before.length)) if (keep(ch)) count++;
-if (before !== text) field.value = text;
-if (document.activeElement !== field) return;
-let at = 0;
-while (at < text.length && count > 0) if (keep(text[at++])) count--;
-field.setSelectionRange(at, at);
-}
-function skipSeparators(event, field, keep) {
-const back = event.inputType === 'deleteContentBackward';
-if (!back && event.inputType !== 'deleteContentForward') return;
-const { selectionStart: start, selectionEnd: end, value } = field;
-if (start !== end) return;
-let at = back ? start - 1 : start;
-if (at < 0 || at >= value.length || keep(value[at])) return;
-while (at >= 0 && at < value.length && !keep(value[at])) at += back ? -1 : 1;
-if (at < 0 || at >= value.length) return;
-event.preventDefault();
-field.setRangeText('', at, at + 1, 'end');
-field.dispatchEvent(new Event('input', { bubbles: true }));
-}
-return { rewrite, skipSeparators };
 })();
 const __ds_behaviours_money_input = (() => {
 const { shape, typed, read, given, round, machine, write, check } = __ds_shared_money;
@@ -3701,11 +4381,13 @@ Alpine.data('dsSlider', (options = {}) => {
 let control = null;
 return {
 dsValue: null,
+dsReady: false,
 init() {
 control = wire(this.$el, options, (value) => {
 this.dsValue = value;
 });
 this.dsValue = control.value();
+this.dsReady = true;
 this.$watch('dsValue', (value) => control.set(value));
 },
 destroy() {
@@ -3726,13 +4408,20 @@ const format = formatter(options.format ?? {});
 const gap = Math.max(0, Number(options.minGap) || 0);
 const tips = Object.fromEntries(keys.map((key) => [key, root.querySelector(`[data-ds-slider-tip="${key}"]`)]));
 const outputs = Object.fromEntries(keys.map((key) => [key, root.querySelector(`[data-ds-slider-output-${key}]`)]));
+const numbers = Object.fromEntries(keys.map((key) => [key, root.querySelector(`[data-ds-slider-number="${key}"]`)]));
+const bars = [...root.querySelectorAll('[data-ds-slider-bar]')];
+const counted = root.querySelector('[data-ds-slider-count]');
+const said = root.querySelector('[data-ds-slider-said]');
+const forms = String(options.count?.label ?? '').split('|');
+const formatCount = formatter(options.count?.format ?? {});
+let saying = 0;
 let keyed = false;
 let dragging = null;
 const number = (input) => Number(input.value);
 const lowest = () => Number(inputs.high.min);
 const highest = () => Number(inputs.high.max);
 const ratio = (n) => (highest() > lowest() ? (n - lowest()) / (highest() - lowest()) : 0);
-function draw() {
+function draw(announce = true) {
 for (const key of keys) {
 const n = number(inputs[key]);
 const text = format(n);
@@ -3742,6 +4431,45 @@ if (tips[key]) tips[key].textContent = text;
 if (outputs[key]) outputs[key].textContent = text;
 }
 if (pair) inputs.low.toggleAttribute('data-ds-slider-top', ratio(number(inputs.low)) > 0.5);
+const low = pair ? number(inputs.low) : lowest();
+const high = number(inputs.high);
+if (bars.length) {
+let total = 0;
+for (const bar of bars) {
+const inside = Number(bar.dataset.dsMid) >= low && Number(bar.dataset.dsMid) <= high;
+bar.toggleAttribute('data-ds-in', inside);
+if (inside) total += Number(bar.dataset.dsCount);
+}
+const text = forms[total === 1 ? 0 : forms.length - 1].replace(':count', formatCount(total));
+if (counted) counted.textContent = text;
+clearTimeout(saying);
+if (announce) {
+saying = setTimeout(() => {
+if (said) said.textContent = text;
+}, 500);
+}
+}
+for (const key of keys) {
+const field = numbers[key];
+if (!field) continue;
+if (document.activeElement !== field) field.value = inputs[key].value;
+if (pair) field[key === 'low' ? 'max' : 'min'] = String(key === 'low' ? high - gap : low + gap);
+field.closest('[x-data]')?.dispatchEvent(new Event('change'));
+}
+}
+function onNumber(event) {
+const key = keys.find((k) => numbers[k] === event.target);
+if (!key) return;
+const n = event.target.value === '' ? NaN : Number(event.target.value);
+const leaving = event.type === 'change';
+const field = event.target;
+if (!Number.isFinite(n) || (!leaving && (n < Number(field.min) || n > Number(field.max)))) return;
+const input = inputs[key];
+input.value = String(n);
+input.dispatchEvent(new Event('input', { bubbles: true }));
+if (!leaving) return;
+field.value = input.value;
+input.dispatchEvent(new Event('change', { bubbles: true }));
 }
 function hold(moved) {
 if (!pair) return;
@@ -3782,7 +4510,7 @@ dragging = key;
 showTip(key, true);
 return;
 }
-if (pair && event.button === 0) jump(event);
+if (pair && event.button === 0 && event.target.closest('[data-ds-slider-body], [data-ds-slider-bars]')) jump(event);
 }
 function onPointerUp() {
 if (!dragging) return;
@@ -3848,6 +4576,8 @@ if (!same) report(now);
 }
 const listeners = [
 [root, 'input', onInput],
+[root, 'input', onNumber],
+[root, 'change', onNumber],
 [root, 'pointerdown', onPointerDown],
 [root, 'focusin', onFocusIn],
 [root, 'focusout', onFocusOut],
@@ -3855,11 +4585,18 @@ const listeners = [
 [document, 'pointercancel', onPointerUp],
 ];
 for (const [target, type, fn] of listeners) target.addEventListener(type, fn);
-draw();
+const observer = new MutationObserver((records) => {
+for (const { target } of records) target.value = target.getAttribute('value') ?? target.value;
+draw(false);
+});
+for (const key of keys) observer.observe(inputs[key], { attributes: true, attributeFilter: ['value'] });
+draw(false);
 return {
 value,
 set,
 teardown() {
+clearTimeout(saying);
+observer.disconnect();
 for (const [target, type, fn] of listeners) target.removeEventListener(type, fn);
 },
 };
@@ -5407,6 +6144,7 @@ const { chart } = __ds_behaviours_chart;
 const { clamp } = __ds_behaviours_clamp;
 const { clear } = __ds_behaviours_clear;
 const { clipboard } = __ds_behaviours_clipboard;
+const { colour } = __ds_behaviours_colour;
 const { commandPalette } = __ds_behaviours_command_palette;
 const { contextMenu } = __ds_behaviours_context_menu;
 const { confirmDialog } = __ds_behaviours_confirm_dialog;
@@ -5417,6 +6155,7 @@ const { inlineEdit } = __ds_behaviours_inline_edit;
 const { kbdShortcut } = __ds_behaviours_kbd_shortcut;
 const { glide } = __ds_behaviours_glide;
 const { hoverCard } = __ds_behaviours_hover_card;
+const { mention } = __ds_behaviours_mention;
 const { moneyInput } = __ds_behaviours_money_input;
 const { numberField } = __ds_behaviours_number_field;
 const { otp } = __ds_behaviours_otp;
@@ -5438,7 +6177,7 @@ const { timePicker } = __ds_behaviours_time_picker;
 const { toggleGroup } = __ds_behaviours_toggle_group;
 const { toolbar } = __ds_behaviours_toolbar;
 const { tree } = __ds_behaviours_tree;
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split, swap, teamSwitcher, moneyInput, phoneInput, search, kbdShortcut, shortcutInput];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split, swap, teamSwitcher, moneyInput, phoneInput, search, kbdShortcut, shortcutInput, colour, mention];
 const REGISTERED = Symbol.for('shipbytes.blade-ui');
 function bladeUi(Alpine) {
 if (!Alpine || Alpine[REGISTERED]) return;

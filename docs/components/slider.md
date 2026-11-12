@@ -58,6 +58,10 @@ $request->validate([
 | `format` | array | `[]` | `prefix`, `suffix`, `decimals` (and `grouping`, `compact`, `locale`): how every readout and the announced value are written. |
 | `disabled` | bool | `false` | |
 | `size` | `md` `sm` | `md` | `md` is a field's height, so it lines up with the fields beside it; `sm` is 32px. |
+| `histogram` | array | — | Bars of what the slider filters, drawn over the track: a count per bucket, equal widths from `min` to `max`; or, with `buckets`, the raw values. |
+| `buckets` | int | — | Count `histogram`'s raw values into this many buckets. |
+| `countLabel` | string | `":count result\|:count results"` | With `histogram`, the line saying how many fall in the range. `:count` is the number; before the `\|` is the one form. |
+| `inputs` | bool | `false` | A number field per thumb under the slider, bound to it. Shown only with the script. |
 
 Horizontal only. `wire:model` and `x-model` go on the component and bind the
 number (or the pair); any other attribute goes on the wrapper, and the
@@ -88,6 +92,45 @@ bound field here, so a re-render draws the fill where the value is.
 - **Two thumbs parked at one end** can still be pulled apart: the one that
   can move away is on top.
 
+## A histogram
+
+A price filter with the spread of prices behind it:
+
+![A price range over a histogram of prices, with the count and number fields](../images/slider-histogram.png)
+
+```blade
+<x-ds::slider
+    name="price"
+    label="Price per night"
+    :range="true"
+    :value="[50, 200]"
+    :max="500"
+    step="10"
+    lowLabel="Minimum price"
+    highLabel="Maximum price"
+    :format="['prefix' => '$']"
+    showValue="inline"
+    :histogram="$listings->pluck('price')"
+    :buckets="25"
+    countLabel=":count stay|:count stays"
+    :inputs="true"
+/>
+```
+
+- **The bars** sit over the track and line up with its scale: a bar covers the
+  values it counts. The ones in the range are dark, the rest light, from PHP
+  first and then as the thumbs move.
+- **A bucket is in the range when its middle is.** The bars lit and the count
+  are the same buckets, so the number always matches what you see. Make
+  `step` a whole number of buckets wide and the edges fall exactly on bars.
+- **The count** ("14 stays") updates as the thumbs move and is read out once
+  they stop.
+- **`inputs`** adds a number field per thumb. Typing moves the thumb once the
+  number is one it can take; leaving the field moves it anyway, held short of
+  the other thumb, and writes back where it landed.
+- Raw values outside `min`..`max` are not counted. Pass counts you have
+  already worked out, without `buckets`, when the data is large.
+
 ## Accessibility
 
 - Each thumb is a native slider. A single one is named by `label`; in a range
@@ -98,6 +141,8 @@ bound field here, so a re-render draws the fill where the value is.
   themes. In forced colours it is drawn in the system highlight.
 - In a right-to-left page the track runs right to left and the arrow keys
   follow it.
+- The histogram is decorative (`aria-hidden`); the count beside it is in a
+  polite status region, said half a second after the thumbs stop.
 
 ## Don't
 
@@ -105,6 +150,8 @@ bound field here, so a re-render draws the fill where the value is.
   a quantity someone types is a [number field](number-field.md).
 - **Don't trust the order of a range.** Without the script the thumbs can
   cross; validate on the server.
+- **Don't put meaning only in the histogram.** It is hidden from screen
+  readers; the count line says what it shows.
 - **Don't put meaning only in the marks.** Their labels are for the eye: the
   formatted value is what a screen reader hears.
 

@@ -116,6 +116,9 @@
 <section data-focus="phone-input" class="max-w-sm"><x-ds::phone-input name="fphone" id="f-phone" label="Phone" :countries="['GB', 'US', 'IN']" country="GB" /></section>
 <section data-focus="input-expanding" class="flex"><x-ds::input name="fq" id="f-search" label="Search" :expanding="true" :clearable="true" value="acme" /></section>
 <section data-focus="shortcut-input" class="max-w-sm"><x-ds::shortcut-input name="fkeys" id="f-keys" label="Open search" value="mod+k" /></section>
+<section data-focus="mention-input" class="max-w-sm"><x-ds::mention-input name="fmention" id="f-mention" label="Comment" :items="[['id' => 1, 'label' => 'Maya Patel']]" /></section>
+<section data-focus="color-picker" class="max-w-sm"><x-ds::color-picker name="fcolour" id="f-colour" label="Brand" value="#336699" :swatches="['#ff0000' => 'Red', '#336699' => 'Blue']" /><x-ds::color-picker name="fpresets" id="f-presets" label="Tag" :presetsOnly="true" value="#ff0000" :swatches="['#ff0000' => 'Red', '#336699' => 'Blue']" /></section>
+<section data-focus="slider-histogram" class="max-w-sm"><x-ds::slider name="fnights" id="f-nights" label="Nights" :range="true" :value="[20, 80]" lowLabel="From" highLabel="To" :histogram="[1, 3, 2]" :inputs="true" /></section>
 <section data-focus="inline-edit"><x-ds::inline-edit name="ftitle" label="Title" value="Q3 roadmap" /></section>
 {{-- Plain text: the region is the stop. With a link inside, the link is. --}}
 <section data-focus="scroll-area"><x-ds::scroll-area :maxHeight="40" label="Notes" class="w-48"><p>One</p><p>Two</p><p>Three</p><p>Four</p></x-ds::scroll-area></section>
