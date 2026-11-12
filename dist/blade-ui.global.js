@@ -189,8 +189,14 @@ Alpine.data('dsOtp', (options = {}) => {
 const allowed = options.numeric === false ? ALPHANUMERIC : DIGIT;
 let teardown = null;
 return {
+dsValue: '',
 init() {
-teardown = wire(this.$el, allowed);
+const control = wire(this.$el, allowed, (value) => {
+this.dsValue = value;
+});
+this.dsValue = control.value();
+this.$watch('dsValue', (value) => control.set(value));
+teardown = control.teardown;
 },
 destroy() {
 teardown?.();
@@ -198,7 +204,7 @@ teardown?.();
 };
 });
 }
-function wire(root, allowed) {
+function wire(root, allowed, report) {
 const boxes = [...root.querySelectorAll('[data-ds-otp-box]')];
 const field = root.querySelector('[data-ds-otp-value]');
 const held = boxes.map((box) => box.value);
@@ -228,6 +234,7 @@ function sync() {
 const value = boxes.map((box) => box.value).join('');
 if (value === field.value) return;
 field.value = value;
+report(value);
 field.dispatchEvent(new Event('input', { bubbles: true }));
 field.dispatchEvent(new Event('change', { bubbles: true }));
 if (boxes.every((box) => box.value !== '')) {
@@ -304,8 +311,25 @@ const listeners = [
 ['focusin', onFocus],
 ];
 for (const [type, fn] of listeners) root.addEventListener(type, fn);
-return () => {
+function set(value) {
+const given = String(value ?? '');
+const chars = accept(given).slice(0, boxes.length);
+const joined = chars.join('');
+if (joined !== field.value) {
+boxes.forEach((box, i) => {
+box.value = chars[i] ?? '';
+held[i] = box.value;
+});
+field.value = joined;
+}
+if (joined !== given) report(joined);
+}
+return {
+value: () => field.value,
+set,
+teardown() {
 for (const [type, fn] of listeners) root.removeEventListener(type, fn);
+},
 };
 }
 return { otp };
@@ -434,8 +458,14 @@ function tagInput(Alpine) {
 Alpine.data('dsTagInput', (options = {}) => {
 let teardown = null;
 return {
+dsValue: [],
 init() {
-teardown = wire(this.$el, settings(options));
+const control = wire(this.$el, settings(options), (tags) => {
+this.dsValue = tags;
+});
+this.dsValue = control.value();
+this.$watch('dsValue', (tags) => control.set(tags));
+teardown = control.teardown;
 },
 destroy() {
 teardown?.();
@@ -454,7 +484,7 @@ validate: options.validate ?? null,
 messages: options.messages ?? {},
 };
 }
-function wire(root, s) {
+function wire(root, s, report) {
 const text = root.querySelector('[data-ds-tag-text]');
 const list = root.querySelector('[data-ds-tag-list]');
 const template = root.querySelector('[data-ds-tag-template]');
@@ -472,6 +502,7 @@ const say = (key, tag = '') =>
 String(s.messages[key] ?? '').replaceAll(':tag', tag).replaceAll(':max', String(s.max ?? ''));
 const chips = () => [...list.querySelectorAll('[data-ds-tag]')];
 const valueOf = (chip) => chip.querySelector('[data-ds-tag-value]').value;
+const values = () => chips().map(valueOf);
 const removeButton = (chip) => chip?.querySelector('[data-ds-tag-remove]');
 function announce(message) {
 status.textContent = message;
@@ -497,12 +528,19 @@ return ['duplicate', say('duplicate', value)];
 }
 return null;
 }
-function add(value) {
+function chipFor(value) {
 const chip = template.content.firstElementChild.cloneNode(true);
 chip.querySelector('[data-ds-tag-label]').textContent = value;
 removeButton(chip).setAttribute('aria-label', say('remove', value));
 chip.querySelector('[data-ds-tag-value]').value = value;
-list.append(chip);
+if (text.disabled) {
+removeButton(chip).disabled = true;
+chip.querySelector('[data-ds-tag-value]').disabled = true;
+}
+return chip;
+}
+function add(value) {
+list.append(chipFor(value));
 list.hidden = false;
 announce(say('added', value));
 }
@@ -510,6 +548,7 @@ function remove(chip) {
 const value = valueOf(chip);
 chip.remove();
 list.hidden = chips().length === 0;
+report(values());
 announce(say('removed', value));
 if (showing === 'max') tell('');
 text.focus();
@@ -517,6 +556,7 @@ text.focus();
 function commit(raw, splitters = s.characters, tail = '') {
 const kept = [];
 let wrong = null;
+let added = false;
 for (const part of split(raw, splitters)) {
 const value = part.trim();
 if (!value) continue;
@@ -526,8 +566,10 @@ kept.push(value);
 wrong ??= why;
 } else {
 add(value);
+added = true;
 }
 }
+if (added) report(values());
 if (tail) kept.push(tail);
 text.value = kept.join(joiner);
 tell(wrong?.[1] ?? '', wrong?.[0]);
@@ -611,9 +653,27 @@ const listeners = [
 ['focusout', onFocusOut],
 ];
 for (const [type, fn] of listeners) root.addEventListener(type, fn);
-return () => {
+function set(tags) {
+const wanted = normalise(tags);
+if (JSON.stringify(wanted) !== JSON.stringify(values())) {
+for (const chip of chips()) chip.remove();
+for (const value of wanted) list.append(chipFor(value));
+list.hidden = wanted.length === 0;
+if (showing === 'max') tell('');
+}
+if (JSON.stringify(wanted) !== JSON.stringify(tags)) report(wanted);
+}
+return {
+value: values,
+set,
+teardown() {
 for (const [type, fn] of listeners) root.removeEventListener(type, fn);
+},
 };
+}
+function normalise(tags) {
+const list = Array.isArray(tags) ? tags : tags === null || tags === undefined || tags === '' ? [] : [tags];
+return list.map((tag) => String(tag ?? '').trim()).filter((tag) => tag !== '');
 }
 function split(raw, splitters) {
 let parts = [raw];

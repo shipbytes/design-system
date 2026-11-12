@@ -75,10 +75,18 @@ separators are also caught in the `input` event.
 | Focus | Removing a chip returns focus to the text box, never to `body` |
 | Phone | With `validate="email"`: `inputmode="email"`, no autocapitalise, no spellcheck |
 
-## Known gap
+## Binding
 
-No `wire:model`. The value is a set of inputs, not one element, and there is
-nothing for a binding to attach to. It belongs in a form that posts.
+`wire:model*` and `x-model*` on the tag land on the root, beside
+`x-modelable="dsValue"`, Alpine's core directive for a component that is a
+form control. `dsValue` is the scope's one exposed name: an array of the chips'
+values, set by the behaviour after every add and remove, and watched, so a list
+the host sets is rendered as chips (from the template, blanks dropped, without
+an announcement or the `max`/`unique`/`validate` checks) and handed back
+normalised. The prefix matters: the host's expression on the root is read in
+this scope, and an unprefixed name would shadow a host property of the same
+name. On first start the host's value wins over the server-rendered `value`,
+which is how `x-model` treats any field. The hidden inputs still post.
 
 ## Do not
 

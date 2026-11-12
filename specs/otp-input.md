@@ -19,8 +19,10 @@ We sent a six-digit code.          ← help, or the error in its place
 - **The row never wraps.** `flex` with `min-w-0` and `size="1"` lets six boxes
   narrow to fit 320px. A code broken over two lines reads as two codes.
 - **One hidden input** carries the joined code and every host attribute but
-  `class`, so `wire:model`, `x-model` and `@complete` bind to the thing that
+  `class` and the bindings, so `@complete` and `required` sit on the thing that
   posts. The boxes have no `name`.
+- **`wire:model*` and `x-model*` land on the root**, beside
+  `x-modelable="dsValue"`, so they bind both ways (see Binding).
 - **PHP renders `value` into the boxes** and the hidden input, so a code survives
   a failed round trip and posts without the script.
 
@@ -54,6 +56,19 @@ hidden input dispatches a bubbling `complete` CustomEvent with
 No `maxlength` on the boxes: the browser's one-time-code autofill writes the
 whole code into box 1, and `maxlength="1"` would cut it to one character before
 the script could spread it.
+
+## Binding
+
+`x-modelable` is Alpine's core directive for a component that acts as a form
+control. `dsValue` is the scope's one exposed name: the joined code, set by
+the behaviour on every change the reader makes, and watched, so a code the host
+sets is written into the boxes. A host value is filtered and cut to the length
+like a paste, and the normalised code is handed back, so the host's state and
+the boxes never disagree. A host change dispatches no `input`, `change` or
+`complete`, the way setting a field's value from script fires nothing. On first
+start the host's value wins over the server-rendered `value`. The name is
+prefixed because the host's expression on the root is read in this scope: an
+unprefixed `value` would shadow a host property called `value`.
 
 ## Accessibility
 

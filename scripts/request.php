@@ -78,9 +78,15 @@ foreach ($headers as $name => $value) {
 
 $response = $app->make(Kernel::class)->handle($request);
 
+// Livewire serves its script as a file response, which has no content until
+// it is sent.
+ob_start();
+$response->sendContent();
+$body = ob_get_clean();
+
 echo json_encode([
     'status' => $response->getStatusCode(),
     'headers' => array_map(fn ($values) => implode(', ', $values), $response->headers->allPreserveCaseWithoutCookies()),
     'cookies' => count($response->headers->getCookies()),
-    'body' => base64_encode((string) $response->getContent()),
+    'body' => base64_encode((string) $body),
 ], JSON_UNESCAPED_SLASHES);

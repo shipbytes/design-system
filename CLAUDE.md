@@ -453,6 +453,21 @@ the same name. Return the state and methods the markup needs and keep options,
 timers and helpers in the closure. `dsClipboard` exposes `copied` and `copy`
 and nothing else.
 
+**A behaviour behind a form control exposes `dsValue`, for `x-modelable`.**
+`dsOtp` (a string) and `dsTagInput` (an array) do: the view puts
+`x-modelable="dsValue"` on the root next to the host's `wire:model*` /
+`x-model*`, which it lifts off the inner elements, and Alpine entangles the two
+both ways. The behaviour writes `dsValue` after every change the READER makes
+and `$watch`es it to redraw when the HOST sets it, without dispatching events
+or announcing anything, and hands a normalised value back when the host's will
+not fit. The `ds` prefix is not decoration: x-model's expression on that root
+is evaluated in the behaviour's scope, so an unprefixed `value` would shadow a
+host property called `value` and bind the component to itself. On first start
+Alpine gives the host's value precedence over the server-rendered one. Livewire
+4's `wire:model` is Alpine's `x-model` underneath, so the same pair carries it;
+the behaviour suite drives both, the Livewire one in a real component served
+by `scripts/request.php`.
+
 **How a component asks for one.** Always through the helper, echoed:
 
 ```blade

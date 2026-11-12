@@ -8,14 +8,20 @@
  * data-ds-otp-value that the form posts. This moves characters and focus
  * between the boxes and keeps the hidden input in step with them.
  *
- * Every change to the value dispatches `input` and `change` on the hidden
- * input, so wire:model and x-model on it see it as they would a typed field,
- * and a value that fills every box dispatches `complete` (bubbling, detail
- * { value }) so a host can submit without a button press.
+ * Every change the reader makes dispatches `input` and `change` on the hidden
+ * input, as a typed field would, and a value that fills every box dispatches
+ * `complete` (bubbling, detail { value }) so a host can submit without a button
+ * press.
  *
- * The scope exposes nothing but Alpine's own init and destroy. The listeners
- * are attached to the root here, so the view carries no Alpine expressions of
- * its own and a host's expressions on the component never meet a name of ours.
+ * Two-way binding goes through `dsValue`, the one name the scope exposes beside
+ * Alpine's own init and destroy. The view puts `x-modelable="dsValue"` on the
+ * root together with the host's x-model or wire:model, so Alpine entangles the
+ * host's property with it: a code the reader types reaches the host, and a
+ * code the host sets is written into the boxes. A value the host sets is shown,
+ * not announced: it dispatches no `input`, `change` or `complete`, the way
+ * setting a field's value from script fires nothing. The name carries the
+ * prefix because the host's own expression on that element is read in this
+ * scope, and a host with a `value` of its own would otherwise bind to ours.
  */
 
 const DIGIT = /^[0-9]$/;
@@ -27,8 +33,15 @@ export function otp(Alpine) {
         let teardown = null;
 
         return {
+            dsValue: '',
+
             init() {
-                teardown = wire(this.$el, allowed);
+                const control = wire(this.$el, allowed, (value) => {
+                    this.dsValue = value;
+                });
+                this.dsValue = control.value();
+                this.$watch('dsValue', (value) => control.set(value));
+                teardown = control.teardown;
             },
 
             destroy() {
@@ -38,7 +51,7 @@ export function otp(Alpine) {
     });
 }
 
-function wire(root, allowed) {
+function wire(root, allowed, report) {
     const boxes = [...root.querySelectorAll('[data-ds-otp-box]')];
     const field = root.querySelector('[data-ds-otp-value]');
 
@@ -84,6 +97,7 @@ function wire(root, allowed) {
         if (value === field.value) return;
 
         field.value = value;
+        report(value);
         field.dispatchEvent(new Event('input', { bubbles: true }));
         field.dispatchEvent(new Event('change', { bubbles: true }));
 
@@ -187,7 +201,33 @@ function wire(root, allowed) {
     ];
     for (const [type, fn] of listeners) root.addEventListener(type, fn);
 
-    return () => {
-        for (const [type, fn] of listeners) root.removeEventListener(type, fn);
+    /*
+     * The host's value, written into the boxes. What the field cannot hold, a
+     * letter in a numeric code or a character past the last box, is dropped,
+     * and the host is handed back what is actually there, so its state and the
+     * boxes never disagree.
+     */
+    function set(value) {
+        const given = String(value ?? '');
+        const chars = accept(given).slice(0, boxes.length);
+        const joined = chars.join('');
+
+        if (joined !== field.value) {
+            boxes.forEach((box, i) => {
+                box.value = chars[i] ?? '';
+                held[i] = box.value;
+            });
+            field.value = joined;
+        }
+
+        if (joined !== given) report(joined);
+    }
+
+    return {
+        value: () => field.value,
+        set,
+        teardown() {
+            for (const [type, fn] of listeners) root.removeEventListener(type, fn);
+        },
     };
 }

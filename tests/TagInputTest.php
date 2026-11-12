@@ -75,6 +75,18 @@ final class TagInputTest extends TestCase
     }
 
     #[Test]
+    public function a_binding_goes_on_the_root_beside_x_modelable(): void
+    {
+        $x = $this->xpath('<x-ds::tag-input name="tags" wire:model="tags" class="mt-4" />');
+
+        $root = $x->query('//div[contains(@class, "mt-4")]')->item(0);
+        $this->assertStringContainsString('dsTagInput', $root->getAttribute('x-data'));
+        $this->assertSame('dsValue', $root->getAttribute('x-modelable'));
+        $this->assertSame('tags', $root->getAttribute('wire:model'));
+        $this->assertSame(1, $x->query('//*[@*[name()="wire:model"]]')->length, 'the binding is on more than the root');
+    }
+
+    #[Test]
     public function an_unknown_check_is_refused_rather_than_ignored(): void
     {
         $this->expectExceptionMessage("validate=\"emial\" is not a check it knows");

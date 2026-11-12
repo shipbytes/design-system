@@ -1040,6 +1040,27 @@ await check('the browser\'s one-time-code autofill, which writes the whole code 
     return JSON.stringify(await otpPosted()) === '["654321"]' || `posted ${JSON.stringify(await otpPosted())}`;
 });
 
+const otpBoxes = () => page.evaluate(() =>
+    [...document.querySelectorAll('[id^="otp-"][data-ds-otp-box]')].map((b) => b.value).join(''));
+
+await check('a code the HOST sets through x-model is written into the boxes and the posted field', async () => {
+    const heardBefore = JSON.stringify(await page.evaluate(() => window.otpHeard));
+    await page.click('#otp-host-set');
+    await settle(100);
+    if ((await otpBoxes()) !== '246810') return `the boxes hold ${JSON.stringify(await otpBoxes())}`;
+    if (JSON.stringify(await otpPosted()) !== '["246810"]') return `posted ${JSON.stringify(await otpPosted())}`;
+    // The reader did not complete anything; the host did.
+    return JSON.stringify(await page.evaluate(() => window.otpHeard)) === heardBefore || 'a code set by the host dispatched `complete`';
+});
+
+await check('what the field cannot hold is dropped, and the host is handed back what is there', async () => {
+    await page.click('#otp-host-bad');
+    await settle(100);
+    if ((await otpBoxes()) !== '12') return `the boxes hold ${JSON.stringify(await otpBoxes())}`;
+    return (await page.locator('#otp-mirror').innerText()) === '12'
+        || `the host's state reads ${JSON.stringify(await page.locator('#otp-mirror').innerText())}`;
+});
+
 await check('masked: a PIN shows dots', async () => {
     const types = await page.evaluate(() =>
         [...document.querySelectorAll('[id^="pin-"][data-ds-otp-box]')].map((b) => b.type));
@@ -1179,6 +1200,28 @@ await check('a chip added by the script is the same markup the server renders', 
     const shape = await page.evaluate(() => [...document.querySelectorAll('[data-ds-tag]')]
         .map((chip) => [chip.className, chip.querySelector('[data-ds-tag-remove]').className].join('|')));
     return new Set(shape).size === 1 || 'server-rendered and script-added chips differ';
+});
+
+await check('x-model on the tag followed every add and remove', async () =>
+    (await page.locator('#emails-mirror').innerText()) === (await tags()).join(' ')
+    || `the host holds ${JSON.stringify(await page.locator('#emails-mirror').innerText())}, the form posts ${JSON.stringify(await tags())}`);
+
+await check('a list the HOST sets through x-model is rendered as chips, and posted', async () => {
+    const said = await tagStatus();
+    await page.click('#emails-host-set');
+    await settle(100);
+    const labels = await page.locator('[data-ds-tag-label]').allInnerTexts();
+    if (JSON.stringify(labels) !== '["zoe@example.com","yan@example.com"]') return `chips read ${JSON.stringify(labels)}`;
+    if (JSON.stringify(await tags()) !== '["zoe@example.com","yan@example.com"]') return `posted ${JSON.stringify(await tags())}`;
+    if ((await page.locator('#emails-mirror').innerText()) !== 'zoe@example.com yan@example.com') return 'the blank entry was handed back to the host';
+    return (await tagStatus()) === said || `the live region announced the host's change: ${JSON.stringify(await tagStatus())}`;
+});
+
+await check('and an empty list from the host empties the field and hides the list', async () => {
+    await page.click('#emails-host-clear');
+    await settle(100);
+    const hidden = await page.evaluate(() => document.querySelector('#emails').closest('[x-data]').querySelector('[data-ds-tag-list]').hidden);
+    return ((await tags()).length === 0 && hidden) || `posted ${JSON.stringify(await tags())}, list hidden ${hidden}`;
 });
 
 // ---------------------------------------------------------------- number field
@@ -1549,14 +1592,25 @@ ${include}
 
 for (const [name, html] of Object.entries(hostPages)) await writeFile(join(TMP, name), html);
 
+/*
+  A real Livewire page, rendered and served by Laravel through
+  scripts/request.php: Livewire injects its own script at the end of the body
+  and serves it from its own route, so this is host setup (c) exactly as a host
+  runs it, and the component is a real one, bound with wire:model.
+*/
+await writeFile(join(TMP, 'livewire.blade.php'), `<!doctype html><html><head><meta charset="utf-8">
+<x-ds::scripts />
+${orderProbe}
+</head><body><livewire:binding-host /></body></html>`);
+
 /** Open a host page with its own error log, so its errors are judged on their own. */
-async function openHost(name) {
+async function openHost(name, origin = ORIGIN) {
     const tab = await context.newPage();
     const errors = [];
     const uncaught = [];
     tab.on('pageerror', (e) => (errors.push(e.message), uncaught.push(e.message)));
     tab.on('console', (m) => ['error', 'warning'].includes(m.type()) && errors.push(m.text()));
-    await tab.goto(`${ORIGIN}/${name}`, { waitUntil: 'networkidle' });
+    await tab.goto(`${origin}/${name}`, { waitUntil: 'networkidle' });
     await tab.waitForTimeout(300);
     return { tab, errors, uncaught };
 }
@@ -1592,6 +1646,53 @@ group('host setup (c): Livewire\'s bundled Alpine, include loaded twice');
     await check('the include, from the head, had registered when Livewire started Alpine', async () =>
         (await tab.evaluate(() => window.dsRegisteredAtInit)) === true || 'registered late, or never');
     await check('the behaviour registered on it and works', () => copiesOn(tab));
+    await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+
+group('wire:model on otp-input and tag-input, in a real Livewire component');
+{
+    const { tab, errors } = await openHost('_ds/livewire', LARAVEL);
+    const wire = (name) => tab.evaluate((n) => JSON.parse(JSON.stringify(window.Livewire.first()[n])), name);
+    const lwBoxes = () => tab.evaluate(() =>
+        [...document.querySelectorAll('[id^="lw-otp-"][data-ds-otp-box]')].map((b) => b.value).join(''));
+    const lwTags = () => tab.evaluate(() =>
+        [...document.querySelectorAll('#lw-tags ~ * [data-ds-tag-value], [data-ds-tag-value]')]
+            .filter((i) => !i.closest('template')).map((i) => i.value));
+
+    await check('Livewire injected its own script, and the include had registered when it started Alpine', async () => {
+        if (!(await tab.evaluate(() => Boolean(window.Livewire?.first())))) return 'no Livewire component on the page';
+        return (await tab.evaluate(() => window.dsRegisteredAtInit)) === true || 'registered late, or never';
+    });
+
+    await check('otp: a digit the reader types reaches $wire.code', async () => {
+        await tab.focus('#lw-otp-3');
+        await tab.keyboard.type('3');
+        await tab.waitForTimeout(100);
+        return (await wire('code')) === '123' || `$wire.code is ${JSON.stringify(await wire('code'))}`;
+    });
+
+    await check('otp: a code Livewire sets on $wire.code is written into the boxes', async () => {
+        await tab.evaluate(() => { window.Livewire.first().code = '987654'; });
+        await tab.waitForTimeout(100);
+        const posted = await tab.locator('input[name="code"]').inputValue();
+        return ((await lwBoxes()) === '987654' && posted === '987654') || `boxes ${JSON.stringify(await lwBoxes())}, posted ${JSON.stringify(posted)}`;
+    });
+
+    await check('tags: a tag the reader adds reaches $wire.tags', async () => {
+        await tab.focus('#lw-tags');
+        await tab.keyboard.type('ada@example.com');
+        await tab.keyboard.press('Enter');
+        await tab.waitForTimeout(100);
+        return JSON.stringify(await wire('tags')) === '["maya@example.com","ada@example.com"]' || `$wire.tags is ${JSON.stringify(await wire('tags'))}`;
+    });
+
+    await check('tags: a list Livewire sets on $wire.tags is rendered as chips', async () => {
+        await tab.evaluate(() => { window.Livewire.first().tags = ['zed@example.com']; });
+        await tab.waitForTimeout(100);
+        return JSON.stringify(await lwTags()) === '["zed@example.com"]' || `the chips post ${JSON.stringify(await lwTags())}`;
+    });
+
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
     await tab.close();
 }

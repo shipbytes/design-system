@@ -186,8 +186,8 @@ use the component.
 | Name | What it does |
 |---|---|
 | `dsClipboard` | `x-data="dsClipboard({ text: '…' })"`. `copy()` copies `text`, or `copy(value)` copies `value`, and resolves to `true` or `false`. `copied` is `true` for 1.5 s after a copy. No UI of its own. Falls back to the older copy command where the async clipboard API is missing, as on a plain-`http` page. |
-| `dsOtp` | Behind `ds::otp-input`. Moves characters and focus between the boxes, spreads a paste, keeps the posted field joined, and dispatches `complete`. |
-| `dsTagInput` | Behind `ds::tag-input`. Turns typed and pasted text into chips, refuses with a reason, and announces adds and removes. |
+| `dsOtp` | Behind `ds::otp-input`. Moves characters and focus between the boxes, spreads a paste, keeps the posted field joined, dispatches `complete`, and binds `wire:model` / `x-model` both ways. |
+| `dsTagInput` | Behind `ds::tag-input`. Turns typed and pasted text into chips, refuses with a reason, announces adds and removes, and binds `wire:model` / `x-model` both ways. |
 | `dsNumberField` | Behind `ds::number-field`. The step buttons: one press, press-and-hold, the disabled state at a bound. |
 | `dsPassword` | Behind `ds::input`'s `reveal`. Toggles the field it `aria-controls` between hidden and shown, and hides it again on submit. |
 | `dsPasswordStrength` | Behind `ds::password-strength`. Scores the input named by `for` and sets `data-level` and the words. |

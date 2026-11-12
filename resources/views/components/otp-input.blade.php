@@ -45,10 +45,19 @@
 
     $state = \Shipbytes\BladeUi\Support\Behaviour::data('dsOtp', ['numeric' => (bool) $numeric]);
 
-    // Everything the host passes, bar the class, goes to the hidden input that
-    // posts: wire:model and x-model bind there, and `complete` is dispatched
-    // from there, so a listener on the component tag hears it.
-    $posted = $attributes->except(['class', 'id'])->merge([
+    /*
+     * wire:model and x-model go on the root, beside x-modelable, which ties
+     * them to the behaviour's dsValue in both directions: a code the host sets
+     * is written into the boxes. On the hidden input they could only follow
+     * the code; nothing a host set there reached the boxes.
+     */
+    $isModel = fn ($value, $key) => str_starts_with($key, 'wire:model') || str_starts_with($key, 'x-model');
+    $model = $attributes->filter($isModel);
+
+    // Everything else the host passes, bar the class, goes to the hidden input
+    // that posts. `complete` is dispatched from there, so a listener on the
+    // component tag hears it.
+    $posted = $attributes->except(['class', 'id'])->filter(fn ($value, $key) => ! $isModel($value, $key))->merge([
         'id' => $id,
         'name' => $name,
         'value' => $joined,
@@ -59,7 +68,7 @@
     ]));
 @endphp
 
-<div x-data="{{ $state }}" {{ $attributes->only('class') }}>
+<div x-data="{{ $state }}" x-modelable="dsValue" {{ $model }} {{ $attributes->only('class') }}>
     @if ($label)
         {{-- A label for the FIRST box, so pressing it starts the code; the group
              is named by the same element. --}}

@@ -17,8 +17,13 @@
  * Every word it shows or announces comes from `messages`, written by the view,
  * so this file holds no copy. `:tag` and `:max` are filled in.
  *
- * The scope exposes nothing but Alpine's own init and destroy; the listeners are
- * attached to the root here.
+ * Two-way binding goes through `dsValue`, an array of the tags and the one name
+ * the scope exposes beside Alpine's own init and destroy; the listeners are
+ * attached to the root here. The view puts `x-modelable="dsValue"` on the root
+ * with the host's x-model or wire:model, so a tag the reader adds or removes
+ * reaches the host, and a list the host sets is rendered as chips, without a
+ * word to the live region: the reader did not do it. Prefixed for the reason
+ * dsOtp's is: the host's expression on the root is read in this scope.
  */
 
 export function tagInput(Alpine) {
@@ -26,8 +31,15 @@ export function tagInput(Alpine) {
         let teardown = null;
 
         return {
+            dsValue: [],
+
             init() {
-                teardown = wire(this.$el, settings(options));
+                const control = wire(this.$el, settings(options), (tags) => {
+                    this.dsValue = tags;
+                });
+                this.dsValue = control.value();
+                this.$watch('dsValue', (tags) => control.set(tags));
+                teardown = control.teardown;
             },
 
             destroy() {
@@ -50,7 +62,7 @@ function settings(options) {
     };
 }
 
-function wire(root, s) {
+function wire(root, s, report) {
     const text = root.querySelector('[data-ds-tag-text]');
     const list = root.querySelector('[data-ds-tag-list]');
     const template = root.querySelector('[data-ds-tag-template]');
@@ -82,6 +94,7 @@ function wire(root, s) {
 
     const chips = () => [...list.querySelectorAll('[data-ds-tag]')];
     const valueOf = (chip) => chip.querySelector('[data-ds-tag-value]').value;
+    const values = () => chips().map(valueOf);
     const removeButton = (chip) => chip?.querySelector('[data-ds-tag-remove]');
 
     function announce(message) {
@@ -116,12 +129,22 @@ function wire(root, s) {
         return null;
     }
 
-    function add(value) {
+    function chipFor(value) {
         const chip = template.content.firstElementChild.cloneNode(true);
         chip.querySelector('[data-ds-tag-label]').textContent = value;
         removeButton(chip).setAttribute('aria-label', say('remove', value));
         chip.querySelector('[data-ds-tag-value]').value = value;
-        list.append(chip);
+        // The server renders a disabled field's chips disabled; one the host
+        // sets later must match them.
+        if (text.disabled) {
+            removeButton(chip).disabled = true;
+            chip.querySelector('[data-ds-tag-value]').disabled = true;
+        }
+        return chip;
+    }
+
+    function add(value) {
+        list.append(chipFor(value));
         list.hidden = false;
         announce(say('added', value));
     }
@@ -130,6 +153,7 @@ function wire(root, s) {
         const value = valueOf(chip);
         chip.remove();
         list.hidden = chips().length === 0;
+        report(values());
         announce(say('removed', value));
         if (showing === 'max') tell('');
         text.focus();
@@ -143,6 +167,8 @@ function wire(root, s) {
         const kept = [];
         let wrong = null;
 
+        let added = false;
+
         for (const part of split(raw, splitters)) {
             const value = part.trim();
             if (!value) continue;
@@ -153,8 +179,11 @@ function wire(root, s) {
                 wrong ??= why;
             } else {
                 add(value);
+                added = true;
             }
         }
+
+        if (added) report(values());
 
         if (tail) kept.push(tail);
         text.value = kept.join(joiner);
@@ -270,9 +299,38 @@ function wire(root, s) {
     ];
     for (const [type, fn] of listeners) root.addEventListener(type, fn);
 
-    return () => {
-        for (const [type, fn] of listeners) root.removeEventListener(type, fn);
+    /*
+     * The host's list, rendered as chips. Blank entries are dropped, as the
+     * server drops them, and the host is handed back the list as it now
+     * stands. A list the host sets is not checked against `max`, `unique` or
+     * `validate`: those guard what a reader types, and the host is the one
+     * deciding here.
+     */
+    function set(tags) {
+        const wanted = normalise(tags);
+
+        if (JSON.stringify(wanted) !== JSON.stringify(values())) {
+            for (const chip of chips()) chip.remove();
+            for (const value of wanted) list.append(chipFor(value));
+            list.hidden = wanted.length === 0;
+            if (showing === 'max') tell('');
+        }
+
+        if (JSON.stringify(wanted) !== JSON.stringify(tags)) report(wanted);
+    }
+
+    return {
+        value: values,
+        set,
+        teardown() {
+            for (const [type, fn] of listeners) root.removeEventListener(type, fn);
+        },
     };
+}
+
+function normalise(tags) {
+    const list = Array.isArray(tags) ? tags : tags === null || tags === undefined || tags === '' ? [] : [tags];
+    return list.map((tag) => String(tag ?? '').trim()).filter((tag) => tag !== '');
 }
 
 function split(raw, splitters) {

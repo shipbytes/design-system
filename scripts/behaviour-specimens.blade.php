@@ -178,23 +178,29 @@
 
         {{-- ── otp input, from the shared script ──
              The first is wired the two ways docs/components/otp-input.md shows:
-             x-model on the tag reaches the hidden input that posts, and
-             @complete on the tag hears the event dispatched from it. The host's
-             state starts at the server's value, as wire:model's would. --}}
+             x-model on the tag, bound both ways through x-modelable, and
+             @complete on the tag hearing the event dispatched from the field
+             that posts. The host's state starts at the server's value, as
+             wire:model's would. --}}
         <div class="mt-6" x-data="{ code: '12' }">
             <x-ds::otp-input name="otp" id="otp" label="Verification code" value="12"
                 x-model="code" @complete="window.otpHeard = [...(window.otpHeard ?? []), $event.detail.value]" />
             <span id="otp-mirror" x-text="code">12</span>
+            <button type="button" id="otp-host-set" @click="code = '246810'">Set code</button>
+            <button type="button" id="otp-host-bad" @click="code = '12ab'">Set letters</button>
         </div>
         <div class="mt-6 flex gap-8">
             <x-ds::otp-input name="pin" id="pin" label="PIN" :length="4" :masked="true" />
             <x-ds::otp-input name="ref" id="ref" label="Reference" :length="5" :numeric="false" />
         </div>
 
-        {{-- ── tag input, from the shared script ── --}}
-        <div class="mt-6 max-w-md">
+        {{-- ── tag input, from the shared script, x-model on the tag ── --}}
+        <div class="mt-6 max-w-md" x-data="{ emails: ['maya@example.com'] }">
             <x-ds::tag-input name="emails" id="emails" label="Recipients" :value="['maya@example.com']"
-                validate="email" :max="5" help="Press Enter or comma after each address." />
+                x-model="emails" validate="email" :max="5" help="Press Enter or comma after each address." />
+            <span id="emails-mirror" x-text="emails.join(' ')">maya@example.com</span>
+            <button type="button" id="emails-host-set" @click="emails = ['zoe@example.com', ' ', 'yan@example.com']">Set two</button>
+            <button type="button" id="emails-host-clear" @click="emails = []">Clear</button>
         </div>
 
         {{-- ── number field, from the shared script ── --}}

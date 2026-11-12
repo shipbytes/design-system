@@ -103,13 +103,22 @@ final class OtpInputTest extends TestCase
     }
 
     #[Test]
-    public function the_hosts_attributes_reach_the_field_that_posts(): void
+    public function a_binding_goes_on_the_root_beside_x_modelable_and_the_rest_on_the_field_that_posts(): void
     {
-        $x = $this->xpath('<x-ds::otp-input name="code" wire:model="code" class="mt-4" />');
+        $x = $this->xpath('<x-ds::otp-input name="code" wire:model.live="code" x-model="other" data-test="7" class="mt-4" />');
+
+        // On the root, with x-modelable, the binding works both ways: a code
+        // the host sets reaches the boxes, which it never did from the input.
+        $root = $x->query('//div[contains(@class, "mt-4")]')->item(0);
+        $this->assertStringContainsString('dsOtp', $root->getAttribute('x-data'));
+        $this->assertSame('dsValue', $root->getAttribute('x-modelable'));
+        $this->assertSame('code', $root->getAttribute('wire:model.live'));
+        $this->assertSame('other', $root->getAttribute('x-model'));
 
         $posted = $x->query('//input[@type="hidden"]')->item(0);
-        $this->assertSame('code', $posted->getAttribute('wire:model'));
+        $this->assertFalse($posted->hasAttribute('wire:model.live'), 'bound twice: the hidden input still carries wire:model');
+        $this->assertFalse($posted->hasAttribute('x-model'));
+        $this->assertSame('7', $posted->getAttribute('data-test'));
         $this->assertStringNotContainsString('mt-4', $posted->getAttribute('class'));
-        $this->assertStringContainsString('dsOtp', $x->query('//div[contains(@class, "mt-4")]')->item(0)->getAttribute('x-data'));
     }
 }
