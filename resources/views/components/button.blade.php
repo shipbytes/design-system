@@ -1,8 +1,17 @@
+@aware([
+    /*
+     * Set only inside a ds::button-group: its size, variant and orientation.
+     * A key no caller writes, so nothing outside a group can reach a button
+     * this way (see View/Components/ButtonGroup.php for why that matters).
+     */
+    'buttonGroup' => null,
+])
+
 @props([
-    /** primary | secondary | ghost | danger */
-    'variant' => 'primary',
-    /** sm | md | lg | fab — md is responsive: lg below the sm breakpoint, md above it */
-    'size' => 'md',
+    /** primary | secondary | ghost | danger. Inside a ds::button-group, the group's unless set here; primary otherwise. */
+    'variant' => null,
+    /** sm | md | lg | fab — md is responsive: lg below the sm breakpoint, md above it. Inside a group, the group's unless set here. */
+    'size' => null,
     /** Render as a link. Anything that navigates should be an `a` element, not a button. */
     'href' => null,
     /** Square, no label. Requires an accessible name via aria-label or title. */
@@ -29,6 +38,10 @@
 ])
 
 @php
+    $group = is_array($buttonGroup) ? $buttonGroup : null;
+    $variant ??= $group['variant'] ?? 'primary';
+    $size ??= $group['size'] ?? 'md';
+
     // Padding is calc(step - 1px) so the always-present 1px border is absorbed
     // and a `primary` sits exactly where a `secondary` would. Removing the calc
     // makes filled and outlined buttons disagree by 2px.
@@ -78,10 +91,28 @@
         // `isolate` keeps the focus ring from being clipped by a parent stacking
         // context, which is why it is on the base and not the focus state.
         'relative isolate inline-flex items-center justify-center gap-2',
-        $pill ? 'rounded-full' : 'rounded-control',
+        /*
+         * In a group the corners come from the group: custom properties it sets
+         * on each of its children, zero where this button meets a neighbour. A
+         * pill has no place in a joined row. Hovered and focused buttons rise
+         * above their neighbours, so the border they share, and the ring, are
+         * drawn whole.
+         */
+        match (true) {
+            $group === null => $pill ? 'rounded-full' : 'rounded-control',
+            $group['orientation'] === 'vertical' => 'rounded-t-(--ds-join-start) rounded-b-(--ds-join-end) hover:z-10 focus-visible:z-10',
+            default => 'rounded-s-(--ds-join-start) rounded-e-(--ds-join-end) hover:z-10 focus-visible:z-10',
+        },
         'border font-semibold whitespace-nowrap transition-colors',
-        // focus-visible only: a mouse click should not leave a ring behind.
-        'focus:outline-hidden focus-visible:outline-2 focus-visible:outline-offset-2',
+        /*
+         * focus-visible only: a mouse click should not leave a ring behind, and
+         * browsers draw their own ring on :focus-visible alone, so nothing has
+         * to hide one on :focus. This carried `focus:outline-hidden` until 2.0,
+         * which in Tailwind v4 sets the outline STYLE to none on every focus,
+         * focus-visible included, and the 2px focus-ring outline below it was
+         * never drawn: no keyboard user saw where they were.
+         */
+        'focus-visible:outline-2 focus-visible:outline-offset-2',
         'focus-visible:outline-focus-ring',
         // A loading button carries the disabled attribute to stop double
         // submits, so the disabled: styles would otherwise fade it too.
