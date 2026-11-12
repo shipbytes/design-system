@@ -45,6 +45,8 @@ src/              the service provider
   View/Components/ButtonGroup.php  ds::button-group's props: a class so the
                                 buttons can @aware a key no other component
                                 has (see the class, and ButtonGroupTest)
+  View/Components/Tree.php      ds::tree's props, a class for the same reason:
+                                the items @aware `dsTree`, not `name`
   Http/ScriptController.php     serves the script at the route the include links
   Support/Behaviour.php         the x-data expression for a shared behaviour
   Support/Field.php             reads the field recipe (partials/field.php)
@@ -57,6 +59,12 @@ src/              the service provider
                                 line/area/bar/arc geometry, nice ticks, number
                                 formatting, the summary sentence (ChartTest
                                 holds every path string exactly)
+  Support/Tree.php              a tree's structure written into rendered rows:
+                                level/setsize/posinset, the tab stop, the
+                                checkbox parents (TreeTest holds the strings)
+  Support/Code.php              ds::code-block's lines: escaped, or a
+                                highlighter's HTML balanced per line; the
+                                `highlight` ranges (CodeTest)
 config/           blade-ui.php — icon aliases, default icon size
 resources/views/  the Blade components + the two pagination views and
                   their two Livewire variants
@@ -88,6 +96,9 @@ resources/views/  the Blade components + the two pagination views and
                                 Support\Chart::colour()
   partials/chart-table.blade.php  a chart's values as a visually hidden table,
                                 the `table` prop every chart has
+  partials/panel-collapsible.blade.php  ds::panel with `collapsible`: a
+                                partial so the panel without it stays byte for
+                                byte 1.x (PanelUnchangedTest)
 resources/js/     the shared script's source: plain ES modules, hand-edited
   blade-ui.js       the Alpine plugin; lists every behaviour
   global.js         the classic-script entry ds::scripts serves
@@ -696,14 +707,14 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 83 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 90 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
 accordion, accordion-item, activity-heatmap, alert, announcement-bar, avatar, avatar-group, badge, bar-chart, bottom-nav,
 bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, chip,
-button-group, chip-group, combobox, confirm-button, confirm-popover, copy-button, counter, date-picker, donut-chart, drawer, dropdown,
-context-menu, dropdown-item, empty-state, file-upload, gauge, hold-button, hover-card, icon,
-input, line-chart, modal,
+button-group, chip-group, code-block, combobox, confirm-button, confirm-popover, copy-button, counter, date-picker, donut-chart, drawer, dropdown,
+context-menu, dropdown-item, empty-state, expandable-text, file-upload, filter-bar, filter-chip, gauge, hold-button, hover-card, icon,
+input, kbd, line-chart, modal,
 nav-item, number-field, otp-input, panel, panel-row, password-strength,
 popover, progress, radio, radio-card, radio-cards, radio-group, rating,
 segment, segmented-control, select, sheet, sheet-item, skeleton, sparkline, stat-tile,
@@ -712,7 +723,7 @@ tab-panel, table, table-cell, table-row, tabs, tag-input, theme-switcher,
 timeline, timeline-group, timeline-item,
 toast, toast-region,
 toggle, toggle-group, toolbar, toolbar-button, toolbar-separator, tooltip,
-usage-meter.
+tree, tree-item, usage-meter.
 
 **Every built component has a spec.**
 
@@ -723,11 +734,15 @@ three lines of CSS, every component rendering styled in light and dark.
 accordion (with accordion-item), file-upload, tooltip, otp-input, tag-input,
 number-field, password-strength, copy-button, toolbar (with toolbar-button and
 toolbar-separator), toggle-group (with toggle), popover, hover-card, context-menu, theme-switcher,
-confirm-button, hold-button, confirm-popover, sub-nav —
-always (sub-nav only to toggle: its open state is rendered from PHP). Plus ONE optional prop each on
+confirm-button, hold-button, confirm-popover, tree (with tree-item),
+expandable-text, sub-nav —
+always (sub-nav only to toggle: its open state is rendered from PHP; tree's
+structure, selection and open folders are rendered from PHP too). Plus ONE optional prop each on
 checkbox (`indeterminate`), nav-item (`collapsedWhen`), toast (`dismiss`),
-input (`reveal`) and announcement-bar (`dismissible`, and `dismissKey`, which
-implies it), counter when its `value` is bound to Alpine state (`::value`; its
+panel (`collapsible`, inline Alpine), filter-bar (`collapsible`) and
+announcement-bar (`dismissible`, and `dismissKey`, which
+implies it), TWO on input (`reveal`, `clearable`), code-block's copy button
+(on by default) and `expandable`, counter when its `value` is bound to Alpine state (`::value`; its
 roll is otherwise an enhancement), and the pagination views' Livewire variants, whose scroll to
 the top is an `x-on:click` that Livewire's bundled Alpine runs. Everything else
 is plain Blade and CSS (stat-tile's count-up is a plain script it pushes to a
@@ -744,7 +759,12 @@ toolbar (`dsToolbar`, `x-ds-glide.hover`), toggle-group (`dsToggleGroup`,
 with its `at` box), theme-switcher (`dsTheme`), confirm-button (`dsConfirm`),
 hold-button (`dsHold`), confirm-popover (`dsConfirmDialog`, on `dsPopover` and
 `x-ds-anchor`), announcement-bar's dismissal (`dsDismiss`), and input's
-`reveal` (`dsPassword`), and counter when bound to Alpine state (`dsRoll`).
+`reveal` (`dsPassword`) and `clearable` (`dsClear`), tree (`dsTree`),
+expandable-text and code-block's `expandable` (`dsClamp`), code-block's copy
+(`dsClipboard`, through copy-button), filter-bar's `collapsible` (`dsPopover`,
+`x-ds-anchor`), and counter when bound to Alpine state (`dsRoll`). kbd and
+filter-chip are plain Blade and CSS; a chip's `remove` and the bar's `reset`
+are plain inline `onclick` dispatches.
 `<x-ds::theme-script />` is a class component like
 `ds::scripts`, plain inline JavaScript with no Alpine and no script. segmented-control
 uses `x-ds-glide` as an enhancement only, and dropdown, select, combobox,

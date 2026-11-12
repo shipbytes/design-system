@@ -83,6 +83,15 @@
 <section data-focus="line-chart"><x-ds::line-chart label="Line" :data="['a' => 1, 'b' => 3, 'c' => 2]" height="sm" /></section>
 <section data-focus="donut-chart"><x-ds::donut-chart label="Donut" size="sm" legend="none" :data="['a' => 1, 'b' => 3]" /></section>
 <section data-focus="timeline"><x-ds::timeline><x-ds::timeline-item title="Linked entry" href="#entry" time="2026-11-12" /></x-ds::timeline></section>
+{{-- A tree is one stop; a navigation tree's links join it once the script runs. --}}
+<section data-focus="tree"><x-ds::tree label="Files"><x-ds::tree-item label="app" :open="true"><x-ds::tree-item label="a.php" /></x-ds::tree-item></x-ds::tree> <x-ds::tree label="Perms" selectable="multiple" name="fperms"><x-ds::tree-item label="View" /></x-ds::tree></section>
+{{-- The clear button shows while the field has a value; a chip's remove, link and button; Clear all. --}}
+<section data-focus="input-clearable"><x-ds::input type="search" aria-label="Search" :clearable="true" value="acme" /></section>
+<section data-focus="filter-chip"><x-ds::filter-chip label="Status" value="Open" /> <x-ds::filter-chip label="Owner" value="Ada" removeHref="#owner" /></section>
+{{-- The scroll region, the copy button, Show more. --}}
+<section data-focus="code-block"><x-ds::code-block filename="a.txt" :maxHeight="2" :expandable="true" :code="implode(PHP_EOL, ['one', 'two', 'three', 'four'])" /></section>
+<section data-focus="expandable-text"><div class="w-48"><x-ds::expandable-text :lines="1">A sentence long enough to need more than one line in a box this narrow.</x-ds::expandable-text></div></section>
+<section data-focus="panel-collapsible"><x-ds::panel title="Billing" :collapsible="true" action="Manage" actionHref="#manage"><x-ds::panel-row>Row</x-ds::panel-row></x-ds::panel></section>
 {{-- The walk stops here. A plain button, so it is not checked. --}}
 <p><button id="f-end" type="button">end</button></p>
 </div>

@@ -202,6 +202,14 @@ const REQUIRED = [
     ['on-danger-tint', 'danger-tint', 4.5, 'danger badge'],
     ['on-accent-tint', 'accent-tint', 4.5, 'accent badge'],
     ['on-neutral-tint', 'neutral-tint', 4.5, 'neutral badge'],
+    // ds::code-block's token colours (theme.css, [data-ds-code]) on its ground.
+    ['on-danger-tint', 'surface-subtle', 4.5, 'code: keywords'],
+    ['on-success-tint', 'surface-subtle', 4.5, 'code: strings'],
+    ['on-accent-tint', 'surface-subtle', 4.5, 'code: constants'],
+    ['on-warning-tint', 'surface-subtle', 4.5, 'code: functions'],
+    ['fg-body', 'surface-subtle', 4.5, 'code: parameters'],
+    ['accent', 'surface-subtle', 4.5, 'code: links'],
+    ['fg', 'accent-wash', 4.5, 'code: a highlighted line'],
     ['focus-ring', 'surface', 3.0, 'focus ring on the card'],
     ['focus-ring', 'surface-sunken', 3.0, 'focus ring on the app ground'],
 ];

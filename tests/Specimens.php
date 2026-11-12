@@ -1065,6 +1065,122 @@ final class Specimens
                 </x-ds::timeline>
                 BLADE,
 
+            'tree/all' => <<<'BLADE'
+                <x-ds::tree label="Files">
+                    <x-ds::tree-item label="app" icon="folder" :open="true">
+                        <x-ds::tree-item label="Http" icon="folder">
+                            <x-ds::tree-item label="Kernel.php" icon="document" />
+                        </x-ds::tree-item>
+                        <x-ds::tree-item label="Models" icon="folder" :expandable="true" value="app/Models" />
+                        <x-ds::tree-item label="routes.php" icon="document" :count="12" />
+                    </x-ds::tree-item>
+                    <x-ds::tree-item label="README.md" icon="document" :disabled="true">
+                        <x-slot:badge><x-ds::badge tone="accent">New</x-ds::badge></x-slot:badge>
+                    </x-ds::tree-item>
+                </x-ds::tree>
+                <x-ds::tree label="Documentation">
+                    <x-ds::tree-item label="Guides" href="/docs/guides">
+                        <x-ds::tree-item label="Install" href="/docs/guides/install" :selected="true" />
+                        <x-ds::tree-item label="Upgrade" href="/docs/guides/upgrade" :disabled="true" />
+                    </x-ds::tree-item>
+                    <x-ds::tree-item label="API" href="/docs/api" />
+                </x-ds::tree>
+                <x-ds::tree label="Folder" selectable="single" name="folder">
+                    <x-ds::tree-item label="Inbox" :count="3">
+                        <x-ds::tree-item label="Receipts" value="receipts" :selected="true" />
+                    </x-ds::tree-item>
+                    <x-ds::tree-item label="Archive" :disabled="true" />
+                </x-ds::tree>
+                <x-ds::tree label="Permissions" selectable="multiple" name="perms" x-model="perms">
+                    <x-ds::tree-item label="Billing" value="billing" :selected="true">
+                        <x-ds::tree-item label="View invoices" value="billing.view" />
+                        <x-ds::tree-item label="Refund" value="billing.refund" :disabled="true" />
+                    </x-ds::tree-item>
+                    <x-ds::tree-item label="Reports" value="reports">
+                        <x-ds::tree-item label="Export" value="reports.export" :selected="true" />
+                        <x-ds::tree-item label="Schedule" value="reports.schedule" />
+                    </x-ds::tree-item>
+                    <x-ds::tree-item label="Team" value="team" :expandable="true" />
+                </x-ds::tree>
+                <x-ds::tree label="Odd" selectable="nonsense"><x-ds::tree-item label="Only" /></x-ds::tree>
+                BLADE,
+
+            'filter-bar/all' => <<<'BLADE'
+                <form method="GET" action="/invoices">
+                    <x-ds::filter-bar :active="2" resetHref="/invoices">
+                        <x-slot:search>
+                            <x-ds::input type="search" name="q" label="Search" icon="magnifying-glass" value="acme" :clearable="true" />
+                        </x-slot:search>
+                        <x-ds::select name="status" label="Status" :options="['open' => 'Open', 'paid' => 'Paid']" value="open" />
+                        <x-slot:actions><x-ds::button size="sm" variant="secondary">Export</x-ds::button></x-slot:actions>
+                        <x-slot:applied>
+                            <x-ds::filter-chip label="Status" value="Open" removeHref="/invoices?q=acme" />
+                            <x-ds::filter-chip label="Search" value="acme" removeHref="/invoices?status=open" />
+                        </x-slot:applied>
+                    </x-ds::filter-bar>
+                </form>
+                <x-ds::filter-bar label="Ticket filters" :active="1" :reset="true" resetLabel="Reset" :collapsible="true">
+                    <x-ds::chip-group name="state" label="State" :hideLabel="true" size="sm">
+                        <x-ds::chip value="open" :checked="true">Open</x-ds::chip>
+                        <x-ds::chip value="closed">Closed</x-ds::chip>
+                    </x-ds::chip-group>
+                </x-ds::filter-bar>
+                <x-ds::filter-bar :active="0" resetHref="/x">
+                    <x-ds::filter-chip value="Mine" />
+                </x-ds::filter-bar>
+                <x-ds::filter-bar>
+                    <x-slot:search><x-ds::input type="search" name="q" label="Search" /></x-slot:search>
+                </x-ds::filter-bar>
+                BLADE,
+
+            'input/clearable' => <<<'BLADE'
+                <x-ds::input type="search" name="q" label="Search" icon="magnifying-glass" :clearable="true" value="invoices" />
+                <x-ds::input name="code" label="Code" :clearable="true" placeholder="e.g. SAVE10" wire:model.live="code" />
+                <x-ds::input name="locked" label="Locked" :clearable="true" :disabled="true" value="x" />
+                <x-ds::input name="ro" label="Read only" :clearable="true" readonly value="x" />
+                <x-ds::input type="password" name="pw" label="Password" :clearable="true" :reveal="true" />
+                BLADE,
+
+            'code-block/all' => <<<'BLADE'
+                <x-ds::code-block language="PHP" filename="app/Models/Invoice.php" :lineNumbers="true" highlight="3,5-6"
+                    :code="'<?php' . PHP_EOL . PHP_EOL . 'final class Invoice' . PHP_EOL . '{' . PHP_EOL . '    public function total(): int' . PHP_EOL . '    {' . PHP_EOL . '        return 42;' . PHP_EOL . '    }' . PHP_EOL . '}' . PHP_EOL" />
+                <x-ds::code-block language="Shell" :wrap="true">composer require shipbytes/blade-ui && php artisan vendor:publish --tag=blade-ui-config</x-ds::code-block>
+                <x-ds::code-block :copy="false" :maxHeight="2" :expandable="true" moreLabel="Show all" lessLabel="Show fewer" label="Example">
+                one
+                two
+                three
+                </x-ds::code-block>
+                <x-ds::code-block filename="welcome.blade.php" :lineNumbers="true" highlight="2"
+                    :html="'<pre class=&quot;shiki&quot;><code><span class=&quot;line&quot;><span style=&quot;color: var(--ds-code-comment)&quot;>{{-- a</span></span>' . PHP_EOL . '<span class=&quot;line&quot;><span style=&quot;color: var(--ds-code-comment)&quot;>comment --}}</span></span></code></pre>'" />
+                <x-ds::code-block :html="'<span class=&quot;c&quot;>/* a' . PHP_EOL . ' b */</span>'" :maxHeight="0" highlight="nonsense,9-7" />
+                BLADE,
+
+            'kbd/all' => <<<'BLADE'
+                <p>Press <x-ds::kbd>Esc</x-ds::kbd> to close.</p>
+                <x-ds::kbd :keys="['Ctrl', 'Shift', 'P']" />
+                <x-ds::kbd :keys="['⌘', 'K']" separator="" />
+                <x-ds::kbd :keys="[]">Enter</x-ds::kbd>
+                BLADE,
+
+            'expandable-text/all' => <<<'BLADE'
+                <x-ds::expandable-text>
+                    A long description that runs over three lines in a narrow column, so the reader sees a fade and a Read more button.
+                </x-ds::expandable-text>
+                <x-ds::expandable-text :lines="1" moreLabel="More" lessLabel="Less" id="bio"><p>One</p><p>Two</p></x-ds::expandable-text>
+                <x-ds::expandable-text :lines="0">Short.</x-ds::expandable-text>
+                BLADE,
+
+            'panel/collapsible' => <<<'BLADE'
+                <x-ds::panel title="Billing" :collapsible="true" name="billing" action="Edit" actionHref="/billing">
+                    <x-ds::panel-row>Card ending 4242</x-ds::panel-row>
+                </x-ds::panel>
+                <x-ds::panel title="Advanced" subtitle="Rarely changed" icon="cog" iconTone="neutral" :collapsible="true" :open="false" body="plain">
+                    Free-form content.
+                </x-ds::panel>
+                <x-ds::panel title="Feature rows" icon="sparkles" :collapsible="true"><x-ds::panel-row>Row</x-ds::panel-row></x-ds::panel>
+                <x-ds::panel title="List plain" :collapsible="true" :open="false" body="plain">Body</x-ds::panel>
+                BLADE,
+
             // Not a visual component, but it renders inside a host's layout and
             // so inside a Livewire render too; this puts it through the markers
             // test with everything else.

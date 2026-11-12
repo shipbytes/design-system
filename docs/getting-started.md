@@ -115,7 +115,7 @@ group, so it starts no session and sets no cookie, and it works under
 
 **A page that cannot reach the route** (a static export, an HTML email
 preview, a host whose routing will not take a package's) can carry the script
-in the page instead, about 77 kB (19 kB compressed), uncached:
+in the page instead, about 89 kB (22 kB compressed), uncached:
 
 ```blade
 <x-ds::scripts inline />
@@ -185,7 +185,7 @@ use the component.
 
 | Name | What it does |
 |---|---|
-| `dsClipboard` | Behind `ds::copy-button`, and yours to use directly: `x-data="dsClipboard({ text: '…' })"`, or `{ target: 'id-or-selector' }` to copy an element's text or a field's value as it is at the moment of the press. `copy()` copies that, or `copy(value)` copies `value`, and resolves to `true` or `false`. `copied` is `true` for 1.5 s after a copy. No UI of its own. Falls back to the older copy command where the async clipboard API is missing, as on a plain-`http` page. |
+| `dsClipboard` | Behind `ds::copy-button` (and so `ds::code-block`'s copy), and yours to use directly: `x-data="dsClipboard({ text: '…' })"`, or `{ target: 'id-or-selector' }` to copy an element's text or a field's value as it is at the moment of the press. `copy()` copies that, or `copy(value)` copies `value`, and resolves to `true` or `false`. `copied` is `true` for 1.5 s after a copy. No UI of its own. Falls back to the older copy command where the async clipboard API is missing, as on a plain-`http` page. |
 | `dsOtp` | Behind `ds::otp-input`. Moves characters and focus between the boxes, spreads a paste, keeps the posted field joined, dispatches `complete`, and binds `wire:model` / `x-model` both ways. |
 | `dsTagInput` | Behind `ds::tag-input`. Turns typed and pasted text into chips, refuses with a reason, announces adds and removes, and binds `wire:model` / `x-model` both ways. |
 | `dsNumberField` | Behind `ds::number-field`. The step buttons: one press, press-and-hold, the disabled state at a bound. |
@@ -194,7 +194,7 @@ use the component.
 | `dsToolbar` | Behind `ds::toolbar`. One Tab stop for the toolbar, with the arrow keys, Home and End moving between its buttons. |
 | `dsToggleGroup` | Behind `ds::toggle-group`. Presses and releases toggles, keeps the hidden inputs and the ARIA state in step, binds `wire:model` / `x-model` both ways, and gives a group outside a toolbar its own arrow keys. |
 | `x-ds-glide` | A directive, behind `ds::segmented-control`, `ds::toolbar` and `ds::toggle-group`: the highlight that slides to the chosen item, or with `.hover` follows the pointer and keyboard focus. |
-| `dsPopover` | Behind `ds::popover`. Opens and closes it from its trigger, keeps the trigger's `aria-expanded` in step, moves focus in on open and back on Escape, and closes on Escape, a press outside, or focus leaving. Binds the host's `open` both ways through `dsOpen`. |
+| `dsPopover` | Behind `ds::popover`, and `ds::filter-bar`'s `collapsible` below `md`. Opens and closes it from its trigger, keeps the trigger's `aria-expanded` in step, moves focus in on open and back on Escape, and closes on Escape, a press outside, or focus leaving. Binds the host's `open` both ways through `dsOpen`. |
 | `dsHoverCard` | Behind `ds::hover-card`. Opens the card after the pointer or keyboard focus rests on the trigger for 500 ms, keeps it open while the pointer crosses into it, closes it 300 ms after both are left or at once on Escape, and never opens it on touch. |
 | `dsContextMenu` | Behind `ds::context-menu`. Opens its menu at the pointer on a right-click, below the focused element on Shift+F10 or the Menu key, and at the finger on a touch held for 500 ms; leaves the browser's menu alone on fields and links unless `native` is false; closes on Escape, Tab, a choice or a press outside, and gives focus back. Exposes `dsTarget`, the element that was pressed. |
 | `dsTheme` | Behind `ds::theme-switcher`. Keeps the choice (light, dark, system) in localStorage, puts `dark` or `light` and `color-scheme` on `<html>`, follows `prefers-color-scheme` while on system, keeps every switcher on the page and in other tabs in step, and crossfades with a view transition where the browser has one and motion is allowed. |
@@ -204,6 +204,9 @@ use the component.
 | `dsConfirmDialog` | Behind `ds::confirm-popover`, inside its `dsPopover`. Enables Confirm once the typed text matches, lets only a confirming click through, closes the popover after it, and dispatches `confirm`, or `cancel` on any other close. |
 | `x-ds-anchor` | A directive, behind `ds::popover`, `ds::confirm-popover`, `ds::hover-card`, `ds::context-menu`, `ds::dropdown`, `ds::select`, `ds::combobox`, `ds::date-picker` and `ds::tooltip`, and yours for an overlay of your own: `x-ds-anchor="{ open: …, reference: …, placement: 'bottom-start' }"`. Places the panel beside its reference with `position: fixed`, so an ancestor's `overflow: hidden` cannot clip it; flips to the other side when the preferred one lacks room, shifts to stay 8 px inside the viewport, and caps the height with a scroll when neither side fits. Follows scrolling and resizing while `open` is true. Writes the side it took as `data-side`. `at: { x, y, width, height }`, measured from the reference's corner, hangs it off that box instead: a point, for a menu at the pointer. |
 | `dsRoll` | Behind `ds::counter` when its `value` is bound to Alpine state (`::value="count"`). Follows the expression, formats it as the server does, keeps the hidden text in step, and rolls the digits to each new value. |
+| `dsClamp` | Behind `ds::expandable-text` and `ds::code-block`'s `expandable`. Holds the box to its lines, measures whether the content is taller (again on a resize, a content change and when the fonts arrive), shows the Read more / Show more button only then, and keeps its `aria-expanded` and words in step. |
+| `dsClear` | Behind `ds::input`'s `clearable`. Empties the field it `aria-controls`, puts focus back in it, and dispatches `input` and `change` on it. |
+| `dsTree` | Behind `ds::tree`. One Tab stop for the tree; the arrow keys, Home, End, type-ahead and `*`; opens and closes folders (dispatching `expand` and `collapse`), selects or checks rows with tri-state parents, keeps the posted inputs in step, and binds `wire:model` / `x-model` both ways. |
 | `x-ds-roll` | A directive, behind `ds::counter` when its value comes from the server. Rolls the digits when a re-render (a Livewire morph) changes the number; with `.in`, rolls up from zero the first time the counter is half in view. Instant under reduced motion. |
 | `x-ds-chart` | A directive, behind `ds::bar-chart`, `ds::line-chart` and `ds::donut-chart` when `interactive` (the default). Shows a readout (label, value, series) beside the mark under the pointer or keyboard focus; makes the marks reachable through one Tab stop per chart, the arrow keys moving along a series and across to the next, Home and End to the ends, Escape putting the readout away; and, on a chart with several series, turns the legend's entries into buttons that show and hide their series without re-scaling anything. |
 
@@ -279,18 +282,24 @@ lets them choose light, dark or system, and remembers it:
 `illuminate/view` and `blade-heroicons`, and nothing else. Every component works
 in a plain Blade view.
 
-Twenty-five need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
+Twenty-seven need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
 framework: **modal, drawer, sheet, dropdown, select, combobox, date-picker,
 accordion, file-upload, tooltip, sub-nav, otp-input, tag-input, number-field,
 password-strength, copy-button, toolbar, toggle-group, popover, hover-card,
-context-menu, theme-switcher, confirm-button, hold-button, confirm-popover**.
+context-menu, theme-switcher, confirm-button, hold-button, confirm-popover,
+tree, expandable-text**.
 `sub-nav` only to open and close: without Alpine, the section holding the
 current page is open and the rest are closed, as the server rendered them.
+`tree` likewise draws its folders, selection and links from PHP and posts
+what it shows; `expandable-text` shows all of its text.
 
-Five more use it for **one optional prop** each, and work without it otherwise:
+Seven more use it for **optional props**, and work without them otherwise:
 `checkbox`'s `indeterminate`, `nav-item`'s `collapsedWhen`, `toast`'s
-`dismiss`, `input`'s `reveal`, and `announcement-bar`'s `dismissible` (and
-`dismissKey`, which implies it). Skip those props and you need no JavaScript at all.
+`dismiss`, `input`'s `reveal` and `clearable`, `panel`'s `collapsible`,
+`filter-bar`'s `collapsible`, and `announcement-bar`'s `dismissible` (and
+`dismissKey`, which implies it). `code-block`'s copy button, on by default,
+and its `expandable` need it too; without them the code still shows and
+scrolls. Skip those props and you need no JavaScript at all.
 
 `segmented-control` uses Alpine and the package's script only to slide its
 highlight. Without them it is a plain radio group with the chosen segment

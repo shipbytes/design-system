@@ -8,8 +8,9 @@ use Illuminate\Support\Facades\Blade;
 use PHPUnit\Framework\Attributes\Test;
 
 /**
- * `reveal` was added to ds::input in 2.0, and every input that does not ask for
- * it must render exactly as it did before: byte for byte, whitespace included.
+ * `reveal` and `clearable` were added to ds::input in 2.0, and every input that
+ * does not ask for them must render exactly as it did before: byte for byte,
+ * whitespace included.
  *
  * The fixture was written from the 1.x view, before `reveal` or the shared
  * field recipe existed. Generated ids are random for an unbound field, so they
@@ -31,6 +32,11 @@ final class InputUnchangedTest extends TestCase
             'password, disabled' => '<x-ds::input type="password" name="password" label="Password" :disabled="true" />',
             'bound' => '<x-ds::input wire:model.live="search" name="q" label="Search" icon="magnifying-glass" />',
             'explicit id' => '<x-ds::input id="email" type="email" name="email" label="Email" value="ada@example.com" class="mt-4" />',
+            // Added with `clearable` (batch 10), rendered from the view before
+            // the prop existed: a search field as a filter bar holds one, and
+            // the prop passed as false, which must change nothing.
+            'search' => '<x-ds::input type="search" name="q" label="Search" icon="magnifying-glass" value="invoices" placeholder="Search invoices" />',
+            'clearable passed as false' => '<x-ds::input type="search" name="q" label="Search" :clearable="false" />',
         ];
     }
 
@@ -40,7 +46,7 @@ final class InputUnchangedTest extends TestCase
     }
 
     #[Test]
-    public function every_input_without_reveal_renders_exactly_as_before(): void
+    public function every_input_without_reveal_or_clearable_renders_exactly_as_before(): void
     {
         $fixture = __DIR__.'/Fixtures/input-1x.html';
         $rendered = '';

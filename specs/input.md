@@ -92,6 +92,33 @@ itself on the way. The icon carries the visual change.
 Needs Alpine and the package's script (`dsPassword`). Without them the button
 throws a named error on init and the field stays a working password field.
 
+## Clearable
+
+`clearable` on a text-like `input` (search, text, email, url, tel) adds a ✕
+button at the trailing edge, inside the shell, that empties the field. It is
+shown only while the field has a value, by CSS: the field gets a placeholder (a
+no-break space when the host gives none) and the button hides on
+`:placeholder-shown`, so it is right before any script runs and after every
+keystroke with nothing to listen to. The browser's own ✕ on a search field is
+removed (theme.css), so there is one. Off by default, off for passwords,
+disabled and read-only fields, and when it is off the markup is byte for byte
+the 1.x field (`InputUnchangedTest`).
+
+| | |
+|---|---|
+| Role | `button`, `type="button"` |
+| Name | "Clear" and the field's label ("Clear Search"); `aria-controls` the field |
+| Keyboard | Tab reaches it after the field; Enter or Space clears |
+| Focus | Back in the field, so the reader types the next search at once |
+| Events | `input` then `change` on the field, bubbling, so `wire:model`, `x-model` and a host's own listener all see the field emptied |
+
+Needs Alpine and the package's script (`dsClear`). Without them the button is
+there and does nothing; the field works.
+
+Escape does not clear. A search field's Escape is the browser's own, and
+inside a popover or a modal Escape closes it: taking the key here would make it
+mean two things depending on where the field is.
+
 ## Accessibility
 
 - Every field has a real `<label for>`. Placeholder is not a label — it vanishes
@@ -108,6 +135,9 @@ throws a named error on init and the field stays a working password field.
 ## Do not
 
 - **Do not reveal by default.** Shoulder-surfing is the reason the field masks.
+- **Do not make every field clearable.** It is for a field the reader empties
+  often: a search, a filter. On a form field it is a button that destroys
+  input, one Tab stop from the next field.
 - **Do not use it for a PIN.** A short fixed-length code is
   [otp-input.md](otp-input.md), with `masked`.
 

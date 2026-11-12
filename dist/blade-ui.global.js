@@ -435,6 +435,131 @@ key.removeEventListener('keydown', onKeyKey);
 }
 return { chart };
 })();
+const __ds_behaviours_clamp = (() => {
+function clamp(Alpine) {
+Alpine.data('dsClamp', (options = {}) => {
+let teardown = null;
+return {
+init() {
+teardown = hold(this.$el, options);
+},
+destroy() {
+teardown?.();
+},
+};
+});
+}
+function hold(root, options) {
+const own = (selector) => [...root.querySelectorAll(selector)].find((el) => el.closest('[data-ds-clamp], [data-ds-code]') === root) ?? null;
+const body = own('[data-ds-clamp-body]');
+const toggle = own('[data-ds-clamp-toggle]');
+if (!body || !toggle) return () => {};
+const words = toggle.querySelector('[data-ds-clamp-label]') ?? toggle;
+const lines = Number.isInteger(options.lines) && options.lines > 0 ? options.lines : 0;
+const more = String(options.more ?? 'Show more');
+const less = String(options.less ?? 'Show less');
+let expanded = false;
+let overflowing = false;
+let frame = 0;
+function limit() {
+const style = getComputedStyle(body);
+let line = parseFloat(style.lineHeight);
+if (Number.isNaN(line)) line = parseFloat(style.fontSize) * 1.2;
+return lines * line + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+}
+function measure() {
+if (lines) {
+overflowing = body.scrollHeight > limit() + 1;
+} else if (!expanded) {
+overflowing = body.scrollHeight > body.clientHeight + 1;
+}
+draw();
+}
+function draw() {
+if (!overflowing) expanded = false;
+root.dataset.dsState = !overflowing ? 'fits' : expanded ? 'expanded' : 'clamped';
+toggle.hidden = !overflowing;
+toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+words.textContent = expanded ? less : more;
+if (!lines) return;
+body.style.maxHeight = !overflowing ? '' : `${expanded ? body.scrollHeight : limit()}px`;
+}
+function backIntoView() {
+const box = toggle.getBoundingClientRect();
+if (box.bottom < 0 || box.top > window.innerHeight) toggle.scrollIntoView({ block: 'nearest' });
+}
+function onClick() {
+if (!overflowing) return;
+expanded = !expanded;
+draw();
+if (expanded) return;
+const duration = parseFloat(getComputedStyle(body).transitionDuration) || 0;
+if (!lines || duration === 0) {
+requestAnimationFrame(backIntoView);
+return;
+}
+let done = false;
+const finish = () => {
+if (done) return;
+done = true;
+body.removeEventListener('transitionend', finish);
+backIntoView();
+};
+body.addEventListener('transitionend', finish);
+setTimeout(finish, duration * 1000 + 100);
+}
+const later = () => {
+cancelAnimationFrame(frame);
+frame = requestAnimationFrame(measure);
+};
+toggle.addEventListener('click', onClick);
+const resized = typeof ResizeObserver === 'function' ? new ResizeObserver(later) : null;
+resized?.observe(root);
+if (!resized) window.addEventListener('resize', later);
+const changed = new MutationObserver(later);
+changed.observe(body, { childList: true, subtree: true, characterData: true });
+document.fonts?.ready?.then(later);
+measure();
+return () => {
+cancelAnimationFrame(frame);
+toggle.removeEventListener('click', onClick);
+resized?.disconnect();
+window.removeEventListener('resize', later);
+changed.disconnect();
+};
+}
+return { clamp };
+})();
+const __ds_behaviours_clear = (() => {
+function clear(Alpine) {
+Alpine.data('dsClear', () => {
+let teardown = null;
+return {
+init() {
+teardown = wire(this.$el);
+},
+destroy() {
+teardown?.();
+},
+};
+});
+}
+function wire(button) {
+const input = () => document.getElementById(button.getAttribute('aria-controls'));
+function onClick() {
+const field = input();
+if (!field || field.disabled || field.readOnly) return;
+field.focus();
+if (field.value === '') return;
+field.value = '';
+field.dispatchEvent(new Event('input', { bubbles: true }));
+field.dispatchEvent(new Event('change', { bubbles: true }));
+}
+button.addEventListener('click', onClick);
+return () => button.removeEventListener('click', onClick);
+}
+return { clear };
+})();
 const __ds_behaviours_clipboard = (() => {
 const COPIED_FOR = 1500;
 function clipboard(Alpine) {
@@ -2602,9 +2727,250 @@ teardown?.();
 }
 return { toolbar };
 })();
+const __ds_behaviours_tree = (() => {
+const TYPE_AHEAD_FOR = 500;
+function tree(Alpine) {
+Alpine.data('dsTree', (options = {}) => {
+let teardown = null;
+return {
+dsValue: null,
+init() {
+const control = wire(this.$el, options.select ?? 'none', (value) => {
+this.dsValue = value;
+});
+this.dsValue = control.value();
+this.$watch('dsValue', (value) => control.set(value));
+teardown = control.teardown;
+},
+destroy() {
+teardown?.();
+},
+};
+});
+}
+function wire(root, select, write) {
+const mine = (el) => el.closest('[data-ds-tree]') === root;
+const rows = () => [...root.querySelectorAll('[data-ds-tree-item]')].filter(mine);
+const showing = (row) => !row.closest('[data-ds-tree-group][hidden]') || !root.contains(row.closest('[data-ds-tree-group][hidden]'));
+const shown = () => rows().filter(showing);
+const isParent = (row) => row.hasAttribute('aria-expanded');
+const isOpen = (row) => row.getAttribute('aria-expanded') === 'true';
+const isDisabled = (row) => row.getAttribute('aria-disabled') === 'true';
+const isLink = (row) => row.tagName === 'A';
+const valueOf = (row) => row.dataset.dsTreeValue ?? '';
+const groupOf = (row) => row.parentElement.querySelector(':scope > [data-ds-tree-group]');
+const parentOf = (row) => {
+const group = row.parentElement.parentElement?.closest('[data-ds-tree-group]');
+if (!group || !root.contains(group)) return null;
+return group.parentElement.querySelector(':scope > [data-ds-tree-item]');
+};
+const childrenOf = (row) => [...(groupOf(row)?.children ?? [])]
+.map((li) => li.querySelector(':scope > [data-ds-tree-item]'))
+.filter(Boolean);
+const below = (row) => [...(groupOf(row)?.querySelectorAll('[data-ds-tree-item]') ?? [])];
+const labelOf = (row) => (row.querySelector('[data-ds-tree-label]')?.textContent ?? '').trim().toLowerCase();
+let stop = null;
+let typed = '';
+let typedAt = 0;
+function settle(preferred = null) {
+const all = rows();
+const visible = all.filter(showing);
+let next = preferred ?? stop;
+if (!next || !all.includes(next)) {
+next = all.find((r) => r.getAttribute('aria-current') === 'page')
+?? all.find((r) => r.getAttribute('aria-selected') === 'true')
+?? visible[0] ?? null;
+}
+while (next && !showing(next)) next = parentOf(next) ?? visible[0] ?? null;
+stop = next;
+for (const row of all) {
+const want = row === stop ? '0' : '-1';
+if (row.getAttribute('tabindex') !== want) row.setAttribute('tabindex', want);
+}
+}
+function focus(row) {
+if (!row) return;
+settle(row);
+row.focus();
+}
+function setOpen(row, open, { announce = true } = {}) {
+if (!isParent(row) || isOpen(row) === open) return;
+row.setAttribute('aria-expanded', open ? 'true' : 'false');
+const group = groupOf(row);
+if (group) group.hidden = !open;
+if (!open && group?.contains(document.activeElement)) focus(row);
+if (!open && stop && group?.contains(stop)) settle(row);
+if (announce) {
+row.dispatchEvent(new CustomEvent(open ? 'expand' : 'collapse', { bubbles: true, detail: { value: valueOf(row) } }));
+}
+}
+function selectRow(row) {
+if (isDisabled(row)) return;
+for (const r of rows()) {
+if (r.hasAttribute('aria-selected')) r.setAttribute('aria-selected', r === row ? 'true' : 'false');
+}
+writeInput(valueOf(row));
+write(valueOf(row));
+}
+function writeInput(value) {
+const input = [...root.querySelectorAll('input[data-ds-tree-field]')].find(mine);
+if (input) input.value = value ?? '';
+}
+const leaves = (within) => within.filter((r) => (r.dataset.dsTreeCheck ?? '').startsWith('leaf'));
+function check(row) {
+if (isDisabled(row)) return;
+if (row.dataset.dsTreeCheck === 'leaf') {
+row.setAttribute('aria-checked', row.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+} else {
+const under = leaves(below(row)).filter((l) => l.dataset.dsTreeCheck === 'leaf');
+const on = under.some((l) => l.getAttribute('aria-checked') !== 'true');
+for (const leaf of under) leaf.setAttribute('aria-checked', on ? 'true' : 'false');
+}
+derive();
+write(checkedValues());
+}
+function derive() {
+const all = rows();
+for (const row of [...all].reverse()) {
+if (row.dataset.dsTreeCheck !== 'parent') continue;
+const under = leaves(below(row));
+const on = under.filter((l) => l.getAttribute('aria-checked') === 'true').length;
+const state = under.length === 0 ? row.getAttribute('aria-checked') : on === 0 ? 'false' : on === under.length ? 'true' : 'mixed';
+row.setAttribute('aria-checked', state);
+}
+for (const leaf of leaves(all)) {
+const input = leaf.parentElement.querySelector(':scope > [data-ds-tree-input]');
+if (input) input.disabled = leaf.getAttribute('aria-checked') !== 'true';
+}
+}
+const checkedValues = () => leaves(rows()).filter((l) => l.getAttribute('aria-checked') === 'true').map(valueOf);
+function act(row) {
+if (select === 'single') return selectRow(row);
+if (select === 'multiple') return check(row);
+if (isParent(row)) setOpen(row, !isOpen(row));
+}
+function step(row, by) {
+const list = shown();
+const at = list.indexOf(row);
+return list[at + by] ?? null;
+}
+function typeAhead(row, key) {
+const now = Date.now();
+typed = now - typedAt > TYPE_AHEAD_FOR ? key : typed + key;
+typedAt = now;
+const same = [...typed].every((c) => c === typed[0]);
+const wanted = same ? typed[0] : typed;
+const list = shown();
+const at = list.indexOf(row);
+const from = same || typed.length === 1 ? at + 1 : at;
+const order = [...list.slice(from), ...list.slice(0, from)];
+return order.find((r) => labelOf(r).startsWith(wanted)) ?? null;
+}
+function onKeyDown(event) {
+const row = event.target.closest?.('[data-ds-tree-item]');
+if (!row || !mine(row) || event.target !== row) return;
+if (event.altKey || event.ctrlKey || event.metaKey) return;
+const rtl = getComputedStyle(root).direction === 'rtl';
+const inward = rtl ? 'ArrowLeft' : 'ArrowRight';
+const outward = rtl ? 'ArrowRight' : 'ArrowLeft';
+const key = event.key;
+if (key === 'ArrowDown' || key === 'ArrowUp') {
+event.preventDefault();
+focus(step(row, key === 'ArrowDown' ? 1 : -1) ?? row);
+} else if (key === 'Home' || key === 'End') {
+event.preventDefault();
+const list = shown();
+focus(key === 'Home' ? list[0] : list[list.length - 1]);
+} else if (key === inward) {
+event.preventDefault();
+if (!isParent(row)) return;
+if (!isOpen(row)) setOpen(row, true);
+else focus(childrenOf(row)[0] ?? row);
+} else if (key === outward) {
+event.preventDefault();
+if (isParent(row) && isOpen(row)) setOpen(row, false);
+else focus(parentOf(row) ?? row);
+} else if (key === '*') {
+event.preventDefault();
+const siblings = [...row.parentElement.parentElement.children]
+.map((li) => li.querySelector(':scope > [data-ds-tree-item]'))
+.filter(Boolean);
+for (const sibling of siblings) setOpen(sibling, true);
+} else if (key === 'Enter') {
+if (isLink(row)) return;
+event.preventDefault();
+act(row);
+} else if (key === ' ') {
+if (isLink(row)) return;
+event.preventDefault();
+act(row);
+} else if (key.length === 1 && key.trim() !== '') {
+const found = typeAhead(row, key.toLowerCase());
+if (found) {
+event.preventDefault();
+focus(found);
+}
+}
+}
+function onClick(event) {
+const row = event.target.closest?.('[data-ds-tree-item]');
+if (!row || !mine(row)) return;
+settle(row);
+if (event.target.closest('[data-ds-tree-toggle]') && isParent(row)) {
+event.preventDefault();
+setOpen(row, !isOpen(row));
+return;
+}
+if (isLink(row)) return;
+act(row);
+}
+function onFocusIn(event) {
+const row = event.target.closest?.('[data-ds-tree-item]');
+if (row && mine(row) && row !== stop) settle(row);
+}
+root.addEventListener('keydown', onKeyDown);
+root.addEventListener('click', onClick);
+root.addEventListener('focusin', onFocusIn);
+const observer = new MutationObserver(() => settle());
+observer.observe(root, { childList: true, subtree: true });
+settle();
+return {
+value() {
+if (select === 'single') {
+const chosen = rows().find((r) => r.getAttribute('aria-selected') === 'true');
+return chosen ? valueOf(chosen) : null;
+}
+if (select === 'multiple') return checkedValues();
+return null;
+},
+set(value) {
+if (select === 'single') {
+const wanted = value === null || value === undefined ? null : String(value);
+for (const r of rows()) {
+if (r.hasAttribute('aria-selected')) r.setAttribute('aria-selected', valueOf(r) === wanted ? 'true' : 'false');
+}
+writeInput(wanted);
+} else if (select === 'multiple') {
+const wanted = new Set((Array.isArray(value) ? value : []).map(String));
+for (const leaf of leaves(rows())) leaf.setAttribute('aria-checked', wanted.has(valueOf(leaf)) ? 'true' : 'false');
+derive();
+}
+},
+teardown() {
+observer.disconnect();
+root.removeEventListener('keydown', onKeyDown);
+root.removeEventListener('click', onClick);
+root.removeEventListener('focusin', onFocusIn);
+},
+};
+}
+return { tree };
+})();
 const __ds_blade_ui = (() => {
 const { anchorDirective } = __ds_behaviours_anchor;
 const { chart } = __ds_behaviours_chart;
+const { clamp } = __ds_behaviours_clamp;
+const { clear } = __ds_behaviours_clear;
 const { clipboard } = __ds_behaviours_clipboard;
 const { contextMenu } = __ds_behaviours_context_menu;
 const { confirmDialog } = __ds_behaviours_confirm_dialog;
@@ -2622,7 +2988,8 @@ const { tagInput } = __ds_behaviours_tag_input;
 const { theme } = __ds_behaviours_theme;
 const { toggleGroup } = __ds_behaviours_toggle_group;
 const { toolbar } = __ds_behaviours_toolbar;
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart];
+const { tree } = __ds_behaviours_tree;
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree];
 const REGISTERED = Symbol.for('shipbytes.blade-ui');
 function bladeUi(Alpine) {
 if (!Alpine || Alpine[REGISTERED]) return;

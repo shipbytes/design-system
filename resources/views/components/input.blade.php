@@ -15,6 +15,13 @@
     'disabled' => false,
     /** A button that shows and hides the value. type="password" only; needs Alpine and the package's script. */
     'reveal' => false,
+    /**
+     * A ✕ in the field that empties it, puts focus back in it and dispatches
+     * `input` and `change`, for a search or filter field. Shown only while
+     * the field holds something. Text, search, email, url and tel only.
+     * Needs Alpine and the package's script.
+     */
+    'clearable' => false,
 ])
 
 @php
@@ -51,12 +58,39 @@
         $control .= ' pr-11 sm:pr-9';
     }
 
+    // Same rule: appended, and only when asked for. Not on a password, which
+    // has its own button, and not on a field the reader cannot change.
+    // Text-like types only: the button shows by :placeholder-shown, which a
+    // date, number or colour field never matches the way a text field does.
+    $clearable = $clearable && $as === 'input' && ! $revealable
+        && in_array($type, ['text', 'search', 'email', 'url', 'tel'], true) && ! $disabled && ! $readonly;
+    if ($clearable) {
+        $control .= ' peer pr-11 sm:pr-9';
+    }
+
     $shared = $attributes->except(['class'])->merge([
         'id' => $id,
         'class' => $control,
         'aria-describedby' => $describedBy,
         'aria-invalid' => $error ? 'true' : null,
     ])->filter(fn ($v) => $v !== null);
+
+    if ($clearable) {
+        /*
+         * The ✕ shows only while there is something to clear, and that is
+         * CSS, not the script: `:placeholder-shown` is true exactly when the
+         * field is empty, however its value changed, by typing, by the host's
+         * x-model or wire:model, or by a morph. It needs a placeholder to
+         * exist, so a field without one is given a no-break space (a plain
+         * space would be trimmed away by the attribute bag).
+         * data-ds-clearable takes away the browser's own ✕ on type=search
+         * (theme.css), so there are never two.
+         */
+        $shared = $shared->merge([
+            'placeholder' => $attributes->get('placeholder', "\u{00A0}"),
+            'data-ds-clearable' => true,
+        ]);
+    }
 @endphp
 
 <div {{ $attributes->only('class') }}>
@@ -100,6 +134,20 @@
             >
                 <x-ds::icon name="eye" class="group-aria-pressed:hidden" />
                 <x-ds::icon name="eye-slash" class="hidden group-aria-pressed:block" />
+            </button>
+        @elseif ($clearable)
+            <input type="{{ $type }}" {{ $shared }} />
+            {{-- A sibling after the field, so `peer-placeholder-shown` can
+                 hide it while the field is empty. Pressed, the field is
+                 emptied and focused, so the reader types on from there. --}}
+            <button
+                type="button"
+                class="absolute inset-y-0 right-0 z-10 flex w-11 items-center justify-center rounded-r-control text-fg-muted peer-placeholder-shown:hidden hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring sm:w-9"
+                x-data="{{ \Shipbytes\BladeUi\Support\Behaviour::data('dsClear') }}"
+                aria-controls="{{ $id }}"
+                aria-label="{{ ($name = $label ?? $attributes->get('aria-label')) ? 'Clear '.$name : 'Clear' }}"
+            >
+                <x-ds::icon name="x-mark" variant="mini" size="4" />
             </button>
         @else
             <input type="{{ $type }}" {{ $shared }} @disabled($disabled) />

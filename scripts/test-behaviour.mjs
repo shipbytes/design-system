@@ -4137,6 +4137,437 @@ group('charts (x-ds-chart: readout, roving tabindex, legend toggles)');
     });
 }
 
+// ---------------------------------------------------------------- batch 10
+
+const treeRow = (tree, value) => `#${tree} [data-ds-tree-value="${value}"][data-ds-tree-item]`;
+const rowState = (tree, value) => page.evaluate((sel) => {
+    const row = document.querySelector(sel);
+    const group = row.parentElement.querySelector(':scope > [data-ds-tree-group]');
+    return {
+        level: row.getAttribute('aria-level'), size: row.getAttribute('aria-setsize'), pos: row.getAttribute('aria-posinset'),
+        expanded: row.getAttribute('aria-expanded'), selected: row.getAttribute('aria-selected'), checked: row.getAttribute('aria-checked'),
+        tab: row.getAttribute('tabindex'), shown: group ? !group.hidden : null, focused: document.activeElement === row,
+    };
+}, treeRow(tree, value));
+const focusedValue = () => page.evaluate(() => document.activeElement?.dataset?.dsTreeValue ?? document.activeElement?.id ?? document.activeElement?.tagName);
+const treeEvents = () => page.evaluate(() => { const e = window.treeEvents ?? []; window.treeEvents = []; return e.join(','); });
+const treePosted = () => page.evaluate(() => {
+    const out = {};
+    for (const [k, v] of new FormData(document.getElementById('tree-form')).entries()) (out[k] ||= []).push(v);
+    return out;
+});
+
+group('tree (dsTree): a file tree, no selection');
+{
+    await check('PHP counted every row: level, setsize and posinset', async () => {
+        const r = {
+            app: await rowState('tr-files', 'app'),
+            helpers: await rowState('tr-files', 'app/helpers.php'),
+            kernel: await rowState('tr-files', 'app/Http/Kernel.php'),
+            composer: await rowState('tr-files', 'composer.json'),
+        };
+        const at = (s) => `${s.level}/${s.size}/${s.pos}`;
+        return (at(r.app) === '1/5/1' && at(r.helpers) === '2/3/3' && at(r.kernel) === '3/1/1' && at(r.composer) === '1/5/4') || JSON.stringify(r);
+    });
+    await check('one Tab stop per tree: Tab lands on the first row, the next Tab on the nav tree\'s current page, the next leaves', async () => {
+        await page.focus('#lists-before');
+        await page.keyboard.press('Tab');
+        const first = await focusedValue();
+        await page.keyboard.press('Tab');
+        const second = await focusedValue();
+        await page.keyboard.press('Tab');
+        const third = await focusedValue();
+        return (first === 'app' && second === 'Install' && third === 'lists-after-nav') || [first, second, third].join(' → ');
+    });
+    await check('Right opens a closed parent and says `expand`; Right again moves to its first child', async () => {
+        await page.focus(treeRow('tr-files', 'app'));
+        await treeEvents();
+        await page.keyboard.press('ArrowRight');
+        const opened = await rowState('tr-files', 'app');
+        const said = await treeEvents();
+        await page.keyboard.press('ArrowRight');
+        return (opened.expanded === 'true' && opened.shown && opened.focused && said === 'expand:app' && await focusedValue() === 'app/Http')
+            || JSON.stringify({ opened, said, now: await focusedValue() });
+    });
+    await check('Down skips a closed parent\'s children; Right on an `expandable` folder opens it, empty, and says so', async () => {
+        await page.keyboard.press('ArrowDown');
+        const at = await focusedValue();
+        await page.keyboard.press('ArrowRight');
+        const models = await rowState('tr-files', 'app/Models');
+        return (at === 'app/Models' && models.expanded === 'true' && await treeEvents() === 'expand:app/Models') || JSON.stringify({ at, models });
+    });
+    await check('Left closes an open parent (`collapse`), then moves to the parent', async () => {
+        await page.keyboard.press('ArrowLeft');
+        const closed = await rowState('tr-files', 'app/Models');
+        await page.keyboard.press('ArrowLeft');
+        return (closed.expanded === 'false' && closed.focused && await focusedValue() === 'app' && await treeEvents() === 'collapse:app/Models')
+            || JSON.stringify({ closed, now: await focusedValue() });
+    });
+    await check('End goes to the last row showing, inside the open routes folder; Home back to the first', async () => {
+        await page.keyboard.press('End');
+        const end = await focusedValue();
+        await page.keyboard.press('Home');
+        return (end === 'routes/web.php' && await focusedValue() === 'app') || `${end} then ${await focusedValue()}`;
+    });
+    await check('type-ahead: a letter finds the next row starting with it; the same letter again, the one after', async () => {
+        await page.keyboard.press('c');
+        const once = await focusedValue();
+        await page.keyboard.press('c');
+        const twice = await focusedValue();
+        await page.waitForTimeout(600);
+        await page.keyboard.type('he');
+        const word = await focusedValue();
+        return (once === 'config' && twice === 'composer.json' && word === 'app/helpers.php') || [once, twice, word].join(', ');
+    });
+    await check('a disabled row is reached by the keys and says so', async () => {
+        await page.focus(treeRow('tr-files', 'config'));
+        await page.keyboard.press('ArrowDown');
+        const disabled = await page.evaluate(() => document.activeElement.getAttribute('aria-disabled'));
+        return (await focusedValue() === 'composer.json' && disabled === 'true') || `${await focusedValue()} ${disabled}`;
+    });
+    await check('* opens every parent beside this one', async () => {
+        await page.focus(treeRow('tr-files', 'bootstrap'));
+        await page.keyboard.press('*');
+        const r = [await rowState('tr-files', 'bootstrap'), await rowState('tr-files', 'config'), await rowState('tr-files', 'routes')];
+        const said = await treeEvents();
+        return (r.every((s) => s.expanded === 'true' && s.shown) && said === 'expand:bootstrap,expand:config') || JSON.stringify({ r, said });
+    });
+    await check('Enter and Space open and close a parent in a tree with nothing to choose', async () => {
+        await page.focus(treeRow('tr-files', 'config'));
+        await page.keyboard.press('Enter');
+        const enter = (await rowState('tr-files', 'config')).expanded;
+        await page.keyboard.press(' ');
+        const space = (await rowState('tr-files', 'config')).expanded;
+        await treeEvents();
+        return (enter === 'false' && space === 'true') || `${enter} ${space}`;
+    });
+    await check('closing a parent from its chevron, with focus inside it, brings focus up to the parent', async () => {
+        await page.focus(treeRow('tr-files', 'app/Http'));
+        await page.click(`${treeRow('tr-files', 'app')} [data-ds-tree-toggle]`);
+        const app = await rowState('tr-files', 'app');
+        await treeEvents();
+        return (app.expanded === 'false' && app.focused && app.tab === '0') || JSON.stringify(app);
+    });
+    await check('the stop follows the reader: one row at tabindex 0, the last one focused', async () => {
+        await page.focus(treeRow('tr-files', 'bootstrap'));
+        const stops = await page.evaluate(() => [...document.querySelectorAll('#tr-files [data-ds-tree-item][tabindex="0"]')].map((r) => r.dataset.dsTreeValue));
+        return JSON.stringify(stops) === '["bootstrap"]' || JSON.stringify(stops);
+    });
+}
+
+group('tree: navigation (links, the current page)');
+{
+    await check('PHP opened the current page\'s parents and marked it; it holds the stop', async () => {
+        const guides = await page.evaluate(() => document.querySelector('#tr-nav [data-ds-tree-value="Guides"]').getAttribute('aria-expanded'));
+        const install = await page.evaluate(() => {
+            const row = document.querySelector('#tr-nav [data-ds-tree-value="Install"]');
+            return [row.tagName, row.getAttribute('aria-current'), row.getAttribute('tabindex')].join(' ');
+        });
+        return (guides === 'true' && install === 'A page 0') || `${guides} ${install}`;
+    });
+    await check('Enter on a row follows its link', async () => {
+        await page.focus('#tr-nav [data-ds-tree-value="Upgrade"]');
+        await page.keyboard.press('Enter');
+        await settle(100);
+        return (await page.evaluate(() => location.hash)) === '#upgrade' || page.evaluate(() => location.hash);
+    });
+    await check('a press on a chevron opens the folder and does not follow its link', async () => {
+        await page.click('#tr-nav [data-ds-tree-value="Reference"] [data-ds-tree-toggle]');
+        const r = await page.evaluate(() => [location.hash, document.querySelector('#tr-nav [data-ds-tree-value="Reference"]').getAttribute('aria-expanded')].join(' '));
+        await page.evaluate(() => history.replaceState(null, '', location.pathname));
+        return r === '#upgrade true' || r;
+    });
+}
+
+group('tree: single selection, posted');
+{
+    await check('PHP selected Receipts, opened Inbox, and wrote the hidden input', async () => {
+        const s = await rowState('tr-single', 'receipts');
+        const inbox = await rowState('tr-single', 'inbox');
+        const sent = await treePosted();
+        return (s.selected === 'true' && s.tab === '0' && inbox.expanded === 'true' && JSON.stringify(sent.folder) === '["receipts"]') || JSON.stringify({ s, inbox, sent });
+    });
+    await check('a press selects, Space selects, and the field follows', async () => {
+        await page.click(treeRow('tr-single', 'travel'));
+        const pressed = (await treePosted()).folder?.[0];
+        await page.focus(treeRow('tr-single', 'sent'));
+        await page.keyboard.press(' ');
+        const spaced = (await treePosted()).folder?.[0];
+        const selected = await page.evaluate(() => [...document.querySelectorAll('#tr-single [aria-selected="true"]')].map((r) => r.dataset.dsTreeValue).join());
+        return (pressed === 'travel' && spaced === 'sent' && selected === 'sent') || JSON.stringify({ pressed, spaced, selected });
+    });
+    await check('a disabled row cannot be selected', async () => {
+        await page.focus(treeRow('tr-single', 'archive'));
+        await page.keyboard.press('Enter');
+        return (await treePosted()).folder?.[0] === 'sent' || JSON.stringify(await treePosted());
+    });
+}
+
+group('tree: checkboxes (tri-state), posted');
+{
+    await check('PHP drew every box: Billing mixed, Reports checked by its own `selected`, and only checked enabled leaves post', async () => {
+        const billing = (await rowState('tr-multi', 'billing')).checked;
+        const reports = (await rowState('tr-multi', 'reports')).checked;
+        const perms = (await treePosted())['perms[]'];
+        return (billing === 'mixed' && reports === 'true' && JSON.stringify(perms) === '["billing.view","reports.export","reports.schedule"]')
+            || JSON.stringify({ billing, reports, perms });
+    });
+    await check('unchecking one leaf turns its parent mixed and stops it posting', async () => {
+        await page.click(treeRow('tr-multi', 'reports.export'));
+        const reports = (await rowState('tr-multi', 'reports')).checked;
+        const perms = (await treePosted())['perms[]'];
+        return (reports === 'mixed' && JSON.stringify(perms) === '["billing.view","reports.schedule"]') || JSON.stringify({ reports, perms });
+    });
+    await check('Space on a mixed parent checks its enabled leaves; a disabled one keeps its state, so the parent stays mixed', async () => {
+        await page.focus(treeRow('tr-multi', 'billing'));
+        await page.keyboard.press(' ');
+        const billing = (await rowState('tr-multi', 'billing')).checked;
+        const voided = (await rowState('tr-multi', 'billing.void')).checked;
+        const perms = (await treePosted())['perms[]'];
+        return (billing === 'mixed' && voided === 'false' && JSON.stringify(perms) === '["billing.view","billing.refund","reports.schedule"]')
+            || JSON.stringify({ billing, voided, perms });
+    });
+    await check('Space again clears it: a parent over a disabled leaf can still be cleared', async () => {
+        await page.keyboard.press(' ');
+        const billing = (await rowState('tr-multi', 'billing')).checked;
+        const perms = (await treePosted())['perms[]'];
+        return (billing === 'false' && JSON.stringify(perms) === '["reports.schedule"]') || JSON.stringify({ billing, perms });
+    });
+    await check('the tree says it is multi-select', async () =>
+        (await page.getAttribute('#tr-multi [role=tree]', 'aria-multiselectable')) === 'true');
+}
+
+group('tree: x-model (dsValue, x-modelable)');
+{
+    await check('the host\'s value wins over the markup on load', async () => {
+        const out = await page.locator('#tr-bound-out').innerText();
+        const schedule = (await rowState('tr-bound', 'reports.schedule')).checked;
+        return (out === '["reports.export"]' && schedule === 'false') || `${out} ${schedule}`;
+    });
+    await check('checking writes back to the host', async () => {
+        await page.click(treeRow('tr-bound', 'reports.schedule'));
+        await page.click(treeRow('tr-bound', 'reports.export'));
+        return (await page.locator('#tr-bound-out').innerText()) === '["reports.schedule"]' || page.locator('#tr-bound-out').innerText();
+    });
+    await check('the host setting it redraws the boxes, the parent and what posts', async () => {
+        await page.click('#tr-bound-set');
+        await settle(50);
+        const parent = (await rowState('tr-bound', 'reports')).checked;
+        const bound = (await treePosted())['bound[]'];
+        return (parent === 'true' && JSON.stringify(bound) === '["reports.export","reports.schedule"]') || JSON.stringify({ parent, bound });
+    });
+}
+
+group('input clearable (dsClear)');
+{
+    const clearButton = '#fb-q ~ button[aria-controls="fb-q"]';
+    await check('with a value the clear button shows, named after the field', async () =>
+        (await page.isVisible(clearButton) && await page.getAttribute(clearButton, 'aria-label') === 'Clear Search') || 'not shown, or misnamed');
+    await check('a press empties the field, puts focus back in it, and fires input and change', async () => {
+        await page.evaluate(() => { window.fbInput = 0; window.fbChange = 0; });
+        await page.click(clearButton);
+        const r = await page.evaluate(() => ({ value: document.getElementById('fb-q').value, focus: document.activeElement.id, input: window.fbInput, change: window.fbChange }));
+        return (r.value === '' && r.focus === 'fb-q' && r.input === 1 && r.change === 1) || JSON.stringify(r);
+    });
+    await check('empty, it hides; typing shows it again', async () => {
+        const empty = await page.isVisible(clearButton);
+        await page.keyboard.type('x');
+        const typed = await page.isVisible(clearButton);
+        return (!empty && typed) || `empty ${empty}, typed ${typed}`;
+    });
+    await check('the browser\'s own search ✕ is gone, so there is one', async () =>
+        (await page.evaluate(() => getComputedStyle(document.getElementById('fb-q'), '::-webkit-search-cancel-button').appearance)) === 'none'
+        || page.evaluate(() => getComputedStyle(document.getElementById('fb-q'), '::-webkit-search-cancel-button').appearance));
+}
+
+group('filter bar and filter chips');
+{
+    const fbTrigger = '#fbar [data-ds-popover-trigger] button';
+    const fbPanel = '#fbar [data-ds-popover-panel]';
+    await check('the bar is a search landmark', async () =>
+        (await page.getAttribute('#fbar', 'role')) === 'search' && (await page.getAttribute('#fbar', 'aria-label')) === 'Filters');
+    await check('a chip\'s ✕ is named for what it removes and dispatches `remove` with it', async () => {
+        const name = await page.getAttribute('#fb-chip button', 'aria-label');
+        await page.click('#fb-chip button');
+        const detail = await page.evaluate(() => JSON.stringify(window.fbRemoved));
+        return (name === 'Remove filter Status: Open' && detail === '{"label":"Status","value":"Open"}') || `${name} ${detail}`;
+    });
+    await check('a chip with removeHref is a link', async () =>
+        (await page.evaluate(() => document.querySelector('#fbar a[aria-label="Remove filter Owner: Ada"]')?.getAttribute('href'))) === '#owner-removed');
+    await check('Clear all dispatches `reset`', async () => {
+        await page.evaluate(() => { window.fbReset = 0; });
+        await page.click('#fbar button:text("Clear all")');
+        return (await page.evaluate(() => window.fbReset)) === 1;
+    });
+    await check('at md and up the controls sit in the row, and the trigger is gone', async () => {
+        const r = await page.evaluate(([t, p]) => ({
+            trigger: getComputedStyle(document.querySelector(t)).display,
+            panel: getComputedStyle(document.querySelector(p)).display, position: getComputedStyle(document.querySelector(p)).position,
+        }), [fbTrigger, fbPanel]);
+        return (r.trigger === 'none' && r.panel === 'flex' && r.position === 'static') || JSON.stringify(r);
+    });
+    await page.setViewportSize({ width: 600, height: 1000 });
+    await settle(100);
+    await check('below md the controls fold behind "Filters 2"', async () => {
+        const text = (await page.locator(fbTrigger).innerText()).replace(/\s+/g, ' ').trim();
+        return (await page.isVisible(fbTrigger) && !(await page.isVisible(fbPanel)) && /^Filters 2( applied)?$/.test(text)) || text;
+    });
+    await check('the trigger opens them in a popover, with focus on the first control', async () => {
+        await page.click(fbTrigger);
+        await settle();
+        const r = await page.evaluate(([p]) => ({ shown: getComputedStyle(document.querySelector(p)).display !== 'none', inside: document.querySelector(p).contains(document.activeElement) }), [fbPanel]);
+        return (r.shown && r.inside) || JSON.stringify(r);
+    });
+    await check('Escape closes it and focus goes back to the trigger', async () => {
+        await page.keyboard.press('Escape');
+        await settle();
+        const r = { shown: await page.isVisible(fbPanel), back: await page.evaluate((t) => document.activeElement === document.querySelector(t), fbTrigger) };
+        return (!r.shown && r.back) || JSON.stringify(r);
+    });
+    await check('opened, then widened past md: the controls are back in the row, not floating', async () => {
+        await page.click(fbTrigger);
+        await settle();
+        await page.setViewportSize({ width: 1200, height: 1000 });
+        await settle();
+        const r = await page.evaluate(([p]) => {
+            const panel = document.querySelector(p).getBoundingClientRect();
+            const bar = document.getElementById('fbar').getBoundingClientRect();
+            return { position: getComputedStyle(document.querySelector(p)).position, inside: panel.top >= bar.top - 1 && panel.bottom <= bar.bottom + 1 };
+        }, [fbPanel]);
+        await page.keyboard.press('Escape');
+        return (r.position === 'static' && r.inside) || JSON.stringify(r);
+    });
+}
+
+const clampState = (id) => page.evaluate((i) => {
+    const root = document.getElementById(i).closest('[data-ds-clamp], [data-ds-code]') ?? document.getElementById(i);
+    const body = root.querySelector('[data-ds-clamp-body]');
+    const toggle = root.querySelector('[data-ds-clamp-toggle]');
+    return {
+        state: root.dataset.dsState, hidden: toggle.hidden, expanded: toggle.getAttribute('aria-expanded'),
+        words: toggle.textContent.trim(), controls: toggle.getAttribute('aria-controls') === body.id,
+        height: Math.round(body.getBoundingClientRect().height), full: body.scrollHeight, client: body.clientHeight,
+    };
+}, id);
+
+group('code block');
+{
+    await check('the scroll box is a focusable, named, left-to-right region holding pre and code', async () => {
+        const r = await page.evaluate(() => {
+            const pre = document.querySelector('#cb pre');
+            return [pre.getAttribute('role'), pre.getAttribute('aria-label'), pre.tabIndex, pre.getAttribute('dir'), pre.firstElementChild.tagName].join(' ');
+        });
+        return r === 'region Invoice.php 0 ltr CODE' || r;
+    });
+    await check('copy puts exactly the code on the clipboard', async () => {
+        await page.click('#cb button[aria-label="Copy code"]');
+        await settle(100);
+        const text = await page.evaluate(() => navigator.clipboard.readText());
+        return text === '<?php\n\nfinal class Invoice\n{\n    public function total(): int\n    {\n        return 42;\n    }\n}' || JSON.stringify(text);
+    });
+    await check('selecting the code selects the code: no line numbers, one line per line', async () => {
+        const text = await page.evaluate(() => {
+            const range = document.createRange();
+            range.selectNodeContents(document.querySelector('#cb code'));
+            const selection = getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            const out = selection.toString();
+            selection.removeAllRanges();
+            return out;
+        });
+        return text.startsWith('<?php\n\nfinal class Invoice\n{') && !/\d/.test(text.replace('42', '')) || JSON.stringify(text);
+    });
+    await check('the highlighted line is a mark', async () =>
+        (await page.evaluate(() => [...document.querySelectorAll('#cb code > *')].findIndex((l) => l.tagName === 'MARK'))) === 1);
+    await check('nine lines over a limit of three: clamped, the button shows "Show more"', async () => {
+        const s = await clampState('cb-code');
+        return (s.state === 'clamped' && !s.hidden && s.words === 'Show more' && s.expanded === 'false' && s.controls && s.full > s.client) || JSON.stringify(s);
+    });
+    await check('Show more lets it all out and keeps focus on the button; Show less holds it again', async () => {
+        await page.focus('#cb [data-ds-clamp-toggle]');
+        await page.keyboard.press('Enter');
+        await settle();
+        const open = await clampState('cb-code');
+        const kept = await page.evaluate(() => document.activeElement.matches('#cb [data-ds-clamp-toggle]'));
+        await page.keyboard.press('Enter');
+        await settle();
+        const shut = await clampState('cb-code');
+        return (open.state === 'expanded' && open.words === 'Show less' && open.expanded === 'true' && open.full <= open.client + 1 && kept
+            && shut.state === 'clamped' && shut.full > shut.client) || JSON.stringify({ open, kept, shut });
+    });
+    await check('two lines under a limit of five: no button', async () => {
+        const s = await clampState('cb-short-code');
+        return (s.state === 'fits' && s.hidden) || JSON.stringify(s);
+    });
+}
+
+group('expandable text (dsClamp)');
+{
+    await check('long text: held to two lines, faded, with Read more', async () => {
+        const s = await clampState('et');
+        const line = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('#et [data-ds-clamp-body]')).lineHeight));
+        const mask = await page.evaluate(() => getComputedStyle(document.querySelector('#et [data-ds-clamp-body]')).maskImage);
+        return (s.state === 'clamped' && !s.hidden && s.words === 'Read more' && s.controls && Math.abs(s.height - 2 * line) <= 1 && mask.includes('gradient'))
+            || JSON.stringify({ s, line, mask });
+    });
+    await check('Read more shows it all, Show less holds it again; focus stays on the button', async () => {
+        await page.click('#et [data-ds-clamp-toggle]');
+        await settle(500);
+        const open = await clampState('et');
+        const mask = await page.evaluate(() => getComputedStyle(document.querySelector('#et [data-ds-clamp-body]')).maskImage);
+        const kept = await page.evaluate(() => document.activeElement.matches('#et [data-ds-clamp-toggle]'));
+        await page.click('#et [data-ds-clamp-toggle]');
+        await settle(500);
+        const shut = await clampState('et');
+        return (open.state === 'expanded' && open.words === 'Show less' && open.expanded === 'true' && open.height >= open.full - 1 && mask === 'none' && kept
+            && shut.state === 'clamped' && shut.height < open.height) || JSON.stringify({ open, mask, kept, shut });
+    });
+    await check('short text: no button, no fade', async () => {
+        const s = await clampState('et-short');
+        return (s.state === 'fits' && s.hidden) || JSON.stringify(s);
+    });
+    await check('measured again when the box widens past the text, and again when it narrows', async () => {
+        await page.evaluate(() => { document.getElementById('et-box').style.width = '3000px'; });
+        await settle(200);
+        const wide = await clampState('et');
+        await page.evaluate(() => { document.getElementById('et-box').style.width = ''; });
+        await settle(200);
+        const narrow = await clampState('et');
+        return (wide.state === 'fits' && wide.hidden && narrow.state === 'clamped' && !narrow.hidden) || JSON.stringify({ wide, narrow });
+    });
+}
+
+group('panel collapsible');
+{
+    const panelState = (id) => page.evaluate((i) => {
+        const button = document.getElementById(`${i}-button`);
+        const body = document.getElementById(`${i}-body`);
+        return { expanded: button.getAttribute('aria-expanded'), controls: button.getAttribute('aria-controls') === body.id, visible: getComputedStyle(body).visibility, height: Math.round(body.getBoundingClientRect().height), heading: button.parentElement.tagName };
+    }, id);
+    await check('the header is a button inside the heading, open as PHP drew it', async () => {
+        const s = await panelState('pc');
+        return (s.expanded === 'true' && s.controls && s.visible === 'visible' && s.height > 0 && s.heading === 'H2') || JSON.stringify(s);
+    });
+    await check('a press closes it and says `collapse` with its name; another opens it with `expand`', async () => {
+        await page.evaluate(() => { window.panelEvents = []; });
+        await page.click('#pc-button');
+        await settle(500);
+        const shut = await panelState('pc');
+        await page.click('#pc-button');
+        await settle(500);
+        const open = await panelState('pc');
+        const said = await page.evaluate(() => window.panelEvents.join());
+        return (shut.expanded === 'false' && shut.visible === 'hidden' && shut.height === 0 && open.expanded === 'true' && said === 'collapse:billing,expand:billing')
+            || JSON.stringify({ shut, open, said });
+    });
+    await check('closed by PHP: what is inside is out of the Tab order', async () => {
+        await page.focus('#pc-closed-button');
+        await page.keyboard.press('Tab');
+        return (await active()) === 'pc-after' || `Tab went to ${await active()}`;
+    });
+}
+
 // ---------------------------------------------------------------- focus indicators
 
 /*
@@ -4364,6 +4795,13 @@ const segMarkup = [
     specimens.match(/<div class="mt-6" id="seg-links"[\s\S]*?<\/nav>\s*<\/div>/)?.[0],
 ].join('');
 const chartsMarkup = specimens.match(/<div class="mt-6 w-\[640px\]" id="charts"[\s\S]*?<!-- \/charts -->/)?.[0];
+// The lists, the code block and the expandable text, cut out for a host with
+// no Alpine at all: each must read and work as plain HTML.
+const listsMarkup = [
+    specimens.match(/<div class="mt-6 w-\[640px\]" id="lists"[\s\S]*?<!-- \/lists -->/)?.[0],
+    specimens.match(/<div class="mt-6 w-\[480px\]" id="code"[\s\S]*?<\/figure>\s*<\/div>/)?.[0],
+    specimens.match(/<div class="mt-6 w-64" id="et-box"[\s\S]*?Short enough\.[\s\S]*?<\/button>\s*<\/div>\s*<\/div>/)?.[0],
+].join('');
 const clipMarkup = specimens.match(/<div class="mt-6" id="clip"[\s\S]*?<\/span>\s*<\/div>/)?.[0];
 
 const hostPages = {
@@ -4429,6 +4867,10 @@ ${include}
 <style>${css}</style>
 <script defer src="alpine.js"></script>
 </head><body>${chartsMarkup}</body></html>`,
+
+    'lists-static.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+</head><body>${listsMarkup}</body></html>`,
 
     'charts-static.html': `<!doctype html><html><head><meta charset="utf-8">
 <style>${css}</style>
@@ -4560,7 +5002,7 @@ group('host setup (b): Alpine bundled by the host, Alpine.plugin(bladeUi)');
     await check('the plugin works', () => copiesOn(tab));
     await check('plugin twice plus the include: each name registered exactly once', async () => {
         const names = await tab.evaluate(() => window.dsRegistered);
-        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme', 'dsDismiss', 'dsConfirm', 'dsHold', 'dsConfirmDialog', 'dsRoll'];
+        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme', 'dsDismiss', 'dsConfirm', 'dsHold', 'dsConfirmDialog', 'dsRoll', 'dsClamp', 'dsClear', 'dsTree'];
         return JSON.stringify(names) === JSON.stringify(expected) || `registered ${JSON.stringify(names)}`;
     });
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
@@ -5195,6 +5637,41 @@ group('counter re-rendered by a morph in a host WITHOUT the script (the roll is 
         return (!rolled && s.face === '1,003' && s.text === '1,003') || `${JSON.stringify(s)}, rolled ${rolled}`;
     });
     await check('nothing in the console: a skipped roll is not an error', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+
+group('tree, code block and expandable text with no Alpine at all (the script is an enhancement)');
+{
+    const { tab, errors } = await openHost('lists-static.html');
+
+    await check('the markup reached the page', async () =>
+        (await tab.locator('#tr-files, #tr-nav, #cb, #et').count()) === 4 || 'a specimen was not found in the rendered page');
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await check('a file tree is one Tab stop; every link in a navigation tree is its own, closed folders skipped', async () => {
+        await tab.focus('#lists-before');
+        const stops = [];
+        for (let i = 0; i < 8; i++) {
+            await tab.keyboard.press('Tab');
+            const at = await tab.evaluate(() => document.activeElement.dataset.dsTreeValue ?? document.activeElement.id);
+            stops.push(at);
+            if (at === 'lists-after-nav') break;
+        }
+        return stops.join() === 'app,Guides,Install,Upgrade,Reference,API,lists-after-nav' || stops.join();
+    });
+    await check('the expandable text is all there, no button', async () => {
+        const r = await tab.evaluate(() => {
+            const body = document.querySelector('#et [data-ds-clamp-body]');
+            return { full: body.scrollHeight <= body.clientHeight + 1, toggles: [...document.querySelectorAll('[data-ds-clamp-toggle]')].filter((t) => t.offsetParent !== null).length };
+        });
+        return (r.full && r.toggles === 0) || JSON.stringify(r);
+    });
+    await check('the code block scrolls inside its limit, with no Show more', async () => {
+        const r = await tab.evaluate(() => {
+            const pre = document.querySelector('#cb pre');
+            return { capped: pre.scrollHeight > pre.clientHeight, scrolls: getComputedStyle(pre).overflowY };
+        });
+        return (r.capped && r.scrolls === 'auto') || JSON.stringify(r);
+    });
     await tab.close();
 }
 

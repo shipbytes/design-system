@@ -16,6 +16,19 @@
      *   plain — a single padded region, for free-form content
      */
     'body' => 'rows',
+    /**
+     * The header becomes a button that shows and hides the body. Needs a
+     * `title`, and Alpine to toggle; the state below is rendered by PHP.
+     */
+    'collapsible' => false,
+    /** With `collapsible`: whether the body starts shown. */
+    'open' => true,
+    /**
+     * With `collapsible`: a stable key for this panel, sent with the
+     * `expand` and `collapse` events so the host can remember the choice and
+     * render `open` from it next time. Also names the button and body ids.
+     */
+    'name' => null,
 ])
 
 @php
@@ -49,6 +62,9 @@
         : 'rounded-control border border-border bg-surface text-fg-body';
 @endphp
 
+@if ($collapsible)
+    @include('ds::partials.panel-collapsible')
+@else
 <div {{ $attributes->merge(['class' => $shell]) }}>
     @if ($title || $action || isset($header))
         <div @class([
@@ -106,3 +122,4 @@
         {{ $slot }}
     </div>
 </div>
+@endif
