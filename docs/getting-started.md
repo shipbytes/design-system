@@ -194,6 +194,9 @@ use the component.
 | `dsToolbar` | Behind `ds::toolbar`. One Tab stop for the toolbar, with the arrow keys, Home and End moving between its buttons. |
 | `dsToggleGroup` | Behind `ds::toggle-group`. Presses and releases toggles, keeps the hidden inputs and the ARIA state in step, binds `wire:model` / `x-model` both ways, and gives a group outside a toolbar its own arrow keys. |
 | `x-ds-glide` | A directive, behind `ds::segmented-control`, `ds::toolbar` and `ds::toggle-group`: the highlight that slides to the chosen item, or with `.hover` follows the pointer and keyboard focus. |
+| `dsPopover` | Behind `ds::popover`. Opens and closes it from its trigger, keeps the trigger's `aria-expanded` in step, moves focus in on open and back on Escape, and closes on Escape, a press outside, or focus leaving. Binds the host's `open` both ways through `dsOpen`. |
+| `dsHoverCard` | Behind `ds::hover-card`. Opens the card after the pointer or keyboard focus rests on the trigger for 500 ms, keeps it open while the pointer crosses into it, closes it 300 ms after both are left or at once on Escape, and never opens it on touch. |
+| `x-ds-anchor` | A directive, behind `ds::popover` and `ds::hover-card`, and yours for an overlay of your own: `x-ds-anchor="{ open: …, reference: …, placement: 'bottom-start' }"`. Places the panel beside its reference with `position: fixed`, so an ancestor's `overflow: hidden` cannot clip it; flips to the other side when the preferred one lacks room, shifts to stay 8 px inside the viewport, and caps the height with a scroll when neither side fits. Follows scrolling and resizing while `open` is true. Writes the side it took as `data-side`. |
 
 ### When it is missing
 
@@ -242,10 +245,12 @@ How you decide to put it there is yours: a user setting, a cookie, or
 `illuminate/view` and `blade-heroicons`, and nothing else. Every component works
 in a plain Blade view.
 
-Seventeen need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
+Twenty need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
 framework: **modal, drawer, sheet, dropdown, select, combobox, date-picker,
-accordion, file-upload, tooltip, otp-input, tag-input, number-field,
-password-strength, copy-button, toolbar, toggle-group**.
+accordion, file-upload, tooltip, sub-nav, otp-input, tag-input, number-field,
+password-strength, copy-button, toolbar, toggle-group, popover, hover-card**.
+`sub-nav` only to open and close: without Alpine, the section holding the
+current page is open and the rest are closed, as the server rendered them.
 
 Four more use it for **one optional prop** each, and work without it otherwise:
 `checkbox`'s `indeterminate`, `nav-item`'s `collapsedWhen`, `toast`'s
@@ -262,12 +267,12 @@ the top on a page change, and get it from Livewire.
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
 ```
 
-Seven of them, **otp-input, tag-input, number-field, password-strength,
-copy-button, toolbar and toggle-group**, and
+Nine of them, **otp-input, tag-input, number-field, password-strength,
+copy-button, toolbar, toggle-group, popover and hover-card**, and
 `input`'s `reveal`, need Alpine **and** [`<x-ds::scripts />`](#3-add-the-script)
 above it, and say so on their page.
 
-**You do not need to add an `[x-cloak]` rule.** Nine components hide themselves
+**You do not need to add an `[x-cloak]` rule.** Twelve components hide themselves
 with `x-cloak` until Alpine boots, and Alpine does not ship the CSS rule that
 makes the attribute mean anything — every project is normally expected to write
 it by hand. Since it is *our* components that break without it, `theme.css`

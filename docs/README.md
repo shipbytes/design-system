@@ -1,6 +1,6 @@
 # Shipbytes Blade UI — documentation
 
-Sixty-four Blade components for Laravel, plus two pagination views. Presentation
+Sixty-seven Blade components for Laravel, plus two pagination views. Presentation
 only: no state, no framework assumptions beyond Blade itself.
 
 **New here?** Start with [Getting started](getting-started.md) — install, three
@@ -42,7 +42,7 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | | |
 |---|---|
 | [Panel](components/panel.md) | Bordered card, with rows or free-form |
-| [Table](components/table.md) | Rows of records, scrolling in its own box |
+| [Table](components/table.md) | Rows of records, scrolling in its own box, with sortable headers |
 | [Stat tile](components/stat-tile.md) | One number, with its change |
 | [Accordion](components/accordion.md) | Sections that expand one at a time — needs Alpine |
 | [Empty state](components/empty-state.md) | What a region says when it has nothing |
@@ -55,6 +55,7 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | | |
 |---|---|
 | [Nav item](components/nav-item.md) | A row in the sidebar rail |
+| [Sub-nav](components/sub-nav.md) | A rail section holding its pages — needs Alpine |
 | [Bottom nav](components/bottom-nav.md) | The phone's primary navigation |
 | [Tabs](components/tabs.md) | One row, several views |
 | [Breadcrumb](components/breadcrumb.md) | Where this page sits |
@@ -69,6 +70,8 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Drawer](components/drawer.md) | An edge panel to work in — Alpine |
 | [Sheet](components/sheet.md) | The mobile form of either — Alpine |
 | [Dropdown](components/dropdown.md) | A menu of actions — Alpine |
+| [Popover](components/popover.md) | Anything else anchored to a button: fields, a form — needs Alpine and the script |
+| [Hover card](components/hover-card.md) | A preview of a person or a link on hover or focus — needs Alpine and the script |
 | [Tooltip](components/tooltip.md) | A short label on hover or focus — Alpine |
 | [Toast](components/toast.md) | Something already happened |
 

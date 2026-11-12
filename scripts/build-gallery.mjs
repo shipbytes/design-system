@@ -159,7 +159,10 @@ const typeRows = TYPE_ORDER.map((name) => {
 
 // ---------------------------------------------------------------- 4. page
 
-const page = `<title>Shipbytes Component Gallery</title>
+// Opened from disk, a page without a charset is read as windows-1252 and every
+// £, – or … in a plate shows as two or three wrong characters.
+const page = `<meta charset="utf-8">
+<title>Shipbytes Component Gallery</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -364,6 +367,8 @@ table.ref .samp { color: var(--g-ink); font-family: Inter, ui-sans-serif, system
       <a href="#alert">Alert</a>
       <a href="#modal">Modal</a>
       <a href="#dropdown">Dropdown</a>
+      <a href="#popover">Popover</a>
+      <a href="#hover-card">Hover card</a>
       <a href="#drawer">Drawer</a>
       <a href="#select">Select</a>
       <a href="#choice">Choice</a>
@@ -389,6 +394,8 @@ table.ref .samp { color: var(--g-ink); font-family: Inter, ui-sans-serif, system
       <a href="#table">Table</a>
       <a href="#pagination">Pagination</a>
       <a href="#nav-item">Nav item</a>
+      <a href="#sub-nav">Sub-nav</a>
+      <a href="#bottom-nav-item">Bottom nav</a>
       <a href="#in-situ">Together</a>
       <a href="#tokens">Tokens</a>
     </nav>

@@ -363,6 +363,154 @@
         <button type="button" id="glide-grow" @click="document.getElementById('glide-c').textContent = 'Charlie, now much longer'">grow</button>
     </div>
 
+    {{-- ── x-ds-anchor on its own, in markup no component wrote ──
+         Each panel sits inside a box that would defeat it: one clips with
+         overflow hidden, one is transformed and so becomes the containing
+         block of anything fixed inside it. The panels carry absolute
+         fallback classes, as the overlays that will adopt this do. The wide
+         panel is wider than the room to the right of its reference, and the
+         tall one is taller than the window. --}}
+    <div class="mt-6" x-data="{ anchorOpen: false, anchorWide: false, anchorTall: false, anchorBoxed: false }">
+        <div id="anchor-clip" class="relative h-10 w-64 overflow-hidden border border-border">
+            <button type="button" id="anchor-ref" @click="anchorOpen = ! anchorOpen">Anchor</button>
+            <div id="anchor-panel" x-show="anchorOpen" x-ds-anchor="{ open: anchorOpen, reference: $el.previousElementSibling, placement: 'bottom-start' }"
+                class="absolute top-full left-0 z-50 mt-2 h-40 w-48 border border-border bg-surface">Panel</div>
+        </div>
+        <div class="flex justify-end">
+            <button type="button" id="anchor-wide-ref" @click="anchorWide = ! anchorWide">Wide</button>
+            <div id="anchor-wide" x-show="anchorWide" x-ds-anchor="{ open: anchorWide, reference: $el.previousElementSibling, placement: 'bottom-start' }"
+                class="absolute z-50 h-20 w-[30rem] border border-border bg-surface">Wide panel</div>
+        </div>
+        <div>
+            <button type="button" id="anchor-tall-ref" @click="anchorTall = ! anchorTall">Tall</button>
+            <div id="anchor-tall" x-show="anchorTall" x-ds-anchor="{ open: anchorTall, reference: $el.previousElementSibling, placement: 'bottom-start' }"
+                class="absolute z-50 h-[1400px] w-48 border border-border bg-surface">Tall panel</div>
+        </div>
+        <div id="anchor-transformed" class="ml-24 mt-4 h-10 w-64 [transform:translateZ(0)]">
+            <button type="button" id="anchor-boxed-ref" @click="anchorBoxed = ! anchorBoxed">Boxed</button>
+            <div id="anchor-boxed" x-show="anchorBoxed" x-ds-anchor="{ open: anchorBoxed, reference: $el.previousElementSibling, placement: 'right-start', offset: 4 }"
+                class="absolute z-50 h-24 w-40 border border-border bg-surface">Boxed panel</div>
+        </div>
+    </div>
+
+    {{-- ── popover (dsPopover, x-ds-anchor) ──
+         One that scopes its own state, one the host owns and closes from a
+         button inside it, a nested pair with a combobox in the outer one, one
+         that is not dismissible and holds nothing focusable, and one with no
+         name of its own at the right edge of a clipping box, for the edge
+         check at the end of the run. --}}
+    <div class="mt-6 flex items-center gap-4" x-data="{ shareOpen: false }">
+        <x-ds::popover label="Filters" id="pop-filters">
+            <x-slot:trigger>
+                <x-ds::button id="pop-trigger" variant="secondary" size="sm">Filters</x-ds::button>
+            </x-slot:trigger>
+            <x-ds::checkbox name="pop-failed" id="pop-first" label="Only failed runs" />
+            <x-ds::button id="pop-last" size="sm" class="mt-3">Apply</x-ds::button>
+        </x-ds::popover>
+        <button type="button" id="pop-after">After</button>
+
+        <x-ds::popover labelledby="pop-share-title" open="shareOpen" id="pop-share">
+            <x-slot:trigger>
+                <x-ds::button id="pop-share-trigger" size="sm">Share</x-ds::button>
+            </x-slot:trigger>
+            <h3 id="pop-share-title">Share this report</h3>
+            <x-ds::button id="pop-share-done" size="sm" @click="shareOpen = false">Done</x-ds::button>
+        </x-ds::popover>
+        <output id="pop-share-mirror" x-text="String(shareOpen)">false</output>
+        <button type="button" id="pop-share-host" @click="shareOpen = true">host opens</button>
+    </div>
+
+    <div class="mt-6">
+        <x-ds::popover label="Outer" id="pop-outer" width="lg">
+            <x-slot:trigger>
+                <x-ds::button id="pop-outer-trigger" size="sm">Outer</x-ds::button>
+            </x-slot:trigger>
+            <x-ds::popover label="Inner" id="pop-inner" placement="right-start">
+                <x-slot:trigger>
+                    <x-ds::button id="pop-inner-trigger" variant="secondary" size="sm">Inner</x-ds::button>
+                </x-slot:trigger>
+                <button type="button" id="pop-inner-button">Inside inner</button>
+            </x-ds::popover>
+            <x-ds::combobox name="pop-tags" id="pop-tags" label="Tags" class="mt-3"
+                :options="['a11y' => 'Accessibility', 'billing' => 'Billing']" :multiple="true" />
+        </x-ds::popover>
+    </div>
+
+    <div class="mt-6">
+        <x-ds::popover label="Pinned" id="pop-pinned" :dismissible="false" width="sm">
+            <x-slot:trigger>
+                <button type="button" id="pop-pinned-trigger">Pinned</button>
+            </x-slot:trigger>
+            Nothing focusable in here.
+        </x-ds::popover>
+    </div>
+
+    <div class="mt-6 flex h-10 justify-end overflow-hidden border border-border" id="pop-edge-box">
+        <x-ds::popover id="pop-edge" width="lg">
+            <x-slot:trigger>
+                <x-ds::button id="pop-edge-trigger" size="sm">Edge</x-ds::button>
+            </x-slot:trigger>
+            <p class="h-40">Named by its trigger, since it has no name of its own.</p>
+        </x-ds::popover>
+    </div>
+
+    {{-- ── sortable table: plain links, no script ──
+         The hrefs are fragments, so a press stays on the page and the test
+         reads where it went. --}}
+    <div class="mt-6 max-w-lg">
+        <x-ds::table id="sort-table" sort="total" direction="desc" sortUrl="#sort-{key}-{direction}" :columns="[
+            ['label' => 'Report', 'key' => 'name', 'sortable' => true],
+            ['label' => 'Total', 'key' => 'total', 'align' => 'right', 'sortable' => true],
+        ]">
+            <x-ds::table-row>
+                <x-ds::table-cell>Q3 revenue</x-ds::table-cell>
+                <x-ds::table-cell align="right">£1,200</x-ds::table-cell>
+            </x-ds::table-row>
+        </x-ds::table>
+    </div>
+
+    {{-- ── sub-nav (inline Alpine) ──
+         A rail the test can collapse: one section holding the current page,
+         one that starts closed. --}}
+    <nav id="sub-rail" aria-label="Sub-nav specimen" class="mt-6 w-56" x-data="{ subRailCollapsed: false }">
+        <x-ds::sub-nav id="sub-reports" label="Reports" collapsedWhen="subRailCollapsed">
+            <x-slot:icon><x-ds::icon name="chart-bar" /></x-slot:icon>
+            <x-ds::nav-item href="#sub-revenue" label="Revenue" collapsedWhen="subRailCollapsed" />
+            <x-ds::nav-item href="#sub-churn" label="Churn" :active="true" collapsedWhen="subRailCollapsed" />
+        </x-ds::sub-nav>
+        <x-ds::sub-nav id="sub-settings" label="Settings" collapsedWhen="subRailCollapsed">
+            <x-slot:icon><x-ds::icon name="cog" /></x-slot:icon>
+            <x-ds::nav-item href="#sub-profile" label="Profile" collapsedWhen="subRailCollapsed" />
+            <x-ds::nav-item href="#sub-billing" label="Billing" collapsedWhen="subRailCollapsed" />
+        </x-ds::sub-nav>
+        <button type="button" id="sub-rail-toggle" @click="subRailCollapsed = ! subRailCollapsed">Collapse the rail</button>
+    </nav>
+
+    {{-- ── hover card (dsHoverCard, x-ds-anchor) ──
+         Inside running text, as a name in a sentence, with a link in the
+         card for Tab to reach; and one at the right edge of a clipping box,
+         for the edge check at the end of the run. --}}
+    <div class="mt-6">
+        <button type="button" id="hc-before">before</button>
+        <p id="hc-prose" class="mt-2">
+            Assigned to
+            <x-ds::hover-card id="hc-card">
+                <x-slot:trigger><a href="#ada" id="hc-trigger">Ada Lovelace</a></x-slot:trigger>
+                <span class="block font-medium text-fg">Ada Lovelace</span>
+                <a href="#ada-profile" id="hc-link" class="text-meta">View profile</a>
+            </x-ds::hover-card>
+            since Monday. <a href="#after" id="hc-after">After</a>
+        </p>
+        <button type="button" id="hc-away" class="mt-16">elsewhere</button>
+    </div>
+
+    <div class="mt-6 flex h-10 justify-end overflow-hidden border border-border">
+        <x-ds::hover-card id="hc-edge" width="lg">
+            <x-slot:trigger><a href="#edge" id="hc-edge-trigger">Edge person</a></x-slot:trigger>
+            <span class="block h-40">A tall card.</span>
+        </x-ds::hover-card>
+    </div>
+
     {{-- ── dsClipboard, from the shared script ──
          No component uses it yet, so this is the markup a component would
          emit, through the same helper. --}}

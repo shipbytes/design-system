@@ -561,6 +561,33 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── table-sortable
+     Sorted by Total, descending. Report is sortable too, and shows its arrow
+     only under the pointer or keyboard focus, which one image of two panes
+     cannot hold in both. --}}
+<div data-shot="table-sortable" class="shot shot-wide">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <x-ds::table sort="total" direction="desc" sortUrl="#{key}-{direction}" :columns="[
+                ['label' => 'Report', 'key' => 'name', 'sortable' => true],
+                ['label' => 'Status', 'width' => 'w-32'],
+                ['label' => 'Total', 'key' => 'total', 'align' => 'right', 'sortable' => true],
+            ]">
+                <x-ds::table-row>
+                    <x-ds::table-cell>Q3 revenue</x-ds::table-cell>
+                    <x-ds::table-cell :nowrap="true"><x-ds::badge tone="success">Ready</x-ds::badge></x-ds::table-cell>
+                    <x-ds::table-cell align="right" class="tabular-nums">£12,400</x-ds::table-cell>
+                </x-ds::table-row>
+                <x-ds::table-row>
+                    <x-ds::table-cell>Churn by cohort</x-ds::table-cell>
+                    <x-ds::table-cell :nowrap="true"><x-ds::badge tone="warning">Running</x-ds::badge></x-ds::table-cell>
+                    <x-ds::table-cell align="right" class="tabular-nums">£3,150</x-ds::table-cell>
+                </x-ds::table-row>
+            </x-ds::table>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── tabs --}}
 <div data-shot="tabs" class="shot">
     @foreach ($themes as $t)
@@ -607,6 +634,37 @@
                     <x-slot:icon><x-ds::icon name="users" /></x-slot:icon>
                 </x-ds::nav-item>
             </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── sub-nav
+     The same rail twice: expanded, with the current page's section open and
+     another closed, and collapsed to icons, where each section is a link. --}}
+<div data-shot="sub-nav" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }} flex items-start gap-4">
+            @foreach ([false, true] as $collapsed)
+                <div x-data="{ railCollapsed: @js($collapsed) }" @class(['rounded-panel border border-border bg-surface p-2', 'w-56' => ! $collapsed])>
+                    <x-ds::nav-item href="#" label="Dashboard" collapsedWhen="railCollapsed">
+                        <x-slot:icon><x-ds::icon name="home" /></x-slot:icon>
+                    </x-ds::nav-item>
+                    <x-ds::sub-nav label="Reports" collapsedWhen="railCollapsed">
+                        <x-slot:icon><x-ds::icon name="chart-bar" /></x-slot:icon>
+                        <x-ds::nav-item href="#" label="Revenue" collapsedWhen="railCollapsed" />
+                        <x-ds::nav-item href="#" label="Churn" :active="true" collapsedWhen="railCollapsed" />
+                        <x-ds::nav-item href="#" label="Usage" collapsedWhen="railCollapsed" />
+                    </x-ds::sub-nav>
+                    <x-ds::sub-nav label="Settings" collapsedWhen="railCollapsed">
+                        <x-slot:icon><x-ds::icon name="cog" /></x-slot:icon>
+                        <x-ds::nav-item href="#" label="Profile" collapsedWhen="railCollapsed" />
+                        <x-ds::nav-item href="#" label="Billing" collapsedWhen="railCollapsed" />
+                    </x-ds::sub-nav>
+                    <x-ds::nav-item href="#" label="Team" collapsedWhen="railCollapsed">
+                        <x-slot:icon><x-ds::icon name="users" /></x-slot:icon>
+                    </x-ds::nav-item>
+                </div>
+            @endforeach
         </div>
     @endforeach
 </div>
@@ -730,6 +788,61 @@
                     <x-ds::dropdown-item icon="trash" tone="danger" as="button">Delete</x-ds::dropdown-item>
                 </x-ds::dropdown>
             </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── popover
+     Open from the host's `shown`, which is true from the start, so it takes
+     no focus and both panes hold one open at once. --}}
+<div data-shot="popover" class="shot shot-tall">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex justify-center">
+                <x-ds::popover open="shown" labelledby="pop-title-{{ $loop->index }}" placement="bottom">
+                    <x-slot:trigger>
+                        <x-ds::button variant="secondary" size="sm">
+                            Filters <x-ds::icon name="chevron-down" variant="mini" size="4" />
+                        </x-ds::button>
+                    </x-slot:trigger>
+                    <h3 id="pop-title-{{ $loop->index }}" class="text-section font-semibold text-fg">Filter runs</h3>
+                    <div class="mt-3 flex flex-col gap-2">
+                        <x-ds::checkbox name="pf{{ $loop->index }}" label="Only failed runs" :checked="true" />
+                        <x-ds::checkbox name="pa{{ $loop->index }}" label="Include archived" />
+                    </div>
+                    <div class="mt-4 flex justify-end gap-2">
+                        <x-ds::button variant="ghost" size="sm">Reset</x-ds::button>
+                        <x-ds::button size="sm">Apply</x-ds::button>
+                    </div>
+                </x-ds::popover>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── hover-card
+     Opened the way a reader opens it, by resting the pointer on the name:
+     build-docs.mjs operates it and waits out the delay. --}}
+<div data-shot="hover-card" class="shot shot-tall">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <p class="text-body text-fg-body">
+                Assigned to
+                <x-ds::hover-card>
+                    <x-slot:trigger>
+                        <a href="#" data-shot-hover class="font-medium text-fg underline decoration-border-strong underline-offset-4">Ada Lovelace</a>
+                    </x-slot:trigger>
+                    <span class="flex items-center gap-3">
+                        <x-ds::avatar name="Ada Lovelace" />
+                        <span class="min-w-0">
+                            <span class="block font-medium text-fg">Ada Lovelace</span>
+                            <span class="block text-meta text-fg-muted">Analyst, Engines team</span>
+                        </span>
+                    </span>
+                    <span class="mt-3 block text-meta">Owns the quarterly revenue and churn reports. Usually replies within a day.</span>
+                </x-ds::hover-card>
+                since Monday.
+            </p>
         </div>
     @endforeach
 </div>

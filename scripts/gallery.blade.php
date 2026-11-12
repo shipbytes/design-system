@@ -847,6 +847,31 @@
     </div>
 
     <div class="{{ $plate }}">
+        <div class="ds-plate-label">Sortable <span>&middot; sorted by Joined, newest first &middot; hover or tab to User or Projects for their faint arrow</span></div>
+        <div>
+            <x-ds::table sort="joined" direction="desc" sortUrl="#table" :columns="[
+                ['label' => 'User', 'key' => 'name', 'sortable' => true],
+                ['label' => 'Role', 'width' => 'w-24'],
+                ['label' => 'Projects', 'key' => 'projects', 'align' => 'right', 'width' => 'w-28', 'sortable' => true],
+                ['label' => 'Joined', 'key' => 'joined', 'width' => 'w-36', 'sortable' => true],
+            ]">
+                @foreach ([
+                    ['Tobias Okonkwo', 'User', '2', 'Aug 19, 2026'],
+                    ['Amara Reyes', 'Admin', '14', 'Mar 04, 2026'],
+                    ['Sunniva Kall', 'User', '7', 'Jan 22, 2026'],
+                ] as [$name, $role, $count, $joined])
+                    <x-ds::table-row>
+                        <x-ds::table-cell class="font-medium text-fg">{{ $name }}</x-ds::table-cell>
+                        <x-ds::table-cell>{{ $role }}</x-ds::table-cell>
+                        <x-ds::table-cell align="right" class="tabular-nums">{{ $count }}</x-ds::table-cell>
+                        <x-ds::table-cell :nowrap="true">{{ $joined }}</x-ds::table-cell>
+                    </x-ds::table-row>
+                @endforeach
+            </x-ds::table>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
         <div class="ds-plate-label">Empty <span>&middot; the header stays &mdash; the reader needs to know what is empty</span></div>
         <div>
             <x-ds::table :columns="['User', ['label' => 'Role', 'width' => 'w-24'], ['label' => 'Joined', 'width' => 'w-36']]">
@@ -932,6 +957,47 @@
                     <x-slot:icon><x-ds::icon name="chart-bar" size="3" /></x-slot:icon>
                 </x-ds::nav-item>
             </div>
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Sub-nav --}}
+<section class="ds-spec" id="sub-nav">
+    <header class="ds-spec-head">
+        <h2>Sub-nav</h2>
+        <p>A rail item that holds the pages belonging to it. The children are ordinary nav items, indented under a guide line.</p>
+    </header>
+
+    <div class="ds-note">Two different facts, two different marks: the page you are on is the raised card; the section it sits in is drawn at full strength, no card. The open and closed states are rendered by the server, which is why this page shows them without Alpine.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Expanded <span>&middot; the current page&rsquo;s section open, another closed</span></div>
+        <div class="max-w-64 rounded-panel bg-surface p-2">
+            <x-ds::nav-item href="#sub-nav" label="Home">
+                <x-slot:icon><x-ds::icon name="home" /></x-slot:icon>
+            </x-ds::nav-item>
+            <x-ds::sub-nav label="Reports">
+                <x-slot:icon><x-ds::icon name="chart-bar" /></x-slot:icon>
+                <x-ds::nav-item href="#sub-nav" label="Revenue" />
+                <x-ds::nav-item href="#sub-nav" label="Churn" :active="true" />
+                <x-ds::nav-item href="#sub-nav" label="Usage" />
+            </x-ds::sub-nav>
+            <x-ds::sub-nav label="Settings">
+                <x-slot:icon><x-ds::icon name="cog" /></x-slot:icon>
+                <x-ds::nav-item href="#sub-nav" label="Profile" />
+                <x-ds::nav-item href="#sub-nav" label="Billing" />
+            </x-ds::sub-nav>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Chipped <span>&middot; the admin rail, opened with <code>:open="true"</code> though nothing in it is current</span></div>
+        <div class="max-w-64 rounded-panel bg-surface p-2">
+            <x-ds::sub-nav label="Users" :chip="true" :open="true">
+                <x-slot:icon><x-ds::icon name="users" size="3" /></x-slot:icon>
+                <x-ds::nav-item href="#sub-nav" label="Members" />
+                <x-ds::nav-item href="#sub-nav" label="Invitations" />
+            </x-ds::sub-nav>
         </div>
     </div>
 </section>
@@ -1167,6 +1233,72 @@
                 <x-ds::dropdown-item icon="document-text" href="#dropdown">PDF</x-ds::dropdown-item>
             </x-ds::dropdown>
         </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Popover --}}
+<section class="ds-spec" id="popover">
+    <header class="ds-spec-head">
+        <h2>Popover</h2>
+        <p>A small panel of anything, anchored to the button that opened it: filters, a share form, a few settings. A non-modal dialog &mdash; the dropdown stays a menu.</p>
+    </header>
+
+    <div class="ds-note">The gallery loads <em>no Alpine</em>, so these panels stay closed: they are <em>x-cloak</em>ed until Alpine shows them, and placed by the package's script. The open panel, flipped and on screen, is in the documentation screenshot and driven by the behaviour suite.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Triggers <span>&middot; your own button; the popover gives it aria-expanded and aria-controls</span></div>
+        <div class="{{ $row }}">
+            <x-ds::popover label="Filters">
+                <x-slot:trigger>
+                    <x-ds::button variant="secondary" size="sm">
+                        Filters
+                        <x-ds::icon name="chevron-down" variant="mini" size="4" />
+                    </x-ds::button>
+                </x-slot:trigger>
+                <x-ds::checkbox name="g-pop-failed" label="Only failed runs" />
+            </x-ds::popover>
+            <x-ds::popover labelledby="g-pop-share" placement="bottom-end" width="lg">
+                <x-slot:trigger>
+                    <x-ds::button size="sm">Share</x-ds::button>
+                </x-slot:trigger>
+                <h3 id="g-pop-share" class="text-section font-semibold text-fg">Share this report</h3>
+            </x-ds::popover>
+            <x-ds::popover label="Column settings" placement="right-start" width="sm">
+                <x-slot:trigger>
+                    <x-ds::button variant="ghost" size="sm" iconOnly aria-label="Column settings">
+                        <x-ds::icon name="cog" size="4" />
+                    </x-ds::button>
+                </x-slot:trigger>
+                <x-ds::checkbox name="g-pop-col" label="Show totals" />
+            </x-ds::popover>
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Hover card --}}
+<section class="ds-spec" id="hover-card">
+    <header class="ds-spec-head">
+        <h2>Hover card</h2>
+        <p>A look at where a link goes, on hover or keyboard focus, after half a second. Supplementary by contract: the trigger is untouched, a tap still follows it, and nothing in the card is only in the card.</p>
+    </header>
+
+    <div class="ds-note">With <em>no Alpine</em> here the cards stay closed; the triggers are your own links, unchanged. The open card is in the documentation screenshot.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">In running text <span>&middot; spans throughout, so it can sit inside a paragraph</span></div>
+        <p class="text-body text-fg-body">
+            Assigned to
+            <x-ds::hover-card>
+                <x-slot:trigger><a href="#hover-card" class="font-medium text-fg underline underline-offset-4">Ada Lovelace</a></x-slot:trigger>
+                <span class="block font-medium text-fg">Ada Lovelace</span>
+                <span class="block text-meta text-fg-muted">Analyst, Engines team</span>
+            </x-ds::hover-card>
+            and reviewed by
+            <x-ds::hover-card placement="top" width="sm">
+                <x-slot:trigger><a href="#hover-card" class="font-medium text-fg underline underline-offset-4">Grace Hopper</a></x-slot:trigger>
+                <span class="block font-medium text-fg">Grace Hopper</span>
+            </x-ds::hover-card>.
+        </p>
     </div>
 </section>
 

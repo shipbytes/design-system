@@ -146,7 +146,10 @@ for (const [ref, file] of [...fontCss.matchAll(/url\(\.\/files\/([^)]+)\)/g)].ma
     fontCss = fontCss.replace(ref, `url(data:font/woff2;base64,${data})`);
 }
 
-const page = `<style>
+// The charset is not optional: a file:// page without one is read as
+// windows-1252, and every literal £ or é in a specimen photographs as Â£, Ã©.
+const page = `<meta charset="utf-8">
+<style>
 ${fontCss}
 </style>
 <style>
@@ -242,6 +245,13 @@ const OPERATE = {
     select: async (pane) =>
         pane.locator('[data-ds-select-trigger]').dispatchEvent('click', { bubbles: false }),
     tooltip: async (pane) => pane.locator('[data-ds-tooltip]').dispatchEvent('mouseenter'),
+    // A mouse resting on the name, as dsHoverCard hears it: a pointerover
+    // that bubbles to the card's root, and then the half-second it waits
+    // before opening. Nothing at the document listens for pointerover.
+    'hover-card': async (pane) => {
+        await pane.locator('[data-shot-hover]').dispatchEvent('pointerover', { bubbles: true, pointerType: 'mouse' });
+        await tab.waitForTimeout(650);
+    },
     'date-picker': async (pane) =>
         pane.locator('[data-ds-date-trigger]').dispatchEvent('click', { bubbles: false }),
     combobox: async (pane) => pane.locator('input[type="text"]').dispatchEvent('focus'),

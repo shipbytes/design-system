@@ -133,7 +133,10 @@
             @focus="open = true"
             @click.stop="open = true"
             @keydown.arrow-down.prevent="open = true; $nextTick(() => $el.closest('[x-data]').querySelector('[role=option]')?.focus())"
-            @keydown.escape.stop="open = false"
+            {{-- Stopped only when it closes the list. With the list already
+                 closed, Escape belongs to whatever holds the field: a popover
+                 or a modal around it would otherwise never hear it. --}}
+            @keydown.escape="if (open) { $event.stopPropagation(); open = false }"
             {{-- Backspace on an empty query removes the last chip. Without it the
                  only way to undo a selection is to aim at a 12px ✕. --}}
             @keydown.backspace="if (multiple && query === '' && selected.length) selected = selected.slice(0, -1)"

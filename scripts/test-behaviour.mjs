@@ -153,7 +153,7 @@ const page = await context.newPage();
 const LARAVEL = 'http://localhost';
 const fromLaravel = [];
 
-await context.route(`${LARAVEL}/**`, async (route) => {
+const serveFromLaravel = async (route) => {
     const request = route.request();
     const headers = {};
     const etag = await request.headerValue('if-none-match');
@@ -168,7 +168,9 @@ await context.route(`${LARAVEL}/**`, async (route) => {
     fromLaravel.push({ path: new URL(request.url()).pathname, status: response.status, headers: response.headers, cookies: response.cookies });
 
     await route.fulfill({ status: response.status, headers: response.headers, body: Buffer.from(response.body, 'base64') });
-});
+};
+
+await context.route(`${LARAVEL}/**`, serveFromLaravel);
 
 const jsErrors = [];
 page.on('pageerror', (e) => jsErrors.push('uncaught: ' + e.message));
@@ -1594,6 +1596,558 @@ await check('with reduced motion it jumps', async () => {
     return duration === '0s' || `transition-duration ${duration}`;
 });
 
+// ---------------------------------------------------------------- anchor
+
+/** A panel's box, its reference's, the viewport, and the side it took. */
+const anchorBoxes = (panel, reference) => page.evaluate(([p, r]) => {
+    const el = document.querySelector(p);
+    const a = el.getBoundingClientRect();
+    const b = document.querySelector(r).getBoundingClientRect();
+    return {
+        panel: { left: a.left, top: a.top, right: a.right, bottom: a.bottom, width: a.width, height: a.height },
+        ref: { left: b.left, top: b.top, right: b.right, bottom: b.bottom },
+        vw: document.documentElement.clientWidth,
+        vh: document.documentElement.clientHeight,
+        side: el.dataset.side,
+        shown: getComputedStyle(el).display !== 'none',
+        // What is actually painted at the panel's centre: the panel, or
+        // whatever clipped it.
+        onTop: el.contains(document.elementFromPoint(a.left + a.width / 2, a.top + a.height / 2)),
+    };
+}, [panel, reference]);
+
+/** Inside the viewport, less the 8 px margin: true, or by how much it is not. */
+const insideViewport = (box, margin = 8) => {
+    const out = Math.max(
+        margin - box.panel.left,
+        margin - box.panel.top,
+        box.panel.right - (box.vw - margin),
+        box.panel.bottom - (box.vh - margin),
+    );
+    return out <= 0.5 || `${Math.round(out)}px outside the viewport less its margin`;
+};
+
+group('x-ds-anchor on its own (markup no component wrote)');
+
+await page.evaluate(() => document.getElementById('anchor-ref').scrollIntoView({ block: 'center' }));
+await settle(100);
+await page.click('#anchor-ref');
+await settle(250);
+
+await check('placed below its reference, start-aligned, 8 px off it', async () => {
+    const b = await anchorBoxes('#anchor-panel', '#anchor-ref');
+    if (!b.shown) return 'not shown';
+    if (b.side !== 'bottom') return `data-side is ${b.side}`;
+    const gap = Math.round(b.panel.top - b.ref.bottom);
+    const lean = Math.round(b.panel.left - b.ref.left);
+    return (gap === 8 && lean === 0) || `${gap}px below and ${lean}px across from the reference`;
+});
+
+await check('not clipped by the overflow-hidden box it sits in (position: fixed)', async () => {
+    const b = await anchorBoxes('#anchor-panel', '#anchor-ref');
+    const clip = await page.evaluate(() => document.getElementById('anchor-clip').getBoundingClientRect().bottom);
+    if (b.panel.bottom <= clip) return 'the panel never leaves the box, so this proves nothing';
+    return b.onTop || 'something else is painted where the panel is: the box clipped it';
+});
+
+await check('follows its reference on scroll', async () => {
+    await page.mouse.wheel(0, 120);
+    await settle(150);
+    const b = await anchorBoxes('#anchor-panel', '#anchor-ref');
+    const gap = Math.round(b.panel.top - b.ref.bottom);
+    return gap === 8 || `after scrolling it is ${gap}px below the reference`;
+});
+
+await check('flips above when the reference reaches the bottom of the window', async () => {
+    await page.evaluate(() => document.getElementById('anchor-ref').scrollIntoView({ block: 'end' }));
+    await settle(150);
+    const b = await anchorBoxes('#anchor-panel', '#anchor-ref');
+    if (b.side !== 'top') return `data-side is ${b.side}`;
+    const gap = Math.round(b.ref.top - b.panel.bottom);
+    if (gap !== 8) return `${gap}px above the reference`;
+    return insideViewport(b);
+});
+
+await check('stops listening once closed', async () => {
+    await page.click('#anchor-ref');
+    await settle(250);
+    const before = await page.evaluate(() => document.getElementById('anchor-panel').style.top);
+    await page.evaluate(() => document.getElementById('anchor-ref').scrollIntoView({ block: 'center' }));
+    await settle(150);
+    const after = await page.evaluate(() => document.getElementById('anchor-panel').style.top);
+    return before === after || `the closed panel moved from ${before} to ${after}`;
+});
+
+await check('shifts back inside the viewport when wider than the room beside its reference', async () => {
+    await page.evaluate(() => document.getElementById('anchor-wide-ref').scrollIntoView({ block: 'center' }));
+    await page.click('#anchor-wide-ref');
+    await settle(250);
+    const b = await anchorBoxes('#anchor-wide', '#anchor-wide-ref');
+    await page.click('#anchor-wide-ref');
+    await settle(200);
+    if (b.ref.left + b.panel.width < b.vw - 8) return 'there was room after all, so this proves nothing';
+    if (Math.round(b.panel.top - b.ref.bottom) !== 8) return 'it moved off its side';
+    return insideViewport(b);
+});
+
+await check('taller than the window: capped at the room there is, scrolling inside', async () => {
+    await page.evaluate(() => document.getElementById('anchor-tall-ref').scrollIntoView({ block: 'center' }));
+    await page.click('#anchor-tall-ref');
+    await settle(250);
+    const b = await anchorBoxes('#anchor-tall', '#anchor-tall-ref');
+    const style = await page.evaluate(() => getComputedStyle(document.getElementById('anchor-tall')).overflowY);
+    await page.click('#anchor-tall-ref');
+    await settle(200);
+    if (style !== 'auto') return `overflow-y is ${style}`;
+    return insideViewport(b);
+});
+
+await check('lands beside its reference inside a transformed ancestor (its containing block)', async () => {
+    await page.evaluate(() => document.getElementById('anchor-boxed-ref').scrollIntoView({ block: 'center' }));
+    await page.click('#anchor-boxed-ref');
+    await settle(250);
+    const b = await anchorBoxes('#anchor-boxed', '#anchor-boxed-ref');
+    await page.click('#anchor-boxed-ref');
+    await settle(200);
+    if (b.side !== 'right') return `data-side is ${b.side}`;
+    const gap = Math.round(b.panel.left - b.ref.right);
+    const lean = Math.round(b.panel.top - b.ref.top);
+    return (gap === 4 && lean === 0) || `${gap}px right of and ${lean}px down from the reference`;
+});
+
+// ---------------------------------------------------------------- popover
+
+const shownById = (id) => page.evaluate((i) => {
+    const el = document.getElementById(i);
+    return Boolean(el) && getComputedStyle(el).display !== 'none';
+}, id);
+const inside = (id) => page.evaluate((i) => document.getElementById(i).contains(document.activeElement), id);
+
+group('popover (dsPopover, x-ds-anchor)');
+
+await page.evaluate(() => document.getElementById('pop-trigger').scrollIntoView({ block: 'center' }));
+
+await check('closed on load, and the trigger says so and names the panel it controls', async () => {
+    const r = await page.evaluate(() => {
+        const t = document.getElementById('pop-trigger');
+        return { expanded: t.getAttribute('aria-expanded'), controls: t.getAttribute('aria-controls') };
+    });
+    if (await shownById('pop-filters')) return 'visible before opening';
+    return (r.expanded === 'false' && r.controls === 'pop-filters') || JSON.stringify(r);
+});
+
+await check('a press opens it, flips aria-expanded, and moves focus to the first control inside', async () => {
+    await page.click('#pop-trigger');
+    await settle(250);
+    if (!(await shownById('pop-filters'))) return 'not shown';
+    const expanded = await page.getAttribute('#pop-trigger', 'aria-expanded');
+    if (expanded !== 'true') return `aria-expanded is ${expanded}`;
+    return (await active()) === 'pop-first' || `focus on ${await active()}`;
+});
+
+await check('a named, NON-modal dialog', async () => {
+    const r = await page.evaluate(() => {
+        const p = document.getElementById('pop-filters');
+        return { role: p.getAttribute('role'), label: p.getAttribute('aria-label'), modal: p.getAttribute('aria-modal') };
+    });
+    return (r.role === 'dialog' && r.label === 'Filters' && r.modal === null) || JSON.stringify(r);
+});
+
+await check('Tab is not trapped: past the last control it leaves, and the panel closes', async () => {
+    await page.keyboard.press('Tab');
+    if ((await active()) !== 'pop-last') return `the second Tab stop was ${await active()}`;
+    await page.keyboard.press('Tab');
+    await settle(250);
+    if ((await active()) !== 'pop-after') return `focus went to ${await active()}`;
+    return (await shownById('pop-filters')) === false || 'still open after focus left';
+});
+
+await check('Escape closes it and returns focus to the trigger', async () => {
+    await page.click('#pop-trigger');
+    await settle(250);
+    await page.keyboard.press('Escape');
+    await settle(250);
+    if (await shownById('pop-filters')) return 'still open';
+    return (await active()) === 'pop-trigger' || `focus on ${await active()}`;
+});
+
+await check('a press outside closes it, without pulling focus back to the trigger', async () => {
+    await page.click('#pop-trigger');
+    await settle(250);
+    await page.click('#pop-after');
+    await settle(250);
+    if (await shownById('pop-filters')) return 'still open';
+    return (await active()) === 'pop-after' || `focus on ${await active()}`;
+});
+
+await check('a press on the trigger closes it again', async () => {
+    await page.click('#pop-trigger');
+    await settle(250);
+    await page.click('#pop-trigger');
+    await settle(250);
+    if (await shownById('pop-filters')) return 'still open';
+    return (await page.getAttribute('#pop-trigger', 'aria-expanded')) === 'false' || 'aria-expanded stayed true';
+});
+
+await check('host-owned: the host opens it, and the panel is named by its heading', async () => {
+    await page.click('#pop-share-host');
+    await settle(250);
+    if (!(await shownById('pop-share'))) return 'the host set it and nothing opened';
+    const name = await page.evaluate(() => {
+        const id = document.getElementById('pop-share').getAttribute('aria-labelledby');
+        return document.getElementById(id)?.textContent.trim();
+    });
+    if (name !== 'Share this report') return `named ${JSON.stringify(name)}`;
+    return (await page.getAttribute('#pop-share-trigger', 'aria-expanded')) === 'true' || 'aria-expanded not in step';
+});
+
+await check('host-owned: closed by the host from inside, focus goes back to the trigger', async () => {
+    await page.click('#pop-share-done');
+    await settle(250);
+    if (await shownById('pop-share')) return 'still open';
+    if ((await page.textContent('#pop-share-mirror')) !== 'false') return 'the host still thinks it is open';
+    return (await active()) === 'pop-share-trigger' || `focus on ${await active()}`;
+});
+
+await check('host-owned: the trigger writes back to the host (two-way)', async () => {
+    await page.click('#pop-share-trigger');
+    await settle(250);
+    const mirror = await page.textContent('#pop-share-mirror');
+    await page.keyboard.press('Escape');
+    await settle(250);
+    const after = await page.textContent('#pop-share-mirror');
+    return (mirror === 'true' && after === 'false') || `host saw ${mirror}, then ${after}`;
+});
+
+await check('nested: a press inside the inner one leaves the outer one open', async () => {
+    await page.evaluate(() => document.getElementById('pop-outer-trigger').scrollIntoView({ block: 'center' }));
+    await page.click('#pop-outer-trigger');
+    await settle(250);
+    await page.click('#pop-inner-trigger');
+    await settle(250);
+    await page.click('#pop-inner-button');
+    await settle(150);
+    const outer = await shownById('pop-outer');
+    const inner = await shownById('pop-inner');
+    return (outer && inner) || `outer ${outer ? 'open' : 'closed'}, inner ${inner ? 'open' : 'closed'}`;
+});
+
+await check('nested: Escape closes the inner one only, and focus returns to ITS trigger', async () => {
+    await page.keyboard.press('Escape');
+    await settle(250);
+    if (await shownById('pop-inner')) return 'the inner one is still open';
+    if (!(await shownById('pop-outer'))) return 'Escape closed the outer one too';
+    return (await active()) === 'pop-inner-trigger' || `focus on ${await active()}`;
+});
+
+await check('a combobox inside: choosing an option leaves the popover open', async () => {
+    await page.click('#pop-tags');
+    await settle(200);
+    await page.locator('#pop-outer [role=option]:visible').first().click();
+    await settle(200);
+    if (!(await shownById('pop-outer'))) return 'the popover closed';
+    const chosen = await page.evaluate(() => [...document.querySelectorAll('#pop-outer input[type=hidden][name="pop-tags[]"]')].map((i) => i.value));
+    return chosen.includes('a11y') || `chosen ${JSON.stringify(chosen)}`;
+});
+
+await check('a combobox inside: its Escape closes its list, not the popover', async () => {
+    await page.click('#pop-tags');
+    await settle(200);
+    await page.keyboard.press('Escape');
+    await settle(250);
+    if (!(await shownById('pop-outer'))) return 'the popover closed too';
+    await page.keyboard.press('Escape');
+    await settle(250);
+    return (await shownById('pop-outer')) === false || 'a second Escape did not close the popover';
+});
+
+await check('nothing focusable inside: focus goes to the panel itself', async () => {
+    await page.evaluate(() => document.getElementById('pop-pinned-trigger').scrollIntoView({ block: 'center' }));
+    await page.click('#pop-pinned-trigger');
+    await settle(250);
+    return (await active()) === 'pop-pinned' || `focus on ${await active()}`;
+});
+
+await check('not dismissible: Escape and a press outside leave it open; the trigger closes it', async () => {
+    await page.keyboard.press('Escape');
+    await settle(150);
+    if (!(await shownById('pop-pinned'))) return 'Escape closed it';
+    await page.click('#pop-after');
+    await settle(150);
+    if (!(await shownById('pop-pinned'))) return 'a press outside closed it';
+    await page.click('#pop-pinned-trigger');
+    await settle(250);
+    return (await shownById('pop-pinned')) === false || 'the trigger did not close it';
+});
+
+await check('no name given: the panel is named by its trigger', async () => {
+    const name = await page.evaluate(() => {
+        const id = document.getElementById('pop-edge').getAttribute('aria-labelledby');
+        return id && document.getElementById(id)?.textContent.trim();
+    });
+    return name === 'Edge' || `named ${JSON.stringify(name)}`;
+});
+
+await check('with reduced motion it appears at once (no transition)', async () => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.click('#pop-pinned-trigger');
+    await settle(50);
+    const r = await page.evaluate(() => {
+        const s = getComputedStyle(document.getElementById('pop-pinned'));
+        return { duration: s.transitionDuration, opacity: s.opacity };
+    });
+    await page.click('#pop-pinned-trigger');
+    await settle(100);
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    return (r.duration === '0s' && r.opacity === '1') || JSON.stringify(r);
+});
+
+// ---------------------------------------------------------------- hover card
+
+const cardShown = () => shownById('hc-card');
+
+/** The pointer somewhere that is neither the trigger nor the card. */
+const pointerAway = async () => {
+    const box = await page.locator('#hc-away').boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 4 });
+};
+
+group('hover card (dsHoverCard, x-ds-anchor)');
+
+await page.evaluate(() => document.getElementById('hc-prose').scrollIntoView({ block: 'center' }));
+await pointerAway();
+await settle(100);
+
+await check('hidden on load, and the trigger keeps its own semantics', async () => {
+    if (await cardShown()) return 'visible on load';
+    const r = await page.evaluate(() => {
+        const a = document.getElementById('hc-trigger');
+        return ['aria-expanded', 'aria-describedby', 'aria-haspopup', 'aria-controls', 'role'].filter((n) => a.hasAttribute(n));
+    });
+    return !r.length || `the trigger gained ${r.join(', ')}`;
+});
+
+await check('a pointer passing over opens nothing', async () => {
+    await page.hover('#hc-trigger');
+    await settle(200);
+    await pointerAway();
+    await settle(600);
+    return (await cardShown()) === false || 'opened on a pass';
+});
+
+await check('a pointer resting on the trigger opens it after the delay, not before', async () => {
+    await page.hover('#hc-trigger');
+    await settle(250);
+    if (await cardShown()) return 'open at 250 ms: no delay';
+    await settle(500);
+    return (await cardShown()) || 'not open after 750 ms';
+});
+
+await check('the pointer can travel from the trigger into the card', async () => {
+    const card = await page.locator('#hc-card').boundingBox();
+    await page.mouse.move(card.x + card.width / 2, card.y + card.height / 2, { steps: 6 });
+    await settle(500);
+    return (await cardShown()) || 'it closed on the way';
+});
+
+await check('leaving both closes it, after a short delay', async () => {
+    await pointerAway();
+    await settle(100);
+    if (!(await cardShown())) return 'closed at once: no time to cross the gap';
+    await settle(450);
+    return (await cardShown()) === false || 'still open';
+});
+
+await check('Escape dismisses a card shown by hover, the pointer still on it (WCAG 1.4.13)', async () => {
+    await page.hover('#hc-trigger');
+    await settle(750);
+    if (!(await cardShown())) return 'did not open';
+    await page.keyboard.press('Escape');
+    await settle(200);
+    const shut = (await cardShown()) === false;
+    await pointerAway();
+    await settle(400);
+    return shut || 'still open';
+});
+
+await check('keyboard focus opens it, after the same delay', async () => {
+    await page.focus('#hc-before');
+    await page.keyboard.press('Tab');
+    if ((await active()) !== 'hc-trigger') return `Tab went to ${await active()}`;
+    await settle(250);
+    if (await cardShown()) return 'open at 250 ms';
+    await settle(500);
+    return (await cardShown()) || 'not open after 750 ms';
+});
+
+await check('Tab moves into the card\'s link, and the card stays open', async () => {
+    await page.keyboard.press('Tab');
+    await settle(150);
+    if ((await active()) !== 'hc-link') return `Tab went to ${await active()}`;
+    return (await cardShown()) || 'closed when focus went in';
+});
+
+await check('Tab on past it closes it: nothing is trapped', async () => {
+    await page.keyboard.press('Tab');
+    await settle(250);
+    if ((await active()) !== 'hc-after') return `focus on ${await active()}`;
+    return (await cardShown()) === false || 'still open';
+});
+
+await check('a mouse click on the trigger (focus without :focus-visible) does not open it by focus', async () => {
+    await page.evaluate(() => document.getElementById('hc-trigger').addEventListener('click', (e) => e.preventDefault(), { once: true }));
+    await page.click('#hc-trigger');
+    await pointerAway();
+    await settle(750);
+    return (await cardShown()) === false || 'opened from the focus a click left behind';
+});
+
+group('hover card on a touch screen');
+{
+    const touch = await browser.newContext({ viewport: { width: 1200, height: 1000 }, hasTouch: true, isMobile: true });
+    await touch.route(`${LARAVEL}/**`, serveFromLaravel);
+    const tab = await touch.newPage();
+    await tab.goto('file://' + join(TMP, 'page.html'), { waitUntil: 'networkidle' });
+    await tab.waitForTimeout(400);
+
+    await check('a tap runs the trigger\'s own link and opens no card', async () => {
+        await tab.evaluate(() => document.getElementById('hc-trigger').scrollIntoView({ block: 'center' }));
+        await tab.tap('#hc-trigger');
+        await tab.waitForTimeout(800);
+        const r = await tab.evaluate(() => ({
+            hash: location.hash,
+            shown: getComputedStyle(document.getElementById('hc-card')).display !== 'none',
+        }));
+        if (r.hash !== '#ada') return `the link did not run (hash ${r.hash})`;
+        return r.shown === false || 'a card opened on touch';
+    });
+    await touch.close();
+}
+
+// ---------------------------------------------------------------- sortable table
+
+const sortIconOpacity = (n) => page.evaluate((i) =>
+    getComputedStyle(document.querySelectorAll('#sort-table th svg')[i]).opacity, n);
+
+group('sortable table (links, no script)');
+
+await page.evaluate(() => document.getElementById('sort-table').scrollIntoView({ block: 'center' }));
+await pointerAway();
+await settle(200);
+
+await check('one header says how the rows are sorted, with its arrow showing', async () => {
+    const r = await page.evaluate(() => [...document.querySelectorAll('#sort-table th')].map((th) => th.getAttribute('aria-sort')));
+    if (JSON.stringify(r) !== JSON.stringify([null, 'descending'])) return `aria-sort ${JSON.stringify(r)}`;
+    return (await sortIconOpacity(1)) === '1' || 'the sorted arrow is hidden';
+});
+
+await check('an unsorted sortable header shows its affordance on hover only', async () => {
+    if ((await sortIconOpacity(0)) !== '0') return 'visible at rest';
+    await page.hover('#sort-table th:first-child a');
+    await settle(250);
+    const shown = await sortIconOpacity(0);
+    await pointerAway();
+    await settle(250);
+    return shown === '1' || `opacity ${shown} under the pointer`;
+});
+
+await check('and on keyboard focus', async () => {
+    await page.focus('#hc-after');
+    await page.evaluate(() => document.querySelector('#sort-table th:first-child a').focus());
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await settle(250);
+    const focused = await page.evaluate(() => document.activeElement === document.querySelector('#sort-table th:first-child a'));
+    if (!focused) return `focus on ${await active()}`;
+    return (await sortIconOpacity(0)) === '1' || 'hidden while focused';
+});
+
+await check('a press asks for the other direction on the sorted column, ascending on the rest', async () => {
+    await page.click('#sort-table th:nth-child(2) a');
+    const second = await page.evaluate(() => location.hash);
+    await page.click('#sort-table th:first-child a');
+    const first = await page.evaluate(() => location.hash);
+    return (second === '#sort-total-asc' && first === '#sort-name-asc') || `went to ${second} and ${first}`;
+});
+
+// ---------------------------------------------------------------- sub-nav
+
+group('sub-nav (inline Alpine)');
+
+const subNav = (id) => page.evaluate((id) => {
+    const root = document.getElementById(id);
+    const button = root.querySelector(':scope > button');
+    const pages = root.querySelector(':scope > [role="group"]');
+    const link = root.querySelector(':scope > a');
+    // The button's own child: the section's icon is an svg too, in a span.
+    const chevron = button.querySelector(':scope > svg');
+    return {
+        expanded: button.getAttribute('aria-expanded'),
+        controls: button.getAttribute('aria-controls') === pages.id,
+        buttonShown: button.offsetParent !== null,
+        pagesShown: pages.offsetParent !== null,
+        linkShown: link ? link.offsetParent !== null : null,
+        linkHref: link ? link.getAttribute('href') : null,
+        rotated: getComputedStyle(chevron).rotate,
+    };
+}, id);
+
+await page.evaluate(() => document.getElementById('sub-rail').scrollIntoView({ block: 'center' }));
+await settle(100);
+
+await check('the section holding the current page is open; the other is closed', async () => {
+    const [reports, settings] = [await subNav('sub-reports'), await subNav('sub-settings')];
+    if (!reports.controls || !settings.controls) return 'aria-controls does not name the pages';
+    if (reports.expanded !== 'true' || !reports.pagesShown) return `Reports ${JSON.stringify(reports)}`;
+    if (settings.expanded !== 'false' || settings.pagesShown) return `Settings ${JSON.stringify(settings)}`;
+    const current = await page.evaluate(() => [...document.querySelectorAll('#sub-rail [aria-current]')].map((a) => a.textContent.trim()));
+    return JSON.stringify(current) === '["Churn"]' || `aria-current on ${JSON.stringify(current)}`;
+});
+
+await check('a closed section\'s pages are out of the tab order', async () => {
+    await page.focus('#sub-settings > button');
+    await page.keyboard.press('Tab');
+    return (await page.evaluate(() => document.activeElement.id)) === 'sub-rail-toggle' || `Tab went to ${await active()}`;
+});
+
+await check('Enter opens it, the chevron turns, and Tab then reaches its pages', async () => {
+    await page.focus('#sub-settings > button');
+    await page.keyboard.press('Enter');
+    await settle(250);
+    const s = await subNav('sub-settings');
+    if (s.expanded !== 'true' || !s.pagesShown) return `after Enter ${JSON.stringify(s)}`;
+    if (s.rotated !== '180deg') return `chevron rotate ${s.rotated}`;
+    await page.keyboard.press('Tab');
+    return (await page.evaluate(() => document.activeElement.getAttribute('href'))) === '#sub-profile' || `Tab went to ${await active()}`;
+});
+
+await check('a click closes it again', async () => {
+    await page.click('#sub-settings > button');
+    await settle(250);
+    const s = await subNav('sub-settings');
+    return (s.expanded === 'false' && !s.pagesShown && s.rotated !== '180deg') || JSON.stringify(s);
+});
+
+await check('collapsed, each section is a link to its first page and no pages show', async () => {
+    await page.click('#sub-rail-toggle');
+    await settle(100);
+    const [reports, settings] = [await subNav('sub-reports'), await subNav('sub-settings')];
+    for (const [name, s, href] of [['Reports', reports, '#sub-revenue'], ['Settings', settings, '#sub-profile']]) {
+        if (s.buttonShown || s.pagesShown || !s.linkShown) return `${name} ${JSON.stringify(s)}`;
+        if (s.linkHref !== href) return `${name} links to ${s.linkHref}`;
+    }
+    const named = await page.evaluate(() => document.querySelector('#sub-reports > a').getAttribute('title'));
+    return named === 'Reports' || `the collapsed link's title is ${named}`;
+});
+
+await check('expanded again, each section is as it was left', async () => {
+    await page.click('#sub-rail-toggle');
+    await settle(100);
+    const [reports, settings] = [await subNav('sub-reports'), await subNav('sub-settings')];
+    if (reports.linkShown || settings.linkShown) return 'a collapsed link is still showing';
+    return (reports.pagesShown && !settings.pagesShown) || `Reports ${reports.pagesShown}, Settings ${settings.pagesShown}`;
+});
+
 // ---------------------------------------------------------------- segmented control
 
 group('segmented control (radios and CSS; x-ds-glide when the script is there)');
@@ -2131,7 +2685,7 @@ await check('the shipped stylesheet hides a cloaked element', async () => {
   gap. It exists so the cost is a number somebody can look at before deciding
   whether floating-ui is worth taking on.
 */
-group('overlay edges (reported, not enforced — no popover here does collision detection)');
+group('overlay edges (reported, not enforced — the overlays not yet on x-ds-anchor)');
 
 const overlays = [
     ['dropdown', '#menu-trigger', '[role=menu]'],
@@ -2166,6 +2720,48 @@ for (const [name, triggerSelector, popoverSelector] of overlays) {
     } else {
         console.log(`  \x1b[32m✓\x1b[0m ${name.padEnd(12)} fits (${-overflow}px to spare)`);
     }
+}
+
+/*
+  The same measurement, ENFORCED, for the overlays placed by x-ds-anchor. Each
+  is opened at the bottom right of the window, inside a box with overflow
+  hidden, and must come back wholly on screen (less the anchor's 8px margin),
+  flipped above its trigger, and painted rather than clipped.
+
+  Run from a bottom-of-the-window start, not the floor this page happens to
+  have: the trigger is scrolled to the bottom edge, which any element deep in
+  the page can reach.
+*/
+group('overlay edges, enforced (the overlays on x-ds-anchor)');
+
+const anchored = [
+    ['popover', 'pop-edge-trigger', 'pop-edge', async () => {
+        await page.click('#pop-edge-trigger');
+    }, async () => {
+        await page.keyboard.press('Escape');
+    }],
+    ['hover card', 'hc-edge-trigger', 'hc-edge', async () => {
+        await page.hover('#hc-edge-trigger');
+    }, async () => {
+        await page.keyboard.press('Escape');
+        await page.mouse.move(5, 5);
+    }],
+];
+
+for (const [name, triggerId, panelId, open, close] of anchored) {
+    await check(`${name}: at the bottom right of the window, clipped box and all, it stays on screen`, async () => {
+        await page.evaluate((id) => document.getElementById(id).scrollIntoView({ block: 'end', inline: 'end' }), triggerId);
+        await settle(150);
+        await open();
+        await settle(700);
+        const b = await anchorBoxes(`#${panelId}`, `#${triggerId}`);
+        await close();
+        await settle(350);
+        if (!b.shown) return 'it did not open';
+        if (b.side !== 'top') return `data-side is ${b.side}: it did not flip`;
+        if (!b.onTop) return 'something else is painted where it is: clipped';
+        return insideViewport(b);
+    });
 }
 
 // ---------------------------------------------------------------- the other two host setups
@@ -2306,7 +2902,7 @@ group('host setup (b): Alpine bundled by the host, Alpine.plugin(bladeUi)');
     await check('the plugin works', () => copiesOn(tab));
     await check('plugin twice plus the include: each name registered exactly once', async () => {
         const names = await tab.evaluate(() => window.dsRegistered);
-        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup'];
+        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard'];
         return JSON.stringify(names) === JSON.stringify(expected) || `registered ${JSON.stringify(names)}`;
     });
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));

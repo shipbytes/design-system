@@ -371,6 +371,39 @@ final class Specimens
                 </x-ds::table>
                 BLADE,
 
+            /*
+             * Sortable headers: a link per sortable column, the sorted one
+             * with aria-sort and its arrow, a right-aligned one with the
+             * arrow inside; and the Livewire form, buttons with wire:click.
+             */
+            'table/sortable' => <<<'BLADE'
+                <x-ds::table sort="total" direction="desc" sortUrl="/reports?sort={key}&direction={direction}" :columns="[
+                    ['label' => 'Report', 'key' => 'name', 'sortable' => true],
+                    'Status',
+                    'total' => ['label' => 'Total', 'align' => 'right', 'sortable' => true],
+                    // A width is the consumer's own class, which this
+                    // package's CSS does not carry; the empty header is the
+                    // point here.
+                    ['label' => ''],
+                ]">
+                    <x-ds::table-row>
+                        <x-ds::table-cell>Q3 revenue</x-ds::table-cell>
+                        <x-ds::table-cell>Ready</x-ds::table-cell>
+                        <x-ds::table-cell align="right">£1,200</x-ds::table-cell>
+                        <x-ds::table-cell></x-ds::table-cell>
+                    </x-ds::table-row>
+                </x-ds::table>
+                <x-ds::table sort="name" sortAction="sortBy('{key}')" :columns="[
+                    ['label' => 'Report', 'key' => 'name', 'sortable' => true],
+                    ['label' => 'Runs', 'key' => 'runs', 'align' => 'center', 'sortable' => true],
+                ]">
+                    <x-ds::table-row>
+                        <x-ds::table-cell>Q3 revenue</x-ds::table-cell>
+                        <x-ds::table-cell align="center">4</x-ds::table-cell>
+                    </x-ds::table-row>
+                </x-ds::table>
+                BLADE,
+
             'nav-item/all' => <<<'BLADE'
                 <x-ds::nav-item href="/" label="Dashboard" :active="true">
                     <x-slot:icon><x-ds::icon name="home" /></x-slot:icon>
@@ -381,6 +414,22 @@ final class Specimens
                 <x-ds::nav-item href="/team" label="Team" :chip="true" collapsedWhen="railCollapsed">
                     <x-slot:icon><x-ds::icon name="users" /></x-slot:icon>
                 </x-ds::nav-item>
+                BLADE,
+
+            'sub-nav/all' => <<<'BLADE'
+                <x-ds::sub-nav label="Reports">
+                    <x-slot:icon><x-ds::icon name="chart-bar" /></x-slot:icon>
+                    <x-ds::nav-item href="/reports/revenue" label="Revenue" />
+                    <x-ds::nav-item href="/reports/churn" label="Churn" :active="true" />
+                </x-ds::sub-nav>
+                <x-ds::sub-nav label="Settings" :chip="true" collapsedWhen="railCollapsed">
+                    <x-slot:icon><x-ds::icon name="cog" /></x-slot:icon>
+                    <x-ds::nav-item href="/settings/profile" label="Profile" collapsedWhen="railCollapsed" />
+                    <x-ds::nav-item href="/settings/billing" label="Billing" collapsedWhen="railCollapsed" />
+                </x-ds::sub-nav>
+                <x-ds::sub-nav label="Team" :open="true" href="/team">
+                    <x-ds::nav-item href="/team/members" label="Members" />
+                </x-ds::sub-nav>
                 BLADE,
 
             'sheet/all' => <<<'BLADE'
@@ -783,6 +832,56 @@ final class Specimens
                     <x-slot:trigger><x-ds::button size="sm">Up end</x-ds::button></x-slot:trigger>
                     <x-ds::dropdown-item href="/a">A</x-ds::dropdown-item>
                 </x-ds::dropdown>
+                BLADE,
+
+            /*
+             * Every placement once, so each fallback position class is
+             * rendered and checked; every width; both ways of naming it;
+             * host-owned state; not dismissible.
+             */
+            'popover/all' => <<<'BLADE'
+                <x-ds::popover label="Filters">
+                    <x-slot:trigger><x-ds::button size="sm">Filters</x-ds::button></x-slot:trigger>
+                    <x-ds::checkbox name="failed" label="Only failed runs" />
+                </x-ds::popover>
+                <x-ds::popover labelledby="share-title" open="shareOpen" placement="bottom-end" width="lg">
+                    <x-slot:trigger><x-ds::button size="sm">Share</x-ds::button></x-slot:trigger>
+                    <h3 id="share-title">Share this report</h3>
+                </x-ds::popover>
+                <x-ds::popover label="Note" width="sm" :dismissible="false" placement="bottom">
+                    <x-slot:trigger><x-ds::button size="sm">Note</x-ds::button></x-slot:trigger>
+                    Body
+                </x-ds::popover>
+                <x-ds::popover label="Named" id="named-panel" placement="top-start"><x-slot:trigger><button type="button">T</button></x-slot:trigger> Body </x-ds::popover>
+                <x-ds::popover label="t" placement="top"><x-slot:trigger><button type="button">T</button></x-slot:trigger> Body </x-ds::popover>
+                <x-ds::popover label="t" placement="top-end"><x-slot:trigger><button type="button">T</button></x-slot:trigger> Body </x-ds::popover>
+                <x-ds::popover label="t" placement="left-start"><x-slot:trigger><button type="button">T</button></x-slot:trigger> Body </x-ds::popover>
+                <x-ds::popover label="t" placement="left"><x-slot:trigger><button type="button">T</button></x-slot:trigger> Body </x-ds::popover>
+                <x-ds::popover label="t" placement="left-end"><x-slot:trigger><button type="button">T</button></x-slot:trigger> Body </x-ds::popover>
+                <x-ds::popover label="t" placement="right-start"><x-slot:trigger><button type="button">T</button></x-slot:trigger> Body </x-ds::popover>
+                <x-ds::popover label="t" placement="right"><x-slot:trigger><button type="button">T</button></x-slot:trigger> Body </x-ds::popover>
+                <x-ds::popover label="t" placement="right-end"><x-slot:trigger><button type="button">T</button></x-slot:trigger> Body </x-ds::popover>
+                BLADE,
+
+            'hover-card/all' => <<<'BLADE'
+                <p>
+                    Assigned to
+                    <x-ds::hover-card>
+                        <x-slot:trigger><a href="/people/ada">Ada Lovelace</a></x-slot:trigger>
+                        <span class="block font-medium text-fg">Ada Lovelace</span>
+                        <span class="block text-meta text-fg-muted">Analyst, Engines team</span>
+                        <a href="/people/ada" class="mt-2 block text-meta">View profile</a>
+                    </x-ds::hover-card>
+                    since Monday.
+                </p>
+                <x-ds::hover-card placement="top" width="sm">
+                    <x-slot:trigger><a href="/r/42">Q3 revenue</a></x-slot:trigger>
+                    Ready, £12,400
+                </x-ds::hover-card>
+                <x-ds::hover-card placement="right-end" width="lg" id="hc-named">
+                    <x-slot:trigger><a href="/r/43">Churn</a></x-slot:trigger>
+                    Running
+                </x-ds::hover-card>
                 BLADE,
 
             // Not a visual component, but it renders inside a host's layout and

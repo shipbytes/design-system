@@ -106,7 +106,9 @@
         data-ds-select-trigger
         @class([$trigger, 'mt-1.5' => (bool) $label])
         @click="open = ! open"
-        @keydown.escape.stop="open = false"
+        {{-- Stopped only when it closes the list, as in ds::combobox: a closed
+             select leaves Escape to the popover or modal it sits in. --}}
+        @keydown.escape="if (open) { $event.stopPropagation(); open = false }"
         {{-- ArrowDown opens a closed listbox. Without it the keyboard way into the
              control is Enter only, which is not what a select does. --}}
         @keydown.arrow-down.prevent="open = true"

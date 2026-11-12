@@ -48,6 +48,7 @@ src/              the service provider
   Support/Behaviour.php         the x-data expression for a shared behaviour
   Support/Field.php             reads the field recipe (partials/field.php)
   Support/Tray.php              reads the tray recipe (partials/tray.php)
+  Support/Popover.php           reads the popover recipe (partials/popover.php)
 config/           blade-ui.php — icon aliases, default icon size
 resources/views/  the Blade components + the two pagination views and
                   their two Livewire variants
@@ -67,12 +68,17 @@ resources/views/  the Blade components + the two pagination views and
                                 separator), read through Support\Tray
   partials/tray-item.blade.php  a toolbar button's or toggle's inside: icon,
                                 words (sr-only when iconOnly), optional tooltip
+  partials/popover.php          the anchored-surface recipe popover and
+                                hover-card share (surface, widths, transition,
+                                placements: the absolute fallback classes the
+                                anchor overrides), read through Support\Popover
 resources/js/     the shared script's source: plain ES modules, hand-edited
   blade-ui.js       the Alpine plugin; lists every behaviour
   global.js         the classic-script entry ds::scripts serves
   behaviours/       one file per behaviour
   shared/           helpers more than one behaviour imports (roving.js:
-                    the roving tabindex toolbar and toggle-group use)
+                    the roving tabindex toolbar and toggle-group use;
+                    anchor.js: the positioning x-ds-anchor drives)
                   (export-ignored: consumers get dist/, not the modules)
 
 tokens/           DTCG source. Edited by hand, like resources/js/.
@@ -390,6 +396,23 @@ component that is.** A button reading `@aware(['size'])` would take the size of
 a `ds::modal size="lg"` it sits in. Share settings down through a key no other
 component has: see View/Components/ButtonGroup.php.
 
+**An attribute bag built in PHP does not escape its values.** `{{ $bag }}`
+prints `new ComponentAttributeBag([...])` as given, only swapping `"` so the
+attribute stays closed; `<` and `&` go through raw. A label or URL put in one
+needs `e()` first (the popover's panel and the table's sort links do). The bag
+`@props` hands a view is the consumer's own markup, already escaped by Blade.
+
+**Stopping Escape while closed swallows it for whatever holds you.** The
+combobox and select stopped every Escape on their control, so in a popover the
+first Escape closed the list and the second never reached the popover. A
+control stops Escape only when it consumes it:
+`if (open) { $event.stopPropagation(); … }`.
+
+**A page opened from disk with no `<meta charset>` is windows-1252.** The docs
+images photographed every literal £, – and … as Â£, â€“, â€¦ until batch 05;
+`build-docs.mjs` and `build-gallery.mjs` declare UTF-8 now. Anything else that
+writes a page for a browser to open by `file://` needs the same line.
+
 ## Conventions
 
 - **Presentation only.** No Livewire, no application state, no framework
@@ -477,6 +500,30 @@ inline and the package shipped no JavaScript.
 — until a batch needs one and adds it here first; `test-js.mjs` fails any other
 `Alpine.*` call at registration. A behaviour names the job (`dsClipboard`), not
 the component that first used it.
+
+**`x-ds-anchor` places every anchored overlay.** Hand-written
+(`shared/anchor.js`, no floating-ui): `position: fixed`, flip to the opposite
+side, shift along the cross axis inside an 8px margin, and a max-height clamp
+with internal scroll when neither side fits. It recomputes in a
+`requestAnimationFrame` on open, on scroll (capture, passive), on resize and
+when either box resizes, and drops every listener when closed. It writes
+`data-side` / `data-align` for arrows and transform origins. Options:
+`{ open, reference, placement, offset = 8, margin = 8, clamp = true,
+width: 'reference'? }`. Positioned with `left`/`top`, not a transform, so a
+panel never becomes the containing block of a panel nested in it; a
+transformed, filtered or contained ancestor IS one, and is detected and
+subtracted (cached until resize), though its own `overflow` still clips.
+
+It runs AFTER `x-show` on the same element (a directive's effect is registered
+later), so the panel is placed in the frame it appears in and never flashes at
+its fallback position. Everything it sets is inline style over the absolute
+placement classes in `partials/popover.php`, which is the design for batch 06:
+dropdown, select, combobox, date-picker and tooltip keep their absolute
+classes as the no-script fallback and gain `x-ds-anchor` over them. Only then
+can it join `ENHANCEMENTS`, with a no-script proof in the behaviour suite; for
+now popover and hover-card get it inside their `Behaviour::data()` scope. The
+behaviour suite's "overlay edges, enforced" group measures every overlay on it
+(the `anchored` list) at the viewport's edges; add each one batch 06 moves.
 
 **What a behaviour's scope exposes is API.** Everything an `Alpine.data` object
 returns is visible to the markup inside it and shadows the host's variables of
@@ -573,16 +620,17 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 64 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 67 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
 accordion, accordion-item, alert, avatar, avatar-group, badge, bottom-nav,
 bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, chip,
 button-group, chip-group, combobox, copy-button, date-picker, drawer, dropdown,
-dropdown-item, empty-state, file-upload, icon, input, modal, nav-item,
-number-field, otp-input, panel, panel-row, password-strength, progress, radio,
-radio-card, radio-cards, radio-group, rating, segment, segmented-control,
-select, sheet, sheet-item, skeleton, stat-tile, step, stepper, switch, tab,
+dropdown-item, empty-state, file-upload, hover-card, icon, input, modal,
+nav-item, number-field, otp-input, panel, panel-row, password-strength,
+popover, progress, radio, radio-card, radio-cards, radio-group, rating,
+segment, segmented-control, select, sheet, sheet-item, skeleton, stat-tile,
+step, stepper, sub-nav, switch, tab,
 tab-panel, table, table-cell, table-row, tabs, tag-input, toast, toast-region,
 toggle, toggle-group, toolbar, toolbar-button, toolbar-separator, tooltip,
 usage-meter.
@@ -595,7 +643,8 @@ three lines of CSS, every component rendering styled in light and dark.
 **Needs Alpine:** modal, drawer, sheet, dropdown, select, combobox, date-picker,
 accordion (with accordion-item), file-upload, tooltip, otp-input, tag-input,
 number-field, password-strength, copy-button, toolbar (with toolbar-button and
-toolbar-separator), toggle-group (with toggle) — always. Plus ONE optional prop each on
+toolbar-separator), toggle-group (with toggle), popover, hover-card, sub-nav —
+always (sub-nav only to toggle: its open state is rendered from PHP). Plus ONE optional prop each on
 checkbox (`indeterminate`), nav-item (`collapsedWhen`), toast (`dismiss`) and
 input (`reveal`), and the pagination views' Livewire variants, whose scroll to
 the top is an `x-on:click` that Livewire's bundled Alpine runs. Everything else
@@ -608,7 +657,8 @@ Livewire variants are opt-in. Counted from the directives in the views on
 number-field (`dsNumberField`), password-strength (`dsPasswordStrength`),
 copy-button (`dsClipboard`, which is also documented for direct use),
 toolbar (`dsToolbar`, `x-ds-glide.hover`), toggle-group (`dsToggleGroup`,
-`x-ds-glide.hover`), and input's `reveal` (`dsPassword`). segmented-control
+`x-ds-glide.hover`), popover (`dsPopover`, `x-ds-anchor`), hover-card
+(`dsHoverCard`, `x-ds-anchor`), and input's `reveal` (`dsPassword`). segmented-control
 uses `x-ds-glide` as an enhancement only; see the shared script section.
 
 **Plain Blade and CSS, no script, by design:** rating, chip-group (with chip)
@@ -658,19 +708,20 @@ that never runs the JS. Bind for what moves; render what does not.
 
 Kept here so nobody has to rediscover them. Roughly in the order worth closing.
 
-**1. No overlay knows where the viewport edge is.** `dropdown`, `select`,
-`combobox`, `date-picker` and `tooltip` each take a placement and trust it.
-`npm run test:behaviour` now MEASURES the cost at the bottom of its run rather
-than describing it. **Read the number as a floor, not the overflow.** It scrolls
-each trigger to the bottom of the window only as far as the specimen page can
-scroll, so it grows with the page: the date picker read 32px until v1.2.1 added a
-specimen above it, and 106px after, with nothing about the picker changed. A
-calendar is ~340px tall, so the real figure is larger, and the dropdown and the
-select "fitting" may say as much about the page as about them. Pad the page
-before trading on it.
+**1. The older overlays do not know where the viewport edge is.** `dropdown`,
+`select`, `combobox`, `date-picker` and `tooltip` each take a placement and
+trust it. `npm run test:behaviour` MEASURES the cost at the bottom of its run
+rather than describing it. **Read the number as a floor, not the overflow.** It
+scrolls each trigger to the bottom of the window only as far as the specimen
+page can scroll, so it grows with the page: the date picker read 32px until
+v1.2.1 added a specimen above it, and 106px after, with nothing about the picker
+changed. A calendar is ~340px tall, so the real figure is larger.
 
-Fixing it properly means floating-ui, which would be this package's first real JS
-dependency. The number is there so that trade can be made on evidence.
+Batch 05 built the fix without floating-ui: `x-ds-anchor` (see the shared
+script section). `popover` and `hover-card` use it, and the "overlay edges,
+enforced" group FAILS if either leaves the viewport at any edge or is clipped
+by an `overflow: hidden` ancestor. Moving the five above onto it, and into that
+group, is batch 06.
 
 **2. The npm package is unpublished.** `@shipbytes/design-tokens` does not exist
 on the registry, so the `import { tokens } from '@shipbytes/design-tokens'` path
@@ -701,6 +752,13 @@ not affected: the media query is on the bar, so the gallery shows real items in 
 bar drawn to match, and `RendersComponentsTest` requires it there. The documentation
 screenshots DO show them, because that script drives a 1000px viewport on
 purpose. An `<iframe>` at phone width would fix it.
+
+The gallery also loads no Alpine, and `theme.css` ships the `[x-cloak]` rule,
+so every overlay panel marked `x-cloak` stays hidden there: dropdown, select,
+combobox, date-picker, popover, hover card (measured in batch 05). The popover
+and hover card sections say so; the dropdown's note still claims its menus
+"render open", which has been untrue since the rule shipped. Opening them needs
+Alpine in the gallery, or a gallery-only rule that un-cloaks the panels.
 
 **6. The accordion cannot be found by find-in-page.** It is the ARIA disclosure
 pattern, so a collapsed section is `visibility: hidden` and the browser's own

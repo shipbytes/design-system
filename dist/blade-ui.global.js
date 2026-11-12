@@ -5,6 +5,187 @@
  */
 (function () {
 'use strict';
+const __ds_shared_anchor = (() => {
+const OPPOSITE = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' };
+function parsePlacement(value) {
+const [side, align] = String(value ?? '').split('-');
+return {
+side: OPPOSITE[side] ? side : 'bottom',
+align: align === 'start' || align === 'end' ? align : 'center',
+};
+}
+function rectOf(el) {
+if (getComputedStyle(el).display !== 'contents') return el.getBoundingClientRect();
+const boxes = [...el.children].map(rectOf).filter((r) => r.width || r.height);
+if (!boxes.length) return el.getBoundingClientRect();
+const left = Math.min(...boxes.map((r) => r.left));
+const top = Math.min(...boxes.map((r) => r.top));
+const right = Math.max(...boxes.map((r) => r.right));
+const bottom = Math.max(...boxes.map((r) => r.bottom));
+return { left, top, right, bottom, width: right - left, height: bottom - top };
+}
+function containingBlock(el) {
+for (let node = el.parentElement; node && node !== document.documentElement; node = node.parentElement) {
+const s = getComputedStyle(node);
+if (
+s.transform !== 'none'
+|| (s.translate && s.translate !== 'none')
+|| (s.scale && s.scale !== 'none')
+|| (s.rotate && s.rotate !== 'none')
+|| s.perspective !== 'none'
+|| s.filter !== 'none'
+|| (s.backdropFilter && s.backdropFilter !== 'none')
+|| /transform|translate|scale|rotate|perspective|filter/.test(s.willChange)
+|| /paint|layout|strict|content/.test(s.contain)
+|| (s.containerType && s.containerType !== 'normal')
+) {
+return node;
+}
+}
+return null;
+}
+function originOf(block) {
+if (!block) return { x: 0, y: 0 };
+const r = block.getBoundingClientRect();
+return {
+x: r.left + block.clientLeft - block.scrollLeft,
+y: r.top + block.clientTop - block.scrollTop,
+};
+}
+const vertical = (side) => side === 'top' || side === 'bottom';
+function anchor(panel, options = {}) {
+let settings = options;
+let frame = 0;
+let block;
+let observer = null;
+function room(r, offset, margin, vw, vh) {
+return {
+top: r.top - offset - margin,
+bottom: vh - r.bottom - offset - margin,
+left: r.left - offset - margin,
+right: vw - r.right - offset - margin,
+};
+}
+function update() {
+frame = 0;
+const reference = settings.reference;
+if (!reference || !reference.isConnected || !panel.isConnected) return;
+const { side: preferred, align } = parsePlacement(settings.placement);
+const offset = settings.offset ?? 8;
+const margin = settings.margin ?? 8;
+const clamp = settings.clamp !== false;
+const style = panel.style;
+style.position = 'fixed';
+style.left = '0px';
+style.top = '0px';
+style.right = 'auto';
+style.bottom = 'auto';
+style.margin = '0';
+style.translate = 'none';
+style.maxHeight = '';
+style.overflowY = '';
+const r = rectOf(reference);
+if (settings.width === 'reference') style.width = `${r.width}px`;
+const w = panel.offsetWidth;
+const h = panel.offsetHeight;
+const vw = document.documentElement.clientWidth;
+const vh = document.documentElement.clientHeight;
+const space = room(r, offset, margin, vw, vh);
+const need = (s) => (vertical(s) ? h : w);
+const candidates = [preferred, OPPOSITE[preferred]];
+if (!vertical(preferred)) candidates.push('bottom', 'top');
+let side = candidates.find((s) => space[s] >= need(s));
+let height = h;
+if (!side) {
+if (clamp) {
+side = space.bottom >= space.top ? 'bottom' : 'top';
+height = Math.max(space[side], 0);
+} else {
+side = preferred;
+}
+}
+const rtl = getComputedStyle(reference).direction === 'rtl';
+let x;
+let y;
+if (vertical(side)) {
+y = side === 'bottom' ? r.bottom + offset : r.top - offset - height;
+const start = rtl ? r.right - w : r.left;
+const end = rtl ? r.left : r.right - w;
+x = align === 'start' ? start : align === 'end' ? end : r.left + r.width / 2 - w / 2;
+x = Math.min(Math.max(x, margin), Math.max(vw - margin - w, margin));
+} else {
+x = side === 'right' ? r.right + offset : r.left - offset - w;
+y = align === 'start' ? r.top : align === 'end' ? r.bottom - h : r.top + r.height / 2 - h / 2;
+if (clamp && h > vh - 2 * margin) height = vh - 2 * margin;
+y = Math.min(Math.max(y, margin), Math.max(vh - margin - height, margin));
+}
+if (height < h) {
+style.maxHeight = `${height}px`;
+style.overflowY = 'auto';
+}
+if (block === undefined) block = containingBlock(panel);
+const origin = originOf(block);
+const dpr = window.devicePixelRatio || 1;
+const snap = (v) => Math.round(v * dpr) / dpr;
+style.left = `${snap(x - origin.x)}px`;
+style.top = `${snap(y - origin.y)}px`;
+panel.dataset.side = side;
+panel.dataset.align = align;
+}
+function schedule() {
+if (!frame) frame = requestAnimationFrame(update);
+}
+function onResize() {
+block = undefined;
+schedule();
+}
+window.addEventListener('scroll', schedule, { capture: true, passive: true });
+window.addEventListener('resize', onResize, { passive: true });
+if (typeof ResizeObserver === 'function') {
+observer = new ResizeObserver(schedule);
+observer.observe(panel);
+if (settings.reference) observer.observe(settings.reference);
+}
+return {
+update(next) {
+if (next) settings = next;
+block = undefined;
+update();
+},
+schedule,
+stop() {
+if (frame) cancelAnimationFrame(frame);
+frame = 0;
+observer?.disconnect();
+window.removeEventListener('scroll', schedule, { capture: true });
+window.removeEventListener('resize', onResize);
+},
+};
+}
+return { parsePlacement, anchor };
+})();
+const __ds_behaviours_anchor = (() => {
+const { anchor } = __ds_shared_anchor;
+function anchorDirective(Alpine) {
+Alpine.directive('ds-anchor', (el, { expression }, { effect, evaluateLater, cleanup }) => {
+const read = evaluateLater(expression || '{}');
+let anchored = null;
+effect(() => read((options) => {
+const settings = options ?? {};
+if (settings.open) {
+if (!anchored) anchored = anchor(el, settings);
+else anchored.update(settings);
+requestAnimationFrame(() => anchored?.update(settings));
+} else if (anchored) {
+anchored.stop();
+anchored = null;
+}
+}));
+cleanup(() => anchored?.stop());
+});
+}
+return { anchorDirective };
+})();
 const __ds_behaviours_clipboard = (() => {
 const COPIED_FOR = 1500;
 function clipboard(Alpine) {
@@ -329,6 +510,130 @@ highlight.hidden = true;
 };
 }
 return { glide };
+})();
+const __ds_behaviours_hover_card = (() => {
+const OPEN_DELAY = 500;
+const CLOSE_DELAY = 300;
+function hoverCard(Alpine) {
+Alpine.data('dsHoverCard', () => {
+let control = null;
+return {
+dsOpen: false,
+init() {
+control = wire(this.$el, {
+isOpen: () => this.dsOpen,
+setOpen: (open) => {
+this.dsOpen = open;
+},
+});
+this.$watch('dsOpen', (open) => control.changed(open));
+},
+destroy() {
+control?.teardown();
+},
+};
+});
+}
+function wire(root, api) {
+const own = (selector) => [...root.querySelectorAll(selector)].find((el) => el.closest('[data-ds-hover-card]') === root) ?? null;
+const trigger = own('[data-ds-hover-card-trigger]');
+const panel = own('[data-ds-hover-card-panel]');
+let openTimer = 0;
+let closeTimer = 0;
+const inTrigger = (node) => Boolean(node && trigger?.contains(node));
+const inPanel = (node) => Boolean(node && panel?.contains(node));
+const within = (node) => inTrigger(node) || inPanel(node);
+function cancel() {
+clearTimeout(openTimer);
+clearTimeout(closeTimer);
+openTimer = 0;
+closeTimer = 0;
+}
+function openSoon() {
+clearTimeout(closeTimer);
+closeTimer = 0;
+if (api.isOpen() || openTimer) return;
+openTimer = setTimeout(() => {
+openTimer = 0;
+api.setOpen(true);
+}, OPEN_DELAY);
+}
+function closeSoon() {
+clearTimeout(openTimer);
+openTimer = 0;
+if (!api.isOpen() || closeTimer) return;
+closeTimer = setTimeout(() => {
+closeTimer = 0;
+if (inPanel(document.activeElement)) return;
+api.setOpen(false);
+}, CLOSE_DELAY);
+}
+function closeNow() {
+cancel();
+api.setOpen(false);
+}
+function onPointerOver(event) {
+if (event.pointerType === 'touch' || !within(event.target)) return;
+if (inTrigger(event.target)) openSoon();
+else {
+clearTimeout(closeTimer);
+closeTimer = 0;
+}
+}
+function onPointerOut(event) {
+if (event.pointerType === 'touch' || within(event.relatedTarget)) return;
+closeSoon();
+}
+function onPointerDown(event) {
+if (inTrigger(event.target)) {
+clearTimeout(openTimer);
+openTimer = 0;
+}
+}
+function onFocusIn(event) {
+if (inPanel(event.target)) {
+clearTimeout(closeTimer);
+closeTimer = 0;
+return;
+}
+if (inTrigger(event.target) && event.target.matches(':focus-visible')) openSoon();
+}
+function onFocusOut(event) {
+if (within(event.relatedTarget)) return;
+if (root.matches(':hover')) return;
+closeNow();
+}
+function onKeyDown(event) {
+if (event.key !== 'Escape' || (!api.isOpen() && !openTimer)) return;
+const ours = root.contains(document.activeElement);
+closeNow();
+if (ours) event.stopPropagation();
+}
+function changed(open) {
+if (open) document.addEventListener('keydown', onKeyDown, true);
+else if (!openTimer) document.removeEventListener('keydown', onKeyDown, true);
+}
+root.addEventListener('pointerover', onPointerOver);
+root.addEventListener('pointerout', onPointerOut);
+root.addEventListener('pointerdown', onPointerDown);
+root.addEventListener('focusin', onFocusIn);
+root.addEventListener('focusout', onFocusOut);
+root.addEventListener('keydown', onKeyDown);
+return {
+changed,
+teardown() {
+cancel();
+document.removeEventListener('keydown', onKeyDown, true);
+root.removeEventListener('pointerover', onPointerOver);
+root.removeEventListener('pointerout', onPointerOut);
+root.removeEventListener('pointerdown', onPointerDown);
+root.removeEventListener('focusin', onFocusIn);
+root.removeEventListener('focusout', onFocusOut);
+root.removeEventListener('keydown', onKeyDown);
+},
+};
+}
+return { hoverCard };
 })();
 const __ds_behaviours_number_field = (() => {
 const HOLD_DELAY = 400;
@@ -716,6 +1021,109 @@ return [trim(lower), plain(trim(lower)), trim(plain(lower))]
 .some((candidate) => candidate.length >= 4 && COMMON.has(candidate));
 }
 return { password };
+})();
+const __ds_behaviours_popover = (() => {
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable="true"]';
+const CONTROL = 'button, a[href], input, select, textarea, [role="button"], [tabindex]';
+function popover(Alpine) {
+Alpine.data('dsPopover', (options = {}) => {
+const dismissible = options.dismissible !== false;
+let control = null;
+return {
+dsOpen: false,
+init() {
+control = wire(this.$el, {
+dismissible,
+isOpen: () => this.dsOpen,
+setOpen: (open) => {
+this.dsOpen = open;
+},
+later: (fn) => this.$nextTick(fn),
+});
+control.changed(this.dsOpen);
+this.$watch('dsOpen', (open) => control.changed(open));
+},
+destroy() {
+control?.teardown();
+},
+};
+});
+}
+function wire(root, api) {
+const own = (selector) => [...root.querySelectorAll(selector)].find((el) => el.closest('[data-ds-popover]') === root) ?? null;
+const trigger = own('[data-ds-popover-trigger]');
+const panel = own('[data-ds-popover-panel]');
+const control = trigger?.querySelector(CONTROL) ?? null;
+if (control && panel) {
+control.setAttribute('aria-controls', panel.id);
+if (!panel.hasAttribute('aria-label') && !panel.hasAttribute('aria-labelledby')) {
+if (!control.id) control.id = `${panel.id}-trigger`;
+panel.setAttribute('aria-labelledby', control.id);
+}
+}
+let ready = false;
+const frame = requestAnimationFrame(() => {
+ready = true;
+});
+let giveBack = true;
+function close(toControl) {
+giveBack = toControl;
+api.setOpen(false);
+}
+function onClick(event) {
+if (!trigger || !trigger.contains(event.target)) return;
+giveBack = true;
+api.setOpen(!api.isOpen());
+}
+function onKeyDown(event) {
+if (event.key !== 'Escape' || !api.dismissible || !api.isOpen()) return;
+event.stopPropagation();
+close(true);
+}
+function onFocusOut(event) {
+if (!api.dismissible || !api.isOpen()) return;
+const to = event.relatedTarget;
+if (!to || root.contains(to)) return;
+close(false);
+}
+function onPointerDown(event) {
+if (root.contains(event.target)) return;
+close(false);
+}
+function focusIn() {
+if (!panel) return;
+const visible = (el) => el.getClientRects().length > 0;
+const first = panel.querySelector('[autofocus]')
+?? [...panel.querySelectorAll(FOCUSABLE)].find(visible)
+?? panel;
+first.focus();
+}
+function changed(open) {
+control?.setAttribute('aria-expanded', open ? 'true' : 'false');
+if (open) {
+if (api.dismissible) document.addEventListener('pointerdown', onPointerDown, true);
+if (ready) api.later(focusIn);
+return;
+}
+document.removeEventListener('pointerdown', onPointerDown, true);
+if (giveBack && panel?.contains(document.activeElement)) control?.focus();
+giveBack = true;
+}
+root.addEventListener('click', onClick);
+root.addEventListener('keydown', onKeyDown);
+root.addEventListener('focusout', onFocusOut);
+return {
+changed,
+teardown() {
+cancelAnimationFrame(frame);
+document.removeEventListener('pointerdown', onPointerDown, true);
+root.removeEventListener('click', onClick);
+root.removeEventListener('keydown', onKeyDown);
+root.removeEventListener('focusout', onFocusOut);
+},
+};
+}
+return { popover };
 })();
 const __ds_behaviours_tag_input = (() => {
 function tagInput(Alpine) {
@@ -1120,15 +1528,18 @@ teardown?.();
 return { toolbar };
 })();
 const __ds_blade_ui = (() => {
+const { anchorDirective } = __ds_behaviours_anchor;
 const { clipboard } = __ds_behaviours_clipboard;
 const { glide } = __ds_behaviours_glide;
+const { hoverCard } = __ds_behaviours_hover_card;
 const { numberField } = __ds_behaviours_number_field;
 const { otp } = __ds_behaviours_otp;
 const { password } = __ds_behaviours_password;
+const { popover } = __ds_behaviours_popover;
 const { tagInput } = __ds_behaviours_tag_input;
 const { toggleGroup } = __ds_behaviours_toggle_group;
 const { toolbar } = __ds_behaviours_toolbar;
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard];
 const REGISTERED = Symbol.for('shipbytes.blade-ui');
 function bladeUi(Alpine) {
 if (!Alpine || Alpine[REGISTERED]) return;
