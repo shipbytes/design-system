@@ -19,6 +19,31 @@
     'title' => null,
     /** Cap on the panel height. The list inside scrolls; the page behind does not. */
     'maxHeight' => '85vh',
+    /*
+     * The props below are 2.0's. Passing ANY of them draws the sheet from
+     * partials/sheet-layer.blade.php; passing none draws exactly the 1.x
+     * markup below, byte for byte (SheetUnchangedTest).
+     */
+    /**
+     * Snap points, lowest to highest or in any order: percentages of the
+     * window's height ('25%'), pixels (320 or '320px'), and 'full', which is
+     * `maxHeight`. The sheet is drawn at the highest and slid down to show
+     * the others. Null: one point, the sheet's natural height.
+     */
+    'snap' => null,
+    /** Where it opens: an index into `snap`, or one of its values. The first by default. */
+    'initialSnap' => null,
+    /** Drag the handle and header (and, below the top point, the content, by touch). True by default. */
+    'draggable' => null,
+    /** The backdrop, the ✕, Escape and a drag down past the lowest point close it. True by default. */
+    'dismissible' => null,
+    /** Draw the grab handle. True by default; a button when there are points to move between. */
+    'handle' => null,
+    /**
+     * False: the page behind stays usable (a map under a list). No backdrop,
+     * no focus trap, no scroll lock; a region named by `title`, not a dialog.
+     */
+    'modal' => null,
 ])
 
 @php
@@ -26,8 +51,13 @@
     // non-assignable expression opens fine and then ignores every way of
     // closing, which is a console-only failure. Make it a loud one.
     \Shipbytes\BladeUi\Support\OpenState::assertAssignable($open, 'ds::sheet');
+    $layered = $snap !== null || $initialSnap !== null || $draggable !== null
+        || $dismissible !== null || $handle !== null || $modal !== null;
 @endphp
 
+@if ($layered)
+    @include('ds::partials.sheet-layer')
+@else
 {{--
     The mobile form of a modal or a drawer. It stops short of the top on purpose:
     leaving the page visible behind it is what makes a sheet feel dismissible,
@@ -85,3 +115,4 @@
         </div>
     </div>
 </div>
+@endif

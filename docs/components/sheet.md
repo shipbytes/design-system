@@ -31,7 +31,13 @@ The mobile form of a modal or a drawer. Covers `sheet` and `sheet-item`.
 |---|---|---|---|
 | `open` | Alpine **reference** | *required* | The boolean **you** declare. Must be assignable: the component sets it to `false` from the ✕ and the backdrop, so `open="mode === 'more'"` opens and then never closes. It throws rather than rendering that. |
 | `title` | string | — | Heading and close button. |
-| `maxHeight` | CSS length | `85vh` | Cap on the panel height. |
+| `maxHeight` | CSS length | `85vh` | Cap on the panel height, and what `full` means. |
+| `snap` | array \| string | — | Snap points, lowest to highest or in any order: `'25%'` (of the window), `320` or `'320px'`, `'full'`. A string is split on commas. |
+| `initialSnap` | int \| string | first point | Where it opens: an index into `snap`, or one of its values. |
+| `draggable` | bool | `true` with any 2.0 prop | Drag the handle or the header; below the top, the content too. |
+| `dismissible` | bool | `true` | The ✕, the backdrop, Escape, and a drag below the lowest point. |
+| `handle` | bool | `true` | The handle row. A button when there is more than one point. |
+| `modal` | bool | `true` | `false`: a region over the page, with no backdrop, no trap and no scroll lock. Needs a `title` (or an `aria-label`). |
 
 ## `sheet-item` props
 
@@ -46,6 +52,56 @@ The mobile form of a modal or a drawer. Covers `sheet` and `sheet-item`.
 | `chevron` | bool | follows the element | |
 
 Plus an `icon` slot.
+
+## Snap points and drag
+
+```blade
+<div x-data="{ map: { places: false } }">
+    <x-ds::sheet open="map.places" title="Places" :snap="['25%', '60%', 'full']" initialSnap="60%"
+                 x-on:snap="console.log($event.detail.index, $event.detail.value)">
+        …
+    </x-ds::sheet>
+</div>
+```
+
+> **Snap points and drag need the package's script.** See
+> [getting started](../getting-started.md#3-add-the-script). Without it the
+> sheet opens at its natural height, exactly as one with none of these props,
+> and the handle is only a picture.
+
+Any of `snap`, `initialSnap`, `draggable`, `dismissible`, `handle` or `modal`
+turns them on. A sheet with none of them renders exactly as it did in 1.x.
+
+- **Drag** the handle or the header, with any pointer. Below the highest
+  point a finger on the content moves the sheet, and the content does not
+  scroll; at the highest it scrolls, and a pull down from its top drags the
+  sheet. On release it settles on the nearest point, by where it is and how
+  fast it was going; past the lowest, a dismissible sheet closes.
+- **The handle is a button**: Enter, Space or a press step up through the
+  points and wrap; the arrow keys move one. "Expanded", "Half" or "Collapsed"
+  is said as it moves. Tabbing into the content below the top raises it.
+- **`snap`** is dispatched, bubbling, with `{ index, value }` (the index into
+  `snap` as you wrote it) whenever the reader moves it.
+- Percentages are of the visible window, and the sheet sits on top of an
+  on-screen keyboard where the browser reports one. The content keeps clear
+  of the home indicator (`safe-area-inset-bottom`).
+
+### A sheet that stays: `modal="false"`
+
+```blade
+<x-ds::sheet open="map.nearby" title="Nearby" :snap="[96, '50%']" :modal="false" :dismissible="false">
+```
+
+A region over the page, at `z-40`: the page behind stays usable, nothing is
+trapped, nothing is locked. The map-and-list pattern.
+
+### A sheet over a sheet
+
+Open one sheet from another (or a modal from a sheet) and they stack: the one
+below scales back and dims, the top one has the focus trap, Escape closes the
+top one only, and the page is unlocked when the last one closes. See
+[Stacking overlays](../getting-started.md#stacking-overlays). A plain 1.x
+sheet, with none of the 2.0 props, does not take part.
 
 ## It stops short of the top
 
@@ -77,7 +133,8 @@ two it belongs to — not which colour is still unused.
 
 ## Don't
 
-- **Don't nest a sheet in a sheet.**
+- **Don't stack more than two sheets.** A sheet over a sheet works (see
+  above); a third is a page.
 - **Don't use one above `lg`.** It is the mobile form of a modal, not a second one.
 - **Don't give a non-navigating row a chevron.**
 
