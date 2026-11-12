@@ -542,16 +542,17 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 50 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 56 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
 accordion, accordion-item, alert, avatar, avatar-group, badge, bottom-nav,
-bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, combobox,
-date-picker, drawer, dropdown, dropdown-item, empty-state, file-upload, icon,
-input, modal, nav-item, number-field, otp-input, panel, panel-row,
-password-strength, progress, radio, radio-group, select, sheet, sheet-item,
-skeleton, stat-tile, step, stepper, switch, tab, tab-panel, table, table-cell,
-table-row, tabs, tag-input, toast, toast-region, tooltip, usage-meter.
+bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, chip,
+chip-group, combobox, copy-button, date-picker, drawer, dropdown, dropdown-item,
+empty-state, file-upload, icon, input, modal, nav-item, number-field, otp-input,
+panel, panel-row, password-strength, progress, radio, radio-card, radio-cards,
+radio-group, rating, select, sheet, sheet-item, skeleton, stat-tile, step,
+stepper, switch, tab, tab-panel, table, table-cell, table-row, tabs, tag-input,
+toast, toast-region, tooltip, usage-meter.
 
 **Every built component has a spec.**
 
@@ -560,7 +561,7 @@ three lines of CSS, every component rendering styled in light and dark.
 
 **Needs Alpine:** modal, drawer, sheet, dropdown, select, combobox, date-picker,
 accordion (with accordion-item), file-upload, tooltip, otp-input, tag-input,
-number-field, password-strength — always. Plus ONE optional prop each on
+number-field, password-strength, copy-button — always. Plus ONE optional prop each on
 checkbox (`indeterminate`), nav-item (`collapsedWhen`), toast (`dismiss`) and
 input (`reveal`), and the pagination views' Livewire variants, whose scroll to
 the top is an `x-on:click` that Livewire's bundled Alpine runs. Everything else
@@ -570,9 +571,16 @@ Livewire variants are opt-in. Counted from the directives in the views on
 `next-2.0`, not from the docs.
 
 **Needs the shared script:** otp-input (`dsOtp`), tag-input (`dsTagInput`),
-number-field (`dsNumberField`), password-strength (`dsPasswordStrength`), and
-input's `reveal` (`dsPassword`). It also registers `dsClipboard`, which the
-copy button will build on.
+number-field (`dsNumberField`), password-strength (`dsPasswordStrength`),
+copy-button (`dsClipboard`, which is also documented for direct use), and
+input's `reveal` (`dsPassword`).
+
+**Plain Blade and CSS, no script, by design:** rating, chip-group (with chip)
+and radio-cards (with radio-card) are native radios or checkboxes styled by
+`has-checked:` and sibling variants. Their groups learn about their children
+from the rendered slot (a component's slot renders before the component), and
+write the host's `wire:model` / `x-model` onto every child input through a
+`data-ds-*-input` hook; see specs/chip-group.md.
 
 **How those behaviours are written** (batch 02 set the pattern): the Blade view
 renders the whole correct state, value and disabled flags included, and marks
@@ -675,7 +683,7 @@ until a screen needs it more than a trailing View button.
 - **Upload transport for `file-upload`.** It is a field, not an uploader.
 - **A date-and-time picker.** Two questions; a control that answers both does
   neither well.
-- **Segmented control, rating, colour picker, rich text.** None have come up.
+- **Segmented control, colour picker, rich text.** None have come up.
 
 ## The docs site (shipbytes.dev)
 
@@ -709,7 +717,7 @@ Rules the conversion imposes on the Markdown:
 - A callout `> **Needs Alpine.** See [getting started](../getting-started.md#alpine).`
   on every page of the ten Alpine components, and "— needs Alpine" in that
   component's row in `docs/README.md` ("— needs Alpine and the script" for the
-  four that use the shared script, whose callout is the one above).
+  five that use the shared script, whose callout is the one above).
 
 **Merging to master rebuilds the site automatically** (GitHub push webhook → the
 rebuild Worker → the site's deploy workflow, ~2 minutes; branches and tags are

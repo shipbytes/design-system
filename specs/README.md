@@ -63,12 +63,16 @@ independent implementations the same component rather than three lookalikes.
 | [tag-input.md](tag-input.md) | Free-text chips, refusals that stay, separators |
 | [number-field.md](number-field.md) | Native number input, step buttons, press-and-hold |
 | [password-strength.md](password-strength.md) | The four-level hint and its heuristic |
+| [copy-button.md](copy-button.md) | Copy, the in-place confirmation, the failure event |
+| [rating.md](rating.md) | Stars over radios, "No rating", the readonly image |
+| [chip-group.md](chip-group.md) | Filter chips, inputs or links, binding through the group |
+| [radio-cards.md](radio-cards.md) | Card-shaped radios, columns, stable ids |
 
 Sub-components are covered by their parent: `table-cell` and `table-row` in
 table.md, `panel-row` in panel.md, `sheet-item` in sheet.md, `dropdown-item` in
 dropdown.md, `bottom-nav-item` in bottom-nav.md, `breadcrumb-item` in
-breadcrumb.md, `tab` and `tab-panel` in tabs.md, `step` in stepper.md, `radio-group` in radio.md, and
-`toast-region` in toast.md.
+breadcrumb.md, `tab` and `tab-panel` in tabs.md, `step` in stepper.md, `radio-group` in radio.md,
+`chip` in chip-group.md, `radio-card` in radio-cards.md, and `toast-region` in toast.md.
 
 **Every built component now has a spec.** Specs are written **alongside** their
 implementation, not before it and not after — a speculative spec for a component
