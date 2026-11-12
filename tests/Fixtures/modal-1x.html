@@ -1,0 +1,843 @@
+<!-- specimen -->
+<div
+    x-show="a"
+    x-cloak
+    x-effect="    if (a) {
+        $el._returnFocusTo = document.activeElement;
+        document.body.classList.add(&#039;overflow-hidden&#039;);
+        $nextTick(() =&gt; {
+            const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
+            (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
+        });
+    } else {
+        document.body.classList.remove(&#039;overflow-hidden&#039;);
+        $el._returnFocusTo?.focus();
+    }"
+            @keydown.escape.window="if (a) a = false"
+        
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+>
+    <div
+        x-show="a"
+         @click="a = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        
+        class="absolute inset-0 bg-scrim"
+    ></div>
+
+    <div
+        x-show="a"
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0 scale-95"
+        x-transition:enter-end="opacity-100 scale-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100 scale-100"
+        x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
+    )].filter((node) =&gt; node.offsetParent !== null);
+    if (!focusable.length) return;
+    const at = focusable.indexOf(document.activeElement);
+    const step = $event.shiftKey ? -1 : 1;
+    focusable[(at + step + focusable.length) % focusable.length].focus();"
+        data-ds-modal-panel
+        
+        tabindex="-1"
+        class="relative flex w-full max-w-sm flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full"
+        role="dialog"
+        aria-modal="true"
+         aria-labelledby="ds-modal-62c7a0a5-title"          aria-describedby="ds-modal-62c7a0a5-desc"     >
+                    <div class="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
+                <div class="min-w-0">
+                                            <h2 id="ds-modal-62c7a0a5-title" class="text-title text-fg">Small</h2>
+                                                                <p id="ds-modal-62c7a0a5-desc" class="mt-1 text-body text-fg-muted">With a description</p>
+                                    </div>
+
+                                    <button
+                        type="button"
+                        @click="a = false"
+                        class="-mt-1 -mr-2 shrink-0 rounded-control p-2 text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                        aria-label="Close"
+                    >
+                        <svg aria-hidden="true" class="size-5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+</svg>                    </button>
+                            </div>
+        
+        
+        
+        <div class="min-h-0 flex-1 overflow-y-auto px-5 text-body text-fg-body">
+            Body
+        </div>
+
+                    
+            <div class="flex items-center justify-end gap-2 border-t border-divider px-5 py-4">
+                <button
+    class="relative isolate inline-flex items-center justify-center gap-2 rounded-control border font-semibold whitespace-nowrap motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:opacity-50 disabled:cursor-not-allowed h-control-sm px-[calc(--spacing(2.5)-1px)] text-meta border-transparent bg-surface-inverse text-on-inverse hover:bg-surface-inverse-hover" type="button"
+        >
+        OK
+</button>
+            </div>
+            </div>
+</div>
+<div
+    x-show="b"
+    x-cloak
+    x-effect="    if (b) {
+        $el._returnFocusTo = document.activeElement;
+        document.body.classList.add(&#039;overflow-hidden&#039;);
+        $nextTick(() =&gt; {
+            const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
+            (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
+        });
+    } else {
+        document.body.classList.remove(&#039;overflow-hidden&#039;);
+        $el._returnFocusTo?.focus();
+    }"
+            @keydown.escape.window="if (b) b = false"
+        
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+>
+    <div
+        x-show="b"
+         @click="b = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        
+        class="absolute inset-0 bg-scrim"
+    ></div>
+
+    <div
+        x-show="b"
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0 scale-95"
+        x-transition:enter-end="opacity-100 scale-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100 scale-100"
+        x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
+    )].filter((node) =&gt; node.offsetParent !== null);
+    if (!focusable.length) return;
+    const at = focusable.indexOf(document.activeElement);
+    const step = $event.shiftKey ? -1 : 1;
+    focusable[(at + step + focusable.length) % focusable.length].focus();"
+        data-ds-modal-panel
+        
+        tabindex="-1"
+        class="relative flex w-full max-w-md flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full"
+        role="dialog"
+        aria-modal="true"
+         aria-labelledby="ds-modal-5ec761ac-title"             >
+                    <div class="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
+                <div class="min-w-0">
+                                            <h2 id="ds-modal-5ec761ac-title" class="text-title text-fg">Medium</h2>
+                                                        </div>
+
+                                    <button
+                        type="button"
+                        @click="b = false"
+                        class="-mt-1 -mr-2 shrink-0 rounded-control p-2 text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                        aria-label="Close"
+                    >
+                        <svg aria-hidden="true" class="size-5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+</svg>                    </button>
+                            </div>
+        
+        
+        
+        <div class="min-h-0 flex-1 overflow-y-auto px-5 text-body text-fg-body pb-5">
+            Body
+        </div>
+
+            </div>
+</div>
+<div
+    x-show="c"
+    x-cloak
+    x-effect="    if (c) {
+        $el._returnFocusTo = document.activeElement;
+        document.body.classList.add(&#039;overflow-hidden&#039;);
+        $nextTick(() =&gt; {
+            const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
+            (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
+        });
+    } else {
+        document.body.classList.remove(&#039;overflow-hidden&#039;);
+        $el._returnFocusTo?.focus();
+    }"
+            @keydown.escape.window="if (c) c = false"
+        
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+>
+    <div
+        x-show="c"
+         @click="c = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        
+        class="absolute inset-0 bg-scrim"
+    ></div>
+
+    <div
+        x-show="c"
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0 scale-95"
+        x-transition:enter-end="opacity-100 scale-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100 scale-100"
+        x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
+    )].filter((node) =&gt; node.offsetParent !== null);
+    if (!focusable.length) return;
+    const at = focusable.indexOf(document.activeElement);
+    const step = $event.shiftKey ? -1 : 1;
+    focusable[(at + step + focusable.length) % focusable.length].focus();"
+        data-ds-modal-panel
+        
+        tabindex="-1"
+        class="relative flex w-full max-w-lg flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full"
+        role="dialog"
+        aria-modal="true"
+         aria-labelledby="ds-modal-6ee75bc2-title"             >
+                    <div class="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
+                <div class="min-w-0">
+                                            <h2 id="ds-modal-6ee75bc2-title" class="text-title text-fg">Large</h2>
+                                                        </div>
+
+                                    <button
+                        type="button"
+                        @click="c = false"
+                        class="-mt-1 -mr-2 shrink-0 rounded-control p-2 text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                        aria-label="Close"
+                    >
+                        <svg aria-hidden="true" class="size-5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+</svg>                    </button>
+                            </div>
+        
+        
+        
+        <div class="min-h-0 flex-1 overflow-y-auto px-5 text-body text-fg-body pb-5">
+            Body
+        </div>
+
+            </div>
+</div>
+<div
+    x-show="d"
+    x-cloak
+    x-effect="    if (d) {
+        $el._returnFocusTo = document.activeElement;
+        document.body.classList.add(&#039;overflow-hidden&#039;);
+        $nextTick(() =&gt; {
+            const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
+            (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
+        });
+    } else {
+        document.body.classList.remove(&#039;overflow-hidden&#039;);
+        $el._returnFocusTo?.focus();
+    }"
+            @keydown.escape.window="if (d) d = false"
+        
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+>
+    <div
+        x-show="d"
+         @click="d = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        
+        class="absolute inset-0 bg-scrim"
+    ></div>
+
+    <div
+        x-show="d"
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0 scale-95"
+        x-transition:enter-end="opacity-100 scale-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100 scale-100"
+        x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
+    )].filter((node) =&gt; node.offsetParent !== null);
+    if (!focusable.length) return;
+    const at = focusable.indexOf(document.activeElement);
+    const step = $event.shiftKey ? -1 : 1;
+    focusable[(at + step + focusable.length) % focusable.length].focus();"
+        data-ds-modal-panel
+        
+        tabindex="-1"
+        class="relative flex w-full max-w-xl flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full"
+        role="dialog"
+        aria-modal="true"
+         aria-labelledby="ds-modal-fd2ef35b-title"             >
+                    <div class="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
+                <div class="min-w-0">
+                                            <h2 id="ds-modal-fd2ef35b-title" class="text-title text-fg">Extra</h2>
+                                                        </div>
+
+                                    <button
+                        type="button"
+                        @click="d = false"
+                        class="-mt-1 -mr-2 shrink-0 rounded-control p-2 text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                        aria-label="Close"
+                    >
+                        <svg aria-hidden="true" class="size-5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+</svg>                    </button>
+                            </div>
+        
+        
+        
+        <div class="min-h-0 flex-1 overflow-y-auto px-5 text-body text-fg-body pb-5">
+            Body
+        </div>
+
+            </div>
+</div>
+<div
+    x-show="g"
+    x-cloak
+    x-effect="    if (g) {
+        $el._returnFocusTo = document.activeElement;
+        document.body.classList.add(&#039;overflow-hidden&#039;);
+        $nextTick(() =&gt; {
+            const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
+            (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
+        });
+    } else {
+        document.body.classList.remove(&#039;overflow-hidden&#039;);
+        $el._returnFocusTo?.focus();
+    }"
+            @keydown.escape.window="if (g) g = false"
+        
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+>
+    <div
+        x-show="g"
+         @click="g = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        
+        class="absolute inset-0 bg-scrim"
+    ></div>
+
+    <div
+        x-show="g"
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0 scale-95"
+        x-transition:enter-end="opacity-100 scale-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100 scale-100"
+        x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
+    )].filter((node) =&gt; node.offsetParent !== null);
+    if (!focusable.length) return;
+    const at = focusable.indexOf(document.activeElement);
+    const step = $event.shiftKey ? -1 : 1;
+    focusable[(at + step + focusable.length) % focusable.length].focus();"
+        data-ds-modal-panel
+        
+        tabindex="-1"
+        class="relative flex w-full max-w-2xl flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full"
+        role="dialog"
+        aria-modal="true"
+         aria-labelledby="ds-modal-ab560bf6-title"             >
+                    <div class="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
+                <div class="min-w-0">
+                                            <h2 id="ds-modal-ab560bf6-title" class="text-title text-fg">Wider</h2>
+                                                        </div>
+
+                                    <button
+                        type="button"
+                        @click="g = false"
+                        class="-mt-1 -mr-2 shrink-0 rounded-control p-2 text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                        aria-label="Close"
+                    >
+                        <svg aria-hidden="true" class="size-5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+</svg>                    </button>
+                            </div>
+        
+        
+        
+        <div class="min-h-0 flex-1 overflow-y-auto px-5 text-body text-fg-body pb-5">
+            Body
+        </div>
+
+            </div>
+</div>
+<div
+    x-show="h"
+    x-cloak
+    x-effect="    if (h) {
+        $el._returnFocusTo = document.activeElement;
+        document.body.classList.add(&#039;overflow-hidden&#039;);
+        $nextTick(() =&gt; {
+            const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
+            (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
+        });
+    } else {
+        document.body.classList.remove(&#039;overflow-hidden&#039;);
+        $el._returnFocusTo?.focus();
+    }"
+            @keydown.escape.window="if (h) h = false"
+        
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+>
+    <div
+        x-show="h"
+         @click="h = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        
+        class="absolute inset-0 bg-scrim"
+    ></div>
+
+    <div
+        x-show="h"
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0 scale-95"
+        x-transition:enter-end="opacity-100 scale-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100 scale-100"
+        x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
+    )].filter((node) =&gt; node.offsetParent !== null);
+    if (!focusable.length) return;
+    const at = focusable.indexOf(document.activeElement);
+    const step = $event.shiftKey ? -1 : 1;
+    focusable[(at + step + focusable.length) % focusable.length].focus();"
+        data-ds-modal-panel
+        
+        tabindex="-1"
+        class="relative flex w-full max-w-3xl flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full"
+        role="dialog"
+        aria-modal="true"
+         aria-labelledby="ds-modal-9a7a73d6-title"             >
+                    <div class="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
+                <div class="min-w-0">
+                                            <h2 id="ds-modal-9a7a73d6-title" class="text-title text-fg">Wider still</h2>
+                                                        </div>
+
+                                    <button
+                        type="button"
+                        @click="h = false"
+                        class="-mt-1 -mr-2 shrink-0 rounded-control p-2 text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                        aria-label="Close"
+                    >
+                        <svg aria-hidden="true" class="size-5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+</svg>                    </button>
+                            </div>
+        
+        
+        
+        <div class="min-h-0 flex-1 overflow-y-auto px-5 text-body text-fg-body pb-5">
+            Body
+        </div>
+
+            </div>
+</div>
+<div
+    x-show="i"
+    x-cloak
+    x-effect="    if (i) {
+        $el._returnFocusTo = document.activeElement;
+        document.body.classList.add(&#039;overflow-hidden&#039;);
+        $nextTick(() =&gt; {
+            const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
+            (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
+        });
+    } else {
+        document.body.classList.remove(&#039;overflow-hidden&#039;);
+        $el._returnFocusTo?.focus();
+    }"
+            @keydown.escape.window="if (i) i = false"
+        
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+>
+    <div
+        x-show="i"
+         @click="i = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        
+        class="absolute inset-0 bg-scrim"
+    ></div>
+
+    <div
+        x-show="i"
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0 scale-95"
+        x-transition:enter-end="opacity-100 scale-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100 scale-100"
+        x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
+    )].filter((node) =&gt; node.offsetParent !== null);
+    if (!focusable.length) return;
+    const at = focusable.indexOf(document.activeElement);
+    const step = $event.shiftKey ? -1 : 1;
+    focusable[(at + step + focusable.length) % focusable.length].focus();"
+        data-ds-modal-panel
+        
+        tabindex="-1"
+        class="relative flex w-full max-w-4xl flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full"
+        role="dialog"
+        aria-modal="true"
+         aria-labelledby="ds-modal-27d5197a-title"             >
+                    <div class="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
+                <div class="min-w-0">
+                                            <h2 id="ds-modal-27d5197a-title" class="text-title text-fg">Widest</h2>
+                                                        </div>
+
+                                    <button
+                        type="button"
+                        @click="i = false"
+                        class="-mt-1 -mr-2 shrink-0 rounded-control p-2 text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                        aria-label="Close"
+                    >
+                        <svg aria-hidden="true" class="size-5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+</svg>                    </button>
+                            </div>
+        
+        
+        
+        <div class="min-h-0 flex-1 overflow-y-auto px-5 text-body text-fg-body pb-5">
+            Body
+        </div>
+
+            </div>
+</div>
+
+<div
+    x-show="j"
+    x-cloak
+    x-effect="    if (j) {
+        $el._returnFocusTo = document.activeElement;
+        document.body.classList.add(&#039;overflow-hidden&#039;);
+        $nextTick(() =&gt; {
+            const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
+            (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
+        });
+    } else {
+        document.body.classList.remove(&#039;overflow-hidden&#039;);
+        $el._returnFocusTo?.focus();
+    }"
+            @keydown.escape.window="if (j) j = false"
+        
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+>
+    <div
+        x-show="j"
+         @click="j = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        
+        class="absolute inset-0 bg-scrim"
+    ></div>
+
+    <div
+        x-show="j"
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0 scale-95"
+        x-transition:enter-end="opacity-100 scale-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100 scale-100"
+        x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
+    )].filter((node) =&gt; node.offsetParent !== null);
+    if (!focusable.length) return;
+    const at = focusable.indexOf(document.activeElement);
+    const step = $event.shiftKey ? -1 : 1;
+    focusable[(at + step + focusable.length) % focusable.length].focus();"
+        data-ds-modal-panel
+        
+        tabindex="-1"
+        class="relative flex w-full max-w-[96rem] flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full"
+        role="dialog"
+        aria-modal="true"
+         aria-labelledby="ds-modal-08945411-title"             >
+                    <div class="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
+                <div class="min-w-0">
+                                            <h2 id="ds-modal-08945411-title" class="text-title text-fg">Near full screen</h2>
+                                                        </div>
+
+                                    <button
+                        type="button"
+                        @click="j = false"
+                        class="-mt-1 -mr-2 shrink-0 rounded-control p-2 text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                        aria-label="Close"
+                    >
+                        <svg aria-hidden="true" class="size-5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+</svg>                    </button>
+                            </div>
+        
+        
+        
+        <div class="min-h-0 flex-1 overflow-y-auto px-5 text-body text-fg-body pb-5">
+            Body
+        </div>
+
+            </div>
+</div>
+<div
+    x-show="e"
+    x-cloak
+    x-effect="    if (e) {
+        $el._returnFocusTo = document.activeElement;
+        document.body.classList.add(&#039;overflow-hidden&#039;);
+        $nextTick(() =&gt; {
+            const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
+            (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
+        });
+    } else {
+        document.body.classList.remove(&#039;overflow-hidden&#039;);
+        $el._returnFocusTo?.focus();
+    }"
+        
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+>
+    <div
+        x-show="e"
+                x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        
+        class="absolute inset-0 bg-scrim"
+    ></div>
+
+    <div
+        x-show="e"
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0 scale-95"
+        x-transition:enter-end="opacity-100 scale-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100 scale-100"
+        x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
+    )].filter((node) =&gt; node.offsetParent !== null);
+    if (!focusable.length) return;
+    const at = focusable.indexOf(document.activeElement);
+    const step = $event.shiftKey ? -1 : 1;
+    focusable[(at + step + focusable.length) % focusable.length].focus();"
+        data-ds-modal-panel
+        
+        tabindex="-1"
+        class="relative flex w-full max-w-md flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full"
+        role="dialog"
+        aria-modal="true"
+         aria-labelledby="ds-modal-00045c25-title"             >
+                    <div class="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
+                <div class="min-w-0">
+                                            <h2 id="ds-modal-00045c25-title" class="text-title text-fg">Locked</h2>
+                                                        </div>
+
+                            </div>
+        
+        
+        
+        <div class="min-h-0 flex-1 overflow-y-auto px-5 text-body text-fg-body pb-5">
+            Body
+        </div>
+
+            </div>
+</div>
+<div
+    x-show="f"
+    x-cloak
+    x-effect="    if (f) {
+        $el._returnFocusTo = document.activeElement;
+        document.body.classList.add(&#039;overflow-hidden&#039;);
+        $nextTick(() =&gt; {
+            const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
+            (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
+        });
+    } else {
+        document.body.classList.remove(&#039;overflow-hidden&#039;);
+        $el._returnFocusTo?.focus();
+    }"
+            @keydown.escape.window="if (f) f = false"
+        
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+>
+    <div
+        x-show="f"
+         @click="f = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        
+        class="absolute inset-0 bg-scrim"
+    ></div>
+
+    <div
+        x-show="f"
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0 scale-95"
+        x-transition:enter-end="opacity-100 scale-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100 scale-100"
+        x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
+    )].filter((node) =&gt; node.offsetParent !== null);
+    if (!focusable.length) return;
+    const at = focusable.indexOf(document.activeElement);
+    const step = $event.shiftKey ? -1 : 1;
+    focusable[(at + step + focusable.length) % focusable.length].focus();"
+        data-ds-modal-panel
+        
+        tabindex="-1"
+        class="relative flex w-full max-w-md flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full"
+        role="dialog"
+        aria-modal="true"
+                    >
+                    <div class="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
+                <div class="min-w-0">
+                                                        </div>
+
+                                    <button
+                        type="button"
+                        @click="f = false"
+                        class="-mt-1 -mr-2 shrink-0 rounded-control p-2 text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                        aria-label="Close"
+                    >
+                        <svg aria-hidden="true" class="size-5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+</svg>                    </button>
+                            </div>
+        
+        
+        
+        <div class="min-h-0 flex-1 overflow-y-auto px-5 text-body text-fg-body pb-5">
+            Untitled body only
+        </div>
+
+            </div>
+</div>
+
+<!-- form with autofocus -->
+<div
+    x-show="show.rename"
+    x-cloak
+    x-effect="    if (show.rename) {
+        $el._returnFocusTo = document.activeElement;
+        document.body.classList.add(&#039;overflow-hidden&#039;);
+        $nextTick(() =&gt; {
+            const panel = $el.querySelector(&#039;[data-ds-modal-panel]&#039;);
+            (panel.querySelector(&#039;[autofocus]&#039;) ?? panel).focus();
+        });
+    } else {
+        document.body.classList.remove(&#039;overflow-hidden&#039;);
+        $el._returnFocusTo?.focus();
+    }"
+            @keydown.escape.window="if (show.rename) show.rename = false"
+        
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+>
+    <div
+        x-show="show.rename"
+         @click="show.rename = false"         x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        
+        class="absolute inset-0 bg-scrim"
+    ></div>
+
+    <div
+        x-show="show.rename"
+        x-transition:enter="motion-safe:transition motion-safe:duration-dialog-enter motion-safe:ease-enter"
+        x-transition:enter-start="opacity-0 scale-95"
+        x-transition:enter-end="opacity-100 scale-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-dialog-leave motion-safe:ease-leave"
+        x-transition:leave-start="opacity-100 scale-100"
+        x-transition:leave-end="opacity-0 scale-95"
+        @keydown.tab.prevent="    const focusable = [...$el.querySelectorAll(
+        &#039;a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=&quot;-1&quot;])&#039;
+    )].filter((node) =&gt; node.offsetParent !== null);
+    if (!focusable.length) return;
+    const at = focusable.indexOf(document.activeElement);
+    const step = $event.shiftKey ? -1 : 1;
+    focusable[(at + step + focusable.length) % focusable.length].focus();"
+        data-ds-modal-panel
+        
+        tabindex="-1"
+        class="relative flex w-full max-w-sm flex-col overflow-hidden rounded-panel bg-surface shadow-overlay outline-hidden max-h-full mt-2"
+        role="dialog"
+        aria-modal="true"
+         aria-labelledby="ds-modal-42f014f9-title"             >
+                    <div class="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
+                <div class="min-w-0">
+                                            <h2 id="ds-modal-42f014f9-title" class="text-title text-fg">Rename</h2>
+                                                        </div>
+
+                                    <button
+                        type="button"
+                        @click="show.rename = false"
+                        class="-mt-1 -mr-2 shrink-0 rounded-control p-2 text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                        aria-label="Close"
+                    >
+                        <svg aria-hidden="true" class="size-5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+</svg>                    </button>
+                            </div>
+        
+        
+        
+        <div class="min-h-0 flex-1 overflow-y-auto px-5 text-body text-fg-body">
+            <input autofocus name="name">
+        </div>
+
+                    
+            <div class="flex items-center justify-end gap-2 border-t border-divider px-5 py-4">
+                <button type="button">Save</button>
+            </div>
+            </div>
+</div>
+
