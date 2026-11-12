@@ -96,6 +96,8 @@ bound field here, so a re-render draws the fill where the value is.
 
 A price filter with the spread of prices behind it:
 
+![A price range over a histogram of prices, with the count and number fields](../images/slider-histogram.png)
+
 ```blade
 <x-ds::slider
     name="price"

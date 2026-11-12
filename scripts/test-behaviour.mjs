@@ -219,6 +219,18 @@ const b16MorphBefore = await render(join(TMP, 'b16-morph-a.blade.php'));
 await writeFile(join(TMP, 'b16-morph-b.blade.php'), b16Blade(['2500.5', '+14155550123', 'mod+shift+p']));
 const b16MorphAfter = await render(join(TMP, 'b16-morph-b.blade.php'));
 
+// Batch 17's fields as a Livewire re-render brings them back with new values:
+// the mention's ids, the colour's moved name and the histogram's bars and
+// number fields all have to survive it.
+const b17Blade = ([text, colour, range]) => '<div id="b17-morph">'
+    + `<x-ds::mention-input id="mnm" name="note" label="Note" value="${text}" :items="[['id' => 7, 'label' => 'Maya Patel'], ['id' => 8, 'label' => 'Omar Malik']]" />`
+    + `<x-ds::color-picker id="cpm" name="tint" label="Tint" value="${colour}" />`
+    + `<x-ds::slider id="hsm" name="span" label="Span" :range="true" :value="[${range}]" lowLabel="From" highLabel="To" :histogram="[4, 5, 1, 1]" countLabel=":count" :inputs="true" /></div>`;
+await writeFile(join(TMP, 'b17-morph-a.blade.php'), b17Blade(['Ask @Maya Patel', '#336699', '20, 60']));
+const b17MorphBefore = await render(join(TMP, 'b17-morph-a.blade.php'));
+await writeFile(join(TMP, 'b17-morph-b.blade.php'), b17Blade(['Ask @Omar Malik', '#ff0000', '0, 40']));
+const b17MorphAfter = await render(join(TMP, 'b17-morph-b.blade.php'));
+
 await writeFile(
     join(TMP, 'in.css'),
     `@import "tailwindcss";
@@ -6416,6 +6428,419 @@ group('shortcut input (dsShortcutInput) and kbd shortcut (x-ds-shortcut)');
     });
 }
 
+group('mention input (dsMention)');
+{
+    const mention = (id) => page.evaluate((i) => {
+        const field = document.getElementById(i);
+        const root = field.closest('[data-ds-mention]');
+        const panel = root.querySelector('[data-ds-mention-panel]');
+        const rows = [...root.querySelectorAll('[data-ds-mention-option]')]
+            .filter((o) => !o.hidden)
+            .sort((a, b) => (Number(a.style.order) || 0) - (Number(b.style.order) || 0));
+        return {
+            value: field.value,
+            role: field.getAttribute('role'),
+            expanded: field.getAttribute('aria-expanded'),
+            active: field.getAttribute('aria-activedescendant'),
+            open: panel.checkVisibility(),
+            rows: rows.map((o) => o.dataset.dsLabel + (o.getAttribute('aria-selected') === 'true' ? '*' : '')).join('|'),
+            activeIsRow: rows.some((o) => o.id === field.getAttribute('aria-activedescendant') && o.getAttribute('aria-selected') === 'true'),
+            ids: [...root.querySelectorAll('[data-ds-mention-ids] input')].map((n) => `${n.name}=${n.value}${n.disabled ? ' off' : ''}`).join(),
+            busy: root.querySelector('[role=listbox]').getAttribute('aria-busy'),
+            empty: root.querySelector('[data-ds-mention-empty]')?.checkVisibility() ?? false,
+            focused: document.activeElement === field,
+        };
+    }, id);
+    const typeInto = async (id, text) => {
+        await page.evaluate((i) => document.getElementById(i).scrollIntoView({ block: 'center' }), id);
+        await page.click(`#${id}`);
+        await page.keyboard.press('Control+End');
+        await page.keyboard.type(text);
+        await settle(60);
+    };
+    const boxes = (id) => page.evaluate((i) => {
+        const field = document.getElementById(i);
+        const panel = field.closest('[data-ds-mention]').querySelector('[data-ds-mention-panel]');
+        const f = field.getBoundingClientRect();
+        const p = panel.getBoundingClientRect();
+        const cs = getComputedStyle(field);
+        return {
+            field: { left: f.left, top: f.top, right: f.right, bottom: f.bottom },
+            panel: { left: p.left, top: p.top, right: p.right, bottom: p.bottom },
+            line: parseFloat(cs.lineHeight),
+            padTop: parseFloat(cs.paddingTop) + field.clientTop,
+            scrollTop: field.scrollTop,
+            side: panel.dataset.side,
+        };
+    }, id);
+
+    await check('with the script the field is a combobox, closed, and the server\'s mention posts its id', async () => {
+        const r = await mention('mn');
+        return (r.role === 'combobox' && r.expanded === 'false' && !r.open && r.ids === 'body_mentions[]=9') || JSON.stringify(r);
+    });
+    await check('typing @ at the start of a word opens its list; the letters after it rank the rows, first active', async () => {
+        await typeInto('mn', ' and @ma');
+        const r = await mention('mn');
+        return (r.open && r.expanded === 'true' && r.rows.startsWith('Maya Patel*|Omar Malik') && r.activeIsRow && !r.rows.includes('Ade')) || JSON.stringify(r);
+    });
+    await check('Down moves the active row; Enter writes it in with a space, closes, and posts its id', async () => {
+        await page.keyboard.press('ArrowDown');
+        const moved = (await mention('mn')).rows;
+        await page.keyboard.press('Enter');
+        await settle(60);
+        const r = await mention('mn');
+        return (moved.startsWith('Maya Patel|Omar Malik*') && r.value === 'Thanks @Ade Okafor and @Omar Malik ' && !r.open && r.expanded === 'false' && r.active === null && r.ids === 'body_mentions[]=9,body_mentions[]=8') || JSON.stringify({ moved, r });
+    });
+    await check('# opens the other trigger\'s rows, and Tab writes one in without leaving the field', async () => {
+        await page.keyboard.type('see #dar');
+        await settle(60);
+        const open = await mention('mn');
+        await page.keyboard.press('Tab');
+        await settle(60);
+        const r = await mention('mn');
+        return (open.rows === 'Dark mode chart*' && r.value.endsWith('see #Dark mode chart ') && r.focused && r.ids.endsWith('body_mentions[]=102')) || JSON.stringify({ open, r });
+    });
+    await check('an @ inside a word (ada@example.com) does not open it', async () => {
+        await page.keyboard.type('ada@ex');
+        await settle(60);
+        const r = await mention('mn');
+        return !r.open || JSON.stringify(r);
+    });
+    await check('no match says so in the status region; a space then closes it', async () => {
+        await page.keyboard.type(' @zz');
+        await settle(60);
+        const none = await mention('mn');
+        await page.keyboard.type(' ');
+        await settle(60);
+        const r = await mention('mn');
+        return (none.open && none.empty && none.rows === '' && !r.open) || JSON.stringify({ none, r });
+    });
+    await check('Escape closes the list and nothing else; typing on in that word does not reopen it', async () => {
+        await page.keyboard.type('@sa');
+        await settle(60);
+        const open = (await mention('mn')).open;
+        await page.keyboard.press('Escape');
+        await settle(60);
+        const closed = await mention('mn');
+        await page.keyboard.type('m');
+        await settle(60);
+        const r = await mention('mn');
+        return (open && !closed.open && closed.focused && closed.value.endsWith('@sa') && !r.open) || JSON.stringify({ open, closed, r });
+    });
+    await check('breaking a mention\'s text stops its id posting, and Undo brings it back', async () => {
+        await page.evaluate(() => document.getElementById('mn').setSelectionRange(10, 10));
+        await page.keyboard.type('x');
+        await settle(60);
+        const broken = await mention('mn');
+        await page.keyboard.press('Control+z');
+        await settle(60);
+        const undone = await mention('mn');
+        return (broken.value.startsWith('Thanks @Adxe') && broken.ids.startsWith('body_mentions[]=9 off') && undone.value.startsWith('Thanks @Ade Okafor') && undone.ids.startsWith('body_mentions[]=9,')) || JSON.stringify({ broken, undone });
+    });
+    await check('a token insert writes @[label](id), and with atomic one Backspace deletes the whole mention', async () => {
+        await typeInto('mn-token', 'cc @sam');
+        await page.keyboard.press('Enter');
+        await settle(60);
+        const inserted = await mention('mn-token');
+        await page.keyboard.press('Backspace');
+        await page.keyboard.press('Backspace');
+        await settle(60);
+        const r = await mention('mn-token');
+        return (inserted.value === 'cc @[Sam Rivera](10) ' && inserted.ids === 'post[update_mentions][]=10' && r.value === 'cc ' && r.ids === 'post[update_mentions][]=10 off') || JSON.stringify({ inserted, r });
+    });
+    await check('minChars 1 waits for a letter; x-model gets the text, and text the host sets is shown with its mentions', async () => {
+        await typeInto('mn-model', ' @');
+        const waiting = (await mention('mn-model')).open;
+        await page.keyboard.type('a');
+        await settle(60);
+        const open = await mention('mn-model');
+        await page.keyboard.press('Enter');
+        await settle(60);
+        const typed = await page.locator('#mn-out').innerText();
+        await page.evaluate(() => { Alpine.$data(document.getElementById('mn-out')).note = 'Ask @Maya Patel'; });
+        await settle(60);
+        const set = await mention('mn-model');
+        return (!waiting && open.open && open.rows.startsWith('Ade Okafor*') && typed === 'hi @Ade Okafor' && set.value === 'Ask @Maya Patel' && set.ids === 'note_mentions[]=9 off,note_mentions[]=7' && !set.open) || JSON.stringify({ waiting, open, typed, set });
+    });
+    await check('each query dispatches search { trigger, query } from the field once typing stops; loading is said, not "No matches"', async () => {
+        await page.evaluate(() => { window.b17Search = []; });
+        await typeInto('mn-remote', '@jo');
+        await settle(350);
+        const r = await mention('mn-remote');
+        const said = await page.evaluate(() => document.querySelector('[data-ds-mention]:has(#mn-remote) [role=status]').innerText.trim());
+        const events = await page.evaluate(() => JSON.stringify(window.b17Search));
+        await page.keyboard.press('Escape');
+        return (events === '[{"trigger":"@","query":"jo"}]' && r.open && r.busy === 'true' && said === 'Loading…') || JSON.stringify({ events, r, said });
+    });
+    await check('the list hangs under the trigger on its own line when the text wraps', async () => {
+        await typeInto('mn-wrap', 'Could you please look at this for @');
+        const b = await boxes('mn-wrap');
+        await page.keyboard.press('Escape');
+        const lines = Math.round((b.panel.top - 4 - b.field.top - b.padTop) / b.line);
+        return (lines >= 2 && b.panel.top < b.field.bottom + 8 + b.line && b.panel.left >= b.field.left - 1 && b.panel.left < b.field.right) || JSON.stringify({ lines, b });
+    });
+    await check('in a field scrolled down, under the trigger as it shows, not where it would be unscrolled', async () => {
+        await typeInto('mn-scroll', ' @');
+        const b = await boxes('mn-scroll');
+        await page.keyboard.press('Escape');
+        const want = b.field.top + b.padTop + 5 * b.line - b.scrollTop + 4;
+        return (b.scrollTop > 0 && Math.abs(b.panel.top - want) <= 3 && b.panel.top <= b.field.bottom + 4) || JSON.stringify({ want, b });
+    });
+    await check('right to left: under the trigger, its right edge there, not at the field\'s start', async () => {
+        await typeInto('mn-rtl', '@م');
+        const b = await boxes('mn-rtl');
+        const shown = (await mention('mn-rtl')).open;
+        await page.keyboard.press('Escape');
+        return (shown && b.panel.right < b.field.right - 60 && b.panel.top > b.field.top) || JSON.stringify({ shown, b });
+    });
+    await check('at the bottom of the window it flips above the field and stays on screen', async () => {
+        await page.evaluate(() => document.getElementById('mn').scrollIntoView({ block: 'end' }));
+        await settle(100);
+        await page.click('#mn');
+        await page.keyboard.press('Control+End');
+        await page.keyboard.type(' @');
+        await settle(200);
+        const b = await anchorBoxes('[data-ds-mention]:has(#mn) [data-ds-mention-panel]', '#mn');
+        await page.keyboard.press('Escape');
+        if (!b.shown) return 'it did not open';
+        if (b.side !== 'top') return `data-side is ${b.side}`;
+        return insideViewport(b);
+    });
+    await check('in a modal, Escape closes the list and leaves the modal open; the next Escape closes the modal', async () => {
+        await page.evaluate(() => document.getElementById('mn-modal-open').scrollIntoView({ block: 'center' }));
+        await page.click('#mn-modal-open');
+        await settle(450);
+        await page.click('#mn-modal');
+        await page.keyboard.type('@ma');
+        await settle(60);
+        const open = await mention('mn-modal');
+        const dialog = () => page.evaluate(() => document.getElementById('mn-modal').closest('[role=dialog]')?.checkVisibility() ?? false);
+        await page.keyboard.press('Escape');
+        await settle(100);
+        const after = { list: (await mention('mn-modal')).open, modal: await dialog() };
+        await page.keyboard.press('Escape');
+        await settle(450);
+        const closed = await dialog();
+        return (open.open && !after.list && after.modal && !closed) || JSON.stringify({ open, after, closed });
+    });
+}
+
+group('colour picker (dsColour, on dsPopover)');
+{
+    const colour = (id) => page.evaluate((i) => {
+        const field = document.getElementById(i);
+        const root = field.closest('[data-ds-colour]');
+        const posted = root.querySelector('[data-ds-colour-value]');
+        return {
+            text: field.value,
+            posted: posted.value,
+            name: posted.getAttribute('name'),
+            invalid: field.getAttribute('aria-invalid'),
+            native: root.querySelector('[data-ds-colour-native]').checkVisibility(),
+            nativeName: root.querySelector('[data-ds-colour-native]').getAttribute('name'),
+            trigger: root.querySelector('[data-ds-colour-trigger]').checkVisibility(),
+            said: root.querySelector('[data-ds-colour-trigger]').textContent.replace(/\s+/g, ' ').trim(),
+            ratio: root.querySelector('[data-ds-colour-ratio]')?.textContent.trim() ?? null,
+            marks: [...root.querySelectorAll('[data-ds-colour-mark]')].map((m) => (m.hasAttribute('data-pass') ? 'pass' : 'fail')).join(),
+            checked: root.querySelector('[data-ds-colour-preset]:checked')?.value ?? null,
+            parts: [...root.querySelectorAll('[data-ds-colour-part]')].map((p) => p.dataset.dsColourPart + p.value).join(' '),
+        };
+    }, id);
+    const retype = async (id, text) => {
+        await page.click(`#${id}`);
+        await page.keyboard.press('Control+A');
+        await page.keyboard.type(text);
+    };
+    const panelOf = (id) => `[data-ds-colour]:has(#${id})`;
+
+    await check('with the script the swatch stands in for the native input, and the colour posts from the hidden input', async () => {
+        const r = await colour('col');
+        return (r.text === '#336699' && r.posted === '#336699ff' && r.name === 'brand' && !r.native && r.nativeName === null && r.trigger && /#336699/i.test(r.said)) || JSON.stringify(r);
+    });
+    await check('the contrast with contrastWith is cut to two places, with AA passed and AAA failed', async () => {
+        const r = await colour('col');
+        return (r.ratio.startsWith('5.99') && r.marks === 'pass,fail') || JSON.stringify(r);
+    });
+    await check('typing reads forgivingly; text that is not a colour stays as typed, invalid, posting ""', async () => {
+        await retype('col', 'abc');
+        const short = await colour('col');
+        await page.keyboard.type('x');
+        const bad = await colour('col');
+        await page.keyboard.press('Backspace');
+        await page.keyboard.press('Tab');
+        const left = await colour('col');
+        return (short.posted === '#aabbccff' && short.invalid === null && bad.text === 'abcx' && bad.invalid === 'true' && bad.posted === '' && /No colour/.test(bad.said) && left.text === '#aabbcc' && left.posted === '#aabbccff' && left.invalid === null) || JSON.stringify({ short, bad, left });
+    });
+    await check('the swatch opens the panel on the area; the arrow keys move saturation and brightness', async () => {
+        await retype('col', '#336699');
+        await page.click(`${panelOf('col')} [data-ds-colour-trigger]`);
+        await settle(300);
+        const on = await page.evaluate(() => ({ slider: document.activeElement.dataset.dsColourSlider, text: document.activeElement.getAttribute('aria-valuetext'), label: document.activeElement.getAttribute('aria-label') }));
+        await page.keyboard.press('ArrowLeft');
+        await page.keyboard.press('Shift+ArrowDown');
+        const after = await page.evaluate(() => document.activeElement.getAttribute('aria-valuetext'));
+        return (on.slider === 'area' && on.label === 'Saturation, Brightness' && on.text === 'Saturation 67%, Brightness 60%' && after === 'Saturation 66%, Brightness 50%') || JSON.stringify({ on, after });
+    });
+    await check('a drag on the area follows the pointer beyond the box, held at its edge; one change at the end', async () => {
+        await page.evaluate((sel) => {
+            window.b17Changes = 0;
+            document.querySelector(`${sel} [data-ds-colour-value]`).addEventListener('change', () => window.b17Changes++);
+        }, panelOf('col'));
+        const box = await page.locator(`${panelOf('col')} [data-ds-colour-slider=area]`).boundingBox();
+        await page.mouse.move(box.x + box.width - 6, box.y + 6);
+        await page.mouse.down();
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 3 });
+        await page.mouse.move(box.x - 60, box.y + box.height + 80, { steps: 2 });
+        await page.mouse.up();
+        const r = await colour('col');
+        const changes = await page.evaluate(() => window.b17Changes);
+        return (r.posted === '#000000ff' && changes === 1) || JSON.stringify({ r, changes });
+    });
+    await check('the format tabs switch the fields under them; a number field sets the colour, and the post stays hex', async () => {
+        await page.focus(`${panelOf('col')} [data-ds-colour-tab=hex]`);
+        await page.keyboard.press('ArrowRight');
+        const panes = await page.evaluate((sel) => [...document.querySelectorAll(`${sel} [data-ds-colour-pane]`)].map((p) => p.dataset.dsColourPane + (p.hidden ? '-' : '+')).join(), panelOf('col'));
+        await page.keyboard.press('Tab');
+        await page.keyboard.press('Control+A');
+        await page.keyboard.type('200');
+        const r = await colour('col');
+        return (panes === 'hex-,rgb+,hsl-' && r.posted === '#c80000ff' && r.parts.startsWith('r200 g0 b0')) || JSON.stringify({ panes, r });
+    });
+    await check('a preset chosen sets the colour; a typed colour that is a preset checks it', async () => {
+        await page.locator(`${panelOf('col')} [data-ds-colour-preset][value="#ff0000"]`).evaluate((el) => el.click());
+        const red = await colour('col');
+        await page.keyboard.press('Escape');
+        await settle(250);
+        await retype('col', 'white');
+        const white = await colour('col');
+        return (red.posted === '#ff0000ff' && red.checked === '#ff0000' && white.checked === '#ffffff' && white.posted === '#ffffffff') || JSON.stringify({ red, white });
+    });
+    await check('Escape closes the panel and gives focus back to the swatch', async () => {
+        await page.click(`${panelOf('col')} [data-ds-colour-trigger]`);
+        await settle(300);
+        await page.keyboard.press('Escape');
+        await settle(250);
+        const r = await page.evaluate((sel) => ({
+            back: document.activeElement.matches('[data-ds-colour-trigger]'),
+            open: document.querySelector(`${sel} [data-ds-popover-panel]`).checkVisibility(),
+        }), panelOf('col'));
+        return (r.back && !r.open) || JSON.stringify(r);
+    });
+    await check('a value the server could not read is shown as given, invalid, posting ""; a readable one posts in format', async () => {
+        const first = await colour('col-rgb');
+        await retype('col-rgb', 'teal');
+        const r = await colour('col-rgb');
+        return (first.text === 'nonsense' && first.invalid === 'true' && first.posted === '' && r.posted === 'rgb(0, 128, 128)' && r.invalid === null) || JSON.stringify({ first, r });
+    });
+    await check('x-model: the host\'s colour is read, posted in format, and one it sets is drawn without an event', async () => {
+        const first = await colour('col-model');
+        await page.evaluate(() => { Alpine.$data(document.getElementById('col-out')).tint = 'rgb(0, 128, 0)'; });
+        await settle(50);
+        const set = await colour('col-model');
+        await retype('col-model', '#0000ff');
+        const typed = await page.locator('#col-out').innerText();
+        return (first.text === '#ff8800' && first.posted === 'hsl(32, 100%, 50%)' && set.text === '#008000' && set.posted === 'hsl(120, 100%, 25%)' && typed === 'hsl(240, 100%, 50%)') || JSON.stringify({ first, set, typed });
+    });
+    await check('presetsOnly is a radio group named by its label that posts the chosen colour', async () => {
+        const r = await page.evaluate(() => {
+            const group = document.querySelector('[role=radiogroup]:has(input[name="tag"])');
+            return {
+                named: document.getElementById(group.getAttribute('aria-labelledby'))?.textContent.trim(),
+                checked: group.querySelector('input:checked')?.value,
+                labels: [...group.querySelectorAll('label')].map((l) => l.textContent.trim()).join(),
+            };
+        });
+        return (r.named === 'Tag' && r.checked === '#008080' && r.labels === 'Red,#FFFFFF,#008080') || JSON.stringify(r);
+    });
+}
+
+group('slider histogram (dsSlider: histogram, countLabel, inputs)');
+{
+    const hist = (id) => page.evaluate((i) => {
+        const root = document.getElementById(i).closest('[data-ds-slider]');
+        return {
+            lit: [...root.querySelectorAll('[data-ds-slider-bar]')].map((b) => (b.hasAttribute('data-ds-in') ? 1 : 0)).join(''),
+            count: root.querySelector('[data-ds-slider-count]')?.textContent.trim(),
+            said: root.querySelector('[data-ds-slider-said]')?.textContent.trim(),
+            nums: [...root.querySelectorAll('[data-ds-slider-number]')].map((n) => `${n.value}[${n.min},${n.max}]`).join(' '),
+            shown: root.querySelector('[data-ds-slider-numbers]')?.checkVisibility(),
+            thumbs: [...root.querySelectorAll('input[type=range]')].map((n) => n.value).join('-'),
+            hidden: root.querySelector('[data-ds-slider-bars]').getAttribute('aria-hidden'),
+        };
+    }, id);
+    const rest = '0'.repeat(15);
+
+    await check('PHP lit the buckets whose middle is in the range, and the count is theirs', async () => {
+        const r = await hist('hs-low');
+        return (r.lit === `0011111111${rest}` && r.count === '19 stays' && r.hidden === 'true') || JSON.stringify(r);
+    });
+    await check('the number fields show with the script, each bounded by the other thumb less minGap', async () => {
+        const r = await hist('hs-low');
+        return (r.shown && r.nums === '50[0,180] 200[70,500]') || JSON.stringify(r);
+    });
+    await check('a thumb moved relights the bars and rewrites the count at once; the status says it once, after a pause', async () => {
+        await page.focus('#hs-low');
+        await page.keyboard.press('ArrowRight');
+        await page.keyboard.press('ArrowRight');
+        const now = await hist('hs-low');
+        await settle(650);
+        const later = await hist('hs-low');
+        return (now.lit === `0001111111${rest}` && now.count === '14 stays' && now.said !== '14 stays' && later.said === '14 stays' && now.nums === '70[0,180] 200[90,500]') || JSON.stringify({ now, later });
+    });
+    await check('typing in a number field moves its thumb once the number is one it can take', async () => {
+        await page.click('#hs-high-number');
+        await page.keyboard.press('Control+A');
+        await page.keyboard.type('3');
+        const early = await hist('hs-low');
+        await page.keyboard.type('00');
+        const r = await hist('hs-low');
+        return (early.thumbs === '70-200' && r.thumbs === '70-300') || JSON.stringify({ early, r });
+    });
+    await check('leaving a number field moves its thumb anyway, held short of the other, and writes back where it landed', async () => {
+        await page.keyboard.press('Control+A');
+        await page.keyboard.type('20');
+        await page.keyboard.press('Tab');
+        const r = await hist('hs-low');
+        return (r.thumbs === '70-90' && r.nums.endsWith('90[90,500]')) || JSON.stringify(r);
+    });
+    await check('a press on the bars moves the nearer thumb; a press on a number field moves nothing', async () => {
+        const bars = await page.locator('[data-ds-slider]:has(#hs-low) [data-ds-slider-bars]').boundingBox();
+        await page.mouse.click(bars.x + bars.width * 0.8, bars.y + bars.height - 2);
+        const pressed = await hist('hs-low');
+        await page.click('#hs-low-number');
+        const after = await hist('hs-low');
+        return (Number(pressed.thumbs.split('-')[1]) > 350 && pressed.thumbs.startsWith('70-') && after.thumbs === pressed.thumbs) || JSON.stringify({ pressed, after });
+    });
+    await check('one thumb: the range is from min to the thumb, and its number field drives it', async () => {
+        const first = await hist('hs-one');
+        await page.click('#hs-one-number');
+        await page.keyboard.press('Control+A');
+        await page.keyboard.type('75');
+        await page.keyboard.press('Tab');
+        const r = await hist('hs-one');
+        return (first.lit === '1100' && first.count === '8 tracks' && r.thumbs === '75' && r.lit === '1110' && r.count === '10 tracks') || JSON.stringify({ first, r });
+    });
+}
+
+group('mention, colour and histogram post what they show');
+{
+    await check('the text and the ids, the colour once, the thumbs and not the number fields', async () => {
+        await page.click('#b17-submit');
+        const sent = await page.evaluate(() => window.b17Sent);
+        const all = (k) => sent.filter(([n]) => n === k).map(([, v]) => v);
+        const r = {
+            body: all('body'), ids: all('body_mentions[]'), token: all('post[update]'), tokenIds: all('post[update_mentions][]'),
+            brand: all('brand'), accent: all('accent'), tint: all('tint'), tag: all('tag'),
+            presets: sent.filter(([n]) => n.endsWith('-preset')).length,
+            numbers: sent.filter(([n]) => n === '' || n.includes('number')).length,
+            volume: all('volume'),
+        };
+        return (r.body.length === 1 && r.ids.join() === '9,8,102' && r.token.join() === 'cc ' && r.tokenIds.length === 0
+            && r.brand.join() === '#ffffffff' && r.accent.join() === 'rgb(0, 128, 128)' && r.tint.join() === 'hsl(240, 100%, 50%)' && r.tag.join() === '#008080'
+            && r.presets === 0 && r.numbers === 0 && r.volume.join() === '75') || JSON.stringify(r);
+    });
+}
+
 // ---------------------------------------------------------------- focus indicators
 
 /*
@@ -6582,6 +7007,7 @@ const overlays = [
     ['team switcher options', '#f-ts [data-ds-team-trigger]', 'Enter', 'ArrowDown', 3],
     ['team switcher, its search field', '#f-ts-search [data-ds-team-trigger]', 'Enter', 'ArrowDown', 1],
     ['phone input countries', '[data-ds-phone]:has(#f-phone) [data-ds-phone-trigger]', 'Enter', 'ArrowDown', 2],
+    ['colour picker panel: the area, hue, the tabs, the field, a preset', '[data-ds-colour]:has(#f-colour) [data-ds-colour-trigger]', 'Enter', 'Tab', 5],
     ['modal, round the trap', '#f-modal-open', 'Enter', 'Tab', 4],
     ['drawer, round the trap', '#f-drawer-open', 'Enter', 'Tab', 3],
     // Tab cannot leave the field, the only stop; Escape closes it, so the
@@ -6684,6 +7110,7 @@ const inputsCMarkup = specimens.match(/<div class="mt-6 w-\[640px\]" id="inputs-
 const b12Markup = specimens.match(/<div class="mt-6 w-\[640px\]" id="b12"[\s\S]*?<!-- \/b12 -->/)?.[0];
 const b15Markup = specimens.match(/<div class="mt-6 w-\[640px\]" id="b15"[\s\S]*?<!-- \/b15 -->/)?.[0];
 const b16Markup = specimens.match(/<div class="mt-6 w-\[640px\]" id="b16"[\s\S]*?<!-- \/b16 -->/)?.[0];
+const b17Markup = specimens.match(/<div class="mt-6 w-\[640px\]" id="b17"[\s\S]*?<!-- \/b17 -->/)?.[0];
 const clipMarkup = specimens.match(/<div class="mt-6" id="clip"[\s\S]*?<\/span>\s*<\/div>/)?.[0];
 
 const hostPages = {
@@ -6782,6 +7209,19 @@ ${include}
     'b16-static.html': `<!doctype html><html><head><meta charset="utf-8">
 <style>${css}</style>
 </head><body>${b16Markup}</body></html>`,
+
+    // Batch 17 with no Alpine at all: native fields that post.
+    'b17-static.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+</head><body>${b17Markup}</body></html>`,
+
+    'b17-morph.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+${include}
+</head><body>${b17MorphBefore}
+<script>window.b17MorphNext = ${JSON.stringify(b17MorphAfter)};</script>
+<script src="livewire.js"></script>
+</body></html>`,
 
     'b16-morph.html': `<!doctype html><html><head><meta charset="utf-8">
 <style>${css}</style>
@@ -6945,7 +7385,7 @@ group('host setup (b): Alpine bundled by the host, Alpine.plugin(bladeUi)');
     await check('the plugin works', () => copiesOn(tab));
     await check('plugin twice plus the include: each name registered exactly once', async () => {
         const names = await tab.evaluate(() => window.dsRegistered);
-        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme', 'dsDismiss', 'dsConfirm', 'dsHold', 'dsConfirmDialog', 'dsRoll', 'dsClamp', 'dsClear', 'dsTree', 'dsSlider', 'dsTimePicker', 'dsInlineEdit', 'dsCommandPalette', 'dsSortable', 'dsSplit', 'dsSwap', 'dsTeamSwitcher', 'dsMoneyInput', 'dsPhoneInput', 'dsSearch', 'dsShortcutInput'];
+        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme', 'dsDismiss', 'dsConfirm', 'dsHold', 'dsConfirmDialog', 'dsRoll', 'dsClamp', 'dsClear', 'dsTree', 'dsSlider', 'dsTimePicker', 'dsInlineEdit', 'dsCommandPalette', 'dsSortable', 'dsSplit', 'dsSwap', 'dsTeamSwitcher', 'dsMoneyInput', 'dsPhoneInput', 'dsSearch', 'dsShortcutInput', 'dsColour', 'dsMention'];
         return JSON.stringify(names) === JSON.stringify(expected) || `registered ${JSON.stringify(names)}`;
     });
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
@@ -6965,7 +7405,7 @@ group('host setup (c): Livewire\'s bundled Alpine, include loaded twice');
     await tab.close();
 }
 
-group('wire:model on otp-input, tag-input, chip-group, radio-cards, segmented-control, toggle-group, slider, time-picker, inline-edit, team-switcher, money-input, phone-input, shortcut-input and an expanding search, in a real Livewire component');
+group('wire:model on otp-input, tag-input, chip-group, radio-cards, segmented-control, toggle-group, slider, time-picker, inline-edit, team-switcher, money-input, phone-input, shortcut-input, an expanding search, mention-input, color-picker and a histogram slider\'s number fields, in a real Livewire component');
 {
     const { tab, errors } = await openHost('_ds/livewire', LARAVEL);
     const wire = (name) => tab.evaluate((n) => JSON.parse(JSON.stringify(window.Livewire.first()[n])), name);
@@ -7157,6 +7597,38 @@ group('wire:model on otp-input, tag-input, chip-group, radio-cards, segmented-co
         return (typed === 'acme' && cleared === '') || JSON.stringify({ typed, cleared });
     });
 
+    await check('mention input: the text with a chosen mention reaches $wire.comment; text Livewire sets is shown', async () => {
+        await tab.click('#lw-comment');
+        await tab.keyboard.press('End');
+        await tab.keyboard.type(' @om');
+        await tab.keyboard.press('Enter');
+        await tab.waitForTimeout(100);
+        const typed = await wire('comment');
+        await tab.evaluate(() => { window.Livewire.first().comment = 'Bye'; });
+        await tab.waitForTimeout(100);
+        const shown = await tab.inputValue('#lw-comment');
+        return (typed === 'Hi @Omar Malik ' && shown === 'Bye') || JSON.stringify({ typed, shown });
+    });
+    await check('colour picker: a typed colour reaches $wire.brand; one Livewire sets is drawn', async () => {
+        await tab.click('#lw-brand');
+        await tab.keyboard.press('Control+A');
+        await tab.keyboard.type('#ff0000');
+        await tab.waitForTimeout(100);
+        const typed = await wire('brand');
+        await tab.evaluate(() => { window.Livewire.first().brand = '#00ff00'; });
+        await tab.waitForTimeout(100);
+        const shown = await tab.inputValue('#lw-brand');
+        return (typed === '#ff0000' && shown === '#00ff00') || JSON.stringify({ typed, shown });
+    });
+    await check('histogram slider: a number typed in a field reaches $wire.nights through its thumb', async () => {
+        await tab.click('#lw-nights-high-number');
+        await tab.keyboard.press('Control+A');
+        await tab.keyboard.type('300');
+        await tab.keyboard.press('Tab');
+        await tab.waitForTimeout(100);
+        const nights = await wire('nights');
+        return JSON.stringify(nights.map(Number)) === '[60,300]' || JSON.stringify(nights);
+    });
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
     await tab.close();
 }
@@ -8117,6 +8589,91 @@ group('money, phone, shortcut and expanding search re-rendered by a morph (Livew
         await tab.waitForTimeout(50);
         const s = await state();
         return (s.amount === '25,005.00' && s.amountPost === '25005.00' && s.keys === 'mod+b') || JSON.stringify(s);
+    });
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+
+group('mention input, colour picker and slider histogram with no Alpine at all (native fields that post)');
+{
+    const { tab, errors } = await openHost('b17-static.html');
+
+    await check('the markup reached the page', async () =>
+        (await tab.locator('#mn, #col, #col-presets, #hs-low, #hs-one').count()) === 5 || 'a specimen was not found in the rendered page');
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await check('each posts a real value under a real name: the text and the server\'s ids, the native colour, the thumbs', async () => {
+        const sent = await tab.evaluate(() => [...new FormData(document.getElementById('b17-form'))]);
+        const all = (k) => sent.filter(([n]) => n === k).map(([, v]) => v).join('|');
+        const r = {
+            body: all('body'), ids: all('body_mentions[]'), brand: all('brand'), tag: all('tag'), volume: all('volume'),
+            price: sent.filter(([n]) => n.startsWith('price')).map(([n, v]) => `${n}=${v}`).join(),
+            unnamed: sent.filter(([n]) => n === '' || n.includes('preset') || n.includes('number')).length,
+        };
+        return (r.body === 'Thanks @Ade Okafor' && r.ids === '9' && r.brand === '#336699' && r.tag === '#008080' && r.volume === '40' && r.price.includes('=50') && r.price.includes('=200') && r.unnamed === 0) || JSON.stringify(r);
+    });
+    await check('the visible controls are the native ones: a plain textarea, a colour input, radios; the number fields hidden', async () => {
+        const r = await tab.evaluate(() => ({
+            role: document.getElementById('mn').getAttribute('role'),
+            list: document.querySelector('[data-ds-mention]:has(#mn) [data-ds-mention-panel]').checkVisibility(),
+            native: document.querySelector('[data-ds-colour]:has(#col) [data-ds-colour-native]').checkVisibility(),
+            swatch: document.querySelector('[data-ds-colour]:has(#col) [data-ds-colour-trigger]').checkVisibility(),
+            radios: document.querySelectorAll('#col-presets input[type=radio]').length,
+            numbers: document.querySelector('[data-ds-slider]:has(#hs-low) [data-ds-slider-numbers]').checkVisibility(),
+            lit: [...document.querySelectorAll('[data-ds-slider]:has(#hs-low) [data-ds-slider-bar]')].map((b) => (b.hasAttribute('data-ds-in') ? 1 : 0)).join('').slice(0, 10),
+            count: document.querySelector('[data-ds-slider]:has(#hs-low) [data-ds-slider-count]').textContent.trim(),
+        }));
+        return (r.role === null && !r.list && r.native && !r.swatch && r.radios === 3 && !r.numbers && r.lit === '0011111111' && r.count === '19 stays') || JSON.stringify(r);
+    });
+    await check('the native colour input and the text field copy into each other', async () => {
+        await tab.fill('#col', '#00ff00');
+        const native = await tab.evaluate(() => document.querySelector('[data-ds-colour]:has(#col) [data-ds-colour-native]').value);
+        return native === '#00ff00' || native;
+    });
+    await tab.close();
+}
+
+group('mention input, colour picker and slider histogram re-rendered by a morph (Livewire\'s Alpine.morph)');
+{
+    const { tab, errors } = await openHost('b17-morph.html');
+    const state = () => tab.evaluate(() => {
+        const at = (sel) => document.querySelector(sel);
+        return {
+            text: at('#mnm').value, role: at('#mnm').getAttribute('role'),
+            ids: [...document.querySelectorAll('[data-ds-mention]:has(#mnm) [data-ds-mention-ids] input')].map((n) => n.value + (n.disabled ? '-' : '')).join(),
+            colour: at('#cpm').value, posted: at('[data-ds-colour]:has(#cpm) [data-ds-colour-value]').value,
+            names: [at('[data-ds-colour]:has(#cpm) [data-ds-colour-native]').getAttribute('name'), at('[data-ds-colour]:has(#cpm) [data-ds-colour-value]').getAttribute('name')].join(),
+            swatch: at('[data-ds-colour]:has(#cpm) [data-ds-colour-trigger]').checkVisibility(),
+            thumbs: [...document.querySelectorAll('[data-ds-slider]:has(#hsm-low) input[type=range]')].map((n) => n.value).join('-'),
+            lit: [...document.querySelectorAll('[data-ds-slider]:has(#hsm-low) [data-ds-slider-bar]')].map((b) => (b.hasAttribute('data-ds-in') ? 1 : 0)).join(''),
+            count: at('[data-ds-slider]:has(#hsm-low) [data-ds-slider-count]').textContent.trim(),
+            numbers: at('[data-ds-slider]:has(#hsm-low) [data-ds-slider-numbers]').checkVisibility(),
+            low: at('#hsm-low-number').value,
+        };
+    });
+
+    await check('before: each with its script, the colour\'s name moved to the posted value, the number fields shown', async () => {
+        const s = await state();
+        return (s.role === 'combobox' && s.ids === '7' && s.posted === '#336699' && s.names === ',tint' && s.swatch && s.thumbs === '20-60' && s.lit === '0100' && s.count === '5' && s.numbers && s.low === '20') || JSON.stringify(s);
+    });
+    await check('after a morph to new values: drawn, the names still moved, the number fields still shown', async () => {
+        await tab.evaluate(() => window.Alpine.morph(document.getElementById('b17-morph'), window.b17MorphNext));
+        await tab.waitForTimeout(200);
+        const s = await state();
+        return (s.text === 'Ask @Omar Malik' && s.role === 'combobox' && s.ids === '8' && s.colour === '#ff0000' && s.posted === '#ff0000' && s.names === ',tint' && s.swatch && s.thumbs === '0-40' && s.lit === '1100' && s.count === '9' && s.numbers && s.low === '0') || JSON.stringify(s);
+    });
+    await check('and they still work: a mention, a typed colour, a thumb moved', async () => {
+        await tab.click('#mnm');
+        await tab.keyboard.press('End');
+        await tab.keyboard.type(' @ma');
+        await tab.keyboard.press('Enter');
+        await tab.click('#cpm');
+        await tab.keyboard.press('Control+A');
+        await tab.keyboard.type('#0000ff');
+        await tab.focus('#hsm-high');
+        await tab.keyboard.press('End');
+        await tab.waitForTimeout(50);
+        const s = await state();
+        return (s.text === 'Ask @Omar Malik @Maya Patel ' && s.ids === '8,7' && s.posted === '#0000ff' && s.thumbs === '0-100' && s.lit === '1111' && s.count === '11') || JSON.stringify(s);
     });
     await check('nothing in the console', async () => !errors.length || errors.join(' | '));
     await tab.close();

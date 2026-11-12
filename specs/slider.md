@@ -106,6 +106,7 @@ Price per night                        $50 – $200
 | `range`: a thumb pushed into the other | Stops `minGap` short of it (0 by default: they may meet, never cross) |
 | `range`: a press on the track or the bars | The nearer thumb jumps there and takes focus; `input` and `change`. A press elsewhere in the component (a label, a number field) does not |
 | `histogram`: any change | Bars in the range lit, the count written, and said 500 ms later |
+| A morph writing a thumb's `value` | Taken and drawn (fill, readouts, bars, number fields) without events or an announcement |
 | `range`: two thumbs at one end | The low thumb is on top past halfway, so they can be pulled apart |
 | Host sets the value (`x-model`, `wire:model`) | Drawn, clamped and stepped as the inputs take it; handed back if it differed |
 

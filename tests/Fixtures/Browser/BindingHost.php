@@ -9,8 +9,9 @@ use Livewire\Component;
 /**
  * The Livewire host the behaviour tests drive: otp-input, tag-input, chip-group,
  * radio-cards, segmented-control, toggle-group, slider, time-picker,
- * inline-edit, team-switcher, money-input, phone-input, shortcut-input and an
- * expanding search bound with wire:model, the way docs/components/otp-input.md and tag-input.md show.
+ * inline-edit, team-switcher, money-input, phone-input, shortcut-input, an
+ * expanding search, mention-input, color-picker and a slider with a histogram
+ * and number inputs bound with wire:model, the way docs/components/otp-input.md and tag-input.md show.
  * Served by scripts/request.php as <livewire:binding-host />.
  */
 final class BindingHost extends Component
@@ -46,6 +47,13 @@ final class BindingHost extends Component
 
     public string $q = '';
 
+    public string $comment = 'Hi';
+
+    public string $brand = '#336699';
+
+    /** @var list<int> */
+    public array $nights = [60, 180];
+
     public function render(): string
     {
         return <<<'BLADE'
@@ -77,6 +85,11 @@ final class BindingHost extends Component
                 <x-ds::phone-input id="lw-phone" name="phone" label="Phone" wire:model="phone" :value="$phone" :countries="['GB', 'US', 'IN']" />
                 <x-ds::shortcut-input id="lw-keys" name="keys" label="Keys" wire:model="keys" :value="$keys" />
                 <x-ds::input id="lw-q" name="q" label="Search" :expanding="true" wire:model="q" />
+                <x-ds::mention-input id="lw-comment" name="comment" label="Comment" wire:model="comment" :value="$comment"
+                    :items="[['id' => 7, 'label' => 'Maya Patel'], ['id' => 8, 'label' => 'Omar Malik']]" />
+                <x-ds::color-picker id="lw-brand" name="brand" label="Brand" wire:model="brand" :value="$brand" />
+                <x-ds::slider id="lw-nights" name="nights" label="Nights" :range="true" wire:model="nights" :value="$nights" :max="400" step="10"
+                    lowLabel="From" highLabel="To" :histogram="[1, 4, 9, 6, 3, 2, 1, 1]" :inputs="true" />
             </div>
             BLADE;
     }

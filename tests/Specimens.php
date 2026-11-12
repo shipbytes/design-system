@@ -1449,6 +1449,31 @@ final class Specimens
                 <x-ds::shortcut-input name="next" label="Next" :allowBare="true" by="code" :portable="false" :reserved="['ctrl+n']" wire:model.live="next" size="sm" />
                 <x-ds::shortcut-input name="off" label="Off" value="mod+/" error="Pick another." :disabled="true" x-model="off" placeholder="None" />
                 BLADE,
+            'mention-input/all' => <<<'BLADE'
+                <x-ds::mention-input name="body" label="Comment" value="Thanks @Maya Patel" help="Type @ to mention someone."
+                    :items="[['id' => 7, 'label' => 'Maya Patel', 'meta' => 'Design', 'initials' => 'MP'], ['id' => 9, 'label' => 'Omar Malik', 'meta' => 'Support', 'src' => '/a.png']]" />
+                <x-ds::mention-input name="post[update]" label="Update" :triggers="['@' => [['id' => 1, 'label' => 'Ada']], '#' => [['id' => 101, 'label' => 'Fix login']]]"
+                    insert="@[label](id)" :atomic="true" :minChars="1" :max="5" mentionsName="tagged[]" wire:model.live="update" />
+                <x-ds::mention-input name="title" label="Title" :multiline="false" :items="[]" :loading="true" placeholder="Name it" x-model="title" />
+                <x-ds::mention-input name="note" label="Note" :rows="5" error="Too short." :disabled="true" :items="[['id' => 2, 'label' => 'Bo']]" listLabel="People" emptyText="Nobody" />
+                BLADE,
+            'color-picker/all' => <<<'BLADE'
+                <x-ds::color-picker name="brand" label="Brand colour" value="#336699" help="Used on buttons." />
+                <x-ds::color-picker name="overlay" label="Overlay" value="rgb(15 23 42 / 50%)" :alpha="true" format="rgb" :eyedropper="true"
+                    :swatches="['#2563eb' => 'Blue', '#16a34a' => 'Green']" contrastWith="#ffffff" wire:model.live="overlay" />
+                <x-ds::color-picker name="tint" label="Tint" value="nonsense" format="hsl" error="Not a colour." x-model="tint" :swatches="['#64748b', '#d97706']" />
+                <x-ds::color-picker name="off" label="Off" :disabled="true" placeholder="None" />
+                <x-ds::color-picker name="label_colour" label="Label colour" :presetsOnly="true" value="#2563eb"
+                    :swatches="['#64748b' => 'Grey', '#2563eb' => 'Blue', '#fde047' => 'Yellow']" help="Shown on the card." />
+                <x-ds::color-picker name="pick" label="Pick" :presetsOnly="true" format="rgb" :disabled="true" error="Required." :swatches="['#000000', '#ffffff']" wire:model="pick" />
+                BLADE,
+            'slider/histogram' => <<<'BLADE'
+                <x-ds::slider name="price" label="Price per night" :range="true" :value="[50, 200]" :max="500" step="10" lowLabel="Minimum price" highLabel="Maximum price"
+                    :format="['prefix' => '$']" showValue="inline" :histogram="[3, 120, 480, 90, 410, 5, 0, 1, 250, 260, 30, 499, 500, 600, -4]" :buckets="10"
+                    countLabel=":count stay|:count stays" :inputs="true" wire:model.live="price" />
+                <x-ds::slider name="size" label="Size" :value="40" :histogram="[2, 5, 9, 4, 1]" :inputs="true" size="sm" />
+                <x-ds::slider name="weight" label="Weight" :range="true" :histogram="[0, 0, 0]" :disabled="true" lowLabel="From" highLabel="To" />
+                BLADE,
             'input/expanding' => <<<'BLADE'
                 <form role="search"><x-ds::input name="q" label="Search" :expanding="true" :clearable="true" shortcut="/" /></form>
                 <x-ds::input name="docs" aria-label="Search docs" :expanding="true" mode="overlay" placeholder="Search docs" wire:model.live="docs" />

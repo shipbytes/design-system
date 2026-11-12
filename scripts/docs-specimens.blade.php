@@ -1517,6 +1517,64 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── mention-input
+     Typed into by build-docs ("@ma"), so the image shows the list under the trigger. --}}
+<div data-shot="mention-input" class="shot shot-calendar">
+    @foreach ($themes as $t)
+        @php
+            $docsPeople = [
+                ['id' => 7, 'label' => 'Maya Patel', 'meta' => 'Design', 'initials' => 'MP'],
+                ['id' => 8, 'label' => 'Omar Malik', 'meta' => 'Support', 'initials' => 'OM'],
+                ['id' => 9, 'label' => 'Sam Marsh', 'meta' => 'Engineering', 'initials' => 'SM'],
+                ['id' => 10, 'label' => 'Ade Okafor', 'meta' => 'Finance', 'initials' => 'AO'],
+            ];
+        @endphp
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="max-w-sm">
+                <x-ds::mention-input name="mn{{ $loop->index }}" label="Comment" :items="$docsPeople" value="Can you check these, " data-shot-type="@ma" help="Type @ to mention someone." />
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── color-picker
+     Opened by build-docs (a press on the swatch), so the image shows the panel. --}}
+<div data-shot="color-picker" class="shot shot-colour">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="max-w-xs">
+                <x-ds::color-picker
+                    name="cp{{ $loop->index }}"
+                    label="Brand colour"
+                    value="#2f6fb2"
+                    :alpha="true"
+                    :swatches="['#0f172a' => 'Ink', '#2563eb' => 'Blue', '#16a34a' => 'Green', '#d97706' => 'Amber', '#dc2626' => 'Red', '#7c3aed' => 'Violet']"
+                />
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── color-picker-contrast
+     Closed: the contrast line under the field, and presets on their own. --}}
+<div data-shot="color-picker-contrast" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex max-w-sm flex-col gap-5">
+                <x-ds::color-picker name="cpc{{ $loop->index }}" label="Button colour" value="#2563eb" contrastWith="#ffffff" help="Checked against white text." />
+                <x-ds::color-picker
+                    name="cpp{{ $loop->index }}"
+                    label="Label colour"
+                    :presetsOnly="true"
+                    value="#2563eb"
+                    :swatches="['#64748b' => 'Grey', '#2563eb' => 'Blue', '#16a34a' => 'Green', '#d97706' => 'Amber', '#dc2626' => 'Red', '#7c3aed' => 'Violet', '#fde047' => 'Yellow']"
+                    help="Shown on the card."
+                />
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── input-expanding
      Collapsed, and open because it holds text: both from CSS. --}}
 <div data-shot="input-expanding" class="shot">
@@ -1913,6 +1971,36 @@
                     help="Per night, before tax."
                 />
             </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── slider-histogram --}}
+<div data-shot="slider-histogram" class="shot">
+    @foreach ($themes as $t)
+        @php
+            $docsPrices = [];
+            foreach (range(0, 159) as $i) {
+                $docsPrices[] = (int) round(40 + 260 * (($i * 37 % 101) / 101) ** 1.8 + ($i % 7) * 6);
+            }
+        @endphp
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <x-ds::slider
+                name="night{{ $loop->index }}"
+                label="Price per night"
+                :range="true"
+                :value="[60, 180]"
+                :max="400"
+                step="10"
+                lowLabel="Minimum price"
+                highLabel="Maximum price"
+                showValue="inline"
+                :format="['prefix' => '$']"
+                :histogram="$docsPrices"
+                :buckets="40"
+                countLabel=":count stay|:count stays"
+                :inputs="true"
+            />
         </div>
     @endforeach
 </div>

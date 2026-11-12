@@ -16,6 +16,7 @@ import { chart } from './behaviours/chart.js';
 import { clamp } from './behaviours/clamp.js';
 import { clear } from './behaviours/clear.js';
 import { clipboard } from './behaviours/clipboard.js';
+import { colour } from './behaviours/colour.js';
 import { commandPalette } from './behaviours/command-palette.js';
 import { contextMenu } from './behaviours/context-menu.js';
 import { confirmDialog } from './behaviours/confirm-dialog.js';
@@ -26,6 +27,7 @@ import { inlineEdit } from './behaviours/inline-edit.js';
 import { kbdShortcut } from './behaviours/kbd-shortcut.js';
 import { glide } from './behaviours/glide.js';
 import { hoverCard } from './behaviours/hover-card.js';
+import { mention } from './behaviours/mention.js';
 import { moneyInput } from './behaviours/money-input.js';
 import { numberField } from './behaviours/number-field.js';
 import { otp } from './behaviours/otp.js';
@@ -48,7 +50,7 @@ import { toggleGroup } from './behaviours/toggle-group.js';
 import { toolbar } from './behaviours/toolbar.js';
 import { tree } from './behaviours/tree.js';
 
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split, swap, teamSwitcher, moneyInput, phoneInput, search, kbdShortcut, shortcutInput];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split, swap, teamSwitcher, moneyInput, phoneInput, search, kbdShortcut, shortcutInput, colour, mention];
 
 // Symbol.for, not a module-level flag. Two copies of this script, say the
 // inlined one AND a Vite import, are two separate modules with two separate

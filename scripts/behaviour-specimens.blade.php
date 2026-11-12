@@ -1161,4 +1161,71 @@
     </div>
     <!-- /b16 -->
 
+    {{-- ── batch 17: mention input, colour picker, slider histogram. The
+         block marked #b17 is also cut out for a host page with no Alpine at
+         all, by its id and the closing comment. The form records what it
+         would post rather than leaving the page. ── --}}
+    @php
+        $b17People = [
+            ['id' => 7, 'label' => 'Maya Patel', 'meta' => 'Design', 'initials' => 'MP'],
+            ['id' => 8, 'label' => 'Omar Malik', 'meta' => 'Support'],
+            ['id' => 9, 'label' => 'Ade Okafor', 'meta' => 'Engineering'],
+            ['id' => 10, 'label' => 'Sam Rivera', 'meta' => 'Design'],
+        ];
+        $b17Issues = [['id' => 101, 'label' => 'Fix login redirect'], ['id' => 102, 'label' => 'Dark mode chart']];
+        $b17Lines = "one\ntwo\nthree\nfour\nfive";
+        $b17Prices = [12, 25, 33, 41, 48, 52, 55, 58, 61, 64, 66, 70, 72, 75, 80, 84, 90, 95, 120, 140, 160, 180, 220, 260, 310, 390, 450, 480];
+    @endphp
+    <div class="mt-6 w-[640px]" id="b17">
+        <form id="b17-form" onsubmit="event.preventDefault(); window.b17Sent = [...new FormData(event.target)]">
+            <div class="grid grid-cols-2 gap-4">
+                <x-ds::mention-input id="mn" name="body" label="Comment" :triggers="['@' => $b17People, '#' => $b17Issues]" value="Thanks @Ade Okafor" />
+                <x-ds::mention-input id="mn-token" name="post[update]" label="Update" :items="$b17People" insert="@[label](id)" :multiline="false" :atomic="true" />
+                <div x-data="{ note: 'hi' }">
+                    <x-ds::mention-input id="mn-model" name="note" label="Bound" :items="$b17People" x-model="note" :minChars="1" />
+                    <output id="mn-out" x-text="note"></output>
+                </div>
+                <div x-on:search="(window.b17Search ??= []).push($event.detail)">
+                    <x-ds::mention-input id="mn-remote" name="remote" label="Remote" :items="[]" :loading="true" />
+                </div>
+                {{-- Narrow, so the trigger wraps onto a second line; two rows
+                     of a longer text, so the field scrolls. --}}
+                <x-ds::mention-input id="mn-wrap" name="wrap" label="Wrapped" :items="$b17People" class="w-48" />
+                {{-- In the right-hand column, so a list hung from its right edge has room. --}}
+                <div dir="rtl">
+                    <x-ds::mention-input id="mn-rtl" name="rtl" label="RTL" :items="[['id' => 1, 'label' => 'Maya']]" value="مرحبا يا صديقي العزيز " />
+                </div>
+                <x-ds::mention-input id="mn-scroll" name="scroll" label="Scrolled" :items="$b17People" :rows="2" :value="$b17Lines" />
+            </div>
+
+            <div class="mt-4 grid grid-cols-2 gap-4">
+                <x-ds::color-picker id="col" name="brand" label="Brand" value="#336699" :alpha="true" contrastWith="#ffffff"
+                    :swatches="['#ff0000' => 'Red', '#ffffff', 'teal']" />
+                <x-ds::color-picker id="col-rgb" name="accent" label="Accent" value="nonsense" format="rgb" />
+                <div x-data="{ tint: '#ff8800' }">
+                    <x-ds::color-picker id="col-model" name="tint" label="Bound" x-model="tint" format="hsl" />
+                    <output id="col-out" x-text="tint"></output>
+                </div>
+                <x-ds::color-picker id="col-presets" name="tag" label="Tag" value="teal" :presetsOnly="true" :swatches="['#ff0000' => 'Red', '#ffffff', 'teal']" />
+            </div>
+
+            <div class="mt-4 flex flex-col gap-6">
+                <x-ds::slider id="hs" name="price" label="Price per night" :range="true" :value="[50, 200]" :max="500" step="10" lowLabel="Minimum price" highLabel="Maximum price"
+                    :format="['prefix' => '$']" showValue="inline" :histogram="$b17Prices" :buckets="25" countLabel=":count stay|:count stays" :inputs="true" :minGap="20" />
+                <x-ds::slider id="hs-one" name="volume" label="Volume" :value="40" :histogram="[3, 5, 2, 7]" :inputs="true" countLabel=":count track|:count tracks" />
+            </div>
+            <button id="b17-submit" type="submit">Send</button>
+        </form>
+    </div>
+    <!-- /b17 -->
+
+    {{-- Outside #b17, which a page without Alpine reuses: a mention input in
+         a modal, whose Escape must close the list and not the modal. --}}
+    <div class="mt-6" x-data="{ mnModal: false }">
+        <button type="button" id="mn-modal-open" @click="mnModal = true">Open the modal with a mention input</button>
+        <x-ds::modal open="mnModal" title="Reply" size="sm">
+            <x-ds::mention-input id="mn-modal" name="reply" label="Reply" :items="$b17People" />
+        </x-ds::modal>
+    </div>
+
 </div>

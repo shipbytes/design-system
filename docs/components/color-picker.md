@@ -39,6 +39,8 @@ presets, with the contrast against your background shown as you go.
 <x-ds::color-picker name="brand" label="Brand colour" wire:model.live="brand" />
 ```
 
+![A colour checked against white, and presets on their own](../images/color-picker-contrast.png)
+
 ## What it posts
 
 | `format` | `alpha` off | `alpha` on |

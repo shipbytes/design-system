@@ -2769,6 +2769,15 @@
             <x-ds::slider name="g-level" label="Level" :value="7" :max="10" size="sm" :disabled="true" />
         </div>
     </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Histogram <span>&middot; raw prices counted into 20 buckets; the bars whose middle is in the range are dark, and the count is theirs</span></div>
+        <div class="mx-auto max-w-md">
+            <x-ds::slider name="g-night" label="Price per night" :range="true" :value="[60, 180]" :max="400" step="20" lowLabel="Minimum price" highLabel="Maximum price" showValue="inline" :format="['prefix' => '$']"
+                :histogram="[45, 52, 58, 61, 64, 70, 72, 75, 79, 80, 84, 88, 90, 92, 95, 99, 101, 104, 110, 112, 118, 120, 125, 129, 133, 140, 145, 150, 158, 165, 172, 180, 190, 205, 220, 240, 260, 290, 330, 385]"
+                :buckets="20" countLabel=":count stay|:count stays" :inputs="true" />
+        </div>
+    </div>
 </section>
 
 {{-- ─────────────────────────────────────────── Time picker --}}
@@ -2840,6 +2849,42 @@
             <x-ds::shortcut-input name="g-search" label="Open search" value="mod+k" />
             <x-ds::shortcut-input name="g-next" label="Next item" help="Hold Ctrl or Alt with the key." />
             <p class="text-body text-fg-body">Search with <x-ds::kbd shortcut="mod+shift+k" />.</p>
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Mention input --}}
+<section class="ds-spec" id="mention-input">
+    <header class="ds-spec-head">
+        <h2>Mention input</h2>
+        <p>A plain textarea that suggests people after <code>@</code>, or anything else after a trigger of your choosing, under the trigger as it is typed. The text posts as written; the ids of the mentions post beside it.</p>
+    </header>
+
+    <div class="ds-note">The gallery loads <em>no Alpine</em>: this is an ordinary textarea. The hidden <code>body_mentions[]</code> inputs are the server&rsquo;s, for the mention it found in the value. With the script, typing <code>@</code> opens the list.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Without the script <span>&middot; a textarea, and a one-line field</span></div>
+        <div class="mx-auto flex max-w-sm flex-col gap-4">
+            <x-ds::mention-input name="g-body" label="Comment" value="Thanks @Maya Patel, can you check the totals?" :items="[['id' => 7, 'label' => 'Maya Patel'], ['id' => 8, 'label' => 'Omar Malik']]" help="Type @ to mention someone." />
+            <x-ds::mention-input name="g-title" label="Title" :multiline="false" :items="[['id' => 7, 'label' => 'Maya Patel']]" placeholder="Name it" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Colour picker --}}
+<section class="ds-spec" id="color-picker">
+    <header class="ds-spec-head">
+        <h2>Colour picker</h2>
+        <p>A swatch that opens a saturation and brightness square, a hue bar and, with <code>alpha</code>, an opacity bar; HEX, RGB and HSL fields; presets; and the WCAG contrast against a background, cut and never rounded up.</p>
+    </header>
+
+    <div class="ds-note">Without the script the swatch is the browser&rsquo;s own <code>input type=&quot;color&quot;</code>, beside the text field, posting <code>#rrggbb</code>; the contrast line is the server&rsquo;s. <code>presetsOnly</code> is native radios and needs nothing at all.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Without the script <span>&middot; checked against white &middot; presets only</span></div>
+        <div class="mx-auto flex max-w-sm flex-col gap-5">
+            <x-ds::color-picker name="g-brand" label="Button colour" value="#2563eb" contrastWith="#ffffff" />
+            <x-ds::color-picker name="g-label" label="Label colour" :presetsOnly="true" value="#16a34a" :swatches="['#64748b' => 'Grey', '#2563eb' => 'Blue', '#16a34a' => 'Green', '#d97706' => 'Amber', '#dc2626' => 'Red']" />
         </div>
     </div>
 </section>

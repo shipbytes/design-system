@@ -12,7 +12,7 @@
 A design system for Laravel and Blade, with design tokens any other stack can
 use from plain CSS or JavaScript.
 
-**115 Blade components**, a spec and a documentation page for each, design tokens
+**117 Blade components**, a spec and a documentation page for each, design tokens
 with light and dark values, and three test suites — including one that drives
 every interactive component in a real browser.
 
@@ -38,7 +38,7 @@ compiled CSS; the install is one `composer require` and three lines of CSS. Add
 `@shipbytes/design-tokens` only if your own JavaScript needs the token *values*
 — a chart palette reading `tokens.js` rather than repeating hex literals.
 
-**Laravel with Inertia + React?** Skip `blade-ui` — 115 Blade components you
+**Laravel with Inertia + React?** Skip `blade-ui` — 117 Blade components you
 cannot render are not useful — and take `@shipbytes/design-tokens`: the same
 `tokens.css` and `theme.css`, so your own React components draw from the same
 values. If you have both, Blade marketing pages and a React app behind login,
@@ -182,7 +182,7 @@ source, in both themes.
 
 ### What you get
 
-115 Blade components, plus the pagination views.
+117 Blade components, plus the pagination views.
 
 **Layout & content** — `panel` `panel-row` `table` `table-cell` `table-row`
 `stat-tile` `empty-state` `skeleton` `progress` `usage-meter` `accordion`
@@ -192,7 +192,7 @@ source, in both themes.
 `radio-cards` `radio-card` `chip-group` `chip` `rating` `switch` `date-picker`
 `file-upload` `otp-input` `tag-input` `number-field` `password-strength`
 `slider` `time-picker` `inline-edit` `sortable-list` `sortable-item`
-`money-input` `phone-input` `shortcut-input`
+`money-input` `phone-input` `shortcut-input` `mention-input` `color-picker`
 `button` `copy-button` `swap-button` `confirm-button` `hold-button` `button-group` `segmented-control` `segment`
 `toggle-group` `toggle` `toolbar` `toolbar-button` `toolbar-separator`
 `theme-switcher` `filter-bar` `filter-chip`
@@ -224,15 +224,16 @@ changes call the component instead of reloading the page.
 `illuminate/view` and `blade-heroicons`, and nothing else. It works the same in a
 plain Blade view or inside a Livewire component.
 
-Thirty-nine need [Alpine](https://alpinejs.dev) — `modal`, `drawer`, `sheet`,
+Forty-one need [Alpine](https://alpinejs.dev) — `modal`, `drawer`, `sheet`,
 `dropdown`, `select`, `combobox`, `date-picker`, `accordion`, `file-upload`,
 `tooltip`, `sub-nav`, `user-menu`, `otp-input`, `tag-input`, `number-field`,
 `password-strength`, `copy-button`, `toolbar`, `toggle-group`, `popover`,
 `hover-card`, `context-menu`, `theme-switcher`, `confirm-button`,
 `hold-button`, `confirm-popover`, `tree`, `expandable-text`, `slider`,
 `time-picker`, `inline-edit`, `command-palette`, `sortable-list`, `split`,
-`swap-button`, `team-switcher`, `money-input`, `phone-input` and
-`shortcut-input`, the last twenty-seven with the package's own
+`swap-button`, `team-switcher`, `money-input`, `phone-input`,
+`shortcut-input`, `mention-input` and `color-picker` (but for its
+`presetsOnly`, a radio group), the last twenty-nine with the package's own
 script as well — plus one optional prop each on
 `checkbox`, `nav-item`, `toast`, `panel` (`collapsible`), `filter-bar`
 (`collapsible`, with the script) and `announcement-bar` (whose dismissal also

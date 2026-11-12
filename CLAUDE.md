@@ -274,7 +274,7 @@ composer require shipbytes/blade-ui
 
 Three lines, not four — `theme.css` brings its own `@custom-variant dark`. It
 also carries `[x-cloak] { display: none !important }`, which Alpine expects every
-project to write by hand: fifteen components mark an overlay `x-cloak`, so
+project to write by hand: sixteen components mark an overlay `x-cloak`, so
 without it every dialog on the page renders open, backdrop and all, until Alpine
 boots. That is our failure to ship, not the consumer's to remember.
 No npm step: the composer package ships `dist/`.
@@ -741,14 +741,14 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 115 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 117 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
 accordion, accordion-item, activity-heatmap, activity-rings, alert, announcement-bar, avatar, avatar-group, badge, bar-chart, bottom-nav,
 bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, chip,
-button-group, chip-group, code-block, combobox, command-group, command-item, command-palette, confirm-button, confirm-popover, copy-button, counter, date-picker, donut-chart, drawer, dropdown,
+button-group, chip-group, code-block, color-picker, combobox, command-group, command-item, command-palette, confirm-button, confirm-popover, copy-button, counter, date-picker, donut-chart, drawer, dropdown,
 context-menu, dropdown-item, empty-state, expandable-text, file-upload, filter-bar, filter-chip, funnel-chart, gauge, hold-button, hover-card, icon, icon-swap,
-inline-edit, input, kbd, line-chart, modal, money-input,
+inline-edit, input, kbd, line-chart, mention-input, modal, money-input,
 nav-item, number-field, otp-input, panel, panel-row, password-strength, phone-input,
 popover, progress, radar-chart, radio, radio-card, radio-cards, radio-group, rating,
 scroll-area, segment, segmented-control, select, sheet, sheet-item, shortcut-input, skeleton, slider, slope-chart, sortable-item, sortable-list, sparkline, split, split-bar, split-pane, stat-tile,
@@ -772,7 +772,8 @@ confirm-button, hold-button, confirm-popover, tree (with tree-item),
 expandable-text, slider, time-picker, inline-edit, command-palette (with
 command-group and command-item), sortable-list (with sortable-item), split
 (with split-pane), swap-button, team-switcher, money-input, phone-input,
-shortcut-input, user-menu (a dropdown), sub-nav —
+shortcut-input, mention-input, color-picker (but not with `presetsOnly`, native
+radios), user-menu (a dropdown), sub-nav —
 always (sub-nav only to toggle: its open state is rendered from PHP; tree's
 structure, selection and open folders are rendered from PHP too). Plus ONE optional prop each on
 checkbox (`indeterminate`), nav-item (`collapsedWhen`), toast (`dismiss`),
@@ -813,7 +814,13 @@ in shared/money.js, mirrored by Support\Money; the caret in shared/caret.js),
 phone-input (`dsPhoneInput`, on `dsPopover` and shared/picker.js; country data
 in resources/data/countries.php, read by Support\Phone), shortcut-input
 (`dsShortcutInput`, `x-ds-shortcut`; shared/shortcut.js, mirrored by
-Support\Shortcut, also holds the palette's parse and match) and input's
+Support\Shortcut, also holds the palette's parse and match), mention-input
+(`dsMention`, `x-ds-anchor` with its `at` box; ranking from shared/rank.js, the
+list's place from `caretBox` in shared/caret.js, a mirror element; the server's
+ids from Support\Mention), color-picker (`dsColour`, on `dsPopover`; colours
+read and written by shared/colour.js, mirrored by Support\Colour and held to
+tests/Fixtures/colour.json from both sides), slider's `histogram` and `inputs`
+(in `dsSlider`) and input's
 `expanding` (`dsSearch`, partials/input-expanding.blade.php). icon-swap
 and button-group's `expanding` are plain Blade and CSS; user-menu is a
 dropdown, with the script as an enhancement only. kbd (but for `shortcut`, whose
@@ -973,7 +980,8 @@ until a screen needs it more than a trailing View button.
 - **Upload transport for `file-upload`.** It is a field, not an uploader.
 - **A date-and-time picker.** Two questions; a control that answers both does
   neither well.
-- **Colour picker, rich text.** Neither has come up.
+- **Rich text.** It has not come up; `mention-input` is a plain textarea on
+  purpose.
 
 ## The docs site (shipbytes.dev)
 
