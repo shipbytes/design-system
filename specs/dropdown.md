@@ -42,7 +42,9 @@ wrap: a menu that reflows to two lines stops looking like a list of choices.
 
 A closed set mapped to literal class strings — position, margin **and transform
 origin** together, so the scale-up animation grows from the corner the menu is
-pinned by rather than from its centre.
+pinned by rather than from its centre. The origin has a `data-[side=…]`
+variant as well, so a menu the anchor flipped grows from the trigger it now
+sits against.
 
 Literals and not `top-{$side}` for the scanner reason: a class built at runtime
 is invisible to Tailwind and gets no rule. See the same note in
@@ -51,8 +53,19 @@ is invisible to Tailwind and gets no rule. See the same note in
 `bottom-end` is the default because the overwhelming case is a trigger on the
 right of a row, where a menu opening left-aligned runs off the page.
 
-There is no collision detection. The component does not know where the viewport
-edge is; a menu near the bottom of the page takes `top-*` from whoever placed it.
+The placement is a preference. `x-ds-anchor` (the package's script) places the
+open menu with `position: fixed` beside its trigger, flips it to the opposite
+side when the preferred one has no room, shifts it to stay 8px inside the
+viewport, caps its height with a scroll when neither side fits, and writes the
+side it took as `data-side`, which the transform origin reads. With room it
+lands exactly on the absolute position the classes give; the behaviour suite
+measures both.
+
+The anchor is an **enhancement** here, not a requirement. The absolute classes
+stay on the menu as its no-script placement, so in a host without the script
+the dropdown opens at `placement`, as in 1.x, and Alpine skips the directive in
+silence. That is why the dropdown keeps its inline Alpine rather than moving to
+a `Behaviour::data()` scope.
 
 ## State — and why this one differs
 
@@ -113,10 +126,11 @@ disabled `<a>` — a disabled link is still focusable and still followable by
 keyboard, so the only reliable way to stop it going somewhere is for it not to be
 a link.
 
-Items carry **no focus ring**. A ring inside a menu with 4px of vertical padding
-clips against the rounded edge. The hover fill doubles as the focus fill, which
-is why every item styles `focus-visible:` and `hover:` to the same value rather
-than relying on hover alone.
+Items draw the focus ring **inside** themselves (`-outline-offset-2`): an outer
+ring would be clipped by the menu's overflow and rounded edge. The hover fill is
+on `focus-visible:` as well, but the fill alone was the only indicator until
+batch 06, and `surface-subtle` on `surface` is about 1.04:1 in light, which is
+no indicator at all.
 
 ## Accessibility
 

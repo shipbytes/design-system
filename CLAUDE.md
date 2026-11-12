@@ -41,6 +41,7 @@ package.json      @shipbytes/design-tokens   Composer reads composer.json from
 
 src/              the service provider
   View/Components/Scripts.php   ds::scripts, the include (a class, not a view)
+  View/Components/ThemeScript.php  ds::theme-script, the pre-paint theme snippet
   View/Components/ButtonGroup.php  ds::button-group's props: a class so the
                                 buttons can @aware a key no other component
                                 has (see the class, and ButtonGroupTest)
@@ -49,6 +50,7 @@ src/              the service provider
   Support/Field.php             reads the field recipe (partials/field.php)
   Support/Tray.php              reads the tray recipe (partials/tray.php)
   Support/Popover.php           reads the popover recipe (partials/popover.php)
+  Support/Menu.php              reads the menu recipe (partials/menu.php)
 config/           blade-ui.php — icon aliases, default icon size
 resources/views/  the Blade components + the two pagination views and
                   their two Livewire variants
@@ -72,6 +74,9 @@ resources/views/  the Blade components + the two pagination views and
                                 hover-card share (surface, widths, transition,
                                 placements: the absolute fallback classes the
                                 anchor overrides), read through Support\Popover
+  partials/menu.php             the menu recipe dropdown and context-menu
+                                share (panel, transition, the arrow-key
+                                handler), read through Support\Menu
 resources/js/     the shared script's source: plain ES modules, hand-edited
   blade-ui.js       the Alpine plugin; lists every behaviour
   global.js         the classic-script entry ds::scripts serves
@@ -125,7 +130,9 @@ render through the same three lines and a clean clone needs nothing but
 
 **Tokens** (`test-tokens.mjs`) — structure, WCAG contrast in both themes, theme
 collisions, and that the motion tokens compile to working `duration-*` /
-`ease-*` utilities, under `motion-safe:` too. No Blade involved.
+`ease-*` utilities, under `motion-safe:` too. It also reads every view as text
+and fails on a literal duration, a non-token curve, or a transition with no
+reduced-motion branch. No Blade is rendered.
 
 **Script** (`test-js.mjs`) — `dist/blade-ui*.js` match what `resources/js/`
 builds to (ds::scripts serves the COMMITTED file, so stale means stale in
@@ -147,7 +154,10 @@ posts. The main page is host setup (a), ds::scripts in the head above a
 deferred Alpine file; pages of their own cover (b) `Alpine.plugin()` on the ES
 module, (c) Livewire's bundled Alpine with the include loaded twice, a
 Content Security Policy with and without the nonce, and a page with no include
-that must say what is missing. Every request for `http://localhost/…` is
+that must say what is missing. A focus page (`scripts/focus-specimens.blade.php`)
+is walked with Tab in both themes at 1200px and 375px, and every stop, and
+every item inside the overlays, must draw a ring that was not there before;
+the browser's own `auto` ring fails it. Every request for `http://localhost/…` is
 answered by Laravel itself through `scripts/request.php`, so the include's src
 is fetched from the package's real route, headers and all. **Skips with a warning when there
 is no Chromium** (`npx playwright install chromium`), so a clean clone still goes
@@ -357,9 +367,11 @@ uncaught. A DIRECTIVE has no such hook: Alpine skips an `x-ds-*` it has no
 handler for, in silence, the same way it skips `x-trap` without the focus
 plugin. So a component never relies on a directive alone; `test-js.mjs` fails a
 view that uses `x-ds-*` without a `Behaviour::data()` scope, and one that writes
-a bare `x-data="ds…"`. The one exemption is a directive that is only an
+a bare `x-data="ds…"`. The exemption is a directive that is only an
 enhancement, listed in `ENHANCEMENTS` there: `x-ds-glide`, whose absence leaves
-a segmented control exactly as correct, with the face CSS draws. Silence is the
+a segmented control exactly as correct, with the face CSS draws, and
+`x-ds-anchor`, whose absence leaves the five overlays that predate it opening
+at their placement as in 1.x. Silence is the
 right failure for decoration and the wrong one for behaviour, so a directive
 joins that list only if the component works and looks right without it, and
 the behaviour suite renders it in a host with no script to prove so.
@@ -463,8 +475,16 @@ writes a page for a browser to open by `file://` needs the same line.
   `ease-enter` — never a bare `duration-150`: pick the pair for the kind of
   surface (`hint`, `popover`, `dialog`, `slide`) and use `-leave` on the way
   out. A JavaScript animation (the stat tile's count-up) checks
-  `matchMedia('(prefers-reduced-motion: reduce)')` and skips. The components
-  built before 2.0 predate this rule; see Known gaps.
+  `matchMedia('(prefers-reduced-motion: reduce)')` and skips.
+  `test-tokens.mjs` scans every view for this and fails the build.
+- **Every focusable element draws the system ring on `focus-visible`.**
+  `outline-2 outline-focus-ring`, outside with `outline-offset-2` where there
+  is room, inside with `-outline-offset-2` where a scrolling or clipping box
+  would cut it off (menu items, options, nav rails, panel rows). Never rely on
+  the browser's own ring, and never a fill alone: `surface-subtle` on `surface`
+  is about 1.04:1 in light. A transparent control (the file input) puts its
+  ring on the visible box with `has-focus-visible:`. A new component with
+  anything focusable gets a section in `scripts/focus-specimens.blade.php`.
 - **Comments explain why, not what.** The reason a value is what it is, or the
   bug that made it necessary.
 - **Never name the app this came from.** It is deliberately anonymous.
@@ -516,14 +536,27 @@ subtracted (cached until resize), though its own `overflow` still clips.
 
 It runs AFTER `x-show` on the same element (a directive's effect is registered
 later), so the panel is placed in the frame it appears in and never flashes at
-its fallback position. Everything it sets is inline style over the absolute
-placement classes in `partials/popover.php`, which is the design for batch 06:
-dropdown, select, combobox, date-picker and tooltip keep their absolute
-classes as the no-script fallback and gain `x-ds-anchor` over them. Only then
-can it join `ENHANCEMENTS`, with a no-script proof in the behaviour suite; for
-now popover and hover-card get it inside their `Behaviour::data()` scope. The
-behaviour suite's "overlay edges, enforced" group measures every overlay on it
-(the `anchored` list) at the viewport's edges; add each one batch 06 moves.
+its fallback position. Everything it sets is inline style over the panel's
+absolute placement classes, which are its no-script fallback.
+
+**Where it is an enhancement and where it is a requirement.** Since batch 06,
+dropdown, select, combobox, date-picker and tooltip carry `x-ds-anchor` over
+the absolute classes they had in 1.x, with their inline Alpine unchanged: in a
+host without the script Alpine skips the directive and each opens at its
+placement exactly as before, so `ds-anchor` is in `ENHANCEMENTS`, and the
+behaviour suite opens all five on a page with Alpine and no include. popover
+and hover-card need the script anyway (`dsPopover`, `dsHoverCard`), so for
+them it sits inside a `Behaviour::data()` scope. A new overlay with a sound
+absolute fallback takes the first route; one without takes the second.
+
+The behaviour suite holds every overlay on it to two checks: "overlay edges,
+enforced" (the `anchored` list) opens each at the bottom right of the window
+inside an overflow-hidden box and fails if it leaves the viewport, does not
+flip, or is clipped; and the `roomy` list fails any of the five that, with
+room, lands more than half a pixel from where its fallback classes put it.
+Add a new overlay to both. The docs images of the five were re-rasterised by
+the move (a fixed layer anti-aliases glyph edges a hair differently) with
+their geometry unchanged.
 
 **What a behaviour's scope exposes is API.** Everything an `Alpine.data` object
 returns is visible to the markup inside it and shadows the host's variables of
@@ -620,18 +653,20 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 67 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 69 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
 accordion, accordion-item, alert, avatar, avatar-group, badge, bottom-nav,
 bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, chip,
 button-group, chip-group, combobox, copy-button, date-picker, drawer, dropdown,
-dropdown-item, empty-state, file-upload, hover-card, icon, input, modal,
+context-menu, dropdown-item, empty-state, file-upload, hover-card, icon,
+input, modal,
 nav-item, number-field, otp-input, panel, panel-row, password-strength,
 popover, progress, radio, radio-card, radio-cards, radio-group, rating,
 segment, segmented-control, select, sheet, sheet-item, skeleton, stat-tile,
 step, stepper, sub-nav, switch, tab,
-tab-panel, table, table-cell, table-row, tabs, tag-input, toast, toast-region,
+tab-panel, table, table-cell, table-row, tabs, tag-input, theme-switcher,
+toast, toast-region,
 toggle, toggle-group, toolbar, toolbar-button, toolbar-separator, tooltip,
 usage-meter.
 
@@ -643,7 +678,7 @@ three lines of CSS, every component rendering styled in light and dark.
 **Needs Alpine:** modal, drawer, sheet, dropdown, select, combobox, date-picker,
 accordion (with accordion-item), file-upload, tooltip, otp-input, tag-input,
 number-field, password-strength, copy-button, toolbar (with toolbar-button and
-toolbar-separator), toggle-group (with toggle), popover, hover-card, sub-nav —
+toolbar-separator), toggle-group (with toggle), popover, hover-card, context-menu, theme-switcher, sub-nav —
 always (sub-nav only to toggle: its open state is rendered from PHP). Plus ONE optional prop each on
 checkbox (`indeterminate`), nav-item (`collapsedWhen`), toast (`dismiss`) and
 input (`reveal`), and the pagination views' Livewire variants, whose scroll to
@@ -658,8 +693,14 @@ number-field (`dsNumberField`), password-strength (`dsPasswordStrength`),
 copy-button (`dsClipboard`, which is also documented for direct use),
 toolbar (`dsToolbar`, `x-ds-glide.hover`), toggle-group (`dsToggleGroup`,
 `x-ds-glide.hover`), popover (`dsPopover`, `x-ds-anchor`), hover-card
-(`dsHoverCard`, `x-ds-anchor`), and input's `reveal` (`dsPassword`). segmented-control
-uses `x-ds-glide` as an enhancement only; see the shared script section.
+(`dsHoverCard`, `x-ds-anchor`), context-menu (`dsContextMenu`, `x-ds-anchor`
+with its `at` box), theme-switcher (`dsTheme`), and input's `reveal`
+(`dsPassword`). `<x-ds::theme-script />` is a class component like
+`ds::scripts`, plain inline JavaScript with no Alpine and no script. segmented-control
+uses `x-ds-glide` as an enhancement only, and dropdown, select, combobox,
+date-picker and tooltip use `x-ds-anchor` as an enhancement only: each works
+without the script exactly as in 1.x, and with it stays on screen. See the
+shared script section.
 
 **Plain Blade and CSS, no script, by design:** rating, chip-group (with chip)
 and radio-cards (with radio-card) are native radios or checkboxes styled by
@@ -708,20 +749,28 @@ that never runs the JS. Bind for what moves; render what does not.
 
 Kept here so nobody has to rediscover them. Roughly in the order worth closing.
 
-**1. The older overlays do not know where the viewport edge is.** `dropdown`,
-`select`, `combobox`, `date-picker` and `tooltip` each take a placement and
-trust it. `npm run test:behaviour` MEASURES the cost at the bottom of its run
-rather than describing it. **Read the number as a floor, not the overflow.** It
-scrolls each trigger to the bottom of the window only as far as the specimen
-page can scroll, so it grows with the page: the date picker read 32px until
-v1.2.1 added a specimen above it, and 106px after, with nothing about the picker
-changed. A calendar is ~340px tall, so the real figure is larger.
+**1. Closed in batch 06: the older overlays now know where the viewport edge
+is.** `dropdown`, `select`, `combobox`, `date-picker` and `tooltip` each took a
+placement and trusted it, and the behaviour suite only REPORTED the cost ("runs
+N px below the fold", a floor that grew with the specimen page: the date picker
+read 106px). All five are on `x-ds-anchor` now (see the shared script section),
+and the suite's "overlay edges, enforced" group fails any that leaves the
+viewport at the bottom or right edge, does not flip, or is clipped by an
+`overflow: hidden` box; a combobox at the foot of a modal body, which is
+`overflow-y-auto`, has a group of its own. What remains:
 
-Batch 05 built the fix without floating-ui: `x-ds-anchor` (see the shared
-script section). `popover` and `hover-card` use it, and the "overlay edges,
-enforced" group FAILS if either leaves the viewport at any edge or is clipped
-by an `overflow: hidden` ancestor. Moving the five above onto it, and into that
-group, is batch 06.
+- **Without the script** the five behave as in 1.x: the anchor is an
+  enhancement on them, so a host that skips `ds::scripts` gets the old
+  placement, clipping and all, and no error.
+- **A transformed, filtered or contained ancestor still clips.** The anchor
+  finds such an ancestor (it becomes the containing block of anything fixed)
+  and lands beside the trigger anyway, but that ancestor's own `overflow` and
+  its scale are not undone. The ancestor is looked for once per open and on
+  resize, so one that gains or loses a transform while a panel is open (a
+  combobox opened during a modal's 200 ms scale-in) is not noticed until the
+  next resize or reopen.
+- **Below `margin`** (8px from the window edge) nothing is drawn: a panel taller
+  than both sides is capped at the larger with a scroll inside.
 
 **2. The npm package is unpublished.** `@shipbytes/design-tokens` does not exist
 on the registry, so the `import { tokens } from '@shipbytes/design-tokens'` path
@@ -737,12 +786,16 @@ Recorded as ADVISORY in `test-tokens.mjs` rather than fixed, because closing it
 means moving `fg-muted` off zinc-500 — the most-used colour in the system. A
 deliberate decision with a wide blast radius, not a quiet fix.
 
-**4. The components built before 2.0 ignore reduced motion.** Their
-`x-transition` classes are plain `transition ease-out duration-150` and the like,
-not `motion-safe:`, and the numbers are literals rather than the motion
-utilities (the tokens were derived FROM those numbers, so the values agree).
-Moving them over is a restyle of existing components, which batch 00 was told
-not to do. The skeleton's pulse and the stat tile's count-up already honour it.
+**4. Closed in batch 06: every view is on the motion tokens.** The components
+built before 2.0 had plain `transition ease-out duration-150` and the like, not
+`motion-safe:`, with literal numbers. They now use the token utilities behind
+`motion-safe:` (the tokens were derived FROM those numbers, so the timings at
+rest are unchanged, and the documentation screenshots are byte for byte the
+same). Hover and colour transitions that had no curve of their own moved from
+Tailwind's default curve to `ease-enter` at the same 150 ms. `test-tokens.mjs`
+scans every view and fails on a literal `duration-NNN`, an `ease-*` that is not
+a token, a bare `x-transition`, or a transition or animation with no
+`motion-safe:` and no `motion-reduce:` branch.
 
 **5. The gallery cannot show `sheet` or `bottom-nav`.** Both are `lg:hidden`, and
 the gallery is a page a person opens on a desktop, so at that viewport they
@@ -755,8 +808,8 @@ purpose. An `<iframe>` at phone width would fix it.
 
 The gallery also loads no Alpine, and `theme.css` ships the `[x-cloak]` rule,
 so every overlay panel marked `x-cloak` stays hidden there: dropdown, select,
-combobox, date-picker, popover, hover card (measured in batch 05). The popover
-and hover card sections say so; the dropdown's note still claims its menus
+combobox, date-picker, popover, hover card (measured in batch 05), context
+menu. The popover, hover card and context menu sections say so; the dropdown's note still claims its menus
 "render open", which has been untrue since the rule shipped. Opening them needs
 Alpine in the gallery, or a gallery-only rule that un-cloaks the panels.
 

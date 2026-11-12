@@ -56,7 +56,7 @@
 
     $classes = implode(' ', [
         'group block rounded-control border border-border-strong bg-surface p-4',
-        $href ? 'transition-all hover:border-fg/20 hover:shadow-raised' : '',
+        $href ? 'motion-safe:transition-all motion-safe:duration-popover-enter motion-safe:ease-enter hover:border-fg/20 hover:shadow-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring' : '',
     ]);
 
     $tag = $href ? 'a' : 'div';
@@ -65,7 +65,7 @@
 <{{ $tag }} {{ $attributes->merge(['class' => $classes, 'href' => $href])->filter(fn ($v) => $v !== null) }}>
     <div @class([
         'text-body font-medium text-fg-muted',
-        'transition-colors group-hover:text-fg-body' => (bool) $href,
+        'motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter group-hover:text-fg-body' => (bool) $href,
     ])>{{ $label }}</div>
 
     <div

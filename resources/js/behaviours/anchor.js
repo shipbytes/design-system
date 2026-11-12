@@ -19,6 +19,9 @@
  *               inside; default true
  *   width       'reference' to match the reference's width (a listbox under
  *               its field)
+ *   at          { x, y, width, height } from the reference's top-left corner:
+ *               hang off that box instead of the reference (a context menu at
+ *               the pointer); read reactively like the rest
  *
  * The rules, flip and shift and clamp, and the fixed positioning that keeps an
  * ancestor's overflow from clipping, are in shared/anchor.js. The panel's

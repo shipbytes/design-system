@@ -31,8 +31,10 @@
             </x-slot:footer>
         </x-ds::drawer>
 
-        {{-- ── dropdown ── --}}
-        <div class="mt-6">
+        {{-- ── dropdown ──
+             Centred, so the menu has room on every side and the edge check at
+             the end of the run can prove it opens where its classes put it. --}}
+        <div class="mt-6 flex justify-center">
             <x-ds::dropdown>
                 <x-slot:trigger>
                     <x-ds::button id="menu-trigger" variant="secondary" size="sm">Actions</x-ds::button>
@@ -44,8 +46,8 @@
             </x-ds::dropdown>
         </div>
 
-        {{-- ── tooltip ── --}}
-        <div class="mt-6">
+        {{-- ── tooltip ── centred for the same reason --}}
+        <div class="mt-6 flex justify-center">
             <x-ds::tooltip text="Delete this report permanently">
                 <x-ds::button id="tip-trigger" variant="secondary" size="sm" iconOnly aria-label="Delete">
                     <x-ds::icon name="trash" size="4" />
@@ -509,6 +511,96 @@
             <x-slot:trigger><a href="#edge" id="hc-edge-trigger">Edge person</a></x-slot:trigger>
             <span class="block h-40">A tall card.</span>
         </x-ds::hover-card>
+    </div>
+
+    {{-- ── the overlays that predate x-ds-anchor, now on it ──
+         Each at the right edge of a box that clips with overflow hidden, for
+         the edge check at the end of the run, where each is opened at the
+         bottom right of the window. Their placements prefer the side that
+         has no room there, so each has to flip to stay on screen. --}}
+    <div class="mt-6 flex h-10 justify-end overflow-hidden border border-border">
+        <x-ds::dropdown id="dd-edge" placement="bottom-start">
+            <x-slot:trigger>
+                <x-ds::button id="dd-edge-trigger" size="sm">Edge menu</x-ds::button>
+            </x-slot:trigger>
+            <x-ds::dropdown-item href="#edge-edit">Edit</x-ds::dropdown-item>
+            <x-ds::dropdown-item href="#edge-dup">Duplicate with a longer name</x-ds::dropdown-item>
+            <x-ds::dropdown-item href="#edge-move">Move</x-ds::dropdown-item>
+        </x-ds::dropdown>
+    </div>
+    <div class="mt-6 flex h-10 justify-end overflow-hidden border border-border">
+        <div class="w-64">
+            <x-ds::select name="sel-edge" id="sel-edge" aria-label="Edge plan"
+                :options="['free' => 'Free', 'pro' => 'Pro', 'team' => 'Team', 'scale' => 'Scale', 'custom' => 'Custom']" />
+        </div>
+    </div>
+    <div class="mt-6 flex h-10 justify-end overflow-hidden border border-border">
+        <div class="w-64">
+            <x-ds::combobox name="cb-edge" id="cb-edge" aria-label="Edge tags"
+                :options="['a11y' => 'Accessibility', 'billing' => 'Billing', 'compliance' => 'Compliance', 'design' => 'Design', 'infra' => 'Infrastructure']" />
+        </div>
+    </div>
+
+    <div class="mt-6 flex h-10 justify-end overflow-hidden border border-border">
+        <div class="w-64">
+            {{-- A month no other picker on the page shows, so the date picker group's
+                 day selectors stay unique. --}}
+            <x-ds::date-picker name="dp-edge" id="dp-edge" aria-label="Edge date" value="2027-03-10" />
+        </div>
+    </div>
+
+    <div class="mt-6 flex h-10 items-center justify-end overflow-hidden border border-border">
+        <x-ds::tooltip text="A tip that prefers to sit below its trigger" placement="bottom">
+            <x-ds::button id="tt-edge-trigger" variant="secondary" size="sm">Edge tip</x-ds::button>
+        </x-ds::tooltip>
+    </div>
+
+    {{-- A combobox in a modal whose body scrolls: the body is overflow-y
+         auto, which clipped the list before the anchor. The spacer makes the
+         body taller than the window, so it really scrolls. --}}
+    <div class="mt-6" x-data="{ cbModal: false }">
+        <button type="button" id="cb-modal-open" @click="cbModal = true">Open the scrolling modal</button>
+        <x-ds::modal open="cbModal" title="Tag the report" size="sm">
+            <div id="cb-modal-spacer" class="h-[900px]">Long content above the field.</div>
+            <x-ds::combobox name="cb-modal" id="cb-modal" label="Tags"
+                :options="['a11y' => 'Accessibility', 'billing' => 'Billing', 'compliance' => 'Compliance', 'design' => 'Design']" />
+            <div class="h-[400px]">Long content below the field.</div>
+            <x-slot:footer>
+                <x-ds::button id="cb-modal-close" size="sm" @click="cbModal = false">Close</x-ds::button>
+            </x-slot:footer>
+        </x-ds::modal>
+    </div>
+
+    {{-- ── context menu (dsContextMenu, x-ds-anchor at a point) ──
+         A region with a link, a field and a focusable row inside it, and a
+         menu whose second item is disabled. `cmChosen` records what was
+         chosen and on which row, through dsTarget. The second region is full
+         width, for the edges, and has `native` off. --}}
+    <div class="mt-6" x-data="{ cmChosen: '' }">
+        <x-ds::context-menu id="cm" label="Report actions" class="rounded-control border border-border p-4">
+            <p id="cm-text">Right-click anywhere in here.</p>
+            <a href="#cm-link" id="cm-link">A link inside</a>
+            <input id="cm-input" aria-label="A field inside" />
+            <div id="cm-row" data-row="q3" tabindex="0">Q3 revenue</div>
+            <x-slot:menu>
+                <x-ds::dropdown-item id="cm-edit" as="button" @click="cmChosen = 'edit ' + (dsTarget?.closest('[data-row]')?.dataset.row ?? '')">Edit</x-ds::dropdown-item>
+                <x-ds::dropdown-item id="cm-archive" :disabled="true">Archive</x-ds::dropdown-item>
+                <x-ds::dropdown-item id="cm-delete" tone="danger" as="button" @click="cmChosen = 'delete'">Delete</x-ds::dropdown-item>
+            </x-slot:menu>
+        </x-ds::context-menu>
+        <span id="cm-chosen" x-text="cmChosen"></span>
+        <button type="button" id="cm-before">Before the region</button>
+    </div>
+
+    <div class="mt-6">
+        <x-ds::context-menu id="cm-wide" :native="false" class="h-40 border border-border">
+            <a href="#cm-wide-link" id="cm-wide-link">A link, native off</a>
+            <x-slot:menu>
+                <x-ds::dropdown-item as="button">One</x-ds::dropdown-item>
+                <x-ds::dropdown-item as="button">Two</x-ds::dropdown-item>
+                <x-ds::dropdown-item as="button">Three</x-ds::dropdown-item>
+            </x-slot:menu>
+        </x-ds::context-menu>
     </div>
 
     {{-- ── dsClipboard, from the shared script ──

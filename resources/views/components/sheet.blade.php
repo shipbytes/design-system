@@ -37,10 +37,10 @@
     <div
         @click="{{ $open }} = false"
         x-show="{{ $open }}"
-        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter="motion-safe:transition motion-safe:duration-slide-enter motion-safe:ease-enter"
         x-transition:enter-start="opacity-0"
         x-transition:enter-end="opacity-100"
-        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave="motion-safe:transition motion-safe:duration-slide-leave motion-safe:ease-leave"
         x-transition:leave-start="opacity-100"
         x-transition:leave-end="opacity-0"
         class="fixed inset-0 bg-scrim"
@@ -48,10 +48,10 @@
 
     <div
         x-show="{{ $open }}"
-        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter="motion-safe:transition motion-safe:duration-slide-enter motion-safe:ease-enter"
         x-transition:enter-start="translate-y-full"
         x-transition:enter-end="translate-y-0"
-        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave="motion-safe:transition motion-safe:duration-slide-leave motion-safe:ease-leave"
         x-transition:leave-start="translate-y-0"
         x-transition:leave-end="translate-y-full"
         {{ $attributes->merge(['class' => 'fixed inset-x-0 bottom-0 overflow-hidden rounded-t-sheet bg-surface shadow-overlay']) }}
@@ -72,7 +72,7 @@
                 <button
                     type="button"
                     @click="{{ $open }} = false"
-                    class="-mr-2 rounded-control p-2 text-fg-muted transition-colors hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                    class="-mr-2 rounded-control p-2 text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                     aria-label="Close"
                 >
                     <x-ds::icon name="x-mark" size="5" />

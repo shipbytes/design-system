@@ -52,7 +52,7 @@
             aria-controls="{{ $id }}-panel"
             {{ $attributes->merge([
                 'class' => 'flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left '
-                    .'text-body font-medium text-fg transition-colors hover:bg-surface-subtle '
+                    .'text-body font-medium text-fg motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle '
                     .'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring',
             ]) }}
         >
@@ -62,7 +62,7 @@
                 name="chevron-down"
                 variant="mini"
                 size="5"
-                class="shrink-0 text-fg-muted transition-transform {{ $startsOpen ? 'rotate-180' : '' }}"
+                class="shrink-0 text-fg-muted motion-safe:transition-transform motion-safe:duration-popover-enter motion-safe:ease-enter {{ $startsOpen ? 'rotate-180' : '' }}"
                 ::class="isOpen(key) && 'rotate-180'"
             />
         </button>
@@ -80,7 +80,7 @@
         id="{{ $id }}-panel"
         role="region"
         aria-labelledby="{{ $id }}-trigger"
-        class="grid transition-all duration-200 ease-out {{ $panelState }}"
+        class="grid motion-safe:transition-all motion-safe:duration-dialog-enter motion-safe:ease-enter {{ $panelState }}"
         :class="isOpen(key) ? 'grid-rows-[1fr] visible' : 'grid-rows-[0fr] invisible'"
     >
         <div class="overflow-hidden">

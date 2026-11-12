@@ -50,7 +50,7 @@
     @if ($dismissible)
         <button
             type="button"
-            class="-m-1 shrink-0 rounded-chip p-1 opacity-60 transition-opacity hover:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+            class="-m-1 shrink-0 rounded-chip p-1 opacity-60 motion-safe:transition-opacity motion-safe:duration-popover-enter motion-safe:ease-enter hover:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
             aria-label="Dismiss"
             {{-- A plain handler, not Alpine's @click.
                  Nothing else in this component needs JavaScript, and an alert is

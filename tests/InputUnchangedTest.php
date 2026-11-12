@@ -14,6 +14,10 @@ use PHPUnit\Framework\Attributes\Test;
  * The fixture was written from the 1.x view, before `reveal` or the shared
  * field recipe existed. Generated ids are random for an unbound field, so they
  * are normalised; nothing else is.
+ *
+ * One edit since: the focus ring was `sm:` only, so a field below 640px had
+ * none. The fixture follows that class and nothing else (batch 06, the
+ * focus audit).
  */
 final class InputUnchangedTest extends TestCase
 {

@@ -103,7 +103,7 @@
             $group['orientation'] === 'vertical' => 'rounded-t-(--ds-join-start) rounded-b-(--ds-join-end) hover:z-10 focus-visible:z-10',
             default => 'rounded-s-(--ds-join-start) rounded-e-(--ds-join-end) hover:z-10 focus-visible:z-10',
         },
-        'border font-semibold whitespace-nowrap transition-colors',
+        'border font-semibold whitespace-nowrap motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter',
         /*
          * focus-visible only: a mouse click should not leave a ring behind, and
          * browsers draw their own ring on :focus-visible alone, so nothing has
@@ -141,7 +141,7 @@
     @if ($loading)
         {{-- Replaces the leading icon rather than the label, so the button keeps
              its width and does not jump while it works. --}}
-        <svg class="size-4 shrink-0 animate-spin" viewBox="0 0 24 24" fill="none"
+        <svg class="size-4 shrink-0 motion-safe:animate-spin" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
             <path d="M12 3a9 9 0 1 0 9 9" />
         </svg>

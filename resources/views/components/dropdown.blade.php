@@ -20,14 +20,24 @@
 
     // A CLOSED set, so these are literal class strings a scanner can read rather
     // than "top-{$side}" built at runtime. See the note in modal.blade.php.
+    //
+    // These are where the menu sits without the package's script. With it,
+    // x-ds-anchor writes inline style over them, flipping the menu to the
+    // other side when this one has no room, and the origin follows the side
+    // it took (data-side) so a flipped menu grows from its trigger.
     $placements = [
-        'bottom-start' => 'top-full left-0 mt-2 origin-top-left',
-        'bottom-end' => 'top-full right-0 mt-2 origin-top-right',
-        'top-start' => 'bottom-full left-0 mb-2 origin-bottom-left',
-        'top-end' => 'bottom-full right-0 mb-2 origin-bottom-right',
+        'bottom-start' => 'top-full left-0 mt-2 origin-top-left data-[side=top]:origin-bottom-left',
+        'bottom-end' => 'top-full right-0 mt-2 origin-top-right data-[side=top]:origin-bottom-right',
+        'top-start' => 'bottom-full left-0 mb-2 origin-bottom-left data-[side=bottom]:origin-top-left',
+        'top-end' => 'bottom-full right-0 mb-2 origin-bottom-right data-[side=bottom]:origin-top-right',
     ];
 
-    $position = $placements[$placement] ?? $placements['bottom-end'];
+    $placement = array_key_exists($placement, $placements) ? $placement : 'bottom-end';
+    $position = $placements[$placement];
+
+    // The trigger wrapper is the menu's previous sibling; the anchor measures a
+    // `contents` wrapper by the trigger inside it.
+    $anchor = "{ open: {$state}, reference: \$el.previousElementSibling, placement: '{$placement}' }";
 
     // Named so it cannot collide with the `trigger` SLOT, which arrives as
     // $trigger — assigning to that name here would replace the consumer's markup
@@ -52,24 +62,10 @@
         }
     JS;
 
-    /*
-     * Arrow keys move between items, Home/End jump to the ends. role="menu" is a
-     * PROMISE that this works — a menu that only responds to Tab is a keyboard
-     * user being told one thing and given another.
-     *
-     * Built in @php rather than inline: a multi-line expression on the tag is
-     * what makes Blade emit the tag as literal text instead of compiling it.
-     */
-    $moveFocus = <<<'JS'
-        const items = [...$el.querySelectorAll('[role="menuitem"]:not([aria-disabled="true"])')];
-        if (!items.length) return;
-        const at = items.indexOf(document.activeElement);
-        const to = $event.key === 'Home' ? 0
-            : $event.key === 'End' ? items.length - 1
-            : $event.key === 'ArrowUp' ? (at <= 0 ? items.length - 1 : at - 1)
-            : (at === items.length - 1 ? 0 : at + 1);
-        items[to].focus();
-    JS;
+    // The panel, its transition and the arrow keys are shared with
+    // ds::context-menu, from partials/menu.php.
+    $menu = \Shipbytes\BladeUi\Support\Menu::recipe();
+    $moveFocus = $menu['move'];
 
     // Focus lands on the first item when the menu opens, and goes back to the
     // trigger when it closes — otherwise dismissing a menu drops the reader at
@@ -114,6 +110,9 @@
     <div
         x-show="{{ $state }}"
         x-cloak
+        {{-- An enhancement: skipped where the script is missing, and the
+             absolute placement below is then where the menu opens. --}}
+        x-ds-anchor="{{ $anchor }}"
         x-effect="{{ $focusManagement }}"
         {{-- .outside rather than a full-screen invisible backdrop: a backdrop
              would swallow the first click anywhere on the page, so closing a
@@ -130,15 +129,13 @@
         @keydown.arrow-up.prevent="{{ $moveFocus }}"
         @keydown.home.prevent="{{ $moveFocus }}"
         @keydown.end.prevent="{{ $moveFocus }}"
-        x-transition:enter="transition ease-out duration-150"
-        x-transition:enter-start="opacity-0 scale-95"
-        x-transition:enter-end="opacity-100 scale-100"
-        x-transition:leave="transition ease-in duration-100"
-        x-transition:leave-start="opacity-100 scale-100"
-        x-transition:leave-end="opacity-0 scale-95"
-        {{-- `float`, not `overlay`: this hovers over the page, it does not block
-             it. The shadow scale says which of those a surface is doing. --}}
-        class="absolute {{ $position }} z-50 min-w-52 overflow-hidden rounded-control border border-border bg-surface py-1 shadow-float"
+        x-transition:enter="{{ $menu['transition']['x-transition:enter'] }}"
+        x-transition:enter-start="{{ $menu['transition']['x-transition:enter-start'] }}"
+        x-transition:enter-end="{{ $menu['transition']['x-transition:enter-end'] }}"
+        x-transition:leave="{{ $menu['transition']['x-transition:leave'] }}"
+        x-transition:leave-start="{{ $menu['transition']['x-transition:leave-start'] }}"
+        x-transition:leave-end="{{ $menu['transition']['x-transition:leave-end'] }}"
+        class="absolute {{ $position }} {{ $menu['panel'] }}"
         role="menu"
         aria-orientation="vertical"
     >

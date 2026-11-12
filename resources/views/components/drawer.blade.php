@@ -104,10 +104,10 @@
     <div
         x-show="{{ $open }}"
         @if ($dismissible) @click="{{ $open }} = false" @endif
-        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter="motion-safe:transition motion-safe:duration-slide-enter motion-safe:ease-enter"
         x-transition:enter-start="opacity-0"
         x-transition:enter-end="opacity-100"
-        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave="motion-safe:transition motion-safe:duration-slide-leave motion-safe:ease-leave"
         x-transition:leave-start="opacity-100"
         x-transition:leave-end="opacity-0"
         class="absolute inset-0 bg-scrim"
@@ -117,10 +117,10 @@
         x-show="{{ $open }}"
         {{-- Slower out than in, and slower than the modal: a panel travelling the
              full height of the screen at the modal's 200ms reads as a flinch. --}}
-        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter="motion-safe:transition motion-safe:duration-slide-enter motion-safe:ease-enter"
         x-transition:enter-start="{{ $s['from'] }}"
         x-transition:enter-end="translate-x-0"
-        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave="motion-safe:transition motion-safe:duration-slide-leave motion-safe:ease-leave"
         x-transition:leave-start="translate-x-0"
         x-transition:leave-end="{{ $s['from'] }}"
         @keydown.tab.prevent="{{ $focusTrap }}"
@@ -144,7 +144,7 @@
                     <button
                         type="button"
                         @click="{{ $open }} = false"
-                        class="-my-1 -mr-2 ml-auto shrink-0 rounded-control p-2 text-fg-muted transition-colors hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                        class="-my-1 -mr-2 ml-auto shrink-0 rounded-control p-2 text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                         aria-label="Close"
                     >
                         <x-ds::icon name="x-mark" size="5" />

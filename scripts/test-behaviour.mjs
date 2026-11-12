@@ -79,12 +79,72 @@ try {
 
 await writeFile(join(TMP, 'specimens.html'), specimens);
 
+/*
+  The overlays whose x-ds-anchor is an enhancement, for a page with Alpine and
+  NO include: each must still open, where its absolute classes put it, and
+  say nothing in the console. Rendered here so its classes are compiled into
+  the page's CSS with everything else.
+*/
+await writeFile(join(TMP, 'fallback.blade.php'), `<div class="p-8">
+<div class="mt-6">
+    <x-ds::dropdown id="fb-dropdown">
+        <x-slot:trigger><x-ds::button id="fb-dropdown-trigger" size="sm">Actions</x-ds::button></x-slot:trigger>
+        <x-ds::dropdown-item id="fb-dropdown-first" href="#a">Edit</x-ds::dropdown-item>
+        <x-ds::dropdown-item href="#b">Duplicate</x-ds::dropdown-item>
+    </x-ds::dropdown>
+</div>
+<div class="mt-6 max-w-xs">
+    <x-ds::select name="fb-select" id="fb-select" label="Plan" :options="['free' => 'Free', 'pro' => 'Pro']" value="pro" />
+</div>
+<div class="mt-6 flex justify-center">
+    <x-ds::tooltip text="Delete this report permanently">
+        <x-ds::button id="fb-tip-trigger" variant="secondary" size="sm" iconOnly aria-label="Delete">
+            <x-ds::icon name="trash" size="4" />
+        </x-ds::button>
+    </x-ds::tooltip>
+</div>
+<div class="mt-6 max-w-xs">
+    <x-ds::date-picker name="fb-date" id="fb-date" label="Due" value="2026-09-10" />
+</div>
+<div class="mt-6 max-w-xs">
+    <x-ds::combobox name="fb-combobox" id="fb-combobox" label="Tags" :options="['a11y' => 'Accessibility', 'billing' => 'Billing']" />
+</div>
+</div>`);
+const fallbackMarkup = await render(join(TMP, 'fallback.blade.php'));
+await writeFile(join(TMP, 'fallback.html'), fallbackMarkup);
+
+// One of each focusable component, for the focus-indicator walk.
+const focusMarkup = await render(join(ROOT, 'scripts/focus-specimens.blade.php'));
+await writeFile(join(TMP, 'focus.html'), focusMarkup);
+
+/*
+  The theme switcher and the pre-paint script, for host pages of their own:
+  they own <html>, localStorage and the colour scheme, which the main page
+  must not have changed under it. Two switchers on the default key, one on
+  another, and a probe that only a `dark:` utility colours.
+*/
+await writeFile(join(TMP, 'theme.blade.php'), `<div class="p-8">
+<x-ds::theme-switcher id="ts-a" />
+<x-ds::theme-switcher id="ts-b" variant="button" />
+<x-ds::theme-switcher id="ts-other" storageKey="other-theme" label="Other" />
+<p id="ts-probe" class="text-fg dark:text-accent">probe</p>
+</div>`);
+const themeMarkup = await render(join(TMP, 'theme.blade.php'));
+await writeFile(join(TMP, 'theme.html'), themeMarkup);
+await writeFile(join(TMP, 'theme-script.blade.php'), '<x-ds::theme-script />');
+const themeScript = await render(join(TMP, 'theme-script.blade.php'));
+await writeFile(join(TMP, 'theme-script-nonce.blade.php'), '<x-ds::theme-script nonce="t3st" />');
+const themeScriptNonce = await render(join(TMP, 'theme-script-nonce.blade.php'));
+
 await writeFile(
     join(TMP, 'in.css'),
     `@import "tailwindcss";
 @import "${join(ROOT, 'dist/tokens.css')}";
 @import "${join(ROOT, 'dist/theme.css')}";
 @source "${join(TMP, 'specimens.html')}";
+@source "${join(TMP, 'fallback.html')}";
+@source "${join(TMP, 'focus.html')}";
+@source "${join(TMP, 'theme.html')}";
 `,
 );
 
@@ -132,6 +192,15 @@ ${include}
 ${orderProbe}
 <script defer src="alpine.js"></script>
 </head><body>${specimens}</body></html>`,
+);
+
+await writeFile(
+    join(TMP, 'focus-page.html'),
+    `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+${include}
+<script defer src="alpine.js"></script>
+</head><body class="bg-surface">${focusMarkup}</body></html>`,
 );
 
 // ------------------------------------------------------------ 2. drive it
@@ -575,8 +644,8 @@ await page.click('#period');
 await settle();
 
 await check('the grid opens on the month of the value', async () =>
-    (await page.locator('[role=dialog] [aria-live=polite]').innerText()).includes('September 2026')
-    || `shows ${await page.locator('[role=dialog] [aria-live=polite]').innerText()}`);
+    (await page.locator('[x-data]:has(> #period) [aria-live=polite]').innerText()).includes('September 2026')
+    || `shows ${await page.locator('[x-data]:has(> #period) [aria-live=polite]').innerText()}`);
 
 await check('picking a later day completes the range', async () => {
     await page.click('[data-day="2026-09-17"]');
@@ -1611,8 +1680,16 @@ const anchorBoxes = (panel, reference) => page.evaluate(([p, r]) => {
         side: el.dataset.side,
         shown: getComputedStyle(el).display !== 'none',
         // What is actually painted at the panel's centre: the panel, or
-        // whatever clipped it.
-        onTop: el.contains(document.elementFromPoint(a.left + a.width / 2, a.top + a.height / 2)),
+        // whatever clipped it. A tooltip never takes the pointer, and
+        // elementFromPoint looks straight through a pointer-events-none
+        // element, so that is lifted for the instant of the probe.
+        onTop: (() => {
+            const was = el.style.pointerEvents;
+            el.style.pointerEvents = 'auto';
+            const hit = document.elementFromPoint(a.left + a.width / 2, a.top + a.height / 2);
+            el.style.pointerEvents = was;
+            return el.contains(hit);
+        })(),
     };
 }, [panel, reference]);
 
@@ -2674,95 +2751,647 @@ await check('the shipped stylesheet hides a cloaked element', async () => {
 // ---------------------------------------------------------------- overlay edges
 
 /*
-  How to check whether an overlay collides with the viewport.
-  
-  No popover in this system does collision detection: each takes a `placement`
-  and trusts it. This measures the consequence rather than asserting anything
-  about it — each trigger is scrolled to the bottom of the window, opened, and
-  the popover's box is compared against the viewport.
-  
-  It REPORTS and does not fail, because the behaviour is known and recorded as a
-  gap. It exists so the cost is a number somebody can look at before deciding
-  whether floating-ui is worth taking on.
-*/
-group('overlay edges (reported, not enforced — the overlays not yet on x-ds-anchor)');
-
-const overlays = [
-    ['dropdown', '#menu-trigger', '[role=menu]'],
-    ['select', '#plan', '[role=listbox]'],
-    ['date-picker', '#period', '[role=dialog][aria-modal="false"]'],
-];
-
-for (const [name, triggerSelector, popoverSelector] of overlays) {
-    const overflow = await (async () => {
-        await page.evaluate((selector) => {
-            document.querySelector(selector).scrollIntoView({ block: 'end' });
-        }, triggerSelector);
-        await settle(200);
-
-        await page.locator(triggerSelector).click();
-        await settle(350);
-
-        const box = await page.locator(popoverSelector).first().boundingBox();
-        const height = page.viewportSize().height;
-
-        await page.keyboard.press('Escape');
-        await settle(200);
-
-        if (!box) return null;
-        return Math.round(box.y + box.height - height);
-    })();
-
-    if (overflow === null) {
-        console.log(`  \x1b[33m?\x1b[0m ${name.padEnd(12)} could not be measured`);
-    } else if (overflow > 0) {
-        console.log(`  \x1b[33m!\x1b[0m ${name.padEnd(12)} runs \x1b[33m${overflow}px\x1b[0m below the fold at the bottom of the window`);
-    } else {
-        console.log(`  \x1b[32m✓\x1b[0m ${name.padEnd(12)} fits (${-overflow}px to spare)`);
-    }
-}
-
-/*
-  The same measurement, ENFORCED, for the overlays placed by x-ds-anchor. Each
-  is opened at the bottom right of the window, inside a box with overflow
-  hidden, and must come back wholly on screen (less the anchor's 8px margin),
-  flipped above its trigger, and painted rather than clipped.
+  Whether an overlay collides with the viewport, ENFORCED for every overlay,
+  all of them placed by x-ds-anchor. Until batch 06 the five that predate it
+  were only REPORTED here, as "runs N px below the fold", because each took
+  a placement and trusted it. Each is now opened at the bottom right of the
+  window, inside a box with overflow hidden, and must come back wholly on
+  screen (less the anchor's 8px margin), flipped away from the edge, and
+  painted rather than clipped.
 
   Run from a bottom-of-the-window start, not the floor this page happens to
   have: the trigger is scrolled to the bottom edge, which any element deep in
   the page can reach.
 */
-group('overlay edges, enforced (the overlays on x-ds-anchor)');
+group('overlay edges, enforced (every overlay, on x-ds-anchor)');
 
+const pressEscape = async () => {
+    await page.keyboard.press('Escape');
+};
+
+/*
+  Each entry: the trigger, the panel, how to open and close it, and the side
+  it must have flipped to. `trigger` is also the reference the panel is
+  measured against unless `reference` names another.
+*/
 const anchored = [
-    ['popover', 'pop-edge-trigger', 'pop-edge', async () => {
-        await page.click('#pop-edge-trigger');
-    }, async () => {
-        await page.keyboard.press('Escape');
-    }],
-    ['hover card', 'hc-edge-trigger', 'hc-edge', async () => {
-        await page.hover('#hc-edge-trigger');
-    }, async () => {
-        await page.keyboard.press('Escape');
-        await page.mouse.move(5, 5);
-    }],
+    {
+        name: 'popover', trigger: '#pop-edge-trigger', panel: '#pop-edge',
+        open: () => page.click('#pop-edge-trigger'), close: pressEscape,
+    },
+    {
+        name: 'hover card', trigger: '#hc-edge-trigger', panel: '#hc-edge',
+        open: () => page.hover('#hc-edge-trigger'),
+        close: async () => {
+            await page.keyboard.press('Escape');
+            await page.mouse.move(5, 5);
+        },
+    },
+    {
+        name: 'dropdown', trigger: '#dd-edge-trigger', panel: '#dd-edge [role=menu]',
+        open: () => page.click('#dd-edge-trigger'), close: pressEscape,
+    },
+    {
+        name: 'select', trigger: '#sel-edge', panel: '#sel-edge-listbox',
+        open: () => page.click('#sel-edge'), close: pressEscape,
+    },
+    {
+        name: 'combobox', trigger: '#cb-edge', panel: '#cb-edge-listbox',
+        open: () => page.click('#cb-edge'), close: pressEscape,
+    },
+    {
+        name: 'date picker', trigger: '#dp-edge', panel: '[x-data]:has(> #dp-edge) [role=dialog]',
+        open: () => page.click('#dp-edge'), close: pressEscape,
+    },
+    {
+        name: 'tooltip', trigger: '#tt-edge-trigger', panel: '[data-ds-tooltip]:has(#tt-edge-trigger) [role=tooltip]',
+        open: () => page.hover('#tt-edge-trigger'),
+        close: async () => {
+            await page.keyboard.press('Escape');
+            await page.mouse.move(5, 5);
+        },
+    },
 ];
 
-for (const [name, triggerId, panelId, open, close] of anchored) {
+/*
+  The other half: with room, an overlay moved onto the anchor must land where
+  its absolute classes put it in 1.x, so nothing a reader sees has moved. The
+  panel is measured as placed, then again with the anchor's inline placement
+  taken off, in the same frame. Half a pixel is the anchor's rounding to whole
+  device pixels.
+*/
+const roomy = [
+    { name: 'dropdown', trigger: '#menu-trigger', panel: '[data-ds-dropdown]:has(#menu-trigger) [role=menu]' },
+    { name: 'select', trigger: '#plan', panel: '#plan-listbox' },
+    { name: 'combobox', trigger: '#tags', panel: '#tags-listbox' },
+    { name: 'date picker', trigger: '#period', panel: '[x-data]:has(> #period) [role=dialog]' },
+    {
+        name: 'tooltip', trigger: '#tip-trigger', panel: '[data-ds-tooltip]:has(#tip-trigger) [role=tooltip]',
+        open: () => page.focus('#tip-trigger'), close: pressEscape,
+    },
+];
+
+const PLACED = ['position', 'left', 'top', 'right', 'bottom', 'margin', 'translate', 'width', 'maxHeight', 'overflowY'];
+
+for (const { name, trigger, panel, open, close } of roomy) {
+    await check(`${name}: with room, it opens exactly where its fallback classes put it`, async () => {
+        await page.evaluate((s) => document.querySelector(s).scrollIntoView({ block: 'center' }), trigger);
+        await settle(150);
+        await (open ? open() : page.click(trigger));
+        await settle(400);
+        const r = await page.evaluate(([p, props]) => {
+            const el = document.querySelector(p);
+            const placed = el.getBoundingClientRect();
+            const style = el.getAttribute('style');
+            for (const prop of props) el.style[prop] = '';
+            const fallback = el.getBoundingClientRect();
+            el.setAttribute('style', style);
+            return {
+                anchored: el.style.position === 'fixed',
+                off: Math.max(...['left', 'top', 'width', 'height'].map((k) => Math.abs(placed[k] - fallback[k]))),
+            };
+        }, [panel, PLACED]);
+        await (close ? close() : pressEscape());
+        await settle(250);
+        if (!r.anchored) return 'the anchor never placed it, so this proves nothing';
+        return r.off <= 0.5 || `${r.off.toFixed(2)}px from where its fallback puts it`;
+    });
+}
+
+for (const { name, trigger, reference, panel, open, close, side = 'top' } of anchored) {
     await check(`${name}: at the bottom right of the window, clipped box and all, it stays on screen`, async () => {
-        await page.evaluate((id) => document.getElementById(id).scrollIntoView({ block: 'end', inline: 'end' }), triggerId);
+        await page.evaluate((s) => document.querySelector(s).scrollIntoView({ block: 'end', inline: 'end' }), trigger);
         await settle(150);
         await open();
         await settle(700);
-        const b = await anchorBoxes(`#${panelId}`, `#${triggerId}`);
+        const b = await anchorBoxes(panel, reference ?? trigger);
         await close();
         await settle(350);
         if (!b.shown) return 'it did not open';
-        if (b.side !== 'top') return `data-side is ${b.side}: it did not flip`;
+        if (b.side !== side) return `data-side is ${b.side}: it did not flip to ${side}`;
         if (!b.onTop) return 'something else is painted where it is: clipped';
         return insideViewport(b);
     });
 }
+
+/*
+  The second half of what the anchor was for: a combobox in a modal whose body
+  scrolls. The body is overflow-y auto, so before the anchor a list opening
+  below a field at the bottom of the body was cut off at the body's edge, with
+  the modal's footer painted where the options should be.
+*/
+group('combobox in a scrolling modal body (overflow-y-auto, x-ds-anchor)');
+{
+    const listbox = '#cb-modal-listbox';
+    const bodyBox = () => page.evaluate(() => {
+        const r = document.getElementById('cb-modal-spacer').parentElement.getBoundingClientRect();
+        return { top: r.top, bottom: r.bottom };
+    });
+
+    await page.evaluate(() => document.getElementById('cb-modal-open').scrollIntoView({ block: 'center' }));
+    await page.click('#cb-modal-open');
+    await settle(450);
+    // The field at the very bottom of the body's visible area, so the room
+    // below it is the footer's and the window's gutter, nothing more.
+    await page.evaluate(() => document.getElementById('cb-modal').scrollIntoView({ block: 'end' }));
+    await settle(150);
+
+    await check('the body really scrolls, and the field sits at the bottom of it', async () => {
+        const r = await page.evaluate(() => {
+            const body = document.getElementById('cb-modal-spacer').parentElement;
+            const field = document.getElementById('cb-modal').getBoundingClientRect();
+            return { scrolls: body.scrollHeight > body.clientHeight, gap: Math.round(body.getBoundingClientRect().bottom - field.bottom) };
+        });
+        return (r.scrolls && r.gap >= 0 && r.gap <= 8) || JSON.stringify(r);
+    });
+
+    await check('with every option, the list flips above the field and stays on screen', async () => {
+        await page.click('#cb-modal');
+        await settle(400);
+        const b = await anchorBoxes(listbox, '#cb-modal');
+        if (!b.shown) return 'it did not open';
+        if (b.side !== 'top') return `data-side is ${b.side}`;
+        if (!b.onTop) return 'something else is painted where it is';
+        return insideViewport(b);
+    });
+
+    await check('filtered to one option, it opens below, over the body\'s clipped edge, and is painted there', async () => {
+        await page.fill('#cb-modal', 'comp');
+        await settle(300);
+        const b = await anchorBoxes(listbox, '#cb-modal');
+        const body = await bodyBox();
+        if (b.side !== 'bottom') return `data-side is ${b.side}: there was room below for one option`;
+        if (b.panel.bottom <= body.bottom) return 'the list ends inside the body, so this proves nothing';
+        return b.onTop || 'the body clipped it: the footer is painted where the option is';
+    });
+
+    await check('follows the field as the body scrolls under it', async () => {
+        await page.evaluate(() => { document.getElementById('cb-modal-spacer').parentElement.scrollTop += 60; });
+        await settle(150);
+        const b = await anchorBoxes(listbox, '#cb-modal');
+        const field = await page.evaluate(() => document.getElementById('cb-modal').parentElement.getBoundingClientRect().bottom);
+        const gap = Math.round(b.panel.top - field);
+        if (b.side !== 'bottom') return `data-side is ${b.side}`;
+        return gap === 4 || `${gap}px below the field after scrolling the body`;
+    });
+
+    await page.fill('#cb-modal', '');
+    await page.keyboard.press('Escape');
+    await settle(150);
+    await page.click('#cb-modal-close');
+    await settle(400);
+    await check('closing the modal leaves nothing open behind it', async () =>
+        !(await page.locator(listbox).isVisible()) || 'the list is still showing');
+}
+
+// ---------------------------------------------------------------- context menu
+
+group('context menu (dsContextMenu, x-ds-anchor at a point)');
+
+{
+    const panel = '#cm [data-ds-context-menu-panel]';
+    const wide = '#cm-wide [data-ds-context-menu-panel]';
+    const menuShown = (sel = panel) => page.locator(sel).isVisible();
+    const box = (sel) => page.evaluate((q) => {
+        const r = document.querySelector(q).getBoundingClientRect();
+        return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    }, sel);
+    const closeAll = async () => {
+        if (await menuShown()) await page.keyboard.press('Escape');
+        if (await menuShown(wide)) await page.keyboard.press('Escape');
+        await settle(150);
+    };
+
+    // Whether anything in the page asked the browser not to show its menu,
+    // read after every handler has had its turn.
+    await page.evaluate(() => {
+        window.addEventListener('contextmenu', (e) => { window.cmPrevented = e.defaultPrevented; });
+    });
+
+    await page.locator('#cm').scrollIntoViewIfNeeded();
+    await settle(100);
+
+    await check('closed until asked, and the region renders its content', async () =>
+        (!(await menuShown()) && (await page.locator('#cm-text').isVisible())) || 'the menu shows before anything opened it');
+
+    const text = await box('#cm-text');
+    const px = Math.round(text.left + 40);
+    const py = Math.round(text.top + 5);
+    await page.mouse.click(px, py, { button: 'right' });
+    await settle(250);
+
+    await check('a right-click opens it, with the browser\'s menu prevented', async () =>
+        ((await menuShown()) && (await page.evaluate(() => window.cmPrevented)) === true)
+        || `shown ${await menuShown()}, prevented ${await page.evaluate(() => window.cmPrevented)}`);
+
+    await check('at the pointer: its top-left corner beside the point pressed', async () => {
+        const p = await box(panel);
+        const dx = Math.round(p.left - px);
+        const dy = Math.round(p.top - py);
+        return (dx >= 0 && dx <= 1 && dy >= 1 && dy <= 3) || `${dx}px across and ${dy}px down from the pointer`;
+    });
+
+    await check('role=menu, named, and focus on the first item', async () => {
+        const a = await page.evaluate((q) => {
+            const el = document.querySelector(q);
+            return { role: el.getAttribute('role'), name: el.getAttribute('aria-label'), orientation: el.getAttribute('aria-orientation') };
+        }, panel);
+        const on = await active();
+        return (a.role === 'menu' && a.name === 'Report actions' && a.orientation === 'vertical' && on === 'cm-edit')
+            || `${JSON.stringify(a)}, focus on ${on}`;
+    });
+
+    await check('the dropdown\'s keys: arrows skip the disabled item and wrap, Home and End', async () => {
+        const seen = [];
+        for (const key of ['ArrowDown', 'ArrowDown', 'ArrowUp', 'End', 'Home']) {
+            await page.keyboard.press(key);
+            seen.push(await active());
+        }
+        return seen.join() === 'cm-delete,cm-edit,cm-delete,cm-delete,cm-edit' || seen.join(' → ');
+    });
+
+    await check('a right-click inside the menu keeps it open and the browser\'s menu away', async () => {
+        const item = await box('#cm-delete');
+        await page.mouse.click(item.left + 10, item.top + 5, { button: 'right' });
+        await settle(100);
+        return ((await menuShown()) && (await page.evaluate(() => window.cmPrevented)) === true) || 'it closed, or the browser menu was allowed';
+    });
+
+    await check('a second right-click in the region moves it there, focus on the first item', async () => {
+        await page.mouse.click(px + 120, py, { button: 'right' });
+        await settle(200);
+        const p = await box(panel);
+        return ((await menuShown()) && Math.round(p.left - (px + 120)) <= 1 && (await active()) === 'cm-edit')
+            || `left ${Math.round(p.left)}, expected ${px + 120}; focus on ${await active()}`;
+    });
+
+    await check('Escape closes it', async () => {
+        await page.keyboard.press('Escape');
+        await settle(200);
+        return !(await menuShown()) || 'still open';
+    });
+
+    // The row takes focus from the press itself, so it is what had focus.
+    const row = await box('#cm-row');
+    await page.mouse.click(row.left + 20, row.top + 5, { button: 'right' });
+    await settle(200);
+    await check('on a focusable row: Escape gives focus back to the row', async () => {
+        if (!(await menuShown())) return 'did not open';
+        await page.keyboard.press('Escape');
+        await settle(200);
+        return (await active()) === 'cm-row' || `focus on ${await active()}`;
+    });
+
+    await check('Shift+F10 on the focused row opens it below the row, on its start edge', async () => {
+        await page.focus('#cm-row');
+        await page.keyboard.press('Shift+F10');
+        await settle(250);
+        if (!(await menuShown())) return 'did not open';
+        const p = await box(panel);
+        const r = await box('#cm-row');
+        const dy = Math.round(p.top - r.bottom);
+        const dx = Math.round(p.left - r.left);
+        return (dy === 4 && Math.abs(dx) <= 1 && (await active()) === 'cm-edit') || `${dx}px across, ${dy}px below, focus on ${await active()}`;
+    });
+
+    await check('choosing an item runs it, with dsTarget the row, closes, and focus goes back', async () => {
+        await page.keyboard.press('Enter');
+        await settle(200);
+        const chosen = await page.locator('#cm-chosen').innerText();
+        return (chosen === 'edit q3' && !(await menuShown()) && (await active()) === 'cm-row')
+            || `chose "${chosen}", open ${await menuShown()}, focus on ${await active()}`;
+    });
+
+    await check('the Menu key opens it too, and Tab closes it back to the row', async () => {
+        await page.focus('#cm-row');
+        await page.keyboard.press('ContextMenu');
+        await settle(250);
+        if (!(await menuShown())) return 'the Menu key did not open it';
+        await page.keyboard.press('Tab');
+        await settle(200);
+        return (!(await menuShown()) && (await active()) === 'cm-row') || `open ${await menuShown()}, focus on ${await active()}`;
+    });
+
+    await check('a press outside on nothing focusable closes it and puts focus back', async () => {
+        await page.focus('#cm-row');
+        await page.keyboard.press('Shift+F10');
+        await settle(250);
+        await page.mouse.click(5, 5);
+        await settle(200);
+        return (!(await menuShown()) && (await active()) === 'cm-row') || `open ${await menuShown()}, focus on ${await active()}`;
+    });
+
+    await check('a press outside on a button closes it and leaves focus on that button', async () => {
+        await page.focus('#cm-row');
+        await page.keyboard.press('Shift+F10');
+        await settle(250);
+        await page.click('#cm-before');
+        await settle(200);
+        return (!(await menuShown()) && (await active()) === 'cm-before') || `open ${await menuShown()}, focus on ${await active()}`;
+    });
+
+    for (const [id, what] of [['cm-link', 'a link'], ['cm-input', 'a field']]) {
+        await check(`on ${what} inside the region the browser's own menu is left alone`, async () => {
+            const b = await box(`#${id}`);
+            await page.mouse.click(b.left + 5, b.top + 5, { button: 'right' });
+            await settle(150);
+            return (!(await menuShown()) && (await page.evaluate(() => window.cmPrevented)) === false)
+                || `menu shown ${await menuShown()}, prevented ${await page.evaluate(() => window.cmPrevented)}`;
+        });
+    }
+
+    await check('Shift+F10 in a field inside the region is left to the browser too', async () => {
+        await page.focus('#cm-input');
+        await page.keyboard.press('Shift+F10');
+        await settle(150);
+        return !(await menuShown()) || 'opened over the field';
+    });
+
+    await check('with native off, a link inside opens this menu instead', async () => {
+        await page.locator('#cm-wide').scrollIntoViewIfNeeded();
+        const b = await box('#cm-wide-link');
+        await page.mouse.click(b.left + 5, b.top + 5, { button: 'right' });
+        await settle(200);
+        const shown = await menuShown(wide);
+        await page.keyboard.press('Escape');
+        await settle(150);
+        return (shown && (await page.evaluate(() => window.cmPrevented)) === true) || 'the browser menu was left, or nothing opened';
+    });
+
+    await check('at the bottom-right corner it opens up and back across the pointer, on screen', async () => {
+        // The region's foot on the window's foot.
+        await page.evaluate(() => {
+            const r = document.getElementById('cm-wide').getBoundingClientRect();
+            window.scrollBy(0, r.bottom - document.documentElement.clientHeight + 2);
+        });
+        await settle(100);
+        const region = await box('#cm-wide');
+        const vw = await page.evaluate(() => document.documentElement.clientWidth);
+        const vh = await page.evaluate(() => document.documentElement.clientHeight);
+        if (vw - region.right > 60 || vh - region.bottom > 20) return `the region is not at the corner: ${Math.round(vw - region.right)}px, ${Math.round(vh - region.bottom)}px off`;
+        const x = Math.round(region.right - 4);
+        const y = Math.round(region.bottom - 4);
+        await page.mouse.click(x, y, { button: 'right' });
+        await settle(250);
+        const b = await anchorBoxes(wide, '#cm-wide');
+        const align = await page.evaluate((q) => document.querySelector(q).dataset.align, wide);
+        if (!b.shown) return 'did not open';
+        if (b.side !== 'top' || align !== 'end') return `took ${b.side}-${align}`;
+        if (Math.round(x - b.panel.right) > 1 || Math.round(y - b.panel.bottom) > 3) {
+            return `its corner is ${Math.round(x - b.panel.right)}px, ${Math.round(y - b.panel.bottom)}px from the pointer`;
+        }
+        return insideViewport(b);
+    });
+
+    await check('it grows from the corner at the pointer (its transform origin)', async () => {
+        const o = await page.evaluate((q) => {
+            const el = document.querySelector(q);
+            const [x, y] = getComputedStyle(el).transformOrigin.split(' ').map(parseFloat);
+            return { x: Math.round(x - el.offsetWidth), y: Math.round(y - el.offsetHeight) };
+        }, wide);
+        return (o.x === 0 && o.y === 0) || `${o.x}px, ${o.y}px from its bottom-right corner`;
+    });
+
+    await check('it moves with the region when the page scrolls', async () => {
+        const before = await box(wide);
+        await page.evaluate(() => window.scrollBy(0, -40));
+        await settle(150);
+        const after = await box(wide);
+        await page.keyboard.press('Escape');
+        await settle(150);
+        return Math.round(after.top - before.top) === 40 || `moved ${Math.round(after.top - before.top)}px for a 40px scroll`;
+    });
+
+    // Touch, as pointer events: the main page has no touch screen.
+    await page.locator('#cm').scrollIntoViewIfNeeded();
+    await settle(100);
+    const touch = (type, x, y) => page.evaluate(([t, cx, cy]) => {
+        const target = document.elementFromPoint(cx, cy);
+        target.dispatchEvent(new PointerEvent(t, { bubbles: true, cancelable: true, pointerType: 'touch', isPrimary: true, clientX: cx, clientY: cy }));
+    }, [type, x, y]);
+    const t = await box('#cm-text');
+    const tx = Math.round(t.left + 30);
+    const ty = Math.round(t.top + 5);
+
+    await check('a touch held still for half a second opens it at the finger', async () => {
+        await touch('pointerdown', tx, ty);
+        await page.waitForTimeout(650);
+        const shown = await menuShown();
+        const p = await box(panel);
+        await touch('pointerup', tx, ty);
+        return (shown && Math.round(p.left - tx) <= 1) || `shown ${shown}, ${Math.round(p.left - tx)}px from the finger`;
+    });
+
+    await check('and the click that ends the hold is swallowed', async () => {
+        await page.evaluate(() => {
+            window.cmClicks = 0;
+            document.getElementById('cm-text').addEventListener('click', () => { window.cmClicks++; }, { once: true });
+            document.getElementById('cm-text').click();
+        });
+        const clicks = await page.evaluate(() => window.cmClicks);
+        await page.keyboard.press('Escape');
+        await settle(150);
+        return clicks === 0 || 'the click went through';
+    });
+
+    await check('a short tap does not open it', async () => {
+        await touch('pointerdown', tx, ty);
+        await page.waitForTimeout(200);
+        await touch('pointerup', tx, ty);
+        await page.waitForTimeout(500);
+        return !(await menuShown()) || 'opened on a tap';
+    });
+
+    await check('moving more than 10px during the hold cancels it (a scroll, not a press)', async () => {
+        await touch('pointerdown', tx, ty);
+        await page.waitForTimeout(100);
+        await touch('pointermove', tx, ty + 20);
+        await page.waitForTimeout(550);
+        const shown = await menuShown();
+        await touch('pointerup', tx, ty + 20);
+        return !shown || 'opened after the finger moved';
+    });
+
+    await closeAll();
+}
+
+// ---------------------------------------------------------------- focus indicators
+
+/*
+  Tab from the top of a page holding one of each focusable component, in both
+  themes and at a desktop and a phone width, and require every stop to DRAW
+  something: an outline or a ring that was not there before focus, on the
+  element, a pseudo-element or one of its near ancestors (a field's ring is on
+  its shell, a chip's on its label). The browser's own `auto` ring fails: it is
+  not the system's ring, and it is the sign of an element nobody styled. So
+  does anything drawn on a transparent element, the file input being one.
+
+  The comparison is focused against unfocused, element by element, so a
+  permanent shadow on a card never counts as a ring. Reduced motion, so a ring
+  colour with a transition is measured at its end and not on its way there.
+*/
+const fpage = await context.newPage();
+await fpage.emulateMedia({ reducedMotion: 'reduce' });
+fpage.on('pageerror', (e) => jsErrors.push('focus page, uncaught: ' + e.message));
+await fpage.goto('file://' + join(TMP, 'focus-page.html'), { waitUntil: 'networkidle' });
+await fpage.waitForTimeout(300);
+
+await fpage.evaluate(() => {
+    const shown = (node) => {
+        for (let n = node; n && n.nodeType === 1; n = n.parentElement) {
+            const s = getComputedStyle(n);
+            if (parseFloat(s.opacity) === 0 || s.visibility === 'hidden') return false;
+        }
+        return true;
+    };
+    // Everything that could be a focus indicator, on the element and three
+    // ancestors, as strings to diff.
+    window.dsFocusMarks = (el) => {
+        const out = [];
+        let n = el;
+        for (let depth = 0; n && n.nodeType === 1 && depth < 4; depth++, n = n.parentElement) {
+            if (!shown(n)) continue;
+            for (const pseudo of [null, '::before', '::after']) {
+                const cs = getComputedStyle(n, pseudo);
+                if (pseudo && cs.content === 'none') continue;
+                const at = `${depth}${pseudo ?? ''}`;
+                if (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0) {
+                    out.push(`${at} outline ${cs.outlineStyle} ${parseFloat(cs.outlineWidth)} ${cs.outlineColor}`);
+                }
+                if (cs.boxShadow !== 'none') out.push(`${at} shadow ${cs.boxShadow}`);
+            }
+        }
+        return out;
+    };
+    window.dsDescribe = (el) => {
+        const what = el.getAttribute('aria-label') || el.textContent.replace(/\s+/g, ' ').trim().slice(0, 24) || el.name || '';
+        return `${el.closest('[data-focus]')?.dataset.focus ?? '?'}: ${el.tagName.toLowerCase()}${el.getAttribute('role') ? `[role=${el.getAttribute('role')}]` : ''} "${what}"`;
+    };
+});
+
+const clearColour = (c) => /rgba\([^)]*,\s*0\)/.test(c) || /\/\s*0\)/.test(c) || c.includes('transparent');
+/** true for a drawn ring, 'auto' for the browser's own, false for nothing. */
+const isRing = (mark) => {
+    const parts = mark.split(' ');
+    if (parts[1] === 'outline') {
+        if (parts[2] === 'auto') return 'auto';
+        return parseFloat(parts[3]) >= 1 && !clearColour(parts.slice(4).join(' '));
+    }
+    return mark.replace(/^\S+ shadow /, '').split(/,(?![^(]*\))/).some((shadow) => {
+        const spread = shadow.match(/(-?[\d.]+)px (-?[\d.]+)px (-?[\d.]+)px (-?[\d.]+)px/);
+        return spread && parseFloat(spread[4]) >= 1 && !clearColour(shadow);
+    });
+};
+const verdict = (on, off) => {
+    const added = on.filter((m) => !off.includes(m)).map(isRing);
+    return added.includes(true) ? 'ring' : added.includes('auto') ? "only the browser's own ring" : 'nothing';
+};
+
+const tabWalk = async () => {
+    await fpage.evaluate(() => {
+        document.activeElement?.blur();
+        document.querySelectorAll('[data-stop]').forEach((el) => delete el.dataset.stop);
+    });
+    await fpage.mouse.click(1, 1);
+    const stops = [];
+    for (let i = 0; i < 200; i++) {
+        await fpage.keyboard.press('Tab');
+        const stop = await fpage.evaluate((n) => {
+            const el = document.activeElement;
+            if (!el || el === document.body || el.id === 'f-end') return null;
+            el.dataset.stop = n;
+            return { n, section: el.closest('[data-focus]')?.dataset.focus, what: window.dsDescribe(el), on: window.dsFocusMarks(el) };
+        }, i);
+        if (!stop) break;
+        stops.push(stop);
+    }
+    await fpage.evaluate(() => document.activeElement?.blur());
+    for (const stop of stops) {
+        const off = await fpage.evaluate((n) => window.dsFocusMarks(document.querySelector(`[data-stop="${n}"]`)), stop.n);
+        stop.verdict = verdict(stop.on, off);
+    }
+    return stops;
+};
+
+/*
+  Inside an overlay, opened from its trigger with the keyboard. Each element
+  is measured focused, then again once `move` has taken focus off it. A dialog
+  panel is skipped: it takes focus on open so a screen reader starts at the
+  top of it, and is not a Tab stop.
+*/
+const overlayWalk = async (opener, open, move, count) => {
+    await fpage.keyboard.press('Escape');
+    await fpage.focus(opener);
+    await fpage.keyboard.press('Shift+Tab');
+    await fpage.keyboard.press('Tab');
+    await fpage.keyboard.press(open);
+    await fpage.waitForTimeout(100);
+    const bad = [];
+    for (let i = 0; i < count; i++) {
+        const now = await fpage.evaluate((n) => {
+            const el = document.activeElement;
+            el.dataset.inside = n;
+            return { dialog: el.getAttribute('role') === 'dialog' && el.tabIndex < 0, what: window.dsDescribe(el), on: window.dsFocusMarks(el) };
+        }, `${opener}-${i}`);
+        await fpage.keyboard.press(move);
+        await fpage.waitForTimeout(40);
+        if (now.dialog) continue;
+        const off = await fpage.evaluate((n) => {
+            const el = document.querySelector(`[data-inside="${n}"]`);
+            return document.activeElement === el ? null : window.dsFocusMarks(el);
+        }, `${opener}-${i}`);
+        if (off === null) bad.push(`${now.what}: ${move} did not move focus off it`);
+        else if (verdict(now.on, off) !== 'ring') bad.push(`${now.what}: ${verdict(now.on, off)}`);
+    }
+    await fpage.keyboard.press('Escape');
+    await fpage.waitForTimeout(100);
+    return bad;
+};
+
+const overlays = [
+    ['dropdown items', '#f-dd', 'Enter', 'ArrowDown', 2],
+    ['select options', '#f-select', 'ArrowDown', 'ArrowDown', 2],
+    ['combobox options', '#f-combobox', 'ArrowDown', 'ArrowDown', 2],
+    ['date picker month buttons and days', '[data-ds-date-trigger]', 'Enter', 'Tab', 5],
+    ['popover content', '#f-pop', 'Enter', 'Tab', 1],
+    ['context menu items', '#f-cm-row', 'Shift+F10', 'ArrowDown', 2],
+    ['modal, round the trap', '#f-modal-open', 'Enter', 'Tab', 4],
+    ['drawer, round the trap', '#f-drawer-open', 'Enter', 'Tab', 3],
+];
+
+const sections = await fpage.evaluate(() => [...document.querySelectorAll('[data-focus]')].map((el) => el.dataset.focus));
+
+for (const [width, label] of [[1200, 'desktop'], [375, 'phone']]) {
+    await fpage.setViewportSize({ width, height: 900 });
+    for (const theme of ['light', 'dark']) {
+        group(`focus indicators (${theme}, ${label} width)`);
+        await fpage.evaluate((t) => document.documentElement.classList.toggle('dark', t === 'dark'), theme);
+        const stops = await tabWalk();
+
+        await check(`every Tab stop draws a ring (${stops.length} stops)`, async () => {
+            const bad = stops.filter((s) => s.verdict !== 'ring').map((s) => `${s.what}: ${s.verdict}`);
+            return !bad.length || bad.join('; ');
+        });
+
+        if (label === 'desktop') {
+            await check(`Tab reached every one of the ${sections.length} components on the page`, async () => {
+                const reached = new Set(stops.map((s) => s.section));
+                const missed = sections.filter((name) => !reached.has(name));
+                return !missed.length || `never reached: ${missed.join(', ')}`;
+            });
+        }
+
+        for (const [name, ...walk] of overlays) {
+            await check(`${name}: each focused one draws a ring`, async () => {
+                const bad = await overlayWalk(...walk);
+                return !bad.length || bad.join('; ');
+            });
+        }
+    }
+}
+
+await fpage.evaluate(() => document.documentElement.classList.remove('dark'));
+await fpage.close();
 
 // ---------------------------------------------------------------- the other two host setups
 
@@ -2788,7 +3417,7 @@ const SERVED = {
     '/livewire.js': join(ROOT, 'vendor/livewire/livewire/dist/livewire.js'),
 };
 
-await context.route(`${ORIGIN}/**`, async (route) => {
+const serveHostPage = async (route) => {
     const path = new URL(route.request().url()).pathname;
     const file = SERVED[path] ?? join(TMP, path);
     try {
@@ -2803,7 +3432,8 @@ await context.route(`${ORIGIN}/**`, async (route) => {
     } catch {
         await route.fulfill({ status: 404, body: '' });
     }
-});
+};
+await context.route(`${ORIGIN}/**`, serveHostPage);
 
 const segMarkup = [
     specimens.match(/<div class="mt-6 w-96" id="seg-rtl"[\s\S]*?<\/fieldset>\s*<\/div>/)?.[0],
@@ -2860,6 +3490,35 @@ ${include}
 <style>${css}</style>
 <script defer src="alpine.js"></script>
 </head><body><form id="form">${segMarkup}</form></body></html>`,
+
+    // The overlays that take x-ds-anchor as an enhancement, with Alpine and
+    // no include: they open where their absolute classes put them.
+    'anchor-missing.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+<script defer src="alpine.js"></script>
+</head><body>${fallbackMarkup}</body></html>`,
+
+    // The pre-paint script FIRST, then a probe that records <html>'s classes
+    // before any stylesheet or body exists, then the stylesheet. No Alpine,
+    // no package script: the snippet must stand alone.
+    'theme-pre.html': `<!doctype html><html><head><meta charset="utf-8">
+${themeScript}
+<script>window.atParse = { classes: document.documentElement.className, scheme: document.documentElement.style.colorScheme };</script>
+<style>${css}</style>
+</head><body class="bg-surface text-fg">before Alpine, before the body</body></html>`,
+
+    'theme.html': `<!doctype html><html><head><meta charset="utf-8">
+${themeScript}
+<style>${css}</style>
+${include}
+<script defer src="alpine.js"></script>
+</head><body class="bg-surface">${themeMarkup}</body></html>`,
+
+    // Served under the policy the CSP pages use: only a script with the
+    // nonce runs.
+    'csp-theme.html': `<!doctype html><html><head><meta charset="utf-8">
+${themeScriptNonce}
+</head><body></body></html>`,
 };
 
 for (const [name, html] of Object.entries(hostPages)) await writeFile(join(TMP, name), html);
@@ -2902,7 +3561,7 @@ group('host setup (b): Alpine bundled by the host, Alpine.plugin(bladeUi)');
     await check('the plugin works', () => copiesOn(tab));
     await check('plugin twice plus the include: each name registered exactly once', async () => {
         const names = await tab.evaluate(() => window.dsRegistered);
-        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard'];
+        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme'];
         return JSON.stringify(names) === JSON.stringify(expected) || `registered ${JSON.stringify(names)}`;
     });
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
@@ -3070,6 +3729,289 @@ group('a segmented control in a host WITHOUT the script (the glide is an enhance
     });
     await tab.close();
 }
+
+group('the overlays that predate x-ds-anchor, in a host WITHOUT the script (the anchor is an enhancement)');
+{
+    const { tab, errors } = await openHost('anchor-missing.html');
+
+    /*
+      Each opens where its absolute classes put it: `position: absolute`, no
+      inline placement written over it, and beside its trigger on the side
+      its placement names. Exactly how every one of them behaved in 1.x.
+    */
+    const fallbacks = [
+        { name: 'dropdown', trigger: '#fb-dropdown-trigger', panel: '#fb-dropdown [role=menu]', side: 'bottom', gap: 8 },
+        { name: 'select', trigger: '#fb-select', panel: '#fb-select-listbox', side: 'bottom', gap: 4 },
+        {
+            name: 'tooltip', trigger: '#fb-tip-trigger', panel: '[data-ds-tooltip]:has(#fb-tip-trigger) [role=tooltip]', side: 'top', gap: 8,
+            open: (t) => t.focus('#fb-tip-trigger'), close: (t) => t.keyboard.press('Escape'),
+        },
+        { name: 'date picker', trigger: '#fb-date', panel: '[x-data]:has(> #fb-date) [role=dialog]', side: 'bottom', gap: 4 },
+        // Measured from the field the list hangs from, the text box's parent.
+        { name: 'combobox', trigger: '#fb-combobox', panel: '#fb-combobox-listbox', side: 'bottom', gap: 4, from: 'parent' },
+    ];
+
+    await check('the markup reached the page', async () =>
+        (await tab.locator('#fb-dropdown-trigger').count()) === 1 || 'the fallback specimens were not found');
+
+    for (const { name, trigger, panel, side, gap, open, close, from } of fallbacks) {
+        await check(`${name}: opens at its fallback position, beside its trigger`, async () => {
+            await (open ? open(tab) : tab.click(trigger));
+            await tab.waitForTimeout(350);
+            const r = await tab.evaluate(([p, t, parent]) => {
+                const el = document.querySelector(p);
+                const a = el.getBoundingClientRect();
+                const at = document.querySelector(t);
+                const b = (parent ? at.parentElement : at).getBoundingClientRect();
+                const s = getComputedStyle(el);
+                return {
+                    shown: s.display !== 'none',
+                    position: s.position,
+                    inline: el.style.top || el.style.left,
+                    below: Math.round(a.top - b.bottom),
+                    above: Math.round(b.top - a.bottom),
+                };
+            }, [panel, trigger, from === 'parent']);
+            await (close ? close(tab) : tab.keyboard.press('Escape'));
+            await tab.waitForTimeout(250);
+            if (!r.shown) return 'it did not open';
+            if (r.position !== 'absolute' || r.inline) return `position ${r.position}, inline ${JSON.stringify(r.inline)}: something placed it`;
+            const measured = side === 'bottom' ? r.below : r.above;
+            return measured === gap || `${measured}px ${side === 'bottom' ? 'below' : 'above'} its trigger, not ${gap}`;
+        });
+    }
+
+    await check('nothing in the console: a skipped anchor is not an error', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+
+// ---------------------------------------------------------------- theme
+
+/*
+  A context of its own: the theme lives in localStorage and on <html>, and
+  two tabs of one context share the storage, which is what the cross-tab
+  check needs. Starts in a light system with nothing stored.
+*/
+const themeContext = await browser.newContext({ viewport: { width: 1000, height: 700 }, colorScheme: 'light' });
+await themeContext.route(`${ORIGIN}/**`, serveHostPage);
+await themeContext.route(`${LARAVEL}/**`, serveFromLaravel);
+
+const themeTab = async (name = 'theme.html') => {
+    const tab = await themeContext.newPage();
+    const errors = [];
+    tab.on('pageerror', (e) => errors.push(e.message));
+    tab.on('console', (m) => ['error', 'warning'].includes(m.type()) && errors.push(m.text()));
+    await tab.goto(`${ORIGIN}/${name}`, { waitUntil: 'networkidle' });
+    await tab.waitForTimeout(250);
+    return { tab, errors };
+};
+const rootState = (tab) => tab.evaluate(() => ({
+    dark: document.documentElement.classList.contains('dark'),
+    light: document.documentElement.classList.contains('light'),
+    scheme: document.documentElement.style.colorScheme,
+    stored: localStorage.getItem('ds-theme'),
+}));
+const checkedIn = (tab, id) => tab.evaluate((i) => document.querySelector(`#${i} input:checked`)?.value ?? null, id);
+const cycleLabel = (tab) => tab.locator('#ts-b [data-ds-theme-cycle]').getAttribute('aria-label');
+
+group('theme script (<x-ds::theme-script />, before the first paint, no Alpine)');
+{
+    const { tab, errors } = await themeTab('theme-pre.html');
+
+    await check('nothing stored, a light system: `light` on <html> before the stylesheet or the body', async () => {
+        const at = await tab.evaluate(() => window.atParse);
+        return (at.classes === 'light' && at.scheme === 'light') || `at parse: ${JSON.stringify(at)}`;
+    });
+
+    await tab.emulateMedia({ colorScheme: 'dark' });
+    await tab.reload({ waitUntil: 'networkidle' });
+    await check('nothing stored, a dark system: `dark`, and color-scheme dark', async () => {
+        const at = await tab.evaluate(() => window.atParse);
+        return (at.classes === 'dark' && at.scheme === 'dark') || `at parse: ${JSON.stringify(at)}`;
+    });
+
+    await tab.evaluate(() => localStorage.setItem('ds-theme', 'light'));
+    await tab.reload({ waitUntil: 'networkidle' });
+    await check('a stored "light" beats a dark system', async () =>
+        (await tab.evaluate(() => window.atParse.classes)) === 'light' || `at parse: ${await tab.evaluate(() => window.atParse.classes)}`);
+
+    await tab.emulateMedia({ colorScheme: 'light' });
+    await tab.evaluate(() => localStorage.setItem('ds-theme', 'dark'));
+    await tab.reload({ waitUntil: 'networkidle' });
+    await check('a stored "dark" beats a light system, and the page paints dark', async () => {
+        const at = await tab.evaluate(() => window.atParse.classes);
+        const ground = await tab.evaluate(() => getComputedStyle(document.body).backgroundColor);
+        await tab.evaluate(() => localStorage.removeItem('ds-theme'));
+        return (at === 'dark' && ground !== 'rgb(255, 255, 255)') || `at parse ${at}, body ${ground}`;
+    });
+
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+
+    // localStorage that throws on access, as a blocked-cookies browser has it.
+    const blocked = await themeContext.newPage();
+    const blockedErrors = [];
+    blocked.on('pageerror', (e) => blockedErrors.push(e.message));
+    await blocked.addInitScript(() => {
+        Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('denied', 'SecurityError'); } });
+    });
+    await blocked.goto(`${ORIGIN}/theme-pre.html`, { waitUntil: 'networkidle' });
+    await check('storage that throws: no error, and the system\'s theme', async () => {
+        const at = await blocked.evaluate(() => window.atParse.classes);
+        return (at === 'light' && !blockedErrors.length) || `at parse ${at}, errors ${blockedErrors.join(' | ')}`;
+    });
+    await blocked.close();
+}
+
+{
+    const csp = await themeContext.newPage();
+    await csp.goto(`${ORIGIN}/csp-theme.html`, { waitUntil: 'networkidle' });
+    await check('under a nonce-only Content Security Policy, the nonce lets it run', async () =>
+        (await csp.evaluate(() => document.documentElement.className)) === 'light' || 'the snippet did not run');
+    await csp.close();
+}
+
+group('theme switcher (dsTheme): light, dark, system');
+{
+    const { tab, errors } = await themeTab();
+
+    await check('nothing stored: every switcher shows "system", the button says so', async () => {
+        const a = await checkedIn(tab, 'ts-a');
+        const label = await cycleLabel(tab);
+        return (a === 'system' && label === 'Theme: System') || `segmented ${a}, button "${label}"`;
+    });
+
+    await check('the segmented one is the segmented control: a fieldset of three radios, named', async () => {
+        const r = await tab.evaluate(() => {
+            const set = document.querySelector('#ts-a fieldset');
+            return { legend: set?.querySelector('legend')?.textContent.trim(), radios: set?.querySelectorAll('input[type=radio]').length };
+        });
+        return (r.legend === 'Theme' && r.radios === 3) || JSON.stringify(r);
+    });
+
+    await tab.click('#ts-a label:has(input[value=dark])');
+    await tab.waitForTimeout(400);
+    await check('choosing dark: stored, `dark` on <html>, color-scheme dark, and dark: utilities apply', async () => {
+        const s = await rootState(tab);
+        const probe = await tab.evaluate(() => getComputedStyle(document.getElementById('ts-probe')).color);
+        const accent = await tab.evaluate(() => {
+            const el = document.createElement('span');
+            el.className = 'text-accent';
+            document.body.append(el);
+            const c = getComputedStyle(el).color;
+            el.remove();
+            return c;
+        });
+        return (s.dark && !s.light && s.scheme === 'dark' && s.stored === 'dark' && probe === accent) || `${JSON.stringify(s)}, probe ${probe} vs ${accent}`;
+    });
+
+    await check('the other switcher on the same key follows; the one on another key does not', async () => {
+        const label = await cycleLabel(tab);
+        const other = await checkedIn(tab, 'ts-other');
+        const otherStored = await tab.evaluate(() => localStorage.getItem('other-theme'));
+        return (label === 'Theme: Dark' && other === 'system' && otherStored === null) || `button "${label}", other ${other}, other key ${otherStored}`;
+    });
+
+    await check('the button steps on: dark, system, light, and the segmented one follows', async () => {
+        const seen = [];
+        for (let i = 0; i < 3; i++) {
+            await tab.click('#ts-b [data-ds-theme-cycle]');
+            await tab.waitForTimeout(350);
+            seen.push(`${await cycleLabel(tab)}/${await checkedIn(tab, 'ts-a')}/${(await rootState(tab)).stored}`);
+        }
+        return seen.join(', ') === 'Theme: System/system/null, Theme: Light/light/light, Theme: Dark/dark/dark' || seen.join(', ');
+    });
+
+    await check('"system" clears the key rather than storing it', async () => {
+        await tab.click('#ts-a label:has(input[value=system])');
+        await tab.waitForTimeout(350);
+        const s = await rootState(tab);
+        return (s.stored === null && s.light && !s.dark) || JSON.stringify(s);
+    });
+
+    await check('on "system", it follows the system as it changes', async () => {
+        await tab.emulateMedia({ colorScheme: 'dark' });
+        await tab.waitForTimeout(150);
+        const dark = await rootState(tab);
+        await tab.emulateMedia({ colorScheme: 'light' });
+        await tab.waitForTimeout(150);
+        const light = await rootState(tab);
+        return (dark.dark && !dark.light && light.light && !light.dark) || `dark system: ${JSON.stringify(dark)}, light: ${JSON.stringify(light)}`;
+    });
+
+    await check('a chosen theme does not follow the system', async () => {
+        await tab.click('#ts-a label:has(input[value=light])');
+        await tab.waitForTimeout(350);
+        await tab.emulateMedia({ colorScheme: 'dark' });
+        await tab.waitForTimeout(150);
+        const s = await rootState(tab);
+        await tab.emulateMedia({ colorScheme: 'light' });
+        return (s.light && !s.dark) || JSON.stringify(s);
+    });
+
+    await check('another tab follows through the storage event: page and switchers', async () => {
+        const { tab: second } = await themeTab();
+        const before = await checkedIn(second, 'ts-a');
+        await tab.click('#ts-a label:has(input[value=dark])');
+        await tab.waitForTimeout(400);
+        const s = await rootState(second);
+        const a = await checkedIn(second, 'ts-a');
+        const label = await cycleLabel(second);
+        await second.close();
+        return (before === 'light' && s.dark && a === 'dark' && label === 'Theme: Dark') || `started ${before}; then ${JSON.stringify(s)}, ${a}, "${label}"`;
+    });
+
+    await check('a reload starts from the stored choice', async () => {
+        await tab.reload({ waitUntil: 'networkidle' });
+        await tab.waitForTimeout(250);
+        const s = await rootState(tab);
+        return (s.dark && (await checkedIn(tab, 'ts-a')) === 'dark' && (await cycleLabel(tab)) === 'Theme: Dark') || JSON.stringify(s);
+    });
+
+    // Counted around the browser's own, which still runs the change.
+    const countTransitions = () => tab.evaluate(() => {
+        window.vtCalls = 0;
+        window.vtFlag = [];
+        const original = document.startViewTransition.bind(document);
+        document.startViewTransition = (update) => {
+            window.vtCalls++;
+            window.vtFlag.push(document.documentElement.hasAttribute('data-ds-theme-changing'));
+            return original(update);
+        };
+    });
+
+    await check('with motion allowed: one view transition per change, flagged for the timing rule, flag removed after', async () => {
+        await countTransitions();
+        await tab.click('#ts-a label:has(input[value=light])');
+        await tab.waitForTimeout(600);
+        const r = await tab.evaluate(() => ({ calls: window.vtCalls, flagged: window.vtFlag, left: document.documentElement.hasAttribute('data-ds-theme-changing') }));
+        const s = await rootState(tab);
+        return (r.calls === 1 && r.flagged[0] === true && !r.left && s.light) || `${JSON.stringify(r)}, ${JSON.stringify(s)}`;
+    });
+
+    await check('the timing rule is the dialog\'s, in the shipped theme.css', async () => {
+        const rule = await tab.evaluate(() => [...document.styleSheets].flatMap((sheet) => [...sheet.cssRules])
+            .find((r) => r.selectorText?.includes('data-ds-theme-changing'))?.style.animationDuration);
+        return rule === 'var(--ds-motion-duration-dialog-enter)' || `found ${rule}`;
+    });
+
+    await check('with reduced motion: no view transition, the change at once', async () => {
+        await tab.emulateMedia({ reducedMotion: 'reduce' });
+        await countTransitions();
+        await tab.click('#ts-a label:has(input[value=dark])');
+        await tab.waitForTimeout(200);
+        const calls = await tab.evaluate(() => window.vtCalls);
+        const s = await rootState(tab);
+        await tab.emulateMedia({ reducedMotion: 'no-preference' });
+        return (calls === 0 && s.dark) || `${calls} transitions, ${JSON.stringify(s)}`;
+    });
+
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await tab.evaluate(() => localStorage.clear());
+    await tab.close();
+}
+
+await themeContext.close();
 
 group('a host WITHOUT the script');
 {

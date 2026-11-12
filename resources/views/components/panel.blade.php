@@ -92,7 +92,7 @@
                 <a
                     @if ($actionHref) href="{{ $actionHref }}" @endif
                     {{ $attributes->only('wire:navigate') }}
-                    class="shrink-0 whitespace-nowrap text-meta font-medium text-fg-muted transition-colors hover:text-fg"
+                    class="shrink-0 whitespace-nowrap text-meta font-medium text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:text-fg rounded-chip focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                 >{{ $action }}</a>
             @endif
         </div>

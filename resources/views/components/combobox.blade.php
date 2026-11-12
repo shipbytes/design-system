@@ -51,7 +51,7 @@
 
     $field = implode(' ', [
         'flex w-full flex-wrap items-center gap-1.5 rounded-control border bg-surface',
-        'px-[calc(--spacing(2)-1px)] py-[calc(--spacing(1.5)-1px)] shadow-raised transition-colors',
+        'px-[calc(--spacing(2)-1px)] py-[calc(--spacing(1.5)-1px)] shadow-raised motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter',
         'focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus-ring',
         $error ? 'border-danger' : 'border-border',
         $disabled ? 'cursor-not-allowed bg-surface-subtle' : 'hover:border-fg/20',
@@ -115,7 +115,7 @@
                     <span class="truncate" x-text="options.find((o) => o.value === picked)?.label ?? picked"></span>
                     <button
                         type="button"
-                        class="shrink-0 rounded-chip p-0.5 opacity-60 transition-opacity hover:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-ring"
+                        class="shrink-0 rounded-chip p-0.5 opacity-60 motion-safe:transition-opacity motion-safe:duration-popover-enter motion-safe:ease-enter hover:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-ring"
                         :aria-label="'Remove ' + (options.find((o) => o.value === picked)?.label ?? picked)"
                         @click.stop="selected = selected.filter((v) => v !== picked)"
                     >
@@ -159,14 +159,19 @@
             name="chevron-down"
             variant="mini"
             size="4"
-            class="shrink-0 text-fg-muted transition-transform"
+            class="shrink-0 text-fg-muted motion-safe:transition-transform motion-safe:duration-popover-enter motion-safe:ease-enter"
             ::class="open && 'rotate-180'"
         />
     </div>
 
+    {{-- x-ds-anchor is an enhancement, as on ds::select: with the script the
+         list flips above the field when there is no room below and escapes a
+         clipping ancestor, a scrolling modal body included; without it, the
+         absolute classes below place it, as in 1.x. --}}
     <ul
         x-show="open"
         x-cloak
+        x-ds-anchor="{ open: open, reference: $el.previousElementSibling, placement: 'bottom-start', offset: 4, width: 'reference' }"
         id="{{ $id }}-listbox"
         @click.outside="open = false; query = ''"
         @keydown.escape.stop="open = false; $refs.search.focus()"
@@ -174,13 +179,13 @@
         @keydown.arrow-up.prevent="{{ $moveFocus }}"
         @keydown.home.prevent="{{ $moveFocus }}"
         @keydown.end.prevent="{{ $moveFocus }}"
-        x-transition:enter="transition ease-out duration-150"
+        x-transition:enter="motion-safe:transition motion-safe:duration-popover-enter motion-safe:ease-enter"
         x-transition:enter-start="opacity-0 scale-95"
         x-transition:enter-end="opacity-100 scale-100"
         role="listbox"
         :aria-multiselectable="multiple"
         @if ($label) aria-labelledby="{{ $id }}-label" @endif
-        class="absolute z-50 mt-1 max-h-60 w-full origin-top overflow-y-auto rounded-control border border-border bg-surface py-1 shadow-float"
+        class="absolute z-50 mt-1 max-h-60 w-full origin-top data-[side=top]:origin-bottom overflow-y-auto rounded-control border border-border bg-surface py-1 shadow-float"
     >
         <template
             x-for="option in options.filter((o) => o.label.toLowerCase().includes(query.trim().toLowerCase()))"
@@ -202,7 +207,7 @@
                 "
                 @keydown.enter.prevent="$el.click()"
                 @keydown.space.prevent="$el.click()"
-                class="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-body text-fg-body transition-colors hover:bg-surface-subtle hover:text-fg focus-visible:bg-surface-subtle focus-visible:text-fg focus-visible:outline-hidden aria-selected:font-medium aria-selected:text-fg"
+                class="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-body text-fg-body motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:bg-surface-subtle focus-visible:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring aria-selected:font-medium aria-selected:text-fg"
             >
                 <span class="truncate" x-text="option.label"></span>
                 <x-ds::icon

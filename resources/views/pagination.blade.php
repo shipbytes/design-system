@@ -47,7 +47,7 @@
     $current = 'border-border-strong bg-surface text-fg shadow-raised';
     $link = 'border-transparent text-fg-body hover:bg-fg/5 hover:text-fg';
     $cell = 'relative isolate inline-flex items-center justify-center rounded-control '
-        .'border text-section font-medium transition-colors '
+        .'border text-section font-medium motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter '
         .'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
     // Page numbers are square; a 3-digit page would otherwise be wider than a
     // 1-digit one and the row would jitter as you walk through it.

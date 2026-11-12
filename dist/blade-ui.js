@@ -21,6 +21,10 @@ const __ds_shared_anchor = (() => {
      *       clamp: true,                   when neither side fits, cap the height
      *                                      and let the panel scroll inside
      *       width: null,                   'reference' to match the reference's width
+     *       at: null,                      { x, y, width, height }: hang off this box
+     *                                      instead, measured from the reference's
+     *                                      top-left corner (a point when the size
+     *                                      is 0)
      *   });
      *   anchored.update();                 measure and place, now
      *   anchored.stop();                   stop listening
@@ -48,6 +52,13 @@ const __ds_shared_anchor = (() => {
      *
      * Writes `data-side` and `data-align` on the panel, the side and alignment it
      * actually took, for an origin or an arrow to read. Never a class.
+     *
+     * `at` is for a panel opened at a place rather than by an element: a context
+     * menu at the pointer. It is kept relative to the reference, so the panel
+     * moves with the content under it when that scrolls. Hung off a point, a panel
+     * that would cross the inline edge takes the other ALIGNMENT, opening back
+     * across the point the way a native context menu does, rather than sliding
+     * along the edge until it covers what was pressed.
      */
 
     const OPPOSITE = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' };
@@ -109,6 +120,14 @@ const __ds_shared_anchor = (() => {
 
     const vertical = (side) => side === 'top' || side === 'bottom';
 
+    function virtualRect(base, at) {
+        const left = base.left + (at.x ?? 0);
+        const top = base.top + (at.y ?? 0);
+        const width = at.width ?? 0;
+        const height = at.height ?? 0;
+        return { left, top, right: left + width, bottom: top + height, width, height };
+    }
+
     function anchor(panel, options = {}) {
         let settings = options;
         let frame = 0;
@@ -148,7 +167,7 @@ const __ds_shared_anchor = (() => {
             style.maxHeight = '';
             style.overflowY = '';
 
-            const r = rectOf(reference);
+            const r = settings.at ? virtualRect(rectOf(reference), settings.at) : rectOf(reference);
             if (settings.width === 'reference') style.width = `${r.width}px`;
 
             // offsetWidth and offsetHeight, not the bounding box: the panel is
@@ -180,12 +199,18 @@ const __ds_shared_anchor = (() => {
             const rtl = getComputedStyle(reference).direction === 'rtl';
             let x;
             let y;
+            let took = align;
 
             if (vertical(side)) {
                 y = side === 'bottom' ? r.bottom + offset : r.top - offset - height;
                 const start = rtl ? r.right - w : r.left;
                 const end = rtl ? r.left : r.right - w;
-                x = align === 'start' ? start : align === 'end' ? end : r.left + r.width / 2 - w / 2;
+                const fits = (v) => v >= margin && v + w <= vw - margin;
+                if (settings.at && align !== 'center' && !fits(align === 'start' ? start : end)) {
+                    const other = align === 'start' ? 'end' : 'start';
+                    if (fits(other === 'start' ? start : end)) took = other;
+                }
+                x = took === 'start' ? start : took === 'end' ? end : r.left + r.width / 2 - w / 2;
                 x = Math.min(Math.max(x, margin), Math.max(vw - margin - w, margin));
             } else {
                 x = side === 'right' ? r.right + offset : r.left - offset - w;
@@ -209,7 +234,7 @@ const __ds_shared_anchor = (() => {
             style.top = `${snap(y - origin.y)}px`;
 
             panel.dataset.side = side;
-            panel.dataset.align = align;
+            panel.dataset.align = took;
         }
 
         function schedule() {
@@ -278,6 +303,9 @@ const __ds_behaviours_anchor = (() => {
      *               inside; default true
      *   width       'reference' to match the reference's width (a listbox under
      *               its field)
+     *   at          { x, y, width, height } from the reference's top-left corner:
+     *               hang off that box instead of the reference (a context menu at
+     *               the pointer); read reactively like the rest
      *
      * The rules, flip and shift and clamp, and the fixed positioning that keeps an
      * ancestor's overflow from clipping, are in shared/anchor.js. The panel's
@@ -454,6 +482,254 @@ const __ds_behaviours_clipboard = (() => {
     }
 
     return { clipboard };
+})();
+
+// behaviours/context-menu.js
+const __ds_behaviours_context_menu = (() => {
+    /*
+     * dsContextMenu: a menu opened at a place in a region, behind ds::context-menu.
+     *
+     *   x-data="dsContextMenu({ native: true })"
+     *
+     * The markup is the component's, rendered complete by PHP: the region is the
+     * root, holding the consumer's content and, last, the panel marked
+     * data-ds-context-menu-panel, role=menu, hidden by x-show="dsOpen" and placed
+     * by x-ds-anchor at `dsAt`. The arrow keys inside it are the dropdown's,
+     * bound in the view from partials/menu.php.
+     *
+     * It opens:
+     *
+     *   - on a right-click, at the pointer, with the browser's menu prevented
+     *   - on Shift+F10 or the Menu key, below the element that has focus
+     *   - on a touch held still for 500ms, at the finger; moving more than 10px
+     *     first is a scroll or a drag and cancels it, and the click that follows
+     *     the hold is swallowed, so a held link or button is not also pressed
+     *
+     * and closes on Escape, Tab, a choice, or a press outside it. Focus goes to the
+     * first item on open and back to whatever had it on close. A press outside
+     * that lands on nothing focusable would leave focus on the body; it is put
+     * back too.
+     *
+     * `native` (default true) leaves the browser's own menu alone over a field,
+     * an editable area or a link inside the region: copy, paste, spelling, open in
+     * a new tab. False opens this menu there as well.
+     *
+     * A region inside another region: the inner one takes the event, and the
+     * outer sees it handled (defaultPrevented) and stands down.
+     *
+     * The scope exposes `dsOpen`, `dsAt` (the box the panel hangs off, from the
+     * region's corner) and `dsTarget` (the element that was pressed, for an item
+     * that has to know which row it is acting on).
+     */
+
+    const NATIVE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"]), a[href]';
+
+    const HOLD_MS = 500;
+    const SLOP_PX = 10;
+
+    function contextMenu(Alpine) {
+        Alpine.data('dsContextMenu', (options = {}) => {
+            const native = options.native !== false;
+            let wired = null;
+
+            return {
+                dsOpen: false,
+                dsAt: { x: 0, y: 0, width: 0, height: 0, offset: 2 },
+                dsTarget: null,
+
+                init() {
+                    wired = wire(this.$el, {
+                        native,
+                        isOpen: () => this.dsOpen,
+                        open: (at, target) => {
+                            this.dsAt = at;
+                            this.dsTarget = target;
+                            this.dsOpen = true;
+                        },
+                        close: () => {
+                            this.dsOpen = false;
+                        },
+                        later: (fn) => this.$nextTick(fn),
+                    });
+                    this.$watch('dsOpen', (open) => wired.changed(open));
+                },
+
+                destroy() {
+                    wired?.teardown();
+                },
+            };
+        });
+    }
+
+    function wire(root, api) {
+        const panel = [...root.querySelectorAll('[data-ds-context-menu-panel]')]
+            .find((el) => el.closest('[data-ds-context-menu]') === root) ?? null;
+
+        let returnTo = null;
+        let keyed = 0;
+        let hold = null;
+        let swallowClick = false;
+        let pressedOutside = false;
+
+        const inPanel = (node) => Boolean(panel && node instanceof Node && panel.contains(node));
+        const leftNative = (node) => {
+            if (!api.native || !(node instanceof Element)) return false;
+            const control = node.closest(NATIVE);
+            return Boolean(control && root.contains(control) && !inPanel(control));
+        };
+
+        function at(x, y, width = 0, height = 0, offset = 2) {
+            const r = root.getBoundingClientRect();
+            return { x: x - r.left, y: y - r.top, width, height, offset };
+        }
+
+        function open(box, target) {
+            if (!api.isOpen()) returnTo = document.activeElement;
+            api.open(box, target);
+            // Every time, not only on the first open: a second right-click in the
+            // region has already taken focus out of the menu with its press.
+            api.later(() => {
+                const first = panel?.querySelector('[role="menuitem"]:not([aria-disabled="true"])') ?? panel;
+                first?.focus({ preventScroll: true });
+            });
+        }
+
+        function close() {
+            if (api.isOpen()) api.close();
+        }
+
+        function restore() {
+            const to = returnTo;
+            returnTo = null;
+            if (to && to !== document.body && to.isConnected) to.focus({ preventScroll: true });
+        }
+
+        function onContextMenu(event) {
+            if (inPanel(event.target)) {
+                // No browser menu over this one.
+                event.preventDefault();
+                return;
+            }
+            if (event.defaultPrevented || leftNative(event.target)) return;
+            event.preventDefault();
+            cancelHold();
+            // The browser may follow Shift+F10 with a contextmenu of its own,
+            // already answered by the keydown.
+            if (Date.now() - keyed < 500) return;
+            open(at(event.clientX, event.clientY), event.target);
+        }
+
+        function onKeyDown(event) {
+            if (inPanel(event.target)) {
+                if (event.key === 'Escape') {
+                    event.stopPropagation();
+                    close();
+                } else if (event.key === 'Tab') {
+                    // Back to where the reader was, not on to whatever follows
+                    // the panel in the source.
+                    event.preventDefault();
+                    close();
+                }
+                return;
+            }
+            const menuKey = event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey);
+            if (!menuKey || event.defaultPrevented || leftNative(event.target)) return;
+            event.preventDefault();
+            keyed = Date.now();
+            const r = event.target.getBoundingClientRect();
+            open(at(r.left, r.top, r.width, r.height, 4), event.target);
+        }
+
+        function cancelHold() {
+            if (hold) clearTimeout(hold.timer);
+            hold = null;
+        }
+
+        function onPointerDown(event) {
+            swallowClick = false;
+            if (event.pointerType !== 'touch' || inPanel(event.target) || leftNative(event.target)) return;
+            cancelHold();
+            const { clientX: x, clientY: y, target } = event;
+            hold = {
+                x,
+                y,
+                timer: setTimeout(() => {
+                    hold = null;
+                    swallowClick = true;
+                    open(at(x, y), target);
+                }, HOLD_MS),
+            };
+        }
+
+        function onPointerMove(event) {
+            if (hold && Math.hypot(event.clientX - hold.x, event.clientY - hold.y) > SLOP_PX) cancelHold();
+        }
+
+        function onClick(event) {
+            if (swallowClick && !inPanel(event.target)) {
+                event.preventDefault();
+                event.stopPropagation();
+                swallowClick = false;
+                return;
+            }
+            // A choice closes the menu. Not prevented: a link still navigates and
+            // a submit still submits.
+            if (inPanel(event.target) && event.target.closest('[role="menuitem"]:not([aria-disabled="true"])')) close();
+        }
+
+        function onOutside(event) {
+            if (inPanel(event.target)) return;
+            // A second right-click inside the region moves the menu; the
+            // contextmenu that follows does that.
+            if (event.button === 2 && root.contains(event.target)) return;
+            // Held until the timeout below: Alpine runs the watcher that calls
+            // changed(false) later than this line.
+            pressedOutside = true;
+            close();
+            // After the press has moved focus wherever it was going.
+            setTimeout(() => {
+                pressedOutside = false;
+                if (!document.activeElement || document.activeElement === document.body) restore();
+                else returnTo = null;
+            });
+        }
+
+        function changed(open) {
+            if (open) {
+                document.addEventListener('pointerdown', onOutside, true);
+                return;
+            }
+            document.removeEventListener('pointerdown', onOutside, true);
+            if (pressedOutside) return;
+            if (inPanel(document.activeElement) || document.activeElement === document.body) restore();
+        }
+
+        root.addEventListener('contextmenu', onContextMenu);
+        root.addEventListener('keydown', onKeyDown);
+        root.addEventListener('pointerdown', onPointerDown);
+        root.addEventListener('pointermove', onPointerMove, { passive: true });
+        root.addEventListener('pointerup', cancelHold);
+        root.addEventListener('pointercancel', cancelHold);
+        root.addEventListener('click', onClick, true);
+
+        return {
+            changed,
+
+            teardown() {
+                cancelHold();
+                document.removeEventListener('pointerdown', onOutside, true);
+                root.removeEventListener('contextmenu', onContextMenu);
+                root.removeEventListener('keydown', onKeyDown);
+                root.removeEventListener('pointerdown', onPointerDown);
+                root.removeEventListener('pointermove', onPointerMove);
+                root.removeEventListener('pointerup', cancelHold);
+                root.removeEventListener('pointercancel', cancelHold);
+                root.removeEventListener('click', onClick, true);
+            },
+        };
+    }
+
+    return { contextMenu };
 })();
 
 // behaviours/glide.js
@@ -2174,6 +2450,168 @@ const __ds_behaviours_tag_input = (() => {
     return { tagInput };
 })();
 
+// behaviours/theme.js
+const __ds_behaviours_theme = (() => {
+    /*
+     * dsTheme: light, dark or the system's, behind ds::theme-switcher.
+     *
+     *   x-data="dsTheme({ storageKey: 'ds-theme', transition: true })"
+     *
+     * The scope exposes `dsTheme`, one of 'light', 'dark', 'system', and the
+     * view binds it: the segmented variant's radios through x-model, the button
+     * variant's press through dsCycle(). Choosing:
+     *
+     *   - stores the choice in localStorage under the key; 'system' removes the
+     *     key, so a reader who never chose and one who went back look the same
+     *     to the pre-paint script
+     *   - puts exactly one of `dark` and `light` on <html>, and color-scheme to
+     *     match, so `dark:` utilities, the tokens and the browser's own controls
+     *     agree. `light` as well as `dark`, because the tokens fall back to the
+     *     system's preference when the root has neither
+     *   - moves every other switcher on the page with the same key to the same
+     *     choice, and every other tab through the `storage` event
+     *   - on 'system', follows prefers-color-scheme as it changes
+     *
+     * The change runs inside document.startViewTransition() when the browser has
+     * it, motion is allowed and `transition` is on: the browser's crossfade,
+     * timed by a rule in theme.css under data-ds-theme-changing.
+     *
+     * <x-ds::theme-script /> applies the stored choice before the first paint
+     * with the same rules, without Alpine; this only takes over once it runs.
+     */
+
+    const CHOICES = ['light', 'dark', 'system'];
+
+    // Every live switcher, for the ones on the same page to follow each other.
+    const switchers = new Set();
+
+    // The choice applied to the page, so the system listener knows whether to act.
+    let applied = null;
+
+    let systemListening = false;
+
+    const systemDark = () => typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: dark)').matches;
+
+    function read(key) {
+        try {
+            const value = localStorage.getItem(key);
+            return value === 'light' || value === 'dark' ? value : 'system';
+        } catch {
+            // Storage refused (a private window, blocked site data): the system's.
+            return 'system';
+        }
+    }
+
+    function write(key, choice) {
+        try {
+            if (choice === 'system') localStorage.removeItem(key);
+            else localStorage.setItem(key, choice);
+        } catch {
+            // Still applied for this page; only the memory of it is lost.
+        }
+    }
+
+    function paint(choice) {
+        const dark = choice === 'dark' || (choice === 'system' && systemDark());
+        const root = document.documentElement;
+        root.classList.toggle('dark', dark);
+        root.classList.toggle('light', !dark);
+        root.style.colorScheme = dark ? 'dark' : 'light';
+    }
+
+    function apply(choice, animate) {
+        const before = document.documentElement.classList.contains('dark');
+        applied = choice;
+        const after = choice === 'dark' || (choice === 'system' && systemDark());
+
+        const motion = typeof matchMedia !== 'function' || !matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!animate || before === after || !motion || typeof document.startViewTransition !== 'function') {
+            paint(choice);
+            return;
+        }
+
+        const root = document.documentElement;
+        root.dataset.dsThemeChanging = '';
+        const transition = document.startViewTransition(() => paint(choice));
+        transition.finished.finally(() => delete root.dataset.dsThemeChanging);
+    }
+
+    function listenToSystem() {
+        if (systemListening || typeof matchMedia !== 'function') return;
+        systemListening = true;
+        const query = matchMedia('(prefers-color-scheme: dark)');
+        const follow = () => {
+            if (applied === 'system') paint('system');
+        };
+        if (query.addEventListener) query.addEventListener('change', follow);
+        else query.addListener?.(follow);
+    }
+
+    function theme(Alpine) {
+        Alpine.data('dsTheme', (options = {}) => {
+            const key = typeof options.storageKey === 'string' && options.storageKey ? options.storageKey : 'ds-theme';
+            const animate = options.transition !== false;
+            let onStorage = null;
+
+            return {
+                dsTheme: 'system',
+                dsKey: key,
+
+                init() {
+                    this.dsTheme = read(key);
+                    switchers.add(this);
+                    listenToSystem();
+                    // The page's theme is settled once, by the first switcher to
+                    // start: a later one on another key must not repaint the page
+                    // it did not choose. And not even then when ds::theme-script
+                    // has already put a class on the root; this is for a page
+                    // without it, and it never animates.
+                    if (applied === null) {
+                        applied = this.dsTheme;
+                        const root = document.documentElement.classList;
+                        if (!root.contains('dark') && !root.contains('light')) paint(this.dsTheme);
+                    }
+
+                    this.$watch('dsTheme', (choice) => {
+                        if (!CHOICES.includes(choice)) {
+                            this.dsTheme = 'system';
+                            return;
+                        }
+                        if (choice === read(key) && choice === applied) return;
+                        write(key, choice);
+                        apply(choice, animate);
+                        for (const other of switchers) {
+                            if (other !== this && other.dsKey === key && other.dsTheme !== choice) other.dsTheme = choice;
+                        }
+                    });
+
+                    onStorage = (event) => {
+                        // null is localStorage.clear() in the other tab.
+                        if (event.key !== key && event.key !== null) return;
+                        const choice = read(key);
+                        if (choice !== this.dsTheme) this.dsTheme = choice;
+                        // The page itself, once for every switcher hearing it.
+                        if (applied !== choice) apply(choice, false);
+                    };
+                    window.addEventListener('storage', onStorage);
+                },
+
+                /** The button variant: light, dark, system, round again. */
+                dsCycle() {
+                    this.dsTheme = CHOICES[(CHOICES.indexOf(this.dsTheme) + 1) % CHOICES.length];
+                },
+
+                destroy() {
+                    switchers.delete(this);
+                    if (onStorage) window.removeEventListener('storage', onStorage);
+                },
+            };
+        });
+    }
+
+    return { theme };
+})();
+
 // shared/roving.js
 const __ds_shared_roving = (() => {
     /*
@@ -2484,6 +2922,7 @@ const __ds_blade_ui = (() => {
      */
     const { anchorDirective } = __ds_behaviours_anchor;
     const { clipboard } = __ds_behaviours_clipboard;
+    const { contextMenu } = __ds_behaviours_context_menu;
     const { glide } = __ds_behaviours_glide;
     const { hoverCard } = __ds_behaviours_hover_card;
     const { numberField } = __ds_behaviours_number_field;
@@ -2491,10 +2930,11 @@ const __ds_blade_ui = (() => {
     const { password } = __ds_behaviours_password;
     const { popover } = __ds_behaviours_popover;
     const { tagInput } = __ds_behaviours_tag_input;
+    const { theme } = __ds_behaviours_theme;
     const { toggleGroup } = __ds_behaviours_toggle_group;
     const { toolbar } = __ds_behaviours_toolbar;
 
-    const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard];
+    const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme];
 
     // Symbol.for, not a module-level flag. Two copies of this script, say the
     // inlined one AND a Vite import, are two separate modules with two separate

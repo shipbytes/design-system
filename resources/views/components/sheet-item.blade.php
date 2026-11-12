@@ -45,9 +45,9 @@
     @if ($tag === 'a') href="{{ $href }}" @endif
     @if ($tag === 'button') type="submit" @endif
     {{ $attributes->class([
-        'flex items-center gap-4 rounded-panel px-3 py-3.5',
+        'flex items-center gap-4 rounded-panel px-3 py-3.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring',
         'w-full text-left' => $tag === 'button',
-        'transition-colors hover:bg-surface-subtle' => ! $disabled,
+        'motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle' => ! $disabled,
         'opacity-60' => $disabled,
     ]) }}
     @if ($disabled) aria-disabled="true" @endif

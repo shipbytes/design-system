@@ -26,7 +26,7 @@
         ] : ['href' => $url, 'rel' => $rel], fn ($v) => $v !== null));
     };
     $cell = 'relative isolate inline-flex items-center justify-center rounded-control border '
-        .'h-control-lg px-4 text-section font-medium transition-colors sm:h-control-md '
+        .'h-control-lg px-4 text-section font-medium motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter sm:h-control-md '
         .'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring';
     $on = 'border-border bg-surface text-fg shadow-raised hover:bg-surface-subtle';
     $off = 'border-transparent text-fg-subtle cursor-not-allowed';

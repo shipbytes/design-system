@@ -1,6 +1,6 @@
 # Shipbytes Blade UI — documentation
 
-Sixty-seven Blade components for Laravel, plus two pagination views. Presentation
+Sixty-nine Blade components for Laravel, plus two pagination views. Presentation
 only: no state, no framework assumptions beyond Blade itself.
 
 **New here?** Start with [Getting started](getting-started.md) — install, three
@@ -28,6 +28,7 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Button group](components/button-group.md) | Related buttons joined into one shape, and the split button |
 | [Toolbar](components/toolbar.md) | A row of tools that is one Tab stop — needs Alpine and the script |
 | [Toggle group](components/toggle-group.md) | Buttons that stay pressed, one or many — needs Alpine and the script |
+| [Theme switcher](components/theme-switcher.md) | Light, dark or system, remembered, with the pre-paint script — needs Alpine and the script |
 | [Radio cards](components/radio-cards.md) | Card-shaped options to compare: plans, shipping |
 | [Select](components/select.md) | Styled listbox — needs Alpine |
 | [Combobox](components/combobox.md) | Filtering select, single or multiple — needs Alpine |
@@ -72,6 +73,7 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Dropdown](components/dropdown.md) | A menu of actions — Alpine |
 | [Popover](components/popover.md) | Anything else anchored to a button: fields, a form — needs Alpine and the script |
 | [Hover card](components/hover-card.md) | A preview of a person or a link on hover or focus — needs Alpine and the script |
+| [Context menu](components/context-menu.md) | The dropdown's menu at the pointer: right-click, long press, Shift+F10 — needs Alpine and the script |
 | [Tooltip](components/tooltip.md) | A short label on hover or focus — Alpine |
 | [Toast](components/toast.md) | Something already happened |
 

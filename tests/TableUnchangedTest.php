@@ -15,6 +15,11 @@ use PHPUnit\Framework\Attributes\Test;
  * `direction` or `sortUrl` existed. The cases are every way a table was
  * declared in the specimens, the gallery and the docs at that point: plain
  * labels, arrays, alignment, widths, an empty actions header, no `columns`.
+ *
+ * One edit since: the row's hover transition moved onto the motion tokens
+ * behind motion-safe in 2.0 (the reduced-motion audit), the same 150ms at
+ * rest. The fixture follows that class and nothing else; sorting is still
+ * what this test guards.
  */
 final class TableUnchangedTest extends TestCase
 {

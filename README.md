@@ -12,7 +12,7 @@
 A design system for Laravel and Blade, with design tokens any other stack can
 use from plain CSS or JavaScript.
 
-**67 Blade components**, a spec and a documentation page for each, design tokens
+**69 Blade components**, a spec and a documentation page for each, design tokens
 with light and dark values, and three test suites — including one that drives
 every interactive component in a real browser.
 
@@ -38,7 +38,7 @@ compiled CSS; the install is one `composer require` and three lines of CSS. Add
 `@shipbytes/design-tokens` only if your own JavaScript needs the token *values*
 — a chart palette reading `tokens.js` rather than repeating hex literals.
 
-**Laravel with Inertia + React?** Skip `blade-ui` — 67 Blade components you
+**Laravel with Inertia + React?** Skip `blade-ui` — 69 Blade components you
 cannot render are not useful — and take `@shipbytes/design-tokens`: the same
 `tokens.css` and `theme.css`, so your own React components draw from the same
 values. If you have both, Blade marketing pages and a React app behind login,
@@ -182,7 +182,7 @@ source, in both themes.
 
 ### What you get
 
-Sixty-seven components, plus a pagination view.
+Sixty-nine components, plus a pagination view.
 
 **Layout & content** — `panel` `panel-row` `table` `table-cell` `table-row`
 `stat-tile` `empty-state` `skeleton` `progress` `usage-meter` `accordion`
@@ -192,10 +192,11 @@ Sixty-seven components, plus a pagination view.
 `file-upload` `otp-input` `tag-input` `number-field` `password-strength`
 `button` `copy-button` `button-group` `segmented-control` `segment`
 `toggle-group` `toggle` `toolbar` `toolbar-button` `toolbar-separator`
+`theme-switcher`
 **Navigation** — `nav-item` `sub-nav` `bottom-nav` `bottom-nav-item` `tabs` `tab`
 `tab-panel` `breadcrumb` `breadcrumb-item` `stepper` `step`
 **Overlays** — `modal` `drawer` `sheet` `sheet-item` `dropdown` `dropdown-item`
-`popover` `hover-card` `tooltip` `toast` `toast-region`
+`popover` `hover-card` `context-menu` `tooltip` `toast` `toast-region`
 **Marks** — `icon` `avatar` `avatar-group` `badge` `alert`
 
 Wire pagination up in a service provider:
@@ -221,8 +222,9 @@ Twenty need [Alpine](https://alpinejs.dev) — `modal`, `drawer`, `sheet`,
 `hover-card`, the last nine with the package's own script as well — plus one optional prop each on `checkbox`, `nav-item`,
 `toast` and `input`, and the pagination views' Livewire variants, which get it
 from Livewire. `segmented-control` slides its highlight when Alpine and the
-script are there and works the same without them. Everything else is plain
-Blade and CSS.
+script are there and works the same without them, and the dropdown, select,
+combobox, date picker and tooltip use the script to stay on screen, opening at
+their placement without it. Everything else is plain Blade and CSS.
 
 They hold no state of their own — the host declares it and the component reads
 it, which is what keeps the same markup usable from plain Blade, Livewire or
@@ -353,6 +355,8 @@ clone still goes green — read the warning.
 Driven by a `dark` class on the root element, not the OS preference, so a theme
 toggle can override the system setting. `prefers-color-scheme` still applies
 when nothing has been chosen explicitly; `class="light"` opts a subtree back out.
+`ds::theme-switcher` and `<x-ds::theme-script />` (in the head, before the
+CSS) are the toggle and the pre-paint snippet, if you want them ready-made.
 
 Dark values live beside their light counterpart in the same token, under
 `$extensions["shipbytes.dark"]`, so the two cannot drift apart. `npm test`

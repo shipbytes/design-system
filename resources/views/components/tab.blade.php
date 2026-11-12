@@ -21,7 +21,7 @@
 
     $classes = implode(' ', [
         'relative -mb-px inline-flex shrink-0 items-center gap-2 whitespace-nowrap',
-        'border-b-2 px-3 py-2.5 text-body font-medium transition-colors',
+        'border-b-2 px-3 py-2.5 text-body font-medium motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring',
         'rounded-t-chip',
         $active

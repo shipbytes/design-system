@@ -42,7 +42,7 @@
     @if ($href) href="{{ $href }}" @else type="button" @endif
     @if ($active) aria-current="page" @endif
     {{ $attributes->class([
-        'flex flex-1 flex-col items-center justify-center py-2',
+        'flex flex-1 flex-col items-center justify-center py-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring',
         'text-fg' => $active,
         'text-fg-muted' => ! $active,
     ]) }}

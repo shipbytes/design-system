@@ -56,7 +56,7 @@
         <button
             type="button"
             @click="{{ $dismiss }}"
-            class="-m-1 shrink-0 rounded-chip p-1 text-fg-muted transition-colors hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+            class="-m-1 shrink-0 rounded-chip p-1 text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
             aria-label="Dismiss"
         >
             <x-ds::icon name="x-mark" size="4" />
