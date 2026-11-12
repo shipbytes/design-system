@@ -696,19 +696,20 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 77 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 83 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
-accordion, accordion-item, activity-heatmap, alert, announcement-bar, avatar, avatar-group, badge, bottom-nav,
+accordion, accordion-item, activity-heatmap, alert, announcement-bar, avatar, avatar-group, badge, bar-chart, bottom-nav,
 bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, chip,
-button-group, chip-group, combobox, confirm-button, confirm-popover, copy-button, counter, date-picker, drawer, dropdown,
+button-group, chip-group, combobox, confirm-button, confirm-popover, copy-button, counter, date-picker, donut-chart, drawer, dropdown,
 context-menu, dropdown-item, empty-state, file-upload, gauge, hold-button, hover-card, icon,
-input, modal,
+input, line-chart, modal,
 nav-item, number-field, otp-input, panel, panel-row, password-strength,
 popover, progress, radio, radio-card, radio-cards, radio-group, rating,
 segment, segmented-control, select, sheet, sheet-item, skeleton, sparkline, stat-tile,
 step, stepper, sub-nav, switch, tab,
 tab-panel, table, table-cell, table-row, tabs, tag-input, theme-switcher,
+timeline, timeline-group, timeline-item,
 toast, toast-region,
 toggle, toggle-group, toolbar, toolbar-button, toolbar-separator, tooltip,
 usage-meter.
@@ -750,7 +751,11 @@ uses `x-ds-glide` as an enhancement only, and dropdown, select, combobox,
 date-picker and tooltip use `x-ds-anchor` as an enhancement only: each works
 without the script exactly as in 1.x, and with it stays on screen. counter
 uses `x-ds-roll` as an enhancement only: without it the server's number is
-shown and a morph changes it, with it the digits roll. See the
+shown and a morph changes it, with it the digits roll. bar-chart, line-chart
+and donut-chart use `x-ds-chart` as an enhancement only: without it each is
+a static `role="img"` SVG named by its generated summary, with it a readout,
+keyboard access to every mark and legend toggles. timeline (with
+timeline-item and timeline-group) is plain Blade and CSS. See the
 shared script section.
 
 **Plain Blade and CSS, no script, by design:** rating, chip-group (with chip)

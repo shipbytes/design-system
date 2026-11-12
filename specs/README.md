@@ -57,6 +57,10 @@ independent implementations the same component rather than three lookalikes.
 | [sparkline.md](sparkline.md) | One viewBox stretched, non-scaling strokes, gaps, the generated summary |
 | [gauge.md](gauge.md) | Arcs by dash, bands and their words, meter values past the range |
 | [activity-heatmap.md](activity-heatmap.md) | Weeks as rows turned by CSS, the scroll that starts at the end, the one-hue ramp |
+| [bar-chart.md](bar-chart.md) | Percent x and px y so text never scales, labels thinned by container query, the keyboard model |
+| [line-chart.md](line-chart.md) | A nested stretched plot, the monotone curve, gaps, end labels and the legend rule |
+| [donut-chart.md](donut-chart.md) | Arcs by dash, the fold into Other, largest-remainder shares, when not to use one |
+| [timeline.md](timeline.md) | Timeline, timeline-item and timeline-group: the rail each item draws, time elements, sticky groups |
 | [stepper.md](stepper.md) | Steps, statuses, the narrow-width collapse |
 | [avatar-group.md](avatar-group.md) | Overlapping avatars, the ground ring, the spoken sentence |
 | [alert.md](alert.md) | Alert, tones, wash-not-tint, the live-region rule |

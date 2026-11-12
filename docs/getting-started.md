@@ -115,7 +115,7 @@ group, so it starts no session and sets no cookie, and it works under
 
 **A page that cannot reach the route** (a static export, an HTML email
 preview, a host whose routing will not take a package's) can carry the script
-in the page instead, about 71 kB (18 kB compressed), uncached:
+in the page instead, about 77 kB (19 kB compressed), uncached:
 
 ```blade
 <x-ds::scripts inline />
@@ -300,6 +300,11 @@ drawn by CSS.
 them it is the formatted number, and a server re-render still changes it. A
 counter whose `value` is bound to Alpine state (`::value="count"`) needs both,
 because only the script writes that number.
+
+`bar-chart`, `line-chart` and `donut-chart` use Alpine and the package's
+script for the readout on hover and focus, keyboard access to every bar,
+point or segment, and the legend toggles. Without them each is a static SVG
+with a text alternative written from the data, which is a complete chart.
 
 `dropdown`, `select`, `combobox`, `date-picker` and `tooltip` need Alpine, and
 use the package's script to stay on screen: with it they flip away from the

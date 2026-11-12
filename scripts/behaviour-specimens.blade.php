@@ -756,4 +756,18 @@
         <x-ds::activity-heatmap label="Commits" to="2026-03-08" :data="['2026-03-03' => 12, '2026-03-04' => 1, '2025-03-10' => 2]" unit="commit" href="/day/{date}" />
     </div>
 
+    {{-- ── charts (x-ds-chart): grouped bars, a line, a donut, and one bar
+         chart with interactive off. The block is also cut out for the host
+         pages without the script, by its id and the closing comment. ── --}}
+    <div class="mt-6 w-[640px]" id="charts">
+        <button type="button" id="ch-before">before the charts</button>
+        <x-ds::bar-chart id="ch-bar" label="Revenue and costs" :format="['prefix' => '$', 'suffix' => 'K']"
+            :data="['Jan' => ['Revenue' => 12, 'Costs' => 8], 'Feb' => ['Revenue' => 18, 'Costs' => 10], 'Mar' => ['Revenue' => 15, 'Costs' => 11]]" />
+        <x-ds::bar-chart id="ch-stack" label="Tickets" :stacked="true" :data="['W1' => [5, 3], 'W2' => [7, 2]]" :series="['Open', 'Closed']" />
+        <x-ds::line-chart id="ch-line" label="Visits" :data="['Mon' => [3, 1], 'Tue' => [4, 2], 'Wed' => [6, 3], 'Thu' => [5, 4]]" :series="['New', 'Returning']" />
+        <x-ds::donut-chart id="ch-donut" label="Traffic" :data="['Direct' => 1200, 'Search' => 800, 'Social' => 400]" />
+        <x-ds::bar-chart id="ch-static" label="Static" :interactive="false" :data="['a' => 1, 'b' => 2]" />
+    </div>
+    <!-- /charts -->
+
 </div>

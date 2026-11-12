@@ -692,6 +692,10 @@ const __ds_behaviours_chart = (() => {
                 part.toggleAttribute('data-ds-off', on);
             }
             if (active && !shown(active)) hide();
+            // Roving only writes the marks it is given, the shown ones; a hidden
+            // series' marks are taken out of the order here, so the stop one of
+            // them held does not linger behind the new one.
+            for (const mark of all()) if (!shown(mark)) mark.setAttribute('tabindex', '-1');
             rove.settle();
         }
 

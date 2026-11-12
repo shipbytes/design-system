@@ -34,6 +34,8 @@ final class Components
         'tab-panel' => 'tabs',
         'table-cell' => 'table',
         'table-row' => 'table',
+        'timeline-group' => 'timeline',
+        'timeline-item' => 'timeline',
         'toast-region' => 'toast',
         'toggle' => 'toggle-group',
         'toolbar-button' => 'toolbar',

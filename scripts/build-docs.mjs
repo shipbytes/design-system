@@ -295,6 +295,16 @@ const OPERATE = {
         await tab.waitForTimeout(100);
         await tab.evaluate(() => document.activeElement?.blur());
     },
+    // A pointer resting near the eighth day, as x-ds-chart hears it: a
+    // pointermove at a point, bubbling to the plot, which picks the nearest
+    // point and shows its readout. Nothing at the document listens for it.
+    'line-chart': async (pane) =>
+        pane.locator('[data-shot-hover] [data-ds-chart-mark][data-ds-at="7"][data-ds-in="0"]').evaluate((el) => {
+            const r = el.getBoundingClientRect();
+            el.dispatchEvent(new PointerEvent('pointermove', {
+                bubbles: true, pointerType: 'mouse', clientX: r.left + r.width / 2, clientY: r.top + r.height / 2,
+            }));
+        }),
     // A click no press began, as a screen reader sends one: it arms.
     'hold-button': async (pane) =>
         pane.locator('[data-shot-press]').dispatchEvent('click', { bubbles: false }),

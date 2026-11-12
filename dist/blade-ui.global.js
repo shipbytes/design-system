@@ -399,6 +399,7 @@ for (const part of root.querySelectorAll(`[data-ds-chart-series="${key.dataset.d
 part.toggleAttribute('data-ds-off', on);
 }
 if (active && !shown(active)) hide();
+for (const mark of all()) if (!shown(mark)) mark.setAttribute('tabindex', '-1');
 rove.settle();
 }
 function onKeyClick(event) {

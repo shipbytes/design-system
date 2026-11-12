@@ -837,6 +837,120 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── bar-chart --}}
+{{-- Wide, with a 320px box beside the full one: a chart's text keeps its
+     size as the box narrows, and the image shows what gives way instead. --}}
+@php
+    $money = ['prefix' => '$', 'suffix' => 'K'];
+    $months = [
+        'Jan' => ['Revenue' => 12, 'Costs' => 8], 'Feb' => ['Revenue' => 18, 'Costs' => 10],
+        'Mar' => ['Revenue' => 15, 'Costs' => 11], 'Apr' => ['Revenue' => 22, 'Costs' => 12],
+        'May' => ['Revenue' => 26, 'Costs' => 14], 'Jun' => ['Revenue' => 24, 'Costs' => 15],
+    ];
+    $pages = ['Pricing' => 4210, 'Getting started with the API' => 3180, 'Changelog' => 1920, 'Billing and invoices' => 1340, 'Status' => 610];
+@endphp
+<div data-shot="bar-chart" class="shot shot-wide">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-3">
+                <div class="rounded-panel border border-border bg-surface p-4">
+                    <x-ds::bar-chart label="Revenue and costs by month" :data="$months" :format="$money" />
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="w-80 shrink-0 rounded-panel border border-border bg-surface p-4">
+                        <x-ds::bar-chart label="Views by page" :data="$pages" orientation="horizontal" height="sm" :showValues="true" :interactive="false" />
+                    </div>
+                    <div class="min-w-0 flex-1 rounded-panel border border-border bg-surface p-4">
+                        <x-ds::bar-chart label="Tickets by week" :data="['W1' => [5, 3], 'W2' => [7, 2], 'W3' => [4, 6], 'W4' => [8, 4]]" :series="['Open', 'Closed']" :stacked="true" height="sm" :showValues="true" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── line-chart --}}
+<div data-shot="line-chart" class="shot shot-wide">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-3">
+                <div class="rounded-panel border border-border bg-surface p-4">
+                    <x-ds::line-chart label="Visits, new and returning" curve="smooth"
+                        :data="['1 Nov' => [320, 150], '2 Nov' => [410, 190], '3 Nov' => [380, 170], '4 Nov' => [520, 260], '5 Nov' => [610, 300], '6 Nov' => [480, 230], '7 Nov' => [450, 210], '8 Nov' => [700, 330], '9 Nov' => [660, 310], '10 Nov' => [720, 350], '11 Nov' => [690, 330], '12 Nov' => [810, 400]]"
+                        :series="['New', 'Returning']" data-shot-hover />
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="w-80 shrink-0 rounded-panel border border-border bg-surface p-4">
+                        <x-ds::line-chart label="Error rate" :area="true" tone="danger" height="sm" :points="true" :format="['suffix' => '%', 'decimals' => 1]"
+                            :data="['Mon' => 1.2, 'Tue' => 0.8, 'Wed' => null, 'Thu' => 2.4, 'Fri' => 1.9, 'Sat' => 0.6, 'Sun' => 0.9]" :interactive="false" />
+                    </div>
+                    <div class="min-w-0 flex-1 rounded-panel border border-border bg-surface p-4">
+                        <x-ds::line-chart label="Response time by region" legend="end" height="sm" :format="['suffix' => ' ms']" :interactive="false"
+                            :data="['W1' => [210, 180, 260], 'W2' => [230, 170, 250], 'W3' => [220, 190, 300], 'W4' => [200, 175, 280]]" :series="['EU', 'US', 'APAC']" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── donut-chart --}}
+<div data-shot="donut-chart" class="shot shot-wide">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-3">
+                <div class="rounded-panel border border-border bg-surface p-4">
+                    <x-ds::donut-chart label="Traffic by source" :data="['Direct' => 1200, 'Search' => 800, 'Social' => 400, 'Email' => 250]" />
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="w-80 shrink-0 rounded-panel border border-border bg-surface p-4">
+                        <x-ds::donut-chart label="Seats by plan" size="sm" legend="bottom" :data="['Free' => 70, 'Pro' => 25, 'Team' => 5]" :format="['suffix' => ' seats']" :interactive="false" />
+                    </div>
+                    <div class="min-w-0 flex-1 rounded-panel border border-border bg-surface p-4">
+                        <x-ds::donut-chart label="Browsers" size="sm" thickness="sm" :maxSegments="4" :interactive="false"
+                            :data="['Chrome' => 640, 'Safari' => 190, 'Firefox' => 60, 'Edge' => 50, 'Samsung' => 30, 'Opera' => 12]">
+                            <x-slot:centre><span class="text-body font-semibold text-fg">65%</span><span class="text-meta text-fg-muted">Chrome</span></x-slot:centre>
+                        </x-ds::donut-chart>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── timeline --}}
+<div data-shot="timeline" class="shot shot-wide">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex items-start gap-3">
+                <div class="min-w-0 flex-1 rounded-panel border border-border bg-surface p-4">
+                    <x-ds::timeline label="Order 1042">
+                        <x-ds::timeline-item title="Shipped" time="2026-11-12T10:42:00Z" icon="truck" tone="success">Two parcels, tracked.</x-ds::timeline-item>
+                        <x-ds::timeline-item title="Payment failed" time="2026-11-10T09:31:00Z" icon="exclamation-triangle" tone="danger">
+                            The card was declined, and the customer was emailed a link to pay another way.
+                            <x-slot:actions><x-ds::button size="sm" variant="secondary">Retry payment</x-ds::button></x-slot:actions>
+                        </x-ds::timeline-item>
+                        <x-ds::timeline-item title="Ada Lovelace added a note" avatar="Ada Lovelace" time="2026-11-10T09:12:00Z" href="#">Gift wrap both items.</x-ds::timeline-item>
+                        <x-ds::timeline-item title="Order placed" time="2026-11-10T09:05:00Z" icon="shopping-cart" />
+                    </x-ds::timeline>
+                </div>
+                <div class="w-64 shrink-0 rounded-panel border border-border bg-surface p-4">
+                    <x-ds::timeline label="Deploys" :dense="true">
+                        <x-ds::timeline-group label="Today">
+                            <x-ds::timeline-item title="v2.4.1 live" time="10:42" tone="success" />
+                            <x-ds::timeline-item title="Build started" time="10:31" tone="accent" />
+                        </x-ds::timeline-group>
+                        <x-ds::timeline-group label="Yesterday">
+                            <x-ds::timeline-item title="Rolled back" time="16:05" tone="warning" />
+                            <x-ds::timeline-item title="v2.4.0 live" time="15:50" />
+                        </x-ds::timeline-group>
+                    </x-ds::timeline>
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── stepper --}}
 {{-- The widest shot, because the stepper collapses below 40rem of ITS OWN
      width: at 900px a pane the horizontal one has room to show every title,
