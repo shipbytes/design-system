@@ -346,4 +346,88 @@ final class DataComponentsTest extends TestCase
         $this->expectExceptionMessage('Use colourBy="direction"');
         Blade::render('<x-ds::slope-chart fromLabel="a" toLabel="b" :data="array_fill_keys(range(1, 9), [1, 2])" />');
     }
+
+    #[Test]
+    public function a_funnel_writes_each_drop_between_stages_and_draws_a_stage_that_grows_as_it_is(): void
+    {
+        $html = Blade::render('<x-ds::funnel-chart label="Signups" :table="true" :data="[\'Visits\' => 1000, \'Trial\' => 400, \'Again\' => 500]" />');
+
+        $this->assertSame('Signups: 3 stages, from Visits 1,000 to Again 500 (50% of the first); the largest drop is Visits to Trial (−60%).', $this->first($html, '//svg')->getAttribute('aria-label'));
+        $drops = array_map(fn ($t) => $t->textContent, iterator_to_array($this->xpath($html)->query('//text[contains(@class, "font-medium") and not(tspan)]')));
+        $this->assertSame(['−60%', '+25%'], $drops);
+        // Scaled to the largest stage, not the first: the third bar is wider than the second.
+        $widths = array_map(fn ($r) => (float) $r->getAttribute('width'), iterator_to_array($this->xpath($html)->query('//rect[@data-ds-chart-mark]')));
+        $this->assertSame([100.0, 40.0, 50.0], $widths);
+        $this->assertSame('Again: 500, 125% of Trial, 50% of Visits', $this->xpath($html)->query('//rect[@data-ds-chart-mark]')->item(2)->getAttribute('aria-label'));
+        $this->assertSame(['Stage', 'Value', 'Of the stage before', 'Of the first'], array_map(fn ($th) => $th->textContent, iterator_to_array($this->xpath($html)->query('//thead//th'))));
+    }
+
+    #[Test]
+    public function a_funnel_throws_on_a_negative_stage(): void
+    {
+        $this->expectExceptionMessage('[Trial] is -4');
+        Blade::render('<x-ds::funnel-chart :data="[\'Visits\' => 10, \'Trial\' => -4]" />');
+    }
+
+    #[Test]
+    public function a_radar_is_one_image_with_a_table_and_a_marker_and_dash_per_item(): void
+    {
+        $html = Blade::render('<x-ds::radar-chart label="Scores" :max="10" :axes="[\'Speed\', \'Price\', \'Support\']" :data="[\'Acme\' => [8, 6, 9], \'Globex\' => [\'Support\' => 6, \'Speed\' => 5, \'Price\' => 9]]" />');
+
+        $this->assertSame('Scores. Acme: highest Support at 9, lowest Price at 6. Globex: highest Price at 9, lowest Speed at 5.', $this->first($html, '//svg')->getAttribute('aria-label'));
+        $this->assertSame(['Axis', 'Acme', 'Globex'], array_map(fn ($th) => $th->textContent, iterator_to_array($this->xpath($html)->query('//thead//th'))));
+        $this->assertSame('Price, Globex: 9', $this->xpath($html)->query('//*[@data-ds-chart-mark]')->item(4)->getAttribute('aria-label'));
+        $this->assertNull($this->xpath($html)->query('//g[@data-ds-chart-series="0"]/polygon')->item(0)->getAttribute('stroke-dasharray') ?: null);
+        $this->assertSame('6 4', $this->xpath($html)->query('//g[@data-ds-chart-series="1"]/polygon')->item(0)->getAttribute('stroke-dasharray'));
+        // The rings are numbered once, up the first axis.
+        $this->assertSame(['2.5', '5', '7.5', '10'], array_map(fn ($t) => $t->textContent, iterator_to_array($this->xpath($html)->query('//text[contains(@class, "stroke-surface")]'))));
+    }
+
+    #[Test]
+    public function a_radar_refuses_two_axes_and_a_fifth_item(): void
+    {
+        try {
+            Blade::render('<x-ds::radar-chart :axes="[\'a\', \'b\']" :data="[\'x\' => [1, 2]]" />');
+            $this->fail('two axes drew');
+        } catch (\Throwable $e) {
+            $this->assertStringContainsString('3 to 8 axes', $e->getMessage());
+        }
+        $this->expectExceptionMessage('at most 4 items');
+        Blade::render('<x-ds::radar-chart :axes="[\'a\', \'b\', \'c\']" :data="array_fill_keys([\'p\', \'q\', \'r\', \'s\', \'t\'], [1, 2, 3])" />');
+    }
+
+    #[Test]
+    public function a_treemap_lists_every_tile_and_the_parts_it_could_not_draw(): void
+    {
+        $html = Blade::render('<x-ds::treemap label="Spend" :data="[[\'label\' => \'Eng\', \'children\' => [\'Cloud\' => 30, \'Pens\' => 1, \'Refund\' => -5]], [\'label\' => \'Office\', \'value\' => 0]]" />');
+
+        $this->assertSame('Spend: Eng 31 (100%); total 31. 2 tiles; the largest is Cloud in Eng at 97%. 2 of zero or less not drawn.', $this->first($html, '//svg')->getAttribute('aria-label'));
+        $rows = array_map(fn ($tr) => array_map(fn ($c) => $c->textContent, iterator_to_array($tr->childNodes)), iterator_to_array($this->xpath($html)->query('//tbody/tr')));
+        $rows = array_map(fn ($r) => array_values(array_filter(array_map('trim', $r), fn ($c) => $c !== '')), $rows);
+        $this->assertSame([['Cloud', 'Eng', '30', '97%'], ['Pens', 'Eng', '1', '3%'], ['Refund', 'Eng', "\u{2212}5", 'not drawn'], ['Office', '—', '0', 'not drawn']], array_slice($rows, 0, 4));
+        $this->assertSame(2, $this->xpath($html)->query('//*[@data-ds-chart-mark]')->length);
+    }
+
+    #[Test]
+    public function a_treemap_nests_one_level_only(): void
+    {
+        $this->expectExceptionMessage('nests one level');
+        Blade::render('<x-ds::treemap :data="[[\'label\' => \'a\', \'children\' => [[\'label\' => \'b\', \'children\' => [\'c\' => 1]]]]]" />');
+    }
+
+    #[Test]
+    public function a_treemap_with_links_is_a_group_of_links_ringed_inside_their_tiles(): void
+    {
+        $html = Blade::render('<x-ds::treemap :interactive="false" :data="[[\'label\' => \'Home\', \'value\' => 3, \'href\' => \'/?a=1&b=2\'], [\'label\' => \'Blog\', \'value\' => 1]]" />');
+
+        $this->assertSame('group', $this->first($html, '//svg')->getAttribute('role'));
+        $link = $this->first($html, '//a');
+        $this->assertSame('/?a=1&b=2', $link->getAttribute('href'));
+        $this->assertSame('Home: 3 (75%)', $link->getAttribute('aria-label'));
+        // Its ring is drawn inside the tile, transparent until the link has focus.
+        $rings = $this->xpath($html)->query('//a//rect[@data-ds-ring]');
+        $this->assertSame(2, $rings->length);
+        $this->assertStringContainsString('group-focus-visible:stroke-focus-ring', $rings->item(1)->getAttribute('class'));
+        $this->assertSame('img', $this->first($html, '//g[@aria-label="Blog: 1 (25%)"]')->getAttribute('role'));
+    }
 }

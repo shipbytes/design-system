@@ -227,8 +227,13 @@ function heatColour({ hue, fg }) {
     const inner = `color-mix(in oklab, ${HUE} ${pct(hue / (hue + fg))}, var(--color-fg))`;
     return Math.abs(hue + fg - 1) < 1e-9 ? inner : `color-mix(in oklab, ${inner} ${pct(hue + fg)}, var(--color-surface))`;
 }
+// The same steps as `fill`, for a mark drawn in SVG (a treemap tile, a
+// funnel's stage): one mix, two properties, so the two can never drift.
 const heatUtilities = heatSteps
-    .map((s) => `@utility heat-${s.step} {\n  background-color: ${heatColour(s)};\n}`)
+    .flatMap((s) => [
+        `@utility heat-${s.step} {\n  background-color: ${heatColour(s)};\n}`,
+        `@utility fill-heat-${s.step} {\n  fill: ${heatColour(s)};\n}`,
+    ])
     .join('\n\n');
 
 // --- theme.css (Tailwind v4) --------------------------------------
@@ -393,8 +398,9 @@ const themeCss = `${banner('Tailwind CSS v4 theme, mapping the tokens onto utili
 /*
   The activity heatmap's five steps, from ONE hue the heatmap sets as
   --ds-heat (its tone or series slot): heat-0 is a day with nothing, heat-4
-  the busiest. GENERATED from tokens/chart.json, whose description says why
-  the recipe is what it is; test-tokens.mjs measures it for every hue.
+  the busiest; fill-heat-0 to fill-heat-4 are the same mixes as an SVG
+  fill. GENERATED from tokens/chart.json, whose description says why the
+  recipe is what it is; test-tokens.mjs measures it for every hue.
 */
 ${heatUtilities}
 

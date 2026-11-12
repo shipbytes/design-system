@@ -87,6 +87,10 @@
 <section data-focus="waffle-chart"><x-ds::waffle-chart label="Waffle" legend="none" :data="['a' => 40, 'b' => 60]" size="sm" /></section>
 <section data-focus="activity-rings"><x-ds::activity-rings label="Rings" size="sm" legend="none" :rings="['a' => 40, 'b' => 70]" /></section>
 <section data-focus="slope-chart"><x-ds::slope-chart label="Slope" fromLabel="Then" toLabel="Now" height="sm" :data="['a' => [1, 2], 'b' => [3, 1]]" /></section>
+{{-- Batch 14: a funnel's bar, a radar's point; a treemap's ring inside its tile, and a linked tile's too. --}}
+<section data-focus="funnel-chart"><x-ds::funnel-chart label="Funnel" height="sm" :data="['a' => 4, 'b' => 2]" /></section>
+<section data-focus="radar-chart"><x-ds::radar-chart label="Radar" size="sm" legend="none" :axes="['a', 'b', 'c']" :data="['x' => [3, 2, 1]]" /></section>
+<section data-focus="treemap"><x-ds::treemap label="Treemap" height="sm" :legend="false" :data="['a' => 3, 'b' => 1]" /> <x-ds::treemap label="Linked" height="sm" :data="[['label' => 'a', 'value' => 3, 'href' => '#a'], ['label' => 'b', 'value' => 1, 'href' => '#b']]" /></section>
 <section data-focus="timeline"><x-ds::timeline><x-ds::timeline-item title="Linked entry" href="#entry" time="2026-11-12" /></x-ds::timeline></section>
 {{-- A tree is one stop; a navigation tree's links join it once the script runs. --}}
 <section data-focus="tree"><x-ds::tree label="Files"><x-ds::tree-item label="app" :open="true"><x-ds::tree-item label="a.php" /></x-ds::tree-item></x-ds::tree> <x-ds::tree label="Perms" selectable="multiple" name="fperms"><x-ds::tree-item label="View" /></x-ds::tree></section>

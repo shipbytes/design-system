@@ -70,6 +70,40 @@ return [
         'steps' => ['heat-0', 'heat-1', 'heat-2', 'heat-3', 'heat-4'],
     ],
 
+    /*
+     * The same five steps as fills, for a mark drawn in SVG (a treemap tile,
+     * a funnel's stage), which takes `fill` where a cell takes a background.
+     * fill-heat-0..4 are built from tokens/chart.json beside heat-0..4.
+     */
+    'heatFill' => [1 => 'fill-heat-1', 2 => 'fill-heat-2', 3 => 'fill-heat-3', 4 => 'fill-heat-4'],
+
+    /*
+     * Text drawn ON a mark (a treemap tile's label, a value inside a funnel
+     * stage): whichever of zinc-950 and white reads better on that fill, in
+     * each theme, chosen by Support\Ink and held to it by InkTest. Keyed by
+     * the hue and the heat step the mark is filled with; step 3 is the hue
+     * itself, a plain text-series-N or tone mark. Four classes cover the four
+     * answers: dark in both themes, light in both, and the two that swap,
+     * which are fg (dark, then light) and on-inverse (light, then dark). The
+     * text is drawn in currentColor, so the docs' contrast pass reads it.
+     * Light-theme contrast of each pairing is in specs/treemap.md.
+     */
+    'ink' => [
+        'neutral' => [1 => 'text-fg', 2 => 'text-zinc-950', 3 => 'text-on-inverse', 4 => 'text-on-inverse'],
+        'accent' => [1 => 'text-fg', 2 => 'text-zinc-950', 3 => 'text-on-inverse', 4 => 'text-on-inverse'],
+        'success' => [1 => 'text-fg', 2 => 'text-zinc-950', 3 => 'text-zinc-950', 4 => 'text-on-inverse'],
+        'warning' => [1 => 'text-fg', 2 => 'text-zinc-950', 3 => 'text-zinc-950', 4 => 'text-on-inverse'],
+        'danger' => [1 => 'text-fg', 2 => 'text-fg', 3 => 'text-on-inverse', 4 => 'text-on-inverse'],
+        'series-1' => [1 => 'text-fg', 2 => 'text-fg', 3 => 'text-zinc-950', 4 => 'text-on-inverse'],
+        'series-2' => [1 => 'text-fg', 2 => 'text-fg', 3 => 'text-zinc-950', 4 => 'text-on-inverse'],
+        'series-3' => [1 => 'text-fg', 2 => 'text-fg', 3 => 'text-zinc-950', 4 => 'text-on-inverse'],
+        'series-4' => [1 => 'text-fg', 2 => 'text-fg', 3 => 'text-zinc-950', 4 => 'text-on-inverse'],
+        'series-5' => [1 => 'text-fg', 2 => 'text-fg', 3 => 'text-zinc-950', 4 => 'text-on-inverse'],
+        'series-6' => [1 => 'text-fg', 2 => 'text-fg', 3 => 'text-white', 4 => 'text-on-inverse'],
+        'series-7' => [1 => 'text-fg', 2 => 'text-white', 3 => 'text-on-inverse', 4 => 'text-on-inverse'],
+        'series-8' => [1 => 'text-fg', 2 => 'text-fg', 3 => 'text-zinc-950', 4 => 'text-on-inverse'],
+    ],
+
     // What the empty part of a gauge or the unfilled track is drawn in: the
     // progress ring's track, so the two read as one family.
     'track' => 'text-fg/10',

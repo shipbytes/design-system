@@ -375,6 +375,15 @@ head('heatmap steps (one hue, five steps, both themes)');
     const built = [0, 1, 2, 3, 4].filter((n) => new RegExp(`@utility heat-${n} \\{`).test(theme));
     expect(built.length === 5, 'theme.css carries the heat-0 to heat-4 utilities built from them',
         `theme.css has heat utilities for ${built.join(', ') || 'none'} — run npm run build`);
+    // The SVG fills must be the very same mixes, or a treemap tile and a
+    // heatmap cell of the same step would differ.
+    const same = [0, 1, 2, 3, 4].filter((n) => {
+        const bg = theme.match(new RegExp(`@utility heat-${n} \\{\\s*background-color: ([^;]+);`))?.[1];
+        const fill = theme.match(new RegExp(`@utility fill-heat-${n} \\{\\s*fill: ([^;]+);`))?.[1];
+        return bg && bg === fill;
+    });
+    expect(same.length === 5, 'and fill-heat-0 to fill-heat-4, the same mixes as an SVG fill',
+        `fill-heat utilities matching their heat step: ${same.join(', ') || 'none'} — run npm run build`);
 }
 
 // ------------------------------------------------------- 3. theme collisions

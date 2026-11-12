@@ -215,7 +215,7 @@ use the component.
 | `dsTree` | Behind `ds::tree`. One Tab stop for the tree; the arrow keys, Home, End, type-ahead and `*`; opens and closes folders (dispatching `expand` and `collapse`), selects or checks rows with tri-state parents, keeps the posted inputs in step, and binds `wire:model` / `x-model` both ways. |
 | `x-ds-roll` | A directive, behind `ds::counter` when its value comes from the server. Rolls the digits when a re-render (a Livewire morph) changes the number; with `.in`, rolls up from zero the first time the counter is half in view. Instant under reduced motion. |
 | `x-ds-scroll-shadows` | A directive, behind `ds::scroll-area`. Where the browser cannot draw the edge shadows from CSS (no scroll-driven animations), marks each edge that has more content past it, on scroll and on resize. Does nothing where CSS can. |
-| `x-ds-chart` | A directive, behind `ds::bar-chart`, `ds::line-chart`, `ds::donut-chart`, `ds::split-bar`, `ds::waffle-chart`, `ds::activity-rings` and `ds::slope-chart` when `interactive` (the default). Shows a readout (label, value, series) beside the mark under the pointer or keyboard focus; makes the marks reachable through one Tab stop per chart, the arrow keys moving along a series and across to the next, Home and End to the ends, Escape putting the readout away; and, on a chart with several series, turns the legend's entries into buttons that show and hide their series without re-scaling anything. |
+| `x-ds-chart` | A directive, behind `ds::bar-chart`, `ds::line-chart`, `ds::donut-chart`, `ds::split-bar`, `ds::waffle-chart`, `ds::activity-rings`, `ds::slope-chart`, `ds::funnel-chart`, `ds::radar-chart` and `ds::treemap` when `interactive` (the default). Shows a readout (label, value, series) beside the mark under the pointer or keyboard focus; makes the marks reachable through one Tab stop per chart, the arrow keys moving along a series and across to the next, Home and End to the ends, Escape putting the readout away; and, on a chart with several series, turns the legend's entries into buttons that show and hide their series without re-scaling anything. |
 
 ### When it is missing
 
@@ -327,10 +327,13 @@ counter whose `value` is bound to Alpine state (`::value="count"`) needs both,
 because only the script writes that number.
 
 `bar-chart`, `line-chart`, `donut-chart`, `split-bar`, `waffle-chart`,
-`activity-rings` and `slope-chart` use Alpine and the package's script for
-the readout on hover and focus, keyboard access to every bar, point, segment,
-part or ring, and the legend toggles. Without them each is a static image
-with a text alternative written from the data, which is a complete chart.
+`activity-rings`, `slope-chart`, `funnel-chart`, `radar-chart` and `treemap`
+use Alpine and the package's script for the readout on hover and focus,
+keyboard access to every bar, point, segment, part, ring, stage or tile, and
+the legend toggles. Without them each is a static image with a text
+alternative written from the data, which is a complete chart. A treemap
+whose tiles have links is a group of links either way, each its own Tab
+stop.
 
 `dropdown`, `select`, `combobox`, `date-picker` and `tooltip` need Alpine, and
 use the package's script to stay on screen: with it they flip away from the

@@ -4247,6 +4247,92 @@ group('charts (x-ds-chart: readout, roving tabindex, legend toggles)');
         await page.mouse.move(2, 2);
         return (over.shown && over.label === 'Lima' && over.value === '90 (±0)' && over.series === '2025') || JSON.stringify(over);
     });
+    await check('a funnel: one Tab stop, ArrowDown to the next stage, which is named with its share of the stage before', async () => {
+        await page.focus('#ch-funnel [data-ds-chart-mark][tabindex="0"]');
+        const first = await chartState(page, 'ch-funnel');
+        await page.keyboard.press('ArrowDown');
+        const next = await chartState(page, 'ch-funnel');
+        await page.keyboard.press('End');
+        const end = await chartState(page, 'ch-funnel');
+        const r = await page.evaluate(() => {
+            const plot = document.querySelector('#ch-funnel [data-ds-chart-plot]');
+            const marks = [...plot.querySelectorAll('[data-ds-chart-mark]')];
+            return { role: plot.getAttribute('role'), roles: [...new Set(marks.map((m) => m.getAttribute('role')))].join(), stops: marks.filter((m) => m.tabIndex === 0).length };
+        });
+        return (r.role === 'group' && r.roles === 'img' && r.stops === 1 && first.focused === 'Visits: 1,000' && first.shown
+            && next.focused === 'Trial: 400, 40% of Visits' && next.label === 'Trial' && next.value === '400 (40% of Visits)'
+            && end.focused === 'Paid: 100, 25% of Trial, 10% of Visits') || JSON.stringify({ r, first, next, end });
+    });
+    await check('a radar: ArrowRight round one item\'s axes, ArrowDown to the same axis of the next item; the item is the series', async () => {
+        await page.focus('#ch-radar [data-ds-chart-mark][tabindex="0"]');
+        const first = await chartState(page, 'ch-radar');
+        await page.keyboard.press('ArrowRight');
+        const along = await chartState(page, 'ch-radar');
+        await page.keyboard.press('ArrowDown');
+        const across = await chartState(page, 'ch-radar');
+        await page.keyboard.press('ArrowDown');
+        const wrapped = await chartState(page, 'ch-radar');
+        return (first.focused === 'Speed, Acme: 8' && along.focused === 'Price, Acme: 6' && along.series === 'Acme' && along.swatch === '1'
+            && across.focused === 'Price, Globex: 9' && across.series === 'Globex' && across.swatch === '2' && across.value === '9'
+            && wrapped.focused === 'Price, Acme: 6') || JSON.stringify({ first, along, across, wrapped });
+    });
+    await check('a radar: a legend toggle hides an item from the picture and the keyboard; ArrowDown then stays put', async () => {
+        await page.locator('#ch-radar [data-ds-chart-key="1"]').click();
+        const r = await page.evaluate(() => ({
+            pressed: document.querySelector('#ch-radar [data-ds-chart-key="1"]').getAttribute('aria-pressed'),
+            off: document.querySelector('#ch-radar [data-ds-chart-series="1"]').hasAttribute('data-ds-off'),
+            marker: !!document.querySelector('#ch-radar [data-ds-chart-key="1"] svg path'),
+        }));
+        await page.focus('#ch-radar [data-ds-chart-mark][tabindex="0"]');
+        const at = await chartState(page, 'ch-radar');
+        await page.keyboard.press('ArrowDown');
+        const still = await chartState(page, 'ch-radar');
+        await page.locator('#ch-radar [data-ds-chart-key="1"]').click();
+        const back = await page.evaluate(() => !document.querySelector('#ch-radar [data-ds-chart-series="1"]').hasAttribute('data-ds-off'));
+        return (r.pressed === 'false' && r.off && r.marker && /, Acme: /.test(at.focused ?? '') && still.focused === at.focused && back)
+            || JSON.stringify({ r, at, still, back });
+    });
+    await check('a treemap: every tile a stop in turn, the one too small to label included; the group is its series', async () => {
+        await page.focus('#ch-treemap [data-ds-chart-mark][tabindex="0"]');
+        const first = await chartState(page, 'ch-treemap');
+        await page.keyboard.press('ArrowRight');
+        await page.keyboard.press('ArrowRight');
+        const tiny = await chartState(page, 'ch-treemap');
+        await page.keyboard.press('ArrowDown');
+        const office = await chartState(page, 'ch-treemap');
+        const r = await page.evaluate(() => {
+            const pens = document.querySelector('#ch-treemap [data-ds-chart-mark][data-ds-label="Pens"]');
+            const cells = [...document.querySelectorAll('#ch-treemap table td, #ch-treemap table th')].map((c) => c.textContent.trim());
+            return { text: pens.querySelectorAll('text').length, listed: cells.includes('Pens') && cells.includes('<1%'),
+                roles: [...new Set([...document.querySelectorAll('#ch-treemap [data-ds-chart-mark]')].map((m) => m.getAttribute('role')))].join() };
+        });
+        return (first.focused === 'Salaries, Engineering: $420 (70%)' && first.swatch === '1'
+            && tiny.focused === 'Pens, Engineering: $2 (<1%)' && tiny.label === 'Pens' && tiny.series === 'Engineering' && tiny.value === '$2 (<1%)' && tiny.shown
+            && office.focused === 'Office: $60 (10%)' && office.series === '' && r.text === 0 && r.listed && r.roles === 'img') || JSON.stringify({ first, tiny, office, r });
+    });
+    await check('a linked treemap: links stay links, each its own Tab stop (the tile that is not a link is none); focus shows the readout', async () => {
+        await page.focus('#ch-links-before');
+        const stops = [];
+        for (let i = 0; i < 3; i++) {
+            await page.keyboard.press('Tab');
+            stops.push(await page.evaluate(() => document.activeElement.getAttribute('aria-label') ?? document.activeElement.id));
+        }
+        await page.focus('#ch-links-before');
+        await page.keyboard.press('Tab');
+        const home = await chartState(page, 'ch-treemap-links');
+        const ring = await page.evaluate(() => [...document.activeElement.querySelectorAll('[data-ds-ring]')].map((r) => getComputedStyle(r).stroke).join(' / '));
+        const idle = await page.evaluate(() => [...document.querySelectorAll('#ch-treemap-links a:not(:focus) [data-ds-ring]')].map((r) => getComputedStyle(r).stroke).join(' / '));
+        await page.keyboard.press('ArrowRight');
+        const stayed = await chartState(page, 'ch-treemap-links');
+        const r = await page.evaluate(() => {
+            const plot = document.querySelector('#ch-treemap-links [data-ds-chart-plot]');
+            const marks = [...plot.querySelectorAll('[data-ds-chart-mark]')];
+            return { role: plot.getAttribute('role'), tags: marks.map((m) => `${m.tagName}:${m.getAttribute('role') ?? ''}:${m.getAttribute('href') ?? ''}`).join() };
+        });
+        return (JSON.stringify(stops) === '["Home: 500 (50%)","Pricing: 300 (30%)","ch-links-after"]' && home.shown && home.label === 'Home' && home.value === '500 (50%)'
+            && ring.split(' / ').length === 2 && !/transparent|, 0\)/.test(ring) && idle.split(' / ').every((c) => c === 'rgba(0, 0, 0, 0)') && stayed.focused === 'Home: 500 (50%)' && r.role === 'group' && r.tags === 'a::#home,a::#pricing,g:img:')
+            || JSON.stringify({ stops, home, ring, idle, stayed, r });
+    });
     await check('interactive off: an image, no tab stops, no readout', async () => {
         const r = await page.evaluate(() => {
             const root = document.getElementById('ch-static');
@@ -5648,6 +5734,13 @@ await fpage.evaluate(() => {
                 if (cs.boxShadow !== 'none') out.push(`${at} shadow ${cs.boxShadow}`);
             }
         }
+        // An svg mark that draws its own ring (a treemap tile: an outline
+        // there is placed by the stroke box and clipped by the plot), as
+        // strokes marked data-ds-ring inside it.
+        for (const ring of el.querySelectorAll(':scope [data-ds-ring]')) {
+            const cs = getComputedStyle(ring);
+            if (cs.stroke !== 'none') out.push(`ring stroke ${parseFloat(cs.strokeWidth)} ${cs.stroke}`);
+        }
         return out;
     };
     window.dsDescribe = (el) => {
@@ -5660,6 +5753,7 @@ const clearColour = (c) => /rgba\([^)]*,\s*0\)/.test(c) || /\/\s*0\)/.test(c) ||
 /** true for a drawn ring, 'auto' for the browser's own, false for nothing. */
 const isRing = (mark) => {
     const parts = mark.split(' ');
+    if (parts[1] === 'stroke') return parseFloat(parts[2]) >= 1 && !clearColour(parts.slice(3).join(' '));
     if (parts[1] === 'outline') {
         if (parts[2] === 'auto') return 'auto';
         return parseFloat(parts[3]) >= 1 && !clearColour(parts.slice(4).join(' '));
@@ -5843,7 +5937,10 @@ const segMarkup = [
     specimens.match(/<div class="mt-6 w-96" id="seg-rtl"[\s\S]*?<\/fieldset>\s*<\/div>/)?.[0],
     specimens.match(/<div class="mt-6" id="seg-links"[\s\S]*?<\/nav>\s*<\/div>/)?.[0],
 ].join('');
-const chartsMarkup = specimens.match(/<div class="mt-6 w-\[640px\]" id="charts"[\s\S]*?<!-- \/charts -->/)?.[0];
+const chartsMarkup = [
+    specimens.match(/<div class="mt-6 w-\[640px\]" id="charts"[\s\S]*?<!-- \/charts -->/)?.[0],
+    specimens.match(/<div class="mt-6 w-\[640px\]" id="ch-links"[\s\S]*?<!-- \/ch-links -->/)?.[0],
+].join('');
 // The lists, the code block and the expandable text, cut out for a host with
 // no Alpine at all: each must read and work as plain HTML.
 const listsMarkup = [
@@ -6298,7 +6395,7 @@ for (const [page, what] of [['charts-missing.html', 'Alpine and no include'], ['
     const { tab, errors } = await openHost(page);
 
     await check('the markup reached the page', async () =>
-        (await tab.locator('#charts [data-ds-chart-plot]').count()) === 9 || 'the specimen was not found in the rendered page');
+        (await tab.locator('#charts [data-ds-chart-plot]').count()) === 12 && (await tab.locator('#ch-links [data-ds-chart-plot]').count()) === 1 || 'the specimen was not found in the rendered page');
     await check('nothing in the console', async () => !errors.length || errors.join(' | '));
     await check('every chart is an image named by its summary; no mark is focusable, no readout shows', async () => {
         const r = await tab.evaluate(() => {
@@ -6318,6 +6415,20 @@ for (const [page, what] of [['charts-missing.html', 'Alpine and no include'], ['
         await tab.keyboard.press('Tab');
         const at = await tab.evaluate(() => document.activeElement.closest('#charts') ? document.activeElement.tagName : 'left');
         return at === 'left' || `focus went to ${at}`;
+    });
+    await check('a linked treemap is a group of links, each its own Tab stop, the other tile an image', async () => {
+        await tab.focus('#ch-links-before');
+        const stops = [];
+        for (let i = 0; i < 3; i++) {
+            await tab.keyboard.press('Tab');
+            stops.push(await tab.evaluate(() => document.activeElement.getAttribute('aria-label') ?? document.activeElement.id));
+        }
+        const r = await tab.evaluate(() => ({
+            role: document.querySelector('#ch-links [data-ds-chart-plot]').getAttribute('role'),
+            img: document.querySelector('#ch-links g[role="img"]')?.getAttribute('aria-label') ?? null,
+        }));
+        return (JSON.stringify(stops) === '["Home: 500 (50%)","Pricing: 300 (30%)","ch-links-after"]' && r.role === 'group' && r.img === 'Blog: 200 (20%)')
+            || JSON.stringify({ stops, r });
     });
     await tab.close();
 }

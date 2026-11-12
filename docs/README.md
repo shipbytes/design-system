@@ -1,6 +1,6 @@
 # Shipbytes Blade UI — documentation
 
-105 Blade components for Laravel, plus two pagination views. Presentation
+108 Blade components for Laravel, plus two pagination views. Presentation
 only: no state, no framework assumptions beyond Blade itself.
 
 **New here?** Start with [Getting started](getting-started.md) — install, three
@@ -78,6 +78,9 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Waffle chart](components/waffle-chart.md) | A share as cells of a 10 × 10 grid, one cell a percent — the readout needs Alpine and the script |
 | [Activity rings](components/activity-rings.md) | Up to four goals as concentric rings, each against its own target — the readout needs Alpine and the script |
 | [Slope chart](components/slope-chart.md) | A handful of items before and after, the change written on each — the readout needs Alpine and the script |
+| [Funnel chart](components/funnel-chart.md) | Stages of a conversion, with the drop between each written out — the readout needs Alpine and the script |
+| [Radar chart](components/radar-chart.md) | Up to four items scored across three to eight axes — the readout needs Alpine and the script |
+| [Treemap](components/treemap.md) | The parts of a whole as nested rectangles, one level of groups — the readout needs Alpine and the script |
 | [Timeline](components/timeline.md) | Events in order on a rail, with groups under sticky headings |
 
 **Which chart?** Start from the question.
@@ -93,6 +96,9 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | What share is one part? | [Waffle chart](components/waffle-chart.md) with one number, or a [progress](components/progress.md) bar |
 | How far toward several goals? | [Activity rings](components/activity-rings.md) |
 | What changed between two moments, item by item? | [Slope chart](components/slope-chart.md) |
+| How many made it through each step? | [Funnel chart](components/funnel-chart.md) |
+| How do a few items score across several qualities? | [Radar chart](components/radar-chart.md) for the overall shape; a grouped [bar chart](components/bar-chart.md) to compare exact scores |
+| What is a whole made of, when it has many parts or groups of parts? | [Treemap](components/treemap.md) |
 | How much of an allowance is used? | Not a chart: a [usage meter](components/usage-meter.md) |
 
 ### Navigation
@@ -168,7 +174,7 @@ needed by thirty-three components, and by nine optional props:
 | `scroll-area` | **Never.** It scrolls natively. With Alpine and the package's script it also draws its edge shadows in a browser that cannot from CSS. |
 | `sub-nav` | **Only to open and close.** Without it the section holding the current page is open and the rest are closed, as the server rendered them. |
 | `counter` | **Never**, unless its `value` is bound to Alpine state. With Alpine and the package's script its digits roll; without them it shows the number the server rendered, and a re-render changes it. Bound with `::value`, it needs both. |
-| `bar-chart` `line-chart` `donut-chart` `split-bar` `waffle-chart` `activity-rings` `slope-chart` | **Never.** With Alpine and the package's script, a readout on hover and focus, every mark reachable by keyboard, and legend toggles; without them each is a static SVG with a generated text alternative, which is complete. |
+| `bar-chart` `line-chart` `donut-chart` `split-bar` `waffle-chart` `activity-rings` `slope-chart` `funnel-chart` `radar-chart` `treemap` | **Never.** With Alpine and the package's script, a readout on hover and focus, every mark reachable by keyboard, and legend toggles; without them each is a static SVG with a generated text alternative, which is complete. A treemap's links are links either way. |
 | `segmented-control` | **Never.** With Alpine and the package's script, its highlight slides; without them, the chosen segment draws its own face, and nothing throws. |
 | `input` | Only for `reveal` and `clearable`, which also need the package's script. |
 | `code-block` | Only for its copy button (on by default) and `expandable`, which also need the package's script. Without them the code shows and scrolls. |

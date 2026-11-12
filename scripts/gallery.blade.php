@@ -1877,6 +1877,82 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Funnel chart --}}
+<section class="ds-spec" id="funnel-chart">
+    <header class="ds-spec-head">
+        <h2>Funnel chart</h2>
+        <p>Stages of a conversion, each a bar as wide as its share of the largest, centred, on one hue fading stage by stage. The drop from the stage before is written between stages; a value sits inside its bar while it fits and beside it once it does not, by container query. A stage larger than the one before is drawn as it is.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Bars, both rates <span>&middot; Activated is larger than Sign-ups, and says +13%</span></div>
+        <div class="px-4 pb-4">
+            <x-ds::funnel-chart label="Signups this month" showRate="both"
+                :data="['Visits' => 12400, 'Sign-ups' => 3100, 'Activated' => 3500, 'Trial' => 1200, 'Paid' => 310]" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Funnel, across <span>&middot; trapezoids joining stage to stage, the share of the first under each name</span></div>
+        <div class="px-4 pb-4">
+            <x-ds::funnel-chart label="Checkout" orientation="horizontal" shape="funnel" showRate="both" height="sm"
+                :data="['Cart' => 5200, 'Shipping' => 3900, 'Payment' => 2600, 'Done' => 2100]" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Radar chart --}}
+<section class="ds-spec" id="radar-chart">
+    <header class="ds-spec-head">
+        <h2>Radar chart</h2>
+        <p>A few items scored across three to eight axes. Each item a polygon with its own colour, line and point marker, so the four are told apart without colour; the scale numbered up the first axis only; axis names outside, anchored by angle. The values are a hidden table by default, because the shape is for the gist.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Four vendors <span>&middot; solid, dashed, dotted and dash-dot; circle, square, triangle, diamond</span></div>
+        <div class="px-4 pb-4">
+            <x-ds::radar-chart label="Vendor scores" :axes="['Price', 'Support', 'Features', 'Reliability', 'Ease of use', 'Integrations']"
+                :data="['Acme' => [8, 6, 9, 7, 5, 8], 'Globex' => [5, 9, 6, 8, 8, 4], 'Initech' => [6, 5, 4, 9, 7, 6], 'Umbrella' => [9, 3, 7, 5, 6, 7]]" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">One item, circle grid, no fill <span>&middot; and a top per axis, where the rings are not numbered</span></div>
+        <div class="flex flex-wrap gap-6 px-4 pb-4">
+            <x-ds::radar-chart label="Skills" size="sm" shape="circle" :fill="false" :axes="['Design', 'Frontend', 'Backend', 'Ops', 'Writing']" :data="['Ada' => [90, 80, 60, 40, 85]]" />
+            <x-ds::radar-chart label="Two plans" size="sm" legend="below" :max="[100, 5, 1000]" :axes="['Score', 'Rating', 'Monthly users']" :data="['Basic' => [80, 4, 600], 'Pro' => [60, 4.5, 900]]" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Treemap --}}
+<section class="ds-spec" id="treemap">
+    <header class="ds-spec-head">
+        <h2>Treemap</h2>
+        <p>The parts of a whole as rectangles, by the squarified layout, with one level of groups. 2px of surface between tiles; each label in the ink that reads on its fill, cut to its tile, and hidden under <code>minLabel</code> or while the box is too narrow, when the hidden list and the readout still carry it. A tile with an <code>href</code> is a link.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Groups, by series <span>&middot; a colour per team, the Office tile a link</span></div>
+        <div class="px-4 pb-4">
+            <x-ds::treemap label="Spend by team" :ratio="3" :format="['prefix' => '$', 'compact' => true]" :data="[
+                ['label' => 'Engineering', 'children' => ['Salaries' => 420000, 'Cloud' => 120000, 'Tools' => 30000, 'Hardware' => 18000]],
+                ['label' => 'Sales', 'children' => ['Salaries' => 210000, 'Travel' => 40000, 'Events' => 25000]],
+                ['label' => 'Marketing', 'children' => ['Ads' => 90000, 'Content' => 30000, 'Swag' => 2000]],
+                ['label' => 'Office', 'value' => 60000, 'href' => '#treemap'],
+            ]" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">By value <span>&middot; one hue in four steps, percentages; Other too small to label</span></div>
+        <div class="px-4 pb-4">
+            <x-ds::treemap label="Storage" colourBy="value" height="sm" :ratio="4" showValues="percent" :format="['suffix' => ' GB']"
+                :data="['Photos' => 150, 'Video' => 96, 'Backups' => 60, 'Documents' => 38, 'Music' => 30, 'Apps' => 22, 'Mail' => 12, 'Other' => 3]" />
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Timeline --}}
 <section class="ds-spec" id="timeline">
     <header class="ds-spec-head">

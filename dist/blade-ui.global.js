@@ -288,12 +288,13 @@ const readout = root.querySelector('[data-ds-chart-readout]');
 const axis = root.dataset.dsChartAxis || 'horizontal';
 const next = root.dataset.dsChartNext || '';
 const nearest = root.hasAttribute('data-ds-chart-nearest');
+const links = root.hasAttribute('data-ds-chart-links');
 const all = () => [...plot.querySelectorAll(MARK)];
 const shown = (mark) => !mark.closest('[data-ds-off]');
 const marks = () => all().filter(shown);
 plot.setAttribute('role', 'group');
 plot.setAttribute('tabindex', '-1');
-for (const mark of all()) mark.setAttribute('role', 'img');
+if (!links) for (const mark of all()) mark.setAttribute('role', 'img');
 let active = null;
 let beside = null;
 let anchored = null;
@@ -329,7 +330,7 @@ if (readout) readout.hidden = true;
 anchored?.stop();
 anchored = null;
 }
-const rove = roving(plot, { items: marks, axis: () => axis });
+const rove = links ? null : roving(plot, { items: marks, axis: () => axis });
 function onKeyDown(event) {
 if (event.key === 'Escape') {
 if (active && readout && !readout.hidden) {
@@ -405,7 +406,7 @@ part.toggleAttribute('data-ds-off', on);
 }
 if (active && !shown(active)) hide();
 for (const mark of all()) if (!shown(mark)) mark.setAttribute('tabindex', '-1');
-rove.settle();
+rove?.settle();
 }
 function onKeyClick(event) {
 toggle(event.currentTarget);
@@ -424,7 +425,7 @@ key.addEventListener('keydown', onKeyKey);
 }
 return () => {
 hide();
-rove();
+rove?.();
 plot.removeAttribute('tabindex');
 plot.removeEventListener('keydown', onKeyDown);
 plot.removeEventListener('focusin', onFocusIn);

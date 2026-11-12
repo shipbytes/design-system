@@ -757,7 +757,7 @@
     </div>
 
     {{-- ── charts (x-ds-chart): grouped bars, a line, a donut, one bar
-         chart with interactive off, and batch 13's four. The block is also cut out for the host
+         chart with interactive off, batch 13's four and batch 14's three. The block is also cut out for the host
          pages without the script, by its id and the closing comment. ── --}}
     <div class="mt-6 w-[640px]" id="charts">
         <button type="button" id="ch-before">before the charts</button>
@@ -772,8 +772,29 @@
         <x-ds::waffle-chart id="ch-waffle" label="Seats" :data="['Free' => 62, 'Pro' => 30, 'Team' => 8]" />
         <x-ds::activity-rings id="ch-rings" label="Today" :rings="[['label' => 'Move', 'value' => 420, 'max' => 600], ['label' => 'Stand', 'value' => 14, 'max' => 12]]" />
         <x-ds::slope-chart id="ch-slope" label="Price" fromLabel="2024" toLabel="2025" :data="['Oslo' => [120, 180], 'Rome' => [150, 140], 'Lima' => [90, 90]]" />
+        {{-- batch 14: a funnel, a two-item radar and a grouped treemap whose
+             smallest tile is too small to label. --}}
+        <x-ds::funnel-chart id="ch-funnel" label="Signups" :data="['Visits' => 1000, 'Trial' => 400, 'Paid' => 100]" />
+        <x-ds::radar-chart id="ch-radar" label="Scores" :max="10" :axes="['Speed', 'Price', 'Support']" :data="['Acme' => [8, 6, 9], 'Globex' => [5, 9, 6]]" />
+        <x-ds::treemap id="ch-treemap" label="Spend" :format="['prefix' => '$']" :data="[
+            ['label' => 'Engineering', 'children' => ['Salaries' => 420, 'Cloud' => 120, 'Pens' => 2]],
+            ['label' => 'Office', 'value' => 60],
+        ]" />
     </div>
     <!-- /charts -->
+    {{-- Outside #charts, which a no-script host Tabs straight past: tiles
+         that are links stay links, each its own Tab stop. Also cut out for
+         those hosts, by its id and the closing comment. --}}
+    <div class="mt-6 w-[640px]" id="ch-links">
+        <button type="button" id="ch-links-before">before the linked treemap</button>
+        <x-ds::treemap id="ch-treemap-links" label="Pages" :data="[
+            ['label' => 'Home', 'value' => 500, 'href' => '#home'],
+            ['label' => 'Pricing', 'value' => 300, 'href' => '#pricing'],
+            ['label' => 'Blog', 'value' => 200],
+        ]" />
+        <button type="button" id="ch-links-after">after the linked treemap</button>
+    </div>
+    <!-- /ch-links -->
     <div class="mt-6" dir="rtl" id="ch-waffle-rtl">
         <x-ds::waffle-chart label="Share" :data="['A' => 23, 'B' => 41]" :total="100" :interactive="false" legend="none" />
     </div>
