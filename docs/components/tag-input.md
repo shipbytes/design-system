@@ -39,6 +39,9 @@ Each chip posts as `emails[]`, so the request carries an array, which is what
 | `validate` | `'email'` | — | Refuse an entry that is not an email address. |
 | `disabled` | bool | `false` | Disables the field, the chips' buttons, and what they post. |
 
+`wire:model` and `x-model` go on the field's wrapper and bind both ways (see
+below). A `class` goes on the wrapper too; anything else is ignored.
+
 ## What it does
 
 - **Enter, a comma, or leaving the field** turns what was typed into a chip.
@@ -86,13 +89,31 @@ the two to disagree. Any other value throws when the view renders.
 `'Enter'` is the Enter key; anything else must be one character. A space works,
 for keywords, but then no tag can contain one.
 
-## With Livewire
+## Binding it: `wire:model` and `x-model`
 
-It does **not** take `wire:model`. The value is the chips' hidden inputs, and
-there is no single element whose value is the list for a binding to attach to.
-It belongs in a form that posts: a plain controller action, or a Livewire page
-whose form submits normally rather than through `wire:submit`. A bound version
-is a known gap, not an oversight.
+Put the binding on the tag. It works both ways: a tag the reader adds or
+removes reaches your property, and a list you set is drawn as chips.
+
+```blade
+{{-- Livewire: public array $emails = []; --}}
+<x-ds::tag-input name="emails" label="Invite by email" wire:model="emails" :value="$emails" validate="email" />
+
+{{-- Alpine --}}
+<div x-data="{ labels: ['billing'] }">
+    <x-ds::tag-input name="labels" label="Labels" x-model="labels" :value="['billing']" />
+    <button type="button" @click="labels = []">Clear all</button>
+</div>
+```
+
+The property is an array of strings. Pass `:value` as well, so the chips are
+right on first paint, before Alpine starts, and in a page whose script never
+runs. When Alpine starts, the bound property wins over `value`, as `x-model` on
+an ordinary field does.
+
+A list you set is shown as it is, blanks dropped: `max`, `unique` and
+`validate` guard what a person types, and you are the one deciding. It is not
+announced to a screen reader either, because the reader did not do it. The
+chips still post as `name[]`, so the same field works in a plain form too.
 
 ## Accessibility
 

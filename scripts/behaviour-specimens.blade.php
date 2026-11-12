@@ -178,23 +178,81 @@
 
         {{-- ── otp input, from the shared script ──
              The first is wired the two ways docs/components/otp-input.md shows:
-             x-model on the tag reaches the hidden input that posts, and
-             @complete on the tag hears the event dispatched from it. The host's
-             state starts at the server's value, as wire:model's would. --}}
+             x-model on the tag, bound both ways through x-modelable, and
+             @complete on the tag hearing the event dispatched from the field
+             that posts. The host's state starts at the server's value, as
+             wire:model's would. --}}
         <div class="mt-6" x-data="{ code: '12' }">
             <x-ds::otp-input name="otp" id="otp" label="Verification code" value="12"
                 x-model="code" @complete="window.otpHeard = [...(window.otpHeard ?? []), $event.detail.value]" />
             <span id="otp-mirror" x-text="code">12</span>
+            <button type="button" id="otp-host-set" @click="code = '246810'">Set code</button>
+            <button type="button" id="otp-host-bad" @click="code = '12ab'">Set letters</button>
         </div>
         <div class="mt-6 flex gap-8">
             <x-ds::otp-input name="pin" id="pin" label="PIN" :length="4" :masked="true" />
             <x-ds::otp-input name="ref" id="ref" label="Reference" :length="5" :numeric="false" />
         </div>
 
-        {{-- ── tag input, from the shared script ── --}}
-        <div class="mt-6 max-w-md">
+        {{-- ── tag input, from the shared script, x-model on the tag ── --}}
+        <div class="mt-6 max-w-md" x-data="{ emails: ['maya@example.com'] }">
             <x-ds::tag-input name="emails" id="emails" label="Recipients" :value="['maya@example.com']"
-                validate="email" :max="5" help="Press Enter or comma after each address." />
+                x-model="emails" validate="email" :max="5" help="Press Enter or comma after each address." />
+            <span id="emails-mirror" x-text="emails.join(' ')">maya@example.com</span>
+            <button type="button" id="emails-host-set" @click="emails = ['zoe@example.com', ' ', 'yan@example.com']">Set two</button>
+            <button type="button" id="emails-host-clear" @click="emails = []">Clear</button>
+        </div>
+
+        {{-- ── rating: radios and CSS, no script ── --}}
+        <div class="mt-6" id="rating">
+            <x-ds::rating name="score" label="How was your visit?" :value="2" />
+        </div>
+        <div class="mt-6">
+            <x-ds::rating id="avg" :readonly="true" :value="3.5" label="Average" />
+        </div>
+
+        {{-- ── chip groups: inputs and CSS, no script ── --}}
+        <div class="mt-6" id="chips-single">
+            <x-ds::chip-group name="status" label="Status">
+                <x-ds::chip value="open" :checked="true" :count="12">Open</x-ds::chip>
+                <x-ds::chip value="closed" :count="4">Closed</x-ds::chip>
+                <x-ds::chip value="spam" :disabled="true">Spam</x-ds::chip>
+            </x-ds::chip-group>
+        </div>
+        <div class="mt-6" id="chips-multi">
+            <x-ds::chip-group name="labels" label="Labels" :multiple="true" size="sm">
+                <x-ds::chip value="billing" :checked="true">Billing</x-ds::chip>
+                <x-ds::chip value="bug" icon="bug-ant">Bug</x-ds::chip>
+                <x-ds::chip value="sales">Sales</x-ds::chip>
+            </x-ds::chip-group>
+        </div>
+        <div class="mt-6" id="chips-model" x-data="{ picked: ['bug'] }">
+            <x-ds::chip-group name="picked" label="Picked" :multiple="true" x-model="picked">
+                <x-ds::chip value="billing">Billing</x-ds::chip>
+                <x-ds::chip value="bug">Bug</x-ds::chip>
+                <x-ds::chip value="sales">Sales</x-ds::chip>
+            </x-ds::chip-group>
+            <output id="picked-mirror" x-text="JSON.stringify(picked)"></output>
+            <button type="button" id="picked-host-set" @click="picked = ['sales']">host sets sales</button>
+        </div>
+
+        {{-- ── radio cards: radios and CSS, no script ── --}}
+        <div class="mt-6" id="cards">
+            <x-ds::radio-cards name="tier" label="Plan" :columns="3">
+                <x-ds::radio-card value="free" title="Free" description="For trying it out.">
+                    <x-slot:meta>$0</x-slot:meta>
+                </x-ds::radio-card>
+                <x-ds::radio-card value="pro" title="Pro" description="For a small team." :checked="true">
+                    <x-slot:meta>$12 a month</x-slot:meta>
+                </x-ds::radio-card>
+                <x-ds::radio-card value="scale" title="Scale" :disabled="true" />
+            </x-ds::radio-cards>
+        </div>
+        <div class="mt-6" id="cards-required">
+            <x-ds::radio-cards name="ship" label="Shipping" required>
+                <x-ds::radio-card value="standard" title="Standard" />
+                <x-ds::radio-card value="express" title="Express" />
+            </x-ds::radio-cards>
         </div>
 
         {{-- ── number field, from the shared script ── --}}
@@ -219,6 +277,22 @@
         <button type="button" id="clip-copy" @click="copy()">Copy key</button>
         <button type="button" id="clip-other" @click="copy('other value')">Copy other</button>
         <span id="clip-state" x-text="copied ? 'copied' : 'idle'">idle</span>
+    </div>
+
+    {{-- ── copy button, on dsClipboard ──
+         A value, an element's text, a field's current value, and a target that
+         is not on the page, which must fail rather than copy nothing. The
+         window listener is the toast a host would hang off copy-failed. --}}
+    <div class="mt-6 flex flex-wrap items-center gap-3" x-on:copy-failed.window="window.copyFailedWindow = (window.copyFailedWindow ?? 0) + 1">
+        <code id="key-text">
+            sk_live_77
+        </code>
+        <x-ds::copy-button id="copy-value" value="sk_live_42" />
+        <x-ds::copy-button id="copy-text" target="key-text" label="Copy key" />
+        <input id="key-field" value="as rendered" />
+        <x-ds::copy-button id="copy-field" target="#key-field" :iconOnly="true" label="Copy field" variant="ghost" />
+        <x-ds::copy-button id="copy-missing" target="#not-on-the-page"
+            @copy-failed="window.copyFailedHere = (window.copyFailedHere ?? 0) + 1" />
     </div>
 
     {{-- ── progress, driven by the host ──

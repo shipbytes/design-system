@@ -10,7 +10,14 @@ const __ds_behaviours_clipboard = (() => {
      * dsClipboard: copy a string, and say so for a moment.
      *
      *   x-data="dsClipboard({ text: 'sk_live_42' })"   then   @click="copy()"
+     *   x-data="dsClipboard({ target: 'api-key' })"    then   @click="copy()"
      *   x-data="dsClipboard"                           then   @click="copy($refs.key.value)"
+     *
+     * `target` is an element id, or a CSS selector, read at the moment of the
+     * press: a field's value, or any other element's text with the whitespace
+     * around it trimmed. So a field the reader has edited copies what it holds
+     * now, not what the page was rendered with. A target that is not on the page
+     * is a failed copy, never an empty one.
      *
      * No UI. `copied` is true for COPIED_FOR ms after a successful copy, and the
      * component that uses this decides what that looks like. `copy()` resolves to
@@ -29,14 +36,16 @@ const __ds_behaviours_clipboard = (() => {
     function clipboard(Alpine) {
         Alpine.data('dsClipboard', (options = {}) => {
             const fallback = options.text ?? '';
+            const target = options.target ?? null;
             const showFor = options.for ?? COPIED_FOR;
             let timer = null;
 
             return {
                 copied: false,
 
-                async copy(value = fallback) {
-                    const ok = await write(String(value ?? ''));
+                async copy(value) {
+                    const text = value !== undefined ? String(value ?? '') : target !== null ? read(target) : fallback;
+                    const ok = text !== null && (await write(text));
 
                     if (!ok) {
                         clearTimeout(timer);
@@ -61,6 +70,22 @@ const __ds_behaviours_clipboard = (() => {
                 },
             };
         });
+    }
+
+    function read(target) {
+        let el = document.getElementById(target);
+        if (!el) {
+            try {
+                el = document.querySelector(target);
+            } catch {
+                // Not a valid selector either: no such element.
+                el = null;
+            }
+        }
+        if (!el) return null;
+
+        const field = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement;
+        return field ? el.value : el.textContent.trim();
     }
 
     async function write(text) {
@@ -301,14 +326,20 @@ const __ds_behaviours_otp = (() => {
      * data-ds-otp-value that the form posts. This moves characters and focus
      * between the boxes and keeps the hidden input in step with them.
      *
-     * Every change to the value dispatches `input` and `change` on the hidden
-     * input, so wire:model and x-model on it see it as they would a typed field,
-     * and a value that fills every box dispatches `complete` (bubbling, detail
-     * { value }) so a host can submit without a button press.
+     * Every change the reader makes dispatches `input` and `change` on the hidden
+     * input, as a typed field would, and a value that fills every box dispatches
+     * `complete` (bubbling, detail { value }) so a host can submit without a button
+     * press.
      *
-     * The scope exposes nothing but Alpine's own init and destroy. The listeners
-     * are attached to the root here, so the view carries no Alpine expressions of
-     * its own and a host's expressions on the component never meet a name of ours.
+     * Two-way binding goes through `dsValue`, the one name the scope exposes beside
+     * Alpine's own init and destroy. The view puts `x-modelable="dsValue"` on the
+     * root together with the host's x-model or wire:model, so Alpine entangles the
+     * host's property with it: a code the reader types reaches the host, and a
+     * code the host sets is written into the boxes. A value the host sets is shown,
+     * not announced: it dispatches no `input`, `change` or `complete`, the way
+     * setting a field's value from script fires nothing. The name carries the
+     * prefix because the host's own expression on that element is read in this
+     * scope, and a host with a `value` of its own would otherwise bind to ours.
      */
 
     const DIGIT = /^[0-9]$/;
@@ -320,8 +351,15 @@ const __ds_behaviours_otp = (() => {
             let teardown = null;
 
             return {
+                dsValue: '',
+
                 init() {
-                    teardown = wire(this.$el, allowed);
+                    const control = wire(this.$el, allowed, (value) => {
+                        this.dsValue = value;
+                    });
+                    this.dsValue = control.value();
+                    this.$watch('dsValue', (value) => control.set(value));
+                    teardown = control.teardown;
                 },
 
                 destroy() {
@@ -331,7 +369,7 @@ const __ds_behaviours_otp = (() => {
         });
     }
 
-    function wire(root, allowed) {
+    function wire(root, allowed, report) {
         const boxes = [...root.querySelectorAll('[data-ds-otp-box]')];
         const field = root.querySelector('[data-ds-otp-value]');
 
@@ -377,6 +415,7 @@ const __ds_behaviours_otp = (() => {
             if (value === field.value) return;
 
             field.value = value;
+            report(value);
             field.dispatchEvent(new Event('input', { bubbles: true }));
             field.dispatchEvent(new Event('change', { bubbles: true }));
 
@@ -480,8 +519,34 @@ const __ds_behaviours_otp = (() => {
         ];
         for (const [type, fn] of listeners) root.addEventListener(type, fn);
 
-        return () => {
-            for (const [type, fn] of listeners) root.removeEventListener(type, fn);
+        /*
+         * The host's value, written into the boxes. What the field cannot hold, a
+         * letter in a numeric code or a character past the last box, is dropped,
+         * and the host is handed back what is actually there, so its state and the
+         * boxes never disagree.
+         */
+        function set(value) {
+            const given = String(value ?? '');
+            const chars = accept(given).slice(0, boxes.length);
+            const joined = chars.join('');
+
+            if (joined !== field.value) {
+                boxes.forEach((box, i) => {
+                    box.value = chars[i] ?? '';
+                    held[i] = box.value;
+                });
+                field.value = joined;
+            }
+
+            if (joined !== given) report(joined);
+        }
+
+        return {
+            value: () => field.value,
+            set,
+            teardown() {
+                for (const [type, fn] of listeners) root.removeEventListener(type, fn);
+            },
         };
     }
 
@@ -720,8 +785,13 @@ const __ds_behaviours_tag_input = (() => {
      * Every word it shows or announces comes from `messages`, written by the view,
      * so this file holds no copy. `:tag` and `:max` are filled in.
      *
-     * The scope exposes nothing but Alpine's own init and destroy; the listeners are
-     * attached to the root here.
+     * Two-way binding goes through `dsValue`, an array of the tags and the one name
+     * the scope exposes beside Alpine's own init and destroy; the listeners are
+     * attached to the root here. The view puts `x-modelable="dsValue"` on the root
+     * with the host's x-model or wire:model, so a tag the reader adds or removes
+     * reaches the host, and a list the host sets is rendered as chips, without a
+     * word to the live region: the reader did not do it. Prefixed for the reason
+     * dsOtp's is: the host's expression on the root is read in this scope.
      */
 
     function tagInput(Alpine) {
@@ -729,8 +799,15 @@ const __ds_behaviours_tag_input = (() => {
             let teardown = null;
 
             return {
+                dsValue: [],
+
                 init() {
-                    teardown = wire(this.$el, settings(options));
+                    const control = wire(this.$el, settings(options), (tags) => {
+                        this.dsValue = tags;
+                    });
+                    this.dsValue = control.value();
+                    this.$watch('dsValue', (tags) => control.set(tags));
+                    teardown = control.teardown;
                 },
 
                 destroy() {
@@ -753,7 +830,7 @@ const __ds_behaviours_tag_input = (() => {
         };
     }
 
-    function wire(root, s) {
+    function wire(root, s, report) {
         const text = root.querySelector('[data-ds-tag-text]');
         const list = root.querySelector('[data-ds-tag-list]');
         const template = root.querySelector('[data-ds-tag-template]');
@@ -785,6 +862,7 @@ const __ds_behaviours_tag_input = (() => {
 
         const chips = () => [...list.querySelectorAll('[data-ds-tag]')];
         const valueOf = (chip) => chip.querySelector('[data-ds-tag-value]').value;
+        const values = () => chips().map(valueOf);
         const removeButton = (chip) => chip?.querySelector('[data-ds-tag-remove]');
 
         function announce(message) {
@@ -819,12 +897,22 @@ const __ds_behaviours_tag_input = (() => {
             return null;
         }
 
-        function add(value) {
+        function chipFor(value) {
             const chip = template.content.firstElementChild.cloneNode(true);
             chip.querySelector('[data-ds-tag-label]').textContent = value;
             removeButton(chip).setAttribute('aria-label', say('remove', value));
             chip.querySelector('[data-ds-tag-value]').value = value;
-            list.append(chip);
+            // The server renders a disabled field's chips disabled; one the host
+            // sets later must match them.
+            if (text.disabled) {
+                removeButton(chip).disabled = true;
+                chip.querySelector('[data-ds-tag-value]').disabled = true;
+            }
+            return chip;
+        }
+
+        function add(value) {
+            list.append(chipFor(value));
             list.hidden = false;
             announce(say('added', value));
         }
@@ -833,6 +921,7 @@ const __ds_behaviours_tag_input = (() => {
             const value = valueOf(chip);
             chip.remove();
             list.hidden = chips().length === 0;
+            report(values());
             announce(say('removed', value));
             if (showing === 'max') tell('');
             text.focus();
@@ -846,6 +935,8 @@ const __ds_behaviours_tag_input = (() => {
             const kept = [];
             let wrong = null;
 
+            let added = false;
+
             for (const part of split(raw, splitters)) {
                 const value = part.trim();
                 if (!value) continue;
@@ -856,8 +947,11 @@ const __ds_behaviours_tag_input = (() => {
                     wrong ??= why;
                 } else {
                     add(value);
+                    added = true;
                 }
             }
+
+            if (added) report(values());
 
             if (tail) kept.push(tail);
             text.value = kept.join(joiner);
@@ -973,9 +1067,38 @@ const __ds_behaviours_tag_input = (() => {
         ];
         for (const [type, fn] of listeners) root.addEventListener(type, fn);
 
-        return () => {
-            for (const [type, fn] of listeners) root.removeEventListener(type, fn);
+        /*
+         * The host's list, rendered as chips. Blank entries are dropped, as the
+         * server drops them, and the host is handed back the list as it now
+         * stands. A list the host sets is not checked against `max`, `unique` or
+         * `validate`: those guard what a reader types, and the host is the one
+         * deciding here.
+         */
+        function set(tags) {
+            const wanted = normalise(tags);
+
+            if (JSON.stringify(wanted) !== JSON.stringify(values())) {
+                for (const chip of chips()) chip.remove();
+                for (const value of wanted) list.append(chipFor(value));
+                list.hidden = wanted.length === 0;
+                if (showing === 'max') tell('');
+            }
+
+            if (JSON.stringify(wanted) !== JSON.stringify(tags)) report(wanted);
+        }
+
+        return {
+            value: values,
+            set,
+            teardown() {
+                for (const [type, fn] of listeners) root.removeEventListener(type, fn);
+            },
         };
+    }
+
+    function normalise(tags) {
+        const list = Array.isArray(tags) ? tags : tags === null || tags === undefined || tags === '' ? [] : [tags];
+        return list.map((tag) => String(tag ?? '').trim()).filter((tag) => tag !== '');
     }
 
     function split(raw, splitters) {

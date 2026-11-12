@@ -162,6 +162,70 @@ final class Specimens
                 <x-ds::tag-input name="tags" label="Locked" :value="['billing', 'security']" :disabled="true" />
                 BLADE,
 
+            'copy-button/all' => <<<'BLADE'
+                <x-ds::copy-button value="sk_live_42" />
+                <x-ds::copy-button target="api-key" label="Copy key" copiedLabel="Copied to clipboard" variant="primary" />
+                <x-ds::copy-button target="#webhook-url" :iconOnly="true" label="Copy webhook URL" variant="ghost" size="sm" />
+                <x-ds::copy-button value="x" size="lg" @copy-failed="$dispatch('notify', 'Could not copy')" />
+                BLADE,
+
+            'rating/all' => <<<'BLADE'
+                <x-ds::rating name="score" label="How was your visit?" help="Optional." />
+                <x-ds::rating name="score" label="Quality" :value="4" size="sm" />
+                <x-ds::rating name="score" label="Value" :value="2" :max="10" size="lg" required />
+                <x-ds::rating name="score" label="Support" error="Choose a rating." />
+                <x-ds::rating name="score" label="Locked" :value="3" :disabled="true" />
+                <x-ds::rating name="score" wire:model.live="score" aria-label="Score" />
+                <x-ds::rating :readonly="true" :value="3.5" label="Average" />
+                <x-ds::rating :readonly="true" :value="4.24" size="sm" />
+                <x-ds::rating :readonly="true" :value="null" size="lg" />
+                BLADE,
+
+            'chip-group/all' => <<<'BLADE'
+                <x-ds::chip-group name="status" label="Status">
+                    <x-ds::chip value="open" :checked="true" :count="12">Open</x-ds::chip>
+                    <x-ds::chip value="closed" :count="4">Closed</x-ds::chip>
+                    <x-ds::chip value="spam" :disabled="true">Spam</x-ds::chip>
+                </x-ds::chip-group>
+                <x-ds::chip-group name="tags" label="Tags" :multiple="true" size="sm" :hideLabel="true" wire:model.live="tags">
+                    <x-ds::chip value="billing" icon="credit-card" :checked="true">Billing</x-ds::chip>
+                    <x-ds::chip value="bug" icon="bug-ant" :checked="true" :disabled="true">Bug</x-ds::chip>
+                    <x-ds::chip value="sales">Sales</x-ds::chip>
+                </x-ds::chip-group>
+                <x-ds::chip-group label="Show" size="lg">
+                    <x-ds::chip href="/tickets" :active="true" :count="16">All</x-ds::chip>
+                    <x-ds::chip href="/tickets?mine=1" icon="user">Mine</x-ds::chip>
+                    <x-ds::chip href="/tickets?archived=1" :disabled="true">Archived</x-ds::chip>
+                </x-ds::chip-group>
+                <x-ds::chip-group name="when" label="When" x-model="when">
+                    <x-ds::chip value="today">Today</x-ds::chip>
+                </x-ds::chip-group>
+                BLADE,
+
+            'radio-cards/all' => <<<'BLADE'
+                <x-ds::radio-cards name="plan" label="Plan" help="Change or cancel at any time." :columns="3">
+                    <x-ds::radio-card value="free" title="Free" description="For trying it out.">
+                        <x-slot:meta>$0</x-slot:meta>
+                    </x-ds::radio-card>
+                    <x-ds::radio-card value="pro" title="Pro" description="For a small team." :checked="true">
+                        <x-slot:icon><x-ds::icon name="rocket-launch" /></x-slot:icon>
+                        <x-slot:meta>$12 a month</x-slot:meta>
+                        Up to ten seats, priority support.
+                    </x-ds::radio-card>
+                    <x-ds::radio-card value="scale" title="Scale" :disabled="true" />
+                </x-ds::radio-cards>
+                <x-ds::radio-cards name="shipping" label="Shipping" error="Choose a shipping method." :columns="2" required wire:model.live="shipping">
+                    <x-ds::radio-card value="standard" title="Standard" description="3 to 5 working days." />
+                    <x-ds::radio-card value="express" title="Express" id="ship-express" />
+                </x-ds::radio-cards>
+                <x-ds::radio-cards name="size" label="Size" :columns="4">
+                    <x-ds::radio-card value="s" title="Small" />
+                </x-ds::radio-cards>
+                <x-ds::radio-cards name="one" label="One" x-model="one">
+                    <x-ds::radio-card value="a" title="A" class="shadow-raised" />
+                </x-ds::radio-cards>
+                BLADE,
+
             'number-field/all' => <<<'BLADE'
                 <x-ds::number-field name="seats" label="Seats" :value="3" :min="1" :max="10" help="Up to ten on this plan." />
                 <x-ds::number-field name="seats" label="Seats" :value="1" :min="1" :max="10" />
@@ -641,6 +705,7 @@ final class Specimens
             'scripts/include' => <<<'BLADE'
                 <x-ds::scripts />
                 <x-ds::scripts nonce="abc123" />
+                <x-ds::scripts inline />
                 BLADE,
         ];
     }

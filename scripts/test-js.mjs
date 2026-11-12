@@ -5,7 +5,7 @@
  * the script we think it is, and that the components and the script agree on
  * what it contains:
  *
- *   1. dist/ is current. ds::scripts inlines the committed file, so a stale one
+ *   1. dist/ is current. ds::scripts serves the committed file, so a stale one
  *      ships stale behaviour with nothing to say so.
  *   2. It registers only through Alpine.data and Alpine.directive, under the
  *      `ds` prefix, once however many times it is loaded.

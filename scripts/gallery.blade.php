@@ -16,8 +16,10 @@
 {{-- The package's script, as a host's layout includes it. The gallery loads no
      Alpine on purpose (see the select section), so here it registers nothing;
      it is included so the page carries what a consumer's does, and so a
-     gallery that ever does load Alpine gets the behaviours with it. --}}
-<x-ds::scripts />
+     gallery that ever does load Alpine gets the behaviours with it. Inline,
+     because dist/gallery.html is a file opened from disk, with no route to
+     fetch the script from: the case the prop exists for. --}}
+<x-ds::scripts inline />
 
 {{-- ─────────────────────────────────────────── Button --}}
 <section class="ds-spec" id="button">
@@ -242,6 +244,178 @@
         <div class="grid gap-6 sm:grid-cols-2">
             <x-ds::otp-input name="g-otp-e" label="PIN" :length="4" value="12" :masked="true" />
             <x-ds::otp-input name="g-otp-f" label="Reference" :length="8" :numeric="false" value="AB12" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Copy button --}}
+<section class="ds-spec" id="copy-button">
+    <header class="ds-spec-head">
+        <h2>Copy button</h2>
+        <p>A ds::button that copies a value and confirms in place. Both labels sit in one cell from the first paint, so the button is as wide as &ldquo;Copied&rdquo; before anything is pressed and never jumps.</p>
+    </header>
+
+    <div class="ds-note">Copying needs the package&rsquo;s script; the gallery loads none, so these are the server&rsquo;s render, at rest. A refused clipboard changes nothing on the button and dispatches <code>copy-failed</code> instead.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Variants and sizes <span>&middot; <code>secondary</code> by default</span></div>
+        <div class="{{ $row }} px-4">
+            <x-ds::copy-button value="sk_live_42" />
+            <x-ds::copy-button value="sk_live_42" variant="primary" label="Copy invite link" />
+            <x-ds::copy-button value="sk_live_42" variant="ghost" label="Copy key" />
+            <x-ds::copy-button value="sk_live_42" size="sm" />
+            <x-ds::copy-button value="sk_live_42" size="lg" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Icon only, and beside what it copies <span>&middot; <code>target</code> reads the element at the moment of the press</span></div>
+        <div class="{{ $row }} px-4">
+            <code id="g-copy-key" class="rounded-control border border-border bg-surface px-3 py-2 font-mono text-meta text-fg-body">sk_live_51HxQ2c4f9A</code>
+            <x-ds::copy-button target="g-copy-key" :iconOnly="true" label="Copy key" />
+            <x-ds::copy-button target="g-copy-key" :iconOnly="true" variant="ghost" size="sm" label="Copy key" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Rating --}}
+<section class="ds-spec" id="rating">
+    <header class="ds-spec-head">
+        <h2>Rating</h2>
+        <p>Stars that are radios underneath: one name, one value posted, the arrow keys and the form&rsquo;s required check for free. Hovering previews &ldquo;up to here&rdquo; and leaving restores the choice, all in CSS. Readonly is one image, named &ldquo;4.5 out of 5&rdquo;.</p>
+    </header>
+
+    <div class="ds-note">No script at all. The faint cross after the stars is &ldquo;No rating&rdquo;, the way back once a star is chosen; it is transparent while it is itself the choice, and omitted when the rating is <code>required</code>.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Choosing <span>&middot; <code>sm</code>, <code>md</code>, <code>lg</code></span></div>
+        <div class="{{ $row }} px-4 items-end">
+            <x-ds::rating name="g-r1" label="Small" size="sm" :value="3" />
+            <x-ds::rating name="g-r2" label="Medium" :value="4" />
+            <x-ds::rating name="g-r3" label="Large" size="lg" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">States <span>&middot; help, error, disabled, required, ten stars</span></div>
+        <div class="flex flex-col gap-5 px-4">
+            <x-ds::rating name="g-r4" label="Cleanliness" :value="2" help="Shown to the host after your stay." />
+            <x-ds::rating name="g-r5" label="Location" error="Choose a rating." />
+            <x-ds::rating name="g-r6" label="Locked" :value="3" :disabled="true" />
+            <x-ds::rating name="g-r7" label="Required: no way back to none" required />
+            <x-ds::rating name="g-r8" label="Out of ten" :max="10" :value="7" size="sm" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Readonly <span>&middot; to the nearest half, named as drawn</span></div>
+        <div class="{{ $row }} px-4 items-end">
+            <x-ds::rating :readonly="true" :value="4.5" label="Average" />
+            <x-ds::rating :readonly="true" :value="3.24" />
+            <x-ds::rating :readonly="true" :value="1" size="sm" />
+            <x-ds::rating :readonly="true" :value="null" size="lg" label="No reviews yet" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Chip group --}}
+<section class="ds-spec" id="chip-group">
+    <header class="ds-spec-head">
+        <h2>Chip group</h2>
+        <p>Pressable filters. Each chip is a real radio or checkbox under a pill, so the group posts with the form and binds with <code>wire:model</code> on the group. Or each is a link, for filtering by URL. A chosen chip opens a check before its words, by a width transition, so the row slides rather than jumps.</p>
+    </header>
+
+    <div class="ds-note">No script. <code>ds::badge</code> is the static pill; this is the one you press. A group is all inputs or all links, never both, and says so when the view renders.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">One of (radios) <span>&middot; with counts</span></div>
+        <div class="px-4">
+            <x-ds::chip-group name="g-c1" label="Status" :hideLabel="true">
+                <x-ds::chip value="open" :checked="true" :count="12">Open</x-ds::chip>
+                <x-ds::chip value="pending" :count="5">Pending</x-ds::chip>
+                <x-ds::chip value="closed" :count="48">Closed</x-ds::chip>
+                <x-ds::chip value="spam" :disabled="true">Spam</x-ds::chip>
+            </x-ds::chip-group>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Any of (checkboxes) <span>&middot; <code>sm</code>, <code>md</code>, <code>lg</code>, with icons</span></div>
+        <div class="flex flex-col gap-4 px-4">
+            @foreach (['sm', 'md', 'lg'] as $s)
+                <x-ds::chip-group name="g-c2{{ $s }}" label="Labels, {{ $s }}" :multiple="true" :size="$s" :hideLabel="true">
+                    <x-ds::chip value="billing" icon="credit-card" :checked="true">Billing</x-ds::chip>
+                    <x-ds::chip value="bug" icon="bug-ant">Bug</x-ds::chip>
+                    <x-ds::chip value="sales" icon="banknotes" :checked="true">Sales</x-ds::chip>
+                    <x-ds::chip value="legal" icon="scale" :checked="true" :disabled="true">Legal</x-ds::chip>
+                </x-ds::chip-group>
+            @endforeach
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Links <span>&middot; <code>href</code> and <code>active</code>, a nav with <code>aria-current</code></span></div>
+        <div class="px-4">
+            <x-ds::chip-group label="Show">
+                <x-ds::chip href="#chip-group" :active="true" :count="16">All</x-ds::chip>
+                <x-ds::chip href="#chip-group">Assigned to me</x-ds::chip>
+                <x-ds::chip href="#chip-group" :disabled="true">Archived</x-ds::chip>
+            </x-ds::chip-group>
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Radio cards --}}
+<section class="ds-spec" id="radio-cards">
+    <header class="ds-spec-head">
+        <h2>Radio cards</h2>
+        <p>Options big enough to compare: plans, shipping methods. The whole card is the label of a real, visible radio, so the arrow keys, <code>required</code> and posting are the browser&rsquo;s. The chosen card is ringed by <code>:has(:checked)</code>; no ring slides between them.</p>
+    </header>
+
+    <div class="ds-note">No script. The name a screen reader hears is the title and the meta (&ldquo;Pro, $12 a month&rdquo;); the description and body are read after it. Every column count collapses to one on a phone.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Three columns <span>&middot; title, description, meta, body; one disabled</span></div>
+        <div class="px-4">
+            <x-ds::radio-cards name="g-plan" label="Plan" help="Change or cancel at any time." :columns="3">
+                <x-ds::radio-card value="free" title="Free" description="For trying it out.">
+                    <x-slot:meta>$0</x-slot:meta>
+                </x-ds::radio-card>
+                <x-ds::radio-card value="pro" title="Pro" description="For a small team." :checked="true">
+                    <x-slot:meta>$12 a month</x-slot:meta>
+                    Ten seats, priority support.
+                </x-ds::radio-card>
+                <x-ds::radio-card value="scale" title="Scale" description="Talk to us first." :disabled="true">
+                    <x-slot:meta>Custom</x-slot:meta>
+                </x-ds::radio-card>
+            </x-ds::radio-cards>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">One column, with icons <span>&middot; and an error</span></div>
+        <div class="px-4">
+            <x-ds::radio-cards name="g-ship" label="Shipping" error="Choose how it should be sent.">
+                <x-ds::radio-card value="standard" title="Standard" description="3 to 5 working days.">
+                    <x-slot:icon><x-ds::icon name="truck" size="5" /></x-slot:icon>
+                    <x-slot:meta>Free</x-slot:meta>
+                </x-ds::radio-card>
+                <x-ds::radio-card value="express" title="Express" description="Next working day, ordered by 2pm.">
+                    <x-slot:icon><x-ds::icon name="bolt" size="5" /></x-slot:icon>
+                    <x-slot:meta>$9</x-slot:meta>
+                </x-ds::radio-card>
+            </x-ds::radio-cards>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Four columns <span>&middot; title alone</span></div>
+        <div class="px-4">
+            <x-ds::radio-cards name="g-size" label="Size" :columns="4">
+                @foreach (['S', 'M', 'L', 'XL'] as $s)
+                    <x-ds::radio-card :value="$s" :title="$s" :checked="$s === 'M'" />
+                @endforeach
+            </x-ds::radio-cards>
         </div>
     </div>
 </section>

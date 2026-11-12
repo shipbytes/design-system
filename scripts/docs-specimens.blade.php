@@ -29,8 +29,9 @@
 @endphp
 
 {{-- The package's script, where a host's layout puts it: before Alpine, which
-     build-docs.mjs appends after everything here. --}}
-<x-ds::scripts />
+     build-docs.mjs appends after everything here. Inline, because the page is
+     opened from disk and has no route to fetch it from. --}}
+<x-ds::scripts inline />
 
 
 {{-- ─────────────────────────── button --}}
@@ -187,6 +188,104 @@
             <div class="flex flex-col gap-5">
                 <x-ds::tag-input name="to{{ $loop->index }}" label="Invite by email" :value="['maya@example.com', 'ada@example.com', 'grace@example.com']" validate="email" placeholder="Add an address" help="Press Enter or comma after each address." />
                 <x-ds::tag-input name="tags{{ $loop->index }}" label="Tags" :value="['billing', 'urgent']" placeholder="Add a tag" error="Choose at most two tags." />
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── copy-button
+     The second button is pressed by build-docs.mjs, so the picture shows the
+     copied face beside the resting one, at the same width. --}}
+<div data-shot="copy-button" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-4">
+                <div class="flex items-center gap-2">
+                    <code id="docs-key-{{ $loop->index }}" class="rounded-control border border-border bg-surface px-3 py-2 font-mono text-meta text-fg-body">sk_live_51HxQ2c4f9A</code>
+                    <x-ds::copy-button target="docs-key-{{ $loop->index }}" />
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <x-ds::copy-button value="https://example.com/invite/7f3a" label="Copy link" />
+                    <x-ds::copy-button value="https://example.com/invite/7f3a" label="Copy link" data-shot-press />
+                    <x-ds::copy-button value="https://example.com/invite/7f3a" variant="primary" label="Copy invite link" />
+                    <x-ds::copy-button value="https://example.com/hooks/42" :iconOnly="true" variant="ghost" label="Copy webhook URL" />
+                    <x-ds::copy-button value="42" size="sm" />
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── rating --}}
+<div data-shot="rating" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-5">
+                <x-ds::rating name="visit{{ $loop->index }}" label="How was your visit?" :value="4" help="Shown to the host after your stay." />
+                <x-ds::rating name="clean{{ $loop->index }}" label="Cleanliness" size="sm" error="Choose a rating, or pick No rating." />
+                <div class="flex flex-wrap items-end gap-8">
+                    <x-ds::rating :readonly="true" :value="4.5" label="Average, 128 reviews" />
+                    <x-ds::rating :readonly="true" :value="3.2" size="sm" />
+                    <x-ds::rating :readonly="true" :value="null" size="sm" />
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── chip-group --}}
+<div data-shot="chip-group" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-5">
+                <x-ds::chip-group name="status{{ $loop->index }}" label="Status">
+                    <x-ds::chip value="open" :checked="true" :count="12">Open</x-ds::chip>
+                    <x-ds::chip value="pending" :count="5">Pending</x-ds::chip>
+                    <x-ds::chip value="closed" :count="48">Closed</x-ds::chip>
+                </x-ds::chip-group>
+                <x-ds::chip-group name="labels{{ $loop->index }}" label="Labels" :multiple="true">
+                    <x-ds::chip value="billing" icon="credit-card" :checked="true">Billing</x-ds::chip>
+                    <x-ds::chip value="bug" icon="bug-ant" :checked="true">Bug</x-ds::chip>
+                    <x-ds::chip value="sales" icon="banknotes">Sales</x-ds::chip>
+                    <x-ds::chip value="legal" icon="scale" :disabled="true">Legal</x-ds::chip>
+                </x-ds::chip-group>
+                <x-ds::chip-group label="Show" size="sm">
+                    <x-ds::chip href="#all" :active="true">All tickets</x-ds::chip>
+                    <x-ds::chip href="#mine">Assigned to me</x-ds::chip>
+                    <x-ds::chip href="#unassigned">Unassigned</x-ds::chip>
+                </x-ds::chip-group>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── radio-cards --}}
+<div data-shot="radio-cards" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-6">
+                <x-ds::radio-cards name="plan{{ $loop->index }}" label="Plan" help="Change or cancel at any time." :columns="3">
+                    <x-ds::radio-card value="free" title="Free" description="For trying it out.">
+                        <x-slot:meta>$0</x-slot:meta>
+                    </x-ds::radio-card>
+                    <x-ds::radio-card value="pro" title="Pro" description="For a small team." :checked="true">
+                        <x-slot:meta>$12 a month</x-slot:meta>
+                        Ten seats, priority support.
+                    </x-ds::radio-card>
+                    <x-ds::radio-card value="scale" title="Scale" description="Talk to us first." :disabled="true">
+                        <x-slot:meta>Custom</x-slot:meta>
+                    </x-ds::radio-card>
+                </x-ds::radio-cards>
+                <x-ds::radio-cards name="ship{{ $loop->index }}" label="Shipping" :columns="2" error="Choose how it should be sent.">
+                    <x-ds::radio-card value="standard" title="Standard" description="3 to 5 working days.">
+                        <x-slot:icon><x-ds::icon name="truck" size="5" /></x-slot:icon>
+                        <x-slot:meta>Free</x-slot:meta>
+                    </x-ds::radio-card>
+                    <x-ds::radio-card value="express" title="Express" description="Next working day.">
+                        <x-slot:icon><x-ds::icon name="bolt" size="5" /></x-slot:icon>
+                        <x-slot:meta>$9</x-slot:meta>
+                    </x-ds::radio-card>
+                </x-ds::radio-cards>
             </div>
         </div>
     @endforeach

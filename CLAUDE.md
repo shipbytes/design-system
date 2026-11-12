@@ -41,6 +41,7 @@ package.json      @shipbytes/design-tokens   Composer reads composer.json from
 
 src/              the service provider
   View/Components/Scripts.php   ds::scripts, the include (a class, not a view)
+  Http/ScriptController.php     serves the script at the route the include links
   Support/Behaviour.php         the x-data expression for a shared behaviour
   Support/Field.php             reads the field recipe (partials/field.php)
 config/           blade-ui.php — icon aliases, default icon size
@@ -59,7 +60,7 @@ resources/views/  the Blade components + the two pagination views and
                                 InputUnchangedTest
 resources/js/     the shared script's source: plain ES modules, hand-edited
   blade-ui.js       the Alpine plugin; lists every behaviour
-  global.js         the classic-script entry ds::scripts inlines
+  global.js         the classic-script entry ds::scripts serves
   behaviours/       one file per behaviour
                   (export-ignored: consumers get dist/, not the modules)
 
@@ -110,7 +111,7 @@ collisions, and that the motion tokens compile to working `duration-*` /
 `ease-*` utilities, under `motion-safe:` too. No Blade involved.
 
 **Script** (`test-js.mjs`) — `dist/blade-ui*.js` match what `resources/js/`
-builds to (ds::scripts inlines the COMMITTED file, so stale means stale in
+builds to (ds::scripts serves the COMMITTED file, so stale means stale in
 production); the script registers only `ds`-prefixed names, only through
 `Alpine.data` / `Alpine.directive`, once however often it loads; and the
 components and the script agree — every name a view asks for is registered,
@@ -127,8 +128,11 @@ morph marker landing inside a tag (see Traps).
 real browser with real Alpine: focus traps, arrow keys, what the form actually
 posts. The main page is host setup (a), ds::scripts in the head above a
 deferred Alpine file; pages of their own cover (b) `Alpine.plugin()` on the ES
-module, (c) Livewire's bundled Alpine with the include loaded twice, and a page
-with no include that must say what is missing. **Skips with a warning when there
+module, (c) Livewire's bundled Alpine with the include loaded twice, a
+Content Security Policy with and without the nonce, and a page with no include
+that must say what is missing. Every request for `http://localhost/…` is
+answered by Laravel itself through `scripts/request.php`, so the include's src
+is fetched from the package's real route, headers and all. **Skips with a warning when there
 is no Chromium** (`npx playwright install chromium`), so a clean clone still goes
 green — read the warning.
 
@@ -449,6 +453,21 @@ the same name. Return the state and methods the markup needs and keep options,
 timers and helpers in the closure. `dsClipboard` exposes `copied` and `copy`
 and nothing else.
 
+**A behaviour behind a form control exposes `dsValue`, for `x-modelable`.**
+`dsOtp` (a string) and `dsTagInput` (an array) do: the view puts
+`x-modelable="dsValue"` on the root next to the host's `wire:model*` /
+`x-model*`, which it lifts off the inner elements, and Alpine entangles the two
+both ways. The behaviour writes `dsValue` after every change the READER makes
+and `$watch`es it to redraw when the HOST sets it, without dispatching events
+or announcing anything, and hands a normalised value back when the host's will
+not fit. The `ds` prefix is not decoration: x-model's expression on that root
+is evaluated in the behaviour's scope, so an unprefixed `value` would shadow a
+host property called `value` and bind the component to itself. On first start
+Alpine gives the host's value precedence over the server-rendered one. Livewire
+4's `wire:model` is Alpine's `x-model` underneath, so the same pair carries it;
+the behaviour suite drives both, the Livewire one in a real component served
+by `scripts/request.php`.
+
 **How a component asks for one.** Always through the helper, echoed:
 
 ```blade
@@ -466,21 +485,45 @@ dropdown's scoped flag. The line is roughly ten lines of Alpine, or a second
 component wanting the same thing; past either, it is a behaviour. Behaviour
 that has to be right before Alpine boots is PHP, not either of these.
 
-**Delivery.** `<x-ds::scripts />` inlines `dist/blade-ui.global.js` in a
-script element, read once per process. Inline was chosen over a package route
-(which has to survive route caching, subdirectory installs and the host's
-middleware) and over a published asset (which goes stale on `composer update`,
-silently — the old behaviour keeps running). It costs ~19 kB per page (~6 kB
-compressed), uncached, since batch 02; revisit with a route-served, versioned
-URL if it grows past roughly 25 kB, which the next two or three behaviours will
-reach. The
-`nonce` prop sets a CSP nonce, defaulting to the one given to
-`Vite::useCspNonce()`. It renders through an `HtmlString`, never through Blade,
-so a `{{` or an `@` in the JavaScript cannot be compiled. It is a class
-component so that the seven-artifact tests, which glob
+**Delivery.** `<x-ds::scripts />` writes a classic script element whose src is
+a route the package registers, `/{prefix}/blade-ui.{hash}.js` (prefix
+`blade-ui`, from `config('blade-ui.script.prefix')`), where the hash is the
+first 16 hex characters of the built file's xxh128. `Http\ScriptController`
+serves it as `text/javascript` with `Cache-Control: public, max-age=31536000,
+immutable` and an ETag (a matching `If-None-Match` gets a 304); a request for a
+hash that is not the current one, from a page rendered before a deploy, gets
+today's file marked `no-cache`, so it works and the new file is never pinned to
+the old URL. The route is registered straight on the router in no group, so no
+session, cookie, CSRF or auth middleware runs; it is a controller, not a
+closure, and is skipped under `routesAreCached()`, so `route:cache` keeps it;
+and its URL comes from `route()`, absolute, so an app in a subdirectory gets
+its base path. `ScriptsTest` holds all of that, cached routes and a
+subdirectory request included.
+
+The element has **neither `defer` nor `async`**, on purpose: a parser-blocking
+external script in the head has run before a deferred Alpine and before
+Livewire's script at the end of the body, which is what lets it register on
+`alpine:init`. The behaviour suite checks that, in setups (a) and (c), by
+asking at `alpine:init` whether the plugin has already registered, and the
+check fails if the include is moved behind Alpine with `defer`.
+
+`inline` (`<x-ds::scripts inline />`) writes the file into the page instead:
+the escape hatch for a page that cannot reach the route, such as the gallery
+and the documentation screenshots, which are files opened from disk. The
+`nonce` prop sets a CSP nonce in both forms, defaulting to the one given to
+`Vite::useCspNonce()`. The output renders through an `HtmlString`, never
+through Blade, so a `{{` or an `@` in the JavaScript cannot be compiled. It is
+a class component so that the seven-artifact tests, which glob
 `resources/views/components`, do not have to learn an exemption. Hosts that
 bundle Alpine import `dist/blade-ui.js` and call `Alpine.plugin(bladeUi)`
 instead.
+
+Until batch 03 the include inlined the file. Inline had been chosen over a
+route because a route has to survive route caching, subdirectory installs and
+the host's middleware; at ~19 kB after five behaviours, uncacheable on every
+page, the route was worth that work, and the tests above are the work. A copy
+published to `public/` is still not an option: it goes stale on
+`composer update`, silently, and the old behaviour keeps running.
 
 **Two outputs because one file cannot be both.** A classic script cannot
 contain `export`, and a module script is always deferred, so it runs after a
@@ -488,7 +531,7 @@ non-deferred Alpine or Livewire script above it and registers too late.
 
 **Loading twice is harmless**, by design and by test: the plugin marks the Alpine
 it registered on with `Symbol.for('shipbytes.blade-ui')`, which two separate
-copies of the script (the inline one and a Vite import) both see.
+copies of the script (the include's and a Vite import) both see.
 
 **Testing a behaviour.** Drive it in `test-behaviour.mjs` on the main page (host
 setup a); the setup (b) and (c) pages and the no-include page reuse the
@@ -499,16 +542,17 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 50 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 56 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
 accordion, accordion-item, alert, avatar, avatar-group, badge, bottom-nav,
-bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, combobox,
-date-picker, drawer, dropdown, dropdown-item, empty-state, file-upload, icon,
-input, modal, nav-item, number-field, otp-input, panel, panel-row,
-password-strength, progress, radio, radio-group, select, sheet, sheet-item,
-skeleton, stat-tile, step, stepper, switch, tab, tab-panel, table, table-cell,
-table-row, tabs, tag-input, toast, toast-region, tooltip, usage-meter.
+bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, chip,
+chip-group, combobox, copy-button, date-picker, drawer, dropdown, dropdown-item,
+empty-state, file-upload, icon, input, modal, nav-item, number-field, otp-input,
+panel, panel-row, password-strength, progress, radio, radio-card, radio-cards,
+radio-group, rating, select, sheet, sheet-item, skeleton, stat-tile, step,
+stepper, switch, tab, tab-panel, table, table-cell, table-row, tabs, tag-input,
+toast, toast-region, tooltip, usage-meter.
 
 **Every built component has a spec.**
 
@@ -517,7 +561,7 @@ three lines of CSS, every component rendering styled in light and dark.
 
 **Needs Alpine:** modal, drawer, sheet, dropdown, select, combobox, date-picker,
 accordion (with accordion-item), file-upload, tooltip, otp-input, tag-input,
-number-field, password-strength — always. Plus ONE optional prop each on
+number-field, password-strength, copy-button — always. Plus ONE optional prop each on
 checkbox (`indeterminate`), nav-item (`collapsedWhen`), toast (`dismiss`) and
 input (`reveal`), and the pagination views' Livewire variants, whose scroll to
 the top is an `x-on:click` that Livewire's bundled Alpine runs. Everything else
@@ -527,9 +571,16 @@ Livewire variants are opt-in. Counted from the directives in the views on
 `next-2.0`, not from the docs.
 
 **Needs the shared script:** otp-input (`dsOtp`), tag-input (`dsTagInput`),
-number-field (`dsNumberField`), password-strength (`dsPasswordStrength`), and
-input's `reveal` (`dsPassword`). It also registers `dsClipboard`, which the
-copy button will build on.
+number-field (`dsNumberField`), password-strength (`dsPasswordStrength`),
+copy-button (`dsClipboard`, which is also documented for direct use), and
+input's `reveal` (`dsPassword`).
+
+**Plain Blade and CSS, no script, by design:** rating, chip-group (with chip)
+and radio-cards (with radio-card) are native radios or checkboxes styled by
+`has-checked:` and sibling variants. Their groups learn about their children
+from the rendered slot (a component's slot renders before the component), and
+write the host's `wire:model` / `x-model` onto every child input through a
+`data-ds-*-input` hook; see specs/chip-group.md.
 
 **How those behaviours are written** (batch 02 set the pattern): the Blade view
 renders the whole correct state, value and disabled flags included, and marks
@@ -603,10 +654,6 @@ utilities (the tokens were derived FROM those numbers, so the values agree).
 Moving them over is a restyle of existing components, which batch 00 was told
 not to do. The skeleton's pulse and the stat tile's count-up already honour it.
 
-**4a. The include is not cached across pages.** Inlining means every page
-carries the script. ~19 kB (6 kB compressed) after batch 02, under the
-~25 kB line; see The shared script for when to revisit.
-
 **5. The gallery cannot show `sheet` or `bottom-nav`.** Both are `lg:hidden`, and
 the gallery is a page a person opens on a desktop, so at that viewport they
 render nothing. The gallery's sheet section is hand-drawn markup for this reason
@@ -636,7 +683,7 @@ until a screen needs it more than a trailing View button.
 - **Upload transport for `file-upload`.** It is a field, not an uploader.
 - **A date-and-time picker.** Two questions; a control that answers both does
   neither well.
-- **Segmented control, rating, colour picker, rich text.** None have come up.
+- **Segmented control, colour picker, rich text.** None have come up.
 
 ## The docs site (shipbytes.dev)
 
@@ -670,7 +717,7 @@ Rules the conversion imposes on the Markdown:
 - A callout `> **Needs Alpine.** See [getting started](../getting-started.md#alpine).`
   on every page of the ten Alpine components, and "— needs Alpine" in that
   component's row in `docs/README.md` ("— needs Alpine and the script" for the
-  four that use the shared script, whose callout is the one above).
+  five that use the shared script, whose callout is the one above).
 
 **Merging to master rebuilds the site automatically** (GitHub push webhook → the
 rebuild Worker → the site's deploy workflow, ~2 minutes; branches and tags are

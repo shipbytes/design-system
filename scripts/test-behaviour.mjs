@@ -61,13 +61,16 @@ const render = async (file) => {
 
 let specimens;
 let include;
+let includeWithNonce;
 try {
     specimens = await render(join(ROOT, 'scripts/behaviour-specimens.blade.php'));
     // The include, rendered through the component a consumer writes in their
     // layout rather than read from dist/, so the page gets exactly what a host
-    // gets.
+    // gets: a script element whose src is the package's route.
     await writeFile(join(TMP, 'include.blade.php'), '<x-ds::scripts />');
     include = await render(join(TMP, 'include.blade.php'));
+    await writeFile(join(TMP, 'include-nonce.blade.php'), '<x-ds::scripts nonce="t3st" />');
+    includeWithNonce = await render(join(TMP, 'include-nonce.blade.php'));
 } catch (err) {
     console.error('\nrender failed — run `composer install`?\n');
     console.error(String(err.stderr || err).slice(0, 800));
@@ -104,6 +107,20 @@ const css = await readFile(join(TMP, 'out.css'), 'utf8');
 */
 await writeFile(join(TMP, 'alpine.js'), await readFile(join(ROOT, 'node_modules/alpinejs/dist/cdn.min.js')));
 
+/*
+  Whether the include had run, and registered, by the moment Alpine announced
+  it was starting. Written as an inline script straight AFTER the include, so
+  its listener is added after the include's: if the include ran first, its
+  listener runs first and the plugin's mark is already on Alpine when this one
+  looks. An include that ran late, deferred or async, adds its listener after
+  this one, and this one sees no mark.
+*/
+const orderProbe = `<script>
+document.addEventListener('alpine:init', () => {
+    window.dsRegisteredAtInit = Boolean(window.Alpine && window.Alpine[Symbol.for('shipbytes.blade-ui')]);
+});
+</script>`;
+
 await writeFile(
     join(TMP, 'page.html'),
     `<!doctype html><html><head><meta charset="utf-8">
@@ -112,6 +129,7 @@ await writeFile(
     which is imported above, so this page proves the SHIPPED one works — an
     injected copy would hide a regression in the thing consumers actually get. -->
 ${include}
+${orderProbe}
 <script defer src="alpine.js"></script>
 </head><body>${specimens}</body></html>`,
 );
@@ -124,6 +142,33 @@ const context = await browser.newContext({
     permissions: ['clipboard-read', 'clipboard-write'],
 });
 const page = await context.newPage();
+
+/*
+  Every request for http://localhost/… is answered by Laravel, through
+  scripts/request.php: the include's src is the package's route, and the
+  browser gets what the route returns, headers and all. Serving a copy of
+  dist/ here instead would prove the script works and nothing about the URL
+  the include actually writes.
+*/
+const LARAVEL = 'http://localhost';
+const fromLaravel = [];
+
+await context.route(`${LARAVEL}/**`, async (route) => {
+    const request = route.request();
+    const headers = {};
+    const etag = await request.headerValue('if-none-match');
+    if (etag) headers['If-None-Match'] = etag;
+
+    const { stdout } = await run('php', [join(ROOT, 'scripts/request.php'), request.url(), JSON.stringify(headers)], {
+        cwd: ROOT,
+        maxBuffer: 64 * 1024 * 1024,
+        env: { ...process.env, DS_PAGES: TMP },
+    });
+    const response = JSON.parse(stdout);
+    fromLaravel.push({ path: new URL(request.url()).pathname, status: response.status, headers: response.headers, cookies: response.cookies });
+
+    await route.fulfill({ status: response.status, headers: response.headers, body: Buffer.from(response.body, 'base64') });
+});
 
 const jsErrors = [];
 page.on('pageerror', (e) => jsErrors.push('uncaught: ' + e.message));
@@ -691,6 +736,33 @@ await check('the arrow keys the spec says the host owns actually move it', async
     return (await active()) === 'tab-overview' || `selection moved but focus is on ${await active()}`;
 });
 
+// ---------------------------------------------------------------- ds::scripts
+
+group('ds::scripts (served by the package\'s route)');
+
+const scriptSrc = include.match(/src="([^"]+)"/)?.[1] ?? '';
+const scriptResponse = () => fromLaravel.find((r) => r.path === new URL(scriptSrc, LARAVEL).pathname);
+
+await check('the include is a src, at a URL carrying a content hash', async () =>
+    /\/blade-ui\/blade-ui\.[0-9a-f]{16}\.js$/.test(scriptSrc) || `src is ${JSON.stringify(scriptSrc)}`);
+
+await check('a classic script: no defer, no async, no type=module', async () =>
+    !/\b(defer|async)\b|type="module"/.test(include) || include);
+
+await check('the browser fetched it from the route, as JavaScript, cacheable for a year', async () => {
+    const r = scriptResponse();
+    if (!r) return `no request reached the route: ${JSON.stringify(fromLaravel.map((x) => x.path))}`;
+    if (r.status !== 200) return `status ${r.status}`;
+    if (!r.headers['Content-Type']?.startsWith('text/javascript')) return `Content-Type ${r.headers['Content-Type']}`;
+    if (!/immutable/.test(r.headers['Cache-Control']) || !/max-age=31536000/.test(r.headers['Cache-Control'])) return `Cache-Control ${r.headers['Cache-Control']}`;
+    if (!r.headers.ETag) return 'no ETag';
+    return r.cookies === 0 || `the route set ${r.cookies} cookie(s)`;
+});
+
+await check('it had run, and registered, by the time Alpine announced its start', async () =>
+    (await page.evaluate(() => window.dsRegisteredAtInit)) === true
+    || `at alpine:init the plugin had${(await page.evaluate(() => window.dsRegisteredAtInit)) === false ? ' not' : ' never been looked for, and had not'} registered`);
+
 // ---------------------------------------------------------------- dsClipboard
 
 /*
@@ -765,6 +837,90 @@ await check('without the async clipboard API it falls back, copies, and gives fo
     if ((await clipState()) !== 'copied') return 'copied, but `copied` never went up';
     if (result.leftover) return 'left its textarea in the page';
     return result.focus === 'clip-copy' || `focus ended on ${result.focus}, not the button that was pressed`;
+});
+
+// ---------------------------------------------------------------- copy button
+
+group('copy button (on dsClipboard)');
+
+const copyLook = (id) => page.evaluate((buttonId) => {
+    const button = document.getElementById(buttonId);
+    const shown = (el) => el && getComputedStyle(el).visibility !== 'hidden';
+    const [copyIcon, checkIcon] = button.querySelectorAll('[aria-hidden] > span');
+    const faces = [...button.querySelectorAll('.grid:not([aria-hidden]) > span')];
+    return {
+        width: button.getBoundingClientRect().width,
+        label: faces.find(shown)?.textContent.trim() ?? null,
+        icon: shown(checkIcon) ? 'check' : shown(copyIcon) ? 'clipboard' : 'none',
+        live: button.parentElement.querySelector('[aria-live]').textContent,
+        name: button.getAttribute('aria-label'),
+    };
+}, id);
+
+await check('copies its value; label and icon swap, and the change is announced', async () => {
+    const before = await copyLook('copy-value');
+    await page.click('#copy-value');
+    await settle(100);
+    const after = await copyLook('copy-value');
+    if ((await clipboardText()) !== 'sk_live_42') return `the clipboard holds ${JSON.stringify(await clipboardText())}`;
+    if (before.label !== 'Copy' || after.label !== 'Copied') return `label ${before.label} → ${after.label}`;
+    if (before.icon !== 'clipboard' || after.icon !== 'check') return `icon ${before.icon} → ${after.icon}`;
+    if (before.live !== '' || after.live !== 'Copied') return `live region ${JSON.stringify(before.live)} → ${JSON.stringify(after.live)}`;
+    return before.width === after.width || `the button jumped from ${before.width}px to ${after.width}px`;
+});
+
+await check('and goes back on its own, with the live region emptied', async () => {
+    await page.waitForTimeout(1700);
+    const look = await copyLook('copy-value');
+    return (look.label === 'Copy' && look.icon === 'clipboard' && look.live === '') || JSON.stringify(look);
+});
+
+await check('target by id copies the element\'s text, trimmed', async () => {
+    await page.click('#copy-text');
+    await settle(100);
+    return (await clipboardText()) === 'sk_live_77' || `the clipboard holds ${JSON.stringify(await clipboardText())}`;
+});
+
+await check('target by selector copies a field\'s value as it is now, not as rendered', async () => {
+    await page.fill('#key-field', 'edited since');
+    await page.click('#copy-field');
+    await settle(100);
+    return (await clipboardText()) === 'edited since' || `the clipboard holds ${JSON.stringify(await clipboardText())}`;
+});
+
+await check('icon-only keeps its name; the live region carries the news', async () => {
+    const look = await copyLook('copy-field');
+    return (look.name === 'Copy field' && look.icon === 'check' && look.live === 'Copied') || JSON.stringify(look);
+});
+
+await check('a target not on the page: no false "Copied", and copy-failed reaches the tag and the window', async () => {
+    await page.evaluate(() => { window.copyFailedHere = 0; window.copyFailedWindow = 0; });
+    await page.click('#copy-missing');
+    await settle(100);
+    const look = await copyLook('copy-missing');
+    const heard = await page.evaluate(() => [window.copyFailedHere, window.copyFailedWindow]);
+    if (look.label !== 'Copy' || look.live !== '') return `it claims success: ${JSON.stringify(look)}`;
+    return JSON.stringify(heard) === '[1,1]' || `heard on the tag ${heard[0]}, on the window ${heard[1]} times`;
+});
+
+await check('a clipboard that refuses: no false "Copied", and copy-failed is dispatched', async () => {
+    await page.evaluate(() => {
+        window.copyFailedWindow = 0;
+        window.dsRealWrite = navigator.clipboard.writeText;
+        navigator.clipboard.writeText = () => Promise.reject(new DOMException('denied', 'NotAllowedError'));
+        window.dsRealExec = document.execCommand;
+        document.execCommand = () => false;
+    });
+    await page.click('#copy-value');
+    await settle(100);
+    const look = await copyLook('copy-value');
+    const heard = await page.evaluate(() => window.copyFailedWindow);
+    await page.evaluate(() => {
+        navigator.clipboard.writeText = window.dsRealWrite;
+        document.execCommand = window.dsRealExec;
+    });
+    if (look.label !== 'Copy' || look.icon !== 'clipboard') return `it claims success: ${JSON.stringify(look)}`;
+    return heard === 1 || `copy-failed reached the window ${heard} times`;
 });
 
 // ---------------------------------------------------------------- progress
@@ -968,6 +1124,27 @@ await check('the browser\'s one-time-code autofill, which writes the whole code 
     return JSON.stringify(await otpPosted()) === '["654321"]' || `posted ${JSON.stringify(await otpPosted())}`;
 });
 
+const otpBoxes = () => page.evaluate(() =>
+    [...document.querySelectorAll('[id^="otp-"][data-ds-otp-box]')].map((b) => b.value).join(''));
+
+await check('a code the HOST sets through x-model is written into the boxes and the posted field', async () => {
+    const heardBefore = JSON.stringify(await page.evaluate(() => window.otpHeard));
+    await page.click('#otp-host-set');
+    await settle(100);
+    if ((await otpBoxes()) !== '246810') return `the boxes hold ${JSON.stringify(await otpBoxes())}`;
+    if (JSON.stringify(await otpPosted()) !== '["246810"]') return `posted ${JSON.stringify(await otpPosted())}`;
+    // The reader did not complete anything; the host did.
+    return JSON.stringify(await page.evaluate(() => window.otpHeard)) === heardBefore || 'a code set by the host dispatched `complete`';
+});
+
+await check('what the field cannot hold is dropped, and the host is handed back what is there', async () => {
+    await page.click('#otp-host-bad');
+    await settle(100);
+    if ((await otpBoxes()) !== '12') return `the boxes hold ${JSON.stringify(await otpBoxes())}`;
+    return (await page.locator('#otp-mirror').innerText()) === '12'
+        || `the host's state reads ${JSON.stringify(await page.locator('#otp-mirror').innerText())}`;
+});
+
 await check('masked: a PIN shows dots', async () => {
     const types = await page.evaluate(() =>
         [...document.querySelectorAll('[id^="pin-"][data-ds-otp-box]')].map((b) => b.type));
@@ -1107,6 +1284,240 @@ await check('a chip added by the script is the same markup the server renders', 
     const shape = await page.evaluate(() => [...document.querySelectorAll('[data-ds-tag]')]
         .map((chip) => [chip.className, chip.querySelector('[data-ds-tag-remove]').className].join('|')));
     return new Set(shape).size === 1 || 'server-rendered and script-added chips differ';
+});
+
+await check('x-model on the tag followed every add and remove', async () =>
+    (await page.locator('#emails-mirror').innerText()) === (await tags()).join(' ')
+    || `the host holds ${JSON.stringify(await page.locator('#emails-mirror').innerText())}, the form posts ${JSON.stringify(await tags())}`);
+
+await check('a list the HOST sets through x-model is rendered as chips, and posted', async () => {
+    const said = await tagStatus();
+    await page.click('#emails-host-set');
+    await settle(100);
+    const labels = await page.locator('[data-ds-tag-label]').allInnerTexts();
+    if (JSON.stringify(labels) !== '["zoe@example.com","yan@example.com"]') return `chips read ${JSON.stringify(labels)}`;
+    if (JSON.stringify(await tags()) !== '["zoe@example.com","yan@example.com"]') return `posted ${JSON.stringify(await tags())}`;
+    if ((await page.locator('#emails-mirror').innerText()) !== 'zoe@example.com yan@example.com') return 'the blank entry was handed back to the host';
+    return (await tagStatus()) === said || `the live region announced the host's change: ${JSON.stringify(await tagStatus())}`;
+});
+
+await check('and an empty list from the host empties the field and hides the list', async () => {
+    await page.click('#emails-host-clear');
+    await settle(100);
+    const hidden = await page.evaluate(() => document.querySelector('#emails').closest('[x-data]').querySelector('[data-ds-tag-list]').hidden);
+    return ((await tags()).length === 0 && hidden) || `posted ${JSON.stringify(await tags())}, list hidden ${hidden}`;
+});
+
+// ---------------------------------------------------------------- rating
+
+/*
+ * No script: what is pressed and posted is native radios, and every star's
+ * look is CSS reading them. So "lit" is read from the computed fill, which is
+ * the thing a reader sees.
+ */
+group('rating (radios and CSS, no script)');
+
+const ratingLit = () => page.evaluate(() =>
+    [...document.querySelectorAll('#rating .group\\/stars > label')]
+        .map((star) => (getComputedStyle(star).fill === 'rgba(0, 0, 0, 0)' ? 0 : 1)).join(''));
+const score = async () => JSON.stringify((await posted()).score ?? null);
+const star = (n) => `#rating input[name=score][value="${n}"]`;
+
+await page.mouse.move(0, 0);
+
+await check('posts the value it was rendered with, and lights that many stars', async () =>
+    ((await score()) === '["2"]' && (await ratingLit()) === '11000') || `posted ${await score()}, lit ${await ratingLit()}`);
+
+await check('a press on a star chooses it, natively', async () => {
+    await page.click(`${star(4)} >> xpath=..`);
+    await page.mouse.move(0, 0);
+    await settle(150);
+    return ((await score()) === '["4"]' && (await ratingLit()) === '11110') || `posted ${await score()}, lit ${await ratingLit()}`;
+});
+
+await check('hovering previews "up to here" over the chosen value, and leaving restores it', async () => {
+    await page.hover(`${star(2)} >> xpath=..`);
+    await settle(150);
+    const preview = await ratingLit();
+    await page.mouse.move(0, 0);
+    await settle(150);
+    const after = await ratingLit();
+    return (preview === '11000' && after === '11110') || `while hovering 2: ${preview}; after: ${after}`;
+});
+
+await check('the arrow keys move the rating, as in any radio group', async () => {
+    await page.focus(star(4));
+    await page.keyboard.press('ArrowRight');
+    await settle(150);
+    return ((await score()) === '["5"]' && (await ratingLit()) === '11111') || `posted ${await score()}, lit ${await ratingLit()}`;
+});
+
+await check('past the last star is "No rating": posts empty, lights nothing, and is named', async () => {
+    await page.keyboard.press('ArrowRight');
+    await settle(150);
+    const name = await page.evaluate(() => document.activeElement.parentElement.textContent.trim());
+    if (name !== 'No rating') return `focus is on ${JSON.stringify(name)}`;
+    return ((await score()) === '[""]' && (await ratingLit()) === '00000') || `posted ${await score()}, lit ${await ratingLit()}`;
+});
+
+await check('focus shows on the star it is on, before anything is chosen there', async () => {
+    await page.keyboard.press('ArrowRight');
+    await settle(150);
+    const ring = await page.evaluate(() => getComputedStyle(document.activeElement.parentElement).outlineStyle);
+    return ((await score()) === '["1"]' && ring !== 'none') || `posted ${await score()}, outline ${ring}`;
+});
+
+await check('readonly is one image, named for the value, half a star drawn as half', async () => {
+    const r = await page.evaluate(() => {
+        const img = document.querySelector('#avg [role=img]');
+        const half = img.children[3].querySelector('.overflow-hidden');
+        return {
+            name: img.getAttribute('aria-label'),
+            focusable: img.querySelectorAll('input, button, [tabindex]').length,
+            ratio: half ? half.getBoundingClientRect().width / img.children[3].getBoundingClientRect().width : null,
+        };
+    });
+    if (r.name !== '3.5 out of 5') return `named ${JSON.stringify(r.name)}`;
+    if (r.focusable) return 'a readonly rating has something to focus';
+    return r.ratio === 0.5 || `the fourth star is ${r.ratio} filled`;
+});
+
+// ---------------------------------------------------------------- chip group
+
+group('chip group (inputs and CSS, no script)');
+
+const checkWidths = (scope) => page.evaluate((sel) =>
+    [...document.querySelectorAll(`${sel} label > span[aria-hidden]`)].map((c) => Math.round(c.getBoundingClientRect().width)), scope);
+const chip = (scope, value) => `${scope} input[value="${value}"] >> xpath=..`;
+
+await check('posts what it was rendered with: one value from radios, an array from checkboxes', async () => {
+    const p = await posted();
+    return (JSON.stringify(p.status) === '["open"]' && JSON.stringify(p['labels[]']) === '["billing"]') || JSON.stringify(p);
+});
+
+await check('the chosen chip shows its check, the others give it no width', async () =>
+    JSON.stringify(await checkWidths('#chips-single')) === '[20,0,0]' || `check widths ${JSON.stringify(await checkWidths('#chips-single'))}`);
+
+await check('a press chooses it natively; the check moves, by a width transition', async () => {
+    await page.click(chip('#chips-single', 'closed'));
+    const style = await page.evaluate(() => {
+        const c = getComputedStyle(document.querySelector('#chips-single input[value="closed"] ~ span'));
+        return `${c.transitionProperty} ${c.transitionDuration}`;
+    });
+    await settle(300);
+    const p = await posted();
+    if (JSON.stringify(p.status) !== '["closed"]') return `posted ${JSON.stringify(p.status)}`;
+    if (style !== 'width 0.15s') return `the check moves by ${style}`;
+    return JSON.stringify(await checkWidths('#chips-single')) === '[0,20,0]' || `check widths ${JSON.stringify(await checkWidths('#chips-single'))}`;
+});
+
+await check('with reduced motion the check appears at once', async () => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const duration = await page.evaluate(() =>
+        getComputedStyle(document.querySelector('#chips-single input[value="closed"] ~ span')).transitionDuration);
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    return duration === '0s' || `transition-duration ${duration}`;
+});
+
+await check('a disabled chip cannot be chosen', async () => {
+    await page.click(chip('#chips-single', 'spam'), { force: true });
+    return JSON.stringify((await posted()).status) === '["closed"]' || `posted ${JSON.stringify((await posted()).status)}`;
+});
+
+await check('single: the arrow keys move the choice, past the disabled chip', async () => {
+    await page.focus('#chips-single input[value="closed"]');
+    await page.keyboard.press('ArrowRight');
+    await settle(50);
+    return JSON.stringify((await posted()).status) === '["open"]' || `posted ${JSON.stringify((await posted()).status)}`;
+});
+
+await check('multiple: Space toggles the focused chip, and focus is drawn on the chip', async () => {
+    await page.focus('#chips-multi input[value="bug"]');
+    await page.keyboard.press('Space');
+    await settle(250);
+    const ring = await page.evaluate(() => getComputedStyle(document.activeElement.parentElement).outlineStyle);
+    const p = await posted();
+    if (JSON.stringify(p['labels[]']) !== '["billing","bug"]') return `posted ${JSON.stringify(p['labels[]'])}`;
+    if (ring === 'none') return 'no outline on the focused chip';
+    return JSON.stringify(await checkWidths('#chips-multi')) === '[18,18,0]' || `check widths ${JSON.stringify(await checkWidths('#chips-multi'))}`;
+});
+
+await check('x-model on the group: a press reaches the host, and the host sets the chips', async () => {
+    await page.click(chip('#chips-model', 'billing'));
+    await settle(50);
+    const mirrored = await page.textContent('#picked-mirror');
+    if (mirrored !== '["bug","billing"]') return `the host has ${mirrored}`;
+    await page.click('#picked-host-set');
+    await settle(250);
+    const p = await posted();
+    return (JSON.stringify(p['picked[]']) === '["sales"]' && JSON.stringify(await checkWidths('#chips-model')) === '[0,0,20]')
+        || `posted ${JSON.stringify(p['picked[]'])}, check widths ${JSON.stringify(await checkWidths('#chips-model'))}`;
+});
+
+// ---------------------------------------------------------------- radio cards
+
+group('radio cards (radios and CSS, no script)');
+
+const card = (value) => `#cards input[value="${value}"] >> xpath=ancestor::label`;
+const plan = async () => JSON.stringify((await posted()).tier ?? null);
+const cardLook = (value) => page.evaluate((v) => {
+    const style = getComputedStyle(document.querySelector(`#cards input[value="${v}"]`).closest('label'));
+    return { ring: style.boxShadow !== 'none', outline: style.outlineStyle !== 'none' };
+}, value);
+
+await check('posts the card it was rendered with, and only that card wears the ring', async () => {
+    const [free, pro] = [await cardLook('free'), await cardLook('pro')];
+    return ((await plan()) === '["pro"]' && pro.ring && !free.ring) || `posted ${await plan()}, ring free ${free.ring} pro ${pro.ring}`;
+});
+
+await check('a press anywhere on the card chooses it, its description included', async () => {
+    await page.click('#cards input[value="free"] >> xpath=ancestor::label >> text=For trying it out.');
+    await settle(250);
+    return ((await plan()) === '["free"]' && (await cardLook('free')).ring) || `posted ${await plan()}`;
+});
+
+await check('the arrow keys move the choice, past the disabled card; focus is drawn on the card', async () => {
+    await page.focus('#cards input[value="pro"]');
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowLeft');
+    await settle(250);
+    const look = await cardLook('pro');
+    const radioRing = await page.evaluate(() => getComputedStyle(document.activeElement).outlineStyle);
+    if ((await plan()) !== '["pro"]') return `posted ${await plan()} after Left, Left from Free`;
+    return (look.outline && radioRing === 'none') || `card outline ${look.outline}, radio outline ${radioRing}`;
+});
+
+await check('a press on a disabled card does nothing', async () => {
+    await page.click(card('scale'), { force: true });
+    return (await plan()) === '["pro"]' || `posted ${await plan()}`;
+});
+
+await check('the name is the title and meta; the description is the description', async () => {
+    const r = await page.evaluate(() => {
+        const radio = document.querySelector('#cards input[value="pro"]');
+        const text = (ids) => ids.split(' ').map((id) => document.getElementById(id).textContent.trim()).join(', ');
+        return { name: text(radio.getAttribute('aria-labelledby')), desc: text(radio.getAttribute('aria-describedby')) };
+    });
+    return (r.name === 'Pro, $12 a month' && r.desc === 'For a small team.') || JSON.stringify(r);
+});
+
+await check('required on the group: the browser holds the form until a card is chosen', async () => {
+    const missing = await page.evaluate(() => document.querySelector('#cards-required input').validity.valueMissing);
+    await page.click('#cards-required input[value="express"] >> xpath=ancestor::label');
+    const after = await page.evaluate(() => document.querySelector('#cards-required input').validity.valueMissing);
+    return (missing && !after) || `valueMissing before ${missing}, after ${after}`;
+});
+
+await check('three columns on a wide screen, one on a phone', async () => {
+    const tops = () => page.evaluate(() =>
+        [...document.querySelectorAll('#cards label')].map((l) => Math.round(l.getBoundingClientRect().top)));
+    const size = page.viewportSize();
+    await page.setViewportSize({ width: 1280, height: size.height });
+    const wide = new Set(await tops()).size;
+    await page.setViewportSize({ width: 375, height: size.height });
+    const narrow = new Set(await tops()).size;
+    await page.setViewportSize(size);
+    return (wide === 1 && narrow === 3) || `rows: ${wide} wide, ${narrow} on a phone`;
 });
 
 // ---------------------------------------------------------------- number field
@@ -1419,6 +1830,10 @@ await context.route(`${ORIGIN}/**`, async (route) => {
         await route.fulfill({
             body: await readFile(file),
             contentType: path.endsWith('.html') ? 'text/html' : 'text/javascript',
+            // Alpine's CDN build evaluates expressions with Function(), so a
+            // policy that runs it needs 'unsafe-eval'; every script element
+            // still has to carry the nonce.
+            headers: path.startsWith('/csp') ? { 'Content-Security-Policy': "script-src 'nonce-t3st' 'unsafe-eval'" } : {},
         });
     } catch {
         await route.fulfill({ status: 404, body: '' });
@@ -1447,10 +1862,24 @@ ${include}
 
     'setup-c.html': `<!doctype html><html><head><meta charset="utf-8">
 ${include}
+${orderProbe}
 ${include}
 </head><body>${clipMarkup}
 <script src="livewire.js"></script>
 </body></html>`,
+
+    'csp.html': `<!doctype html><html><head><meta charset="utf-8">
+${includeWithNonce}
+<script nonce="t3st" defer src="alpine.js"></script>
+</head><body>${clipMarkup}</body></html>`,
+
+    // The other half: the same policy and the include WITHOUT the nonce. If
+    // this one still ran, the policy above was never enforced and the nonce
+    // check proves nothing.
+    'csp-without-nonce.html': `<!doctype html><html><head><meta charset="utf-8">
+${include}
+<script nonce="t3st" defer src="alpine.js"></script>
+</head><body>${clipMarkup}</body></html>`,
 
     'missing.html': `<!doctype html><html><head><meta charset="utf-8">
 <script defer src="alpine.js"></script>
@@ -1459,14 +1888,25 @@ ${include}
 
 for (const [name, html] of Object.entries(hostPages)) await writeFile(join(TMP, name), html);
 
+/*
+  A real Livewire page, rendered and served by Laravel through
+  scripts/request.php: Livewire injects its own script at the end of the body
+  and serves it from its own route, so this is host setup (c) exactly as a host
+  runs it, and the component is a real one, bound with wire:model.
+*/
+await writeFile(join(TMP, 'livewire.blade.php'), `<!doctype html><html><head><meta charset="utf-8">
+<x-ds::scripts />
+${orderProbe}
+</head><body><livewire:binding-host /></body></html>`);
+
 /** Open a host page with its own error log, so its errors are judged on their own. */
-async function openHost(name) {
+async function openHost(name, origin = ORIGIN) {
     const tab = await context.newPage();
     const errors = [];
     const uncaught = [];
     tab.on('pageerror', (e) => (errors.push(e.message), uncaught.push(e.message)));
     tab.on('console', (m) => ['error', 'warning'].includes(m.type()) && errors.push(m.text()));
-    await tab.goto(`${ORIGIN}/${name}`, { waitUntil: 'networkidle' });
+    await tab.goto(`${origin}/${name}`, { waitUntil: 'networkidle' });
     await tab.waitForTimeout(300);
     return { tab, errors, uncaught };
 }
@@ -1499,8 +1939,99 @@ group('host setup (c): Livewire\'s bundled Alpine, include loaded twice');
 
     await check('Livewire started the Alpine it bundles', async () =>
         (await tab.evaluate(() => Boolean(window.Livewire && window.Alpine?.version))) || 'no Livewire or no Alpine on the page');
+    await check('the include, from the head, had registered when Livewire started Alpine', async () =>
+        (await tab.evaluate(() => window.dsRegisteredAtInit)) === true || 'registered late, or never');
     await check('the behaviour registered on it and works', () => copiesOn(tab));
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+
+group('wire:model on otp-input, tag-input, chip-group and radio-cards, in a real Livewire component');
+{
+    const { tab, errors } = await openHost('_ds/livewire', LARAVEL);
+    const wire = (name) => tab.evaluate((n) => JSON.parse(JSON.stringify(window.Livewire.first()[n])), name);
+    const lwBoxes = () => tab.evaluate(() =>
+        [...document.querySelectorAll('[id^="lw-otp-"][data-ds-otp-box]')].map((b) => b.value).join(''));
+    const lwTags = () => tab.evaluate(() =>
+        [...document.querySelectorAll('#lw-tags ~ * [data-ds-tag-value], [data-ds-tag-value]')]
+            .filter((i) => !i.closest('template')).map((i) => i.value));
+
+    await check('Livewire injected its own script, and the include had registered when it started Alpine', async () => {
+        if (!(await tab.evaluate(() => Boolean(window.Livewire?.first())))) return 'no Livewire component on the page';
+        return (await tab.evaluate(() => window.dsRegisteredAtInit)) === true || 'registered late, or never';
+    });
+
+    await check('otp: a digit the reader types reaches $wire.code', async () => {
+        await tab.focus('#lw-otp-3');
+        await tab.keyboard.type('3');
+        await tab.waitForTimeout(100);
+        return (await wire('code')) === '123' || `$wire.code is ${JSON.stringify(await wire('code'))}`;
+    });
+
+    await check('otp: a code Livewire sets on $wire.code is written into the boxes', async () => {
+        await tab.evaluate(() => { window.Livewire.first().code = '987654'; });
+        await tab.waitForTimeout(100);
+        const posted = await tab.locator('input[name="code"]').inputValue();
+        return ((await lwBoxes()) === '987654' && posted === '987654') || `boxes ${JSON.stringify(await lwBoxes())}, posted ${JSON.stringify(posted)}`;
+    });
+
+    await check('tags: a tag the reader adds reaches $wire.tags', async () => {
+        await tab.focus('#lw-tags');
+        await tab.keyboard.type('ada@example.com');
+        await tab.keyboard.press('Enter');
+        await tab.waitForTimeout(100);
+        return JSON.stringify(await wire('tags')) === '["maya@example.com","ada@example.com"]' || `$wire.tags is ${JSON.stringify(await wire('tags'))}`;
+    });
+
+    await check('tags: a list Livewire sets on $wire.tags is rendered as chips', async () => {
+        await tab.evaluate(() => { window.Livewire.first().tags = ['zed@example.com']; });
+        await tab.waitForTimeout(100);
+        return JSON.stringify(await lwTags()) === '["zed@example.com"]' || `the chips post ${JSON.stringify(await lwTags())}`;
+    });
+
+    await check('chips: a chip the reader presses reaches $wire.filters', async () => {
+        await tab.click('#lw-chips input[value="billing"] >> xpath=..');
+        await tab.waitForTimeout(100);
+        return JSON.stringify(await wire('filters')) === '["bug","billing"]' || `$wire.filters is ${JSON.stringify(await wire('filters'))}`;
+    });
+
+    await check('chips: a list Livewire sets on $wire.filters checks those chips', async () => {
+        await tab.evaluate(() => { window.Livewire.first().filters = ['billing']; });
+        await tab.waitForTimeout(100);
+        const on = await tab.evaluate(() => [...document.querySelectorAll('#lw-chips input:checked')].map((i) => i.value));
+        return JSON.stringify(on) === '["billing"]' || `checked: ${JSON.stringify(on)}`;
+    });
+
+    await check('radio cards: the card the reader presses reaches $wire.plan', async () => {
+        await tab.click('#lw-plan input[value="pro"] >> xpath=ancestor::label');
+        await tab.waitForTimeout(100);
+        return (await wire('plan')) === 'pro' || `$wire.plan is ${JSON.stringify(await wire('plan'))}`;
+    });
+
+    await check('radio cards: a plan Livewire sets on $wire.plan checks that card', async () => {
+        await tab.evaluate(() => { window.Livewire.first().plan = 'free'; });
+        await tab.waitForTimeout(100);
+        const on = await tab.evaluate(() => document.querySelector('#lw-plan input:checked')?.value);
+        return on === 'free' || `checked: ${JSON.stringify(on)}`;
+    });
+
+    await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+
+group('a host with a Content Security Policy');
+{
+    const { tab, errors } = await openHost('csp.html');
+
+    await check('the nonce reaches the script element, and the policy lets it run', () => copiesOn(tab));
+    await check('no violations reported', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+{
+    const { tab, errors } = await openHost('csp-without-nonce.html');
+
+    await check('the same policy blocks the include without the nonce, so the check above means something', async () =>
+        errors.some((e) => /Content Security Policy/i.test(e)) || `nothing was blocked: ${errors.join(' | ') || 'no errors at all'}`);
     await tab.close();
 }
 

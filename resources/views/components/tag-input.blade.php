@@ -101,6 +101,10 @@
         'disabled' => $disabled ? true : null,
     ]));
 
+    // wire:model and x-model go on the root, beside x-modelable, which ties
+    // them to the behaviour's list of tags in both directions.
+    $model = $attributes->filter(fn ($value, $key) => str_starts_with($key, 'wire:model') || str_starts_with($key, 'x-model'));
+
     // Built here, not with conditionals inside the tag: see CLAUDE.md on
     // Livewire's markers.
     $list = new \Illuminate\View\ComponentAttributeBag(array_filter([
@@ -109,7 +113,7 @@
     ]));
 @endphp
 
-<div x-data="{{ $state }}" {{ $attributes->only('class') }}>
+<div x-data="{{ $state }}" x-modelable="dsValue" {{ $model }} {{ $attributes->only('class') }}>
     @if ($label)
         <label id="{{ $id }}-label" for="{{ $id }}" class="{{ $field['label'] }}">{{ $label }}</label>
     @endif
