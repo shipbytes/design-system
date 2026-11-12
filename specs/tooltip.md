@@ -35,6 +35,15 @@ the button an `aria-label` and let the tip add to it.
 transform come from one map — split apart, a placement change keeps the previous
 offset and the tip sits off-centre.
 
+That map is the no-script placement. `x-ds-anchor` (the package's script)
+places the tip over it with `position: fixed`, 8px off the trigger and centred
+on it: it flips to the opposite side when the preferred one has no room, shifts
+along the edge to stay 8px inside the viewport, and is not clipped by an
+`overflow` ancestor. With room it lands where the classes put it; the behaviour
+suite measures both. The anchor is an **enhancement**, which is why the tip
+keeps its two-key inline Alpine: where the script is missing, Alpine skips the
+directive in silence and the tip behaves as in 1.x.
+
 ## Hover *and* focus, always both
 
 `@mouseenter`/`@mouseleave` **and** `@focusin`/`@focusout`.

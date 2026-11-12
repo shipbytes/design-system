@@ -96,6 +96,13 @@ await writeFile(join(TMP, 'fallback.blade.php'), `<div class="p-8">
 <div class="mt-6 max-w-xs">
     <x-ds::select name="fb-select" id="fb-select" label="Plan" :options="['free' => 'Free', 'pro' => 'Pro']" value="pro" />
 </div>
+<div class="mt-6 flex justify-center">
+    <x-ds::tooltip text="Delete this report permanently">
+        <x-ds::button id="fb-tip-trigger" variant="secondary" size="sm" iconOnly aria-label="Delete">
+            <x-ds::icon name="trash" size="4" />
+        </x-ds::button>
+    </x-ds::tooltip>
+</div>
 <div class="mt-6 max-w-xs">
     <x-ds::date-picker name="fb-date" id="fb-date" label="Due" value="2026-09-10" />
 </div>
@@ -1639,8 +1646,16 @@ const anchorBoxes = (panel, reference) => page.evaluate(([p, r]) => {
         side: el.dataset.side,
         shown: getComputedStyle(el).display !== 'none',
         // What is actually painted at the panel's centre: the panel, or
-        // whatever clipped it.
-        onTop: el.contains(document.elementFromPoint(a.left + a.width / 2, a.top + a.height / 2)),
+        // whatever clipped it. A tooltip never takes the pointer, and
+        // elementFromPoint looks straight through a pointer-events-none
+        // element, so that is lifted for the instant of the probe.
+        onTop: (() => {
+            const was = el.style.pointerEvents;
+            el.style.pointerEvents = 'auto';
+            const hit = document.elementFromPoint(a.left + a.width / 2, a.top + a.height / 2);
+            el.style.pointerEvents = was;
+            return el.contains(hit);
+        })(),
     };
 }, [panel, reference]);
 
@@ -2754,6 +2769,14 @@ const anchored = [
         name: 'date picker', trigger: '#dp-edge', panel: '[x-data]:has(> #dp-edge) [role=dialog]',
         open: () => page.click('#dp-edge'), close: pressEscape,
     },
+    {
+        name: 'tooltip', trigger: '#tt-edge-trigger', panel: '[data-ds-tooltip]:has(#tt-edge-trigger) [role=tooltip]',
+        open: () => page.hover('#tt-edge-trigger'),
+        close: async () => {
+            await page.keyboard.press('Escape');
+            await page.mouse.move(5, 5);
+        },
+    },
 ];
 
 /*
@@ -2768,6 +2791,10 @@ const roomy = [
     { name: 'select', trigger: '#plan', panel: '#plan-listbox' },
     { name: 'combobox', trigger: '#tags', panel: '#tags-listbox' },
     { name: 'date picker', trigger: '#period', panel: '[x-data]:has(> #period) [role=dialog]' },
+    {
+        name: 'tooltip', trigger: '#tip-trigger', panel: '[data-ds-tooltip]:has(#tip-trigger) [role=tooltip]',
+        open: () => page.focus('#tip-trigger'), close: pressEscape,
+    },
 ];
 
 const PLACED = ['position', 'left', 'top', 'right', 'bottom', 'margin', 'translate', 'width', 'maxHeight', 'overflowY'];
@@ -3209,6 +3236,10 @@ group('the overlays that predate x-ds-anchor, in a host WITHOUT the script (the 
     const fallbacks = [
         { name: 'dropdown', trigger: '#fb-dropdown-trigger', panel: '#fb-dropdown [role=menu]', side: 'bottom', gap: 8 },
         { name: 'select', trigger: '#fb-select', panel: '#fb-select-listbox', side: 'bottom', gap: 4 },
+        {
+            name: 'tooltip', trigger: '#fb-tip-trigger', panel: '[data-ds-tooltip]:has(#fb-tip-trigger) [role=tooltip]', side: 'top', gap: 8,
+            open: (t) => t.focus('#fb-tip-trigger'), close: (t) => t.keyboard.press('Escape'),
+        },
         { name: 'date picker', trigger: '#fb-date', panel: '[x-data]:has(> #fb-date) [role=dialog]', side: 'bottom', gap: 4 },
         // Measured from the field the list hangs from, the text box's parent.
         { name: 'combobox', trigger: '#fb-combobox', panel: '#fb-combobox-listbox', side: 'bottom', gap: 4, from: 'parent' },

@@ -21,7 +21,7 @@ A short label that appears on hover or focus.
 | Prop | Type | Default | What it does |
 |---|---|---|---|
 | `text` | string | *required* | The tip. Plain text, and short. |
-| `placement` | `top` `bottom` `left` `right` | `top` | |
+| `placement` | `top` `bottom` `left` `right` | `top` | The preferred side. With the script it flips when there is no room. |
 
 ## It is never the only copy
 
@@ -43,6 +43,12 @@ exist for a keyboard. Escape dismisses it, which is [WCAG
 and the part everyone forgets.
 
 The tip never eats the pointer, so hovering the trigger does not flicker.
+
+With the package's [script](../getting-started.md#3-add-the-script) on the
+page, the tip flips to the opposite side when `placement` has no room, shifts
+to stay on screen, and is placed with `position: fixed`, so a toolbar or a
+table cell with `overflow: hidden` cannot clip it. Without the script it sits at
+`placement`, as it did before 2.0.
 
 ## Don't
 

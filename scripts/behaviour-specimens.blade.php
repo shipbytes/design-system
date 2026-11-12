@@ -549,6 +549,12 @@
         </div>
     </div>
 
+    <div class="mt-6 flex h-10 items-center justify-end overflow-hidden border border-border">
+        <x-ds::tooltip text="A tip that prefers to sit below its trigger" placement="bottom">
+            <x-ds::button id="tt-edge-trigger" variant="secondary" size="sm">Edge tip</x-ds::button>
+        </x-ds::tooltip>
+    </div>
+
     {{-- A combobox in a modal whose body scrolls: the body is overflow-y
          auto, which clipped the list before the anchor. The spacer makes the
          body taller than the window, so it really scrolls. --}}

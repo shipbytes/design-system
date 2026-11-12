@@ -22,7 +22,15 @@
         'right' => 'left-full top-1/2 ml-2 -translate-y-1/2',
     ];
 
-    $position = $placements[$placement] ?? $placements['top'];
+    $placement = array_key_exists($placement, $placements) ? $placement : 'top';
+    $position = $placements[$placement];
+
+    // With the package's script, x-ds-anchor places the tip over these
+    // classes: it flips to the opposite side when this one has no room,
+    // shifts to stay on screen, and escapes a clipping ancestor. Without the
+    // script, the classes place it, as in 1.x. The previous sibling is the
+    // `contents` wrapper, measured by the trigger inside it.
+    $anchor = "{ open: tipOpen, reference: \$el.previousElementSibling, placement: '{$placement}' }";
 
     $id = 'ds-tip-'.substr(md5($text.$placement.uniqid()), 0, 8);
 @endphp
@@ -52,6 +60,7 @@
     <span
         x-show="tipOpen"
         x-cloak
+        x-ds-anchor="{{ $anchor }}"
         x-transition:enter="transition ease-out duration-100"
         x-transition:enter-start="opacity-0"
         x-transition:enter-end="opacity-100"
