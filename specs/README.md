@@ -50,6 +50,10 @@ independent implementations the same component rather than three lookalikes.
 | [breadcrumb.md](breadcrumb.md) | Path, separators, the current page |
 | [empty-state.md](empty-state.md) | Nothing here, and what to say about it |
 | [skeleton.md](skeleton.md) | Loading placeholder, and who announces it |
+| [progress.md](progress.md) | Bar and ring, indeterminate, the one custom property |
+| [usage-meter.md](usage-meter.md) | Allowance, thresholds, segments, meter vs progressbar |
+| [stepper.md](stepper.md) | Steps, statuses, the narrow-width collapse |
+| [avatar-group.md](avatar-group.md) | Overlapping avatars, the ground ring, the spoken sentence |
 | [alert.md](alert.md) | Alert, tones, wash-not-tint, the live-region rule |
 | [badge.md](badge.md) | Badge, three variants, five tones, the dot |
 | [icon.md](icon.md) | Icon, sizes, the v1 name bridge, the a11y default |
@@ -59,7 +63,7 @@ independent implementations the same component rather than three lookalikes.
 Sub-components are covered by their parent: `table-cell` and `table-row` in
 table.md, `panel-row` in panel.md, `sheet-item` in sheet.md, `dropdown-item` in
 dropdown.md, `bottom-nav-item` in bottom-nav.md, `breadcrumb-item` in
-breadcrumb.md, `tab` and `tab-panel` in tabs.md, `radio-group` in radio.md, and
+breadcrumb.md, `tab` and `tab-panel` in tabs.md, `step` in stepper.md, `radio-group` in radio.md, and
 `toast-region` in toast.md.
 
 **Every built component now has a spec.** Specs are written **alongside** their

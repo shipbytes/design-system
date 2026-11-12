@@ -12,7 +12,7 @@
 A design system for Laravel and Blade, with design tokens any other stack can
 use from plain CSS or JavaScript.
 
-**41 Blade components**, a spec and a documentation page for each, design tokens
+**46 Blade components**, a spec and a documentation page for each, design tokens
 with light and dark values, and three test suites — including one that drives
 every interactive component in a real browser.
 
@@ -38,7 +38,7 @@ compiled CSS; the install is one `composer require` and three lines of CSS. Add
 `@shipbytes/design-tokens` only if your own JavaScript needs the token *values*
 — a chart palette reading `tokens.js` rather than repeating hex literals.
 
-**Laravel with Inertia + React?** Skip `blade-ui` — 41 Blade components you
+**Laravel with Inertia + React?** Skip `blade-ui` — 46 Blade components you
 cannot render are not useful — and take `@shipbytes/design-tokens`: the same
 `tokens.css` and `theme.css`, so your own React components draw from the same
 values. If you have both, Blade marketing pages and a React app behind login,
@@ -181,17 +181,18 @@ source, in both themes.
 
 ### What you get
 
-Forty-one components, plus a pagination view.
+Forty-six components, plus a pagination view.
 
 **Layout & content** — `panel` `panel-row` `table` `table-cell` `table-row`
-`stat-tile` `empty-state` `skeleton` `accordion` `accordion-item`
+`stat-tile` `empty-state` `skeleton` `progress` `usage-meter` `accordion`
+`accordion-item`
 **Forms** — `input` `select` `combobox` `checkbox` `radio` `radio-group`
 `switch` `date-picker` `file-upload` `button`
 **Navigation** — `nav-item` `bottom-nav` `bottom-nav-item` `tabs` `tab`
-`tab-panel` `breadcrumb` `breadcrumb-item`
+`tab-panel` `breadcrumb` `breadcrumb-item` `stepper` `step`
 **Overlays** — `modal` `drawer` `sheet` `sheet-item` `dropdown` `dropdown-item`
 `tooltip` `toast` `toast-region`
-**Marks** — `icon` `avatar` `badge` `alert`
+**Marks** — `icon` `avatar` `avatar-group` `badge` `alert`
 
 Wire pagination up in a service provider:
 

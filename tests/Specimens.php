@@ -283,6 +283,92 @@ final class Specimens
                 <x-ds::avatar />
                 BLADE,
 
+            'avatar-group/all' => <<<'BLADE'
+                @php
+                    $people = [
+                        ['name' => 'Ada Lovelace', 'src' => '/ada.jpg'],
+                        ['name' => 'Grace Hopper'],
+                        ['name' => 'Alan Turing'],
+                        ['name' => 'Acme Ltd', 'square' => true],
+                    ];
+                @endphp
+                <x-ds::avatar-group :avatars="$people" label="Project members" />
+                <x-ds::avatar-group :avatars="$people" :max="2" size="xs" />
+                <x-ds::avatar-group :avatars="$people" :max="3" size="md" :total="12" href="/team" />
+                <x-ds::avatar-group :avatars="array_slice($people, 0, 2)" size="lg" :total="40" />
+                <x-ds::avatar-group :avatars="[]" :total="5" />
+                BLADE,
+
+            'progress/bar' => <<<'BLADE'
+                <x-ds::progress label="Uploading" :value="42" />
+                <x-ds::progress label="Uploading" :value="42" :showValue="true" size="sm" />
+                <x-ds::progress label="Indexing" />
+                <x-ds::progress label="Over" :value="140" tone="danger" :showValue="true" />
+                <x-ds::progress label="Under" :value="-5" tone="success" />
+                <x-ds::progress label="Files" :value="3" :max="12" :hideLabel="true">3 of 12 files</x-ds::progress>
+                <x-ds::progress label="Accent" :value="10" tone="accent" />
+                <x-ds::progress label="Warning" :value="90" tone="warning" />
+                <span id="ext">Export</span>
+                <x-ds::progress aria-labelledby="ext" :value="60" />
+                BLADE,
+            'progress/circle' => <<<'BLADE'
+                <x-ds::progress label="Syncing" :value="64" variant="circle" :showValue="true" />
+                <x-ds::progress label="Syncing" :value="64" variant="circle" size="sm" :showValue="true" tone="accent" />
+                <x-ds::progress label="Waiting" variant="circle" size="sm" :hideLabel="true" />
+                <x-ds::progress label="Waiting" variant="circle" tone="success" />
+                <x-ds::progress label="Disk" :value="91" variant="circle" tone="warning" />
+                <x-ds::progress label="Disk" :value="100" variant="circle" tone="danger" :hideLabel="true" />
+                BLADE,
+
+            'usage-meter/all' => <<<'BLADE'
+                <x-ds::usage-meter label="AI credits" :used="12" :limit="50" unit="credits" />
+                <x-ds::usage-meter label="AI credits" :used="42" :limit="50" unit="credits" />
+                <x-ds::usage-meter label="Storage" :used="1200" :limit="1000" unit="MB" />
+                <x-ds::usage-meter label="Seats" :used="10" :limit="10" />
+                <x-ds::usage-meter label="Exports" :used="3" :limit="0" />
+                <x-ds::usage-meter label="Builds" :used="30" :limit="40" :warnAt="50" :dangerAt="90" />
+                @php
+                    $storage = [
+                        ['label' => 'Files', 'value' => 4.5, 'tone' => 'accent'],
+                        ['label' => 'Backups', 'value' => 2, 'tone' => 'success'],
+                        ['label' => 'Logs', 'value' => 1.25, 'tone' => 'warning'],
+                        ['label' => 'Other', 'value' => 0.5],
+                    ];
+                    $overfull = [
+                        ['label' => 'Files', 'value' => 9, 'tone' => 'accent'],
+                        ['label' => 'Backups', 'value' => 3, 'tone' => 'danger'],
+                    ];
+                @endphp
+                <x-ds::usage-meter label="Storage" :limit="10" unit="GB" :segments="$storage" />
+                <x-ds::usage-meter label="Storage" :limit="10" unit="GB" :segments="$overfull" />
+                BLADE,
+
+            'stepper/horizontal' => <<<'BLADE'
+                <x-ds::stepper label="Checkout progress">
+                    <x-ds::step status="complete" title="Account" href="/checkout/account" />
+                    <x-ds::step status="current" title="Plan" description="Pick what you need" />
+                    <x-ds::step status="upcoming" title="Billing" href="/checkout/billing" />
+                    <x-ds::step status="upcoming" title="Review" />
+                </x-ds::stepper>
+                <x-ds::stepper>
+                    <x-ds::step status="complete" title="One" />
+                    <x-ds::step status="error" title="Two" description="Card declined" />
+                    <x-ds::step title="Three" />
+                </x-ds::stepper>
+                <x-ds::stepper>
+                    <x-ds::step status="complete" title="One" />
+                    <x-ds::step status="complete" title="Two" />
+                </x-ds::stepper>
+                BLADE,
+            'stepper/vertical' => <<<'BLADE'
+                <x-ds::stepper orientation="vertical" label="Setup">
+                    <x-ds::step status="complete" title="Connect the repository" description="github.com/acme/api" href="/setup/repo" />
+                    <x-ds::step status="error" title="Install the app" description="Permission was refused" />
+                    <x-ds::step status="current" title="Configure" />
+                    <x-ds::step status="upcoming" title="Deploy" />
+                </x-ds::stepper>
+                BLADE,
+
             'breadcrumb/all' => <<<'BLADE'
                 <x-ds::breadcrumb>
                     <x-ds::breadcrumb-item href="/">Home</x-ds::breadcrumb-item>

@@ -188,4 +188,24 @@
         <button type="button" id="clip-other" @click="copy('other value')">Copy other</button>
         <span id="clip-state" x-text="copied ? 'copied' : 'idle'">idle</span>
     </div>
+
+    {{-- ── progress, driven by the host ──
+         The example in docs/components/progress.md, verbatim. The component
+         holds no state: the host binds --ds-progress and aria-valuenow on the
+         tag and words the value through the slot. Server-rendered at 10 so the
+         first paint is right before Alpine boots. --}}
+    <div class="mt-6 max-w-sm" x-data="{ done: 10 }">
+        <x-ds::progress
+            id="live-progress"
+            label="Uploading"
+            :value="10"
+            ::style="{ '--ds-progress': done }"
+            ::aria-valuenow="done"
+        ><span x-text="done + '%'">10%</span></x-ds::progress>
+        <button type="button" id="progress-advance" @click="done = 75">Advance</button>
+    </div>
+
+    <div class="mt-6 max-w-sm">
+        <x-ds::progress id="busy-progress" label="Indexing" />
+    </div>
 </div>

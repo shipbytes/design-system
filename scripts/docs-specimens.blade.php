@@ -108,6 +108,36 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── avatar group --}}
+{{-- On the panel AND on the sunken ground, because the ring is the surface
+     colour and has to look deliberate on both. --}}
+@php
+    $team = [
+        ['name' => 'Ada Lovelace'],
+        ['name' => 'Grace Hopper'],
+        ['name' => 'Alan Turing'],
+        ['name' => 'Katherine Johnson'],
+        ['name' => 'Edsger Dijkstra'],
+        ['name' => 'Barbara Liskov'],
+    ];
+@endphp
+<div data-shot="avatar-group" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="rounded-panel border border-border bg-surface p-4">
+                <div class="flex flex-wrap items-center gap-6">
+                    <x-ds::avatar-group :avatars="$team" :max="4" label="Project members" />
+                    <x-ds::avatar-group :avatars="$team" :max="3" size="md" :total="24" />
+                </div>
+            </div>
+            <div class="mt-4 flex flex-wrap items-center gap-6 px-4">
+                <x-ds::avatar-group :avatars="$team" :max="5" size="xs" />
+                <x-ds::avatar-group :avatars="array_slice($team, 0, 3)" size="lg" />
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── alert --}}
 <div data-shot="alert" class="shot">
     @foreach ($themes as $t)
@@ -333,6 +363,82 @@
                     <x-ds::skeleton :lines="2" />
                 </div>
                 <div class="mt-4"><x-ds::skeleton variant="block" size="sm" /></div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── progress --}}
+<div data-shot="progress" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-5 rounded-panel border border-border bg-surface p-4">
+                <x-ds::progress label="Uploading report.pdf" :value="64" :showValue="true" />
+                <x-ds::progress label="Importing contacts" :value="3" :max="12" tone="accent">3 of 12 files</x-ds::progress>
+                <x-ds::progress label="Preparing the export" size="sm" />
+                <div class="flex flex-wrap items-center gap-5">
+                    <x-ds::progress label="Synced" :value="100" variant="circle" tone="success" :showValue="true" :hideLabel="true" />
+                    <x-ds::progress label="Disk" :value="91" variant="circle" tone="warning" :showValue="true" :hideLabel="true" />
+                    <x-ds::progress label="Building" :value="40" variant="circle" size="sm" :showValue="true" />
+                    <x-ds::progress label="Waiting" variant="circle" size="sm" />
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── usage meter --}}
+@php
+    $storage = [
+        ['label' => 'Files', 'value' => 4.5, 'tone' => 'accent'],
+        ['label' => 'Backups', 'value' => 2, 'tone' => 'success'],
+        ['label' => 'Logs', 'value' => 1.25, 'tone' => 'warning'],
+    ];
+@endphp
+<div data-shot="usage-meter" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-5 rounded-panel border border-border bg-surface p-4">
+                <x-ds::usage-meter label="AI credits" :used="18" :limit="50" unit="credits" />
+                <x-ds::usage-meter label="Team seats" :used="9" :limit="10" unit="seats" />
+                <x-ds::usage-meter label="Storage" :limit="10" unit="GB" :segments="$storage" />
+                <x-ds::usage-meter label="Emails this month" :used="5240" :limit="5000" />
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── stepper --}}
+{{-- The widest shot, because the stepper collapses below 40rem of ITS OWN
+     width: at 900px a pane the horizontal one has room to show every title,
+     and the narrow box beside the vertical one shows what it collapses to. --}}
+<div data-shot="stepper" class="shot shot-widest">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="rounded-panel border border-border bg-surface p-5">
+                <x-ds::stepper label="Checkout progress">
+                    <x-ds::step status="complete" title="Account" description="ada@example.com" href="#account" />
+                    <x-ds::step status="current" title="Plan" description="Pick what you need" />
+                    <x-ds::step status="upcoming" title="Billing" />
+                    <x-ds::step status="upcoming" title="Review" />
+                </x-ds::stepper>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-4">
+                <div class="rounded-panel border border-border bg-surface p-5">
+                    <x-ds::stepper orientation="vertical" label="Setup">
+                        <x-ds::step status="complete" title="Connect the repository" description="github.com/acme/api" />
+                        <x-ds::step status="error" title="Install the app" description="Permission was refused" />
+                        <x-ds::step status="upcoming" title="Deploy" />
+                    </x-ds::stepper>
+                </div>
+                <div class="max-w-80 rounded-panel border border-border bg-surface p-5">
+                    <x-ds::stepper label="Checkout progress">
+                        <x-ds::step status="complete" title="Account" />
+                        <x-ds::step status="current" title="Plan" />
+                        <x-ds::step status="upcoming" title="Billing" />
+                        <x-ds::step status="upcoming" title="Review" />
+                    </x-ds::stepper>
+                </div>
             </div>
         </div>
     @endforeach

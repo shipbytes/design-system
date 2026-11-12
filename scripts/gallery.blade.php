@@ -730,6 +730,149 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Avatar group --}}
+@php
+    $galleryTeam = [
+        ['name' => 'Ada Lovelace'],
+        ['name' => 'Grace Hopper'],
+        ['name' => 'Alan Turing'],
+        ['name' => 'Katherine Johnson'],
+        ['name' => 'Edsger Dijkstra'],
+        ['name' => 'Acme Holdings', 'square' => true],
+    ];
+@endphp
+<section class="ds-spec" id="avatar-group">
+    <header class="ds-spec-head">
+        <h2>Avatar group</h2>
+        <p>The existing avatar, stacked. Each one sits on an opaque surface backing ringed in the ground colour, so the overlap reads as a cut-out on the panel and on the sunken ground, in both themes.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Sizes <span>&middot; max, then +K; the size passes down to every avatar and the chip</span></div>
+        <div class="{{ $row }} gap-6 px-4">
+            <x-ds::avatar-group :avatars="$galleryTeam" :max="3" size="xs" />
+            <x-ds::avatar-group :avatars="$galleryTeam" :max="4" label="Project members" />
+            <x-ds::avatar-group :avatars="$galleryTeam" :max="3" size="md" :total="24" href="#avatar-group" />
+            <x-ds::avatar-group :avatars="$galleryTeam" size="lg" />
+        </div>
+        <div class="px-4 pb-4 ds-tick">A screen reader hears one sentence &mdash; &ldquo;Ada Lovelace, Grace Hopper, Alan Turing, and 3 more&rdquo; &mdash; not six images and a number.</div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">On the sunken ground</div>
+        <div class="rounded-control bg-surface-sunken p-4">
+            <x-ds::avatar-group :avatars="$galleryTeam" :max="4" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Progress --}}
+<section class="ds-spec" id="progress">
+    <header class="ds-spec-head">
+        <h2>Progress</h2>
+        <p>A task with a known length, or one without. The fill reads one number, <code>--ds-progress</code>, so a host moves it with a single binding and no class is ever built at runtime.</p>
+    </header>
+
+    <div class="ds-note">The indeterminate sweep is <em>motion-safe</em>. Ask for reduced motion and it becomes a static striped bar &mdash; a still partial bar would read as a real value.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Bar <span>&middot; md and sm, five tones, indeterminate</span></div>
+        <div class="flex flex-col gap-5 px-4 pb-4">
+            <x-ds::progress label="Uploading report.pdf" :value="64" :showValue="true" />
+            <x-ds::progress label="Importing contacts" :value="3" :max="12" tone="accent">3 of 12 files</x-ds::progress>
+            <x-ds::progress label="Checks passing" :value="100" tone="success" :showValue="true" size="sm" />
+            <x-ds::progress label="Quota" :value="88" tone="warning" :showValue="true" size="sm" />
+            <x-ds::progress label="Failed rows" :value="12" tone="danger" :showValue="true" size="sm" />
+            <x-ds::progress label="Preparing the export" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Circle <span>&middot; md carries its value inside, sm beside</span></div>
+        <div class="{{ $row }} gap-6 px-4">
+            <x-ds::progress label="Synced" :value="100" variant="circle" tone="success" :showValue="true" />
+            <x-ds::progress label="Disk" :value="91" variant="circle" tone="warning" :showValue="true" :hideLabel="true" />
+            <x-ds::progress label="Building" :value="40" variant="circle" size="sm" :showValue="true" />
+            <x-ds::progress label="Waiting" variant="circle" size="sm" />
+            <x-ds::progress label="Waiting" variant="circle" tone="accent" :hideLabel="true" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Usage meter --}}
+<section class="ds-spec" id="usage-meter">
+    <header class="ds-spec-head">
+        <h2>Usage meter</h2>
+        <p>An allowance and what fills it, drawn on the progress bar's track. A <code>meter</code>, not a progressbar: nothing is moving towards done. The tone comes from the thresholds, and over the limit is said in words.</p>
+    </header>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Thresholds <span>&middot; neutral, then warning at 80%, danger at 100%</span></div>
+        <div class="flex flex-col gap-5 px-4 pb-4">
+            <x-ds::usage-meter label="AI credits" :used="18" :limit="50" unit="credits" />
+            <x-ds::usage-meter label="Team seats" :used="9" :limit="10" unit="seats" />
+            <x-ds::usage-meter label="Emails this month" :used="5240" :limit="5000" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Segments <span>&middot; a stacked bar and its legend; over the limit they shrink together</span></div>
+        <div class="flex flex-col gap-5 px-4 pb-4">
+            <x-ds::usage-meter label="Storage" :limit="10" unit="GB" :segments="[
+                ['label' => 'Files', 'value' => 4.5, 'tone' => 'accent'],
+                ['label' => 'Backups', 'value' => 2, 'tone' => 'success'],
+                ['label' => 'Logs', 'value' => 1.25, 'tone' => 'warning'],
+            ]" />
+            <x-ds::usage-meter label="Storage" :limit="10" unit="GB" :segments="[
+                ['label' => 'Files', 'value' => 9, 'tone' => 'accent'],
+                ['label' => 'Backups', 'value' => 3],
+            ]" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Stepper --}}
+<section class="ds-spec" id="stepper">
+    <header class="ds-spec-head">
+        <h2>Stepper</h2>
+        <p>Where someone is in a flow. An ordered list; the current step is <code>aria-current="step"</code> and every status is spoken, not only coloured. The host says which step is current.</p>
+    </header>
+
+    <div class="ds-note">Below 40rem of <em>its own</em> width a horizontal stepper keeps the markers and prints &ldquo;Step 2 of 4&rdquo; and the current title underneath. Resize the window to watch the top one go.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Horizontal <span>&middot; a completed step links back</span></div>
+        <div class="px-4 pb-4">
+            <x-ds::stepper label="Checkout progress">
+                <x-ds::step status="complete" title="Account" description="ada@example.com" href="#stepper" />
+                <x-ds::step status="current" title="Plan" description="Pick what you need" />
+                <x-ds::step status="upcoming" title="Billing" />
+                <x-ds::step status="upcoming" title="Review" />
+            </x-ds::stepper>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Vertical, and collapsed <span>&middot; the right one is horizontal in 20rem</span></div>
+        <div class="grid gap-6 px-4 pb-4 sm:grid-cols-2">
+            <x-ds::stepper orientation="vertical" label="Setup">
+                <x-ds::step status="complete" title="Connect the repository" description="github.com/acme/api" />
+                <x-ds::step status="error" title="Install the app" description="Permission was refused" />
+                <x-ds::step status="current" title="Configure" />
+                <x-ds::step status="upcoming" title="Deploy" />
+            </x-ds::stepper>
+            <div class="max-w-80">
+                <x-ds::stepper label="Checkout progress">
+                    <x-ds::step status="complete" title="Account" />
+                    <x-ds::step status="current" title="Plan" />
+                    <x-ds::step status="upcoming" title="Billing" />
+                    <x-ds::step status="upcoming" title="Review" />
+                </x-ds::stepper>
+            </div>
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Breadcrumb --}}
 <section class="ds-spec" id="breadcrumb">
     <header class="ds-spec-head">
