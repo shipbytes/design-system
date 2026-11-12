@@ -96,6 +96,9 @@ await writeFile(join(TMP, 'fallback.blade.php'), `<div class="p-8">
 <div class="mt-6 max-w-xs">
     <x-ds::select name="fb-select" id="fb-select" label="Plan" :options="['free' => 'Free', 'pro' => 'Pro']" value="pro" />
 </div>
+<div class="mt-6 max-w-xs">
+    <x-ds::combobox name="fb-combobox" id="fb-combobox" label="Tags" :options="['a11y' => 'Accessibility', 'billing' => 'Billing']" />
+</div>
 </div>`);
 const fallbackMarkup = await render(join(TMP, 'fallback.blade.php'));
 await writeFile(join(TMP, 'fallback.html'), fallbackMarkup);
@@ -2784,6 +2787,10 @@ const anchored = [
         name: 'select', trigger: '#sel-edge', panel: '#sel-edge-listbox',
         open: () => page.click('#sel-edge'), close: pressEscape,
     },
+    {
+        name: 'combobox', trigger: '#cb-edge', panel: '#cb-edge-listbox',
+        open: () => page.click('#cb-edge'), close: pressEscape,
+    },
 ];
 
 /*
@@ -2796,6 +2803,7 @@ const anchored = [
 const roomy = [
     { name: 'dropdown', trigger: '#menu-trigger', panel: '[data-ds-dropdown]:has(#menu-trigger) [role=menu]' },
     { name: 'select', trigger: '#plan', panel: '#plan-listbox' },
+    { name: 'combobox', trigger: '#tags', panel: '#tags-listbox' },
 ];
 
 const PLACED = ['position', 'left', 'top', 'right', 'bottom', 'margin', 'translate', 'width', 'maxHeight', 'overflowY'];
@@ -2839,6 +2847,76 @@ for (const { name, trigger, reference, panel, open, close, side = 'top' } of anc
         if (!b.onTop) return 'something else is painted where it is: clipped';
         return insideViewport(b);
     });
+}
+
+/*
+  The second half of what the anchor was for: a combobox in a modal whose body
+  scrolls. The body is overflow-y auto, so before the anchor a list opening
+  below a field at the bottom of the body was cut off at the body's edge, with
+  the modal's footer painted where the options should be.
+*/
+group('combobox in a scrolling modal body (overflow-y-auto, x-ds-anchor)');
+{
+    const listbox = '#cb-modal-listbox';
+    const bodyBox = () => page.evaluate(() => {
+        const r = document.getElementById('cb-modal-spacer').parentElement.getBoundingClientRect();
+        return { top: r.top, bottom: r.bottom };
+    });
+
+    await page.evaluate(() => document.getElementById('cb-modal-open').scrollIntoView({ block: 'center' }));
+    await page.click('#cb-modal-open');
+    await settle(450);
+    // The field at the very bottom of the body's visible area, so the room
+    // below it is the footer's and the window's gutter, nothing more.
+    await page.evaluate(() => document.getElementById('cb-modal').scrollIntoView({ block: 'end' }));
+    await settle(150);
+
+    await check('the body really scrolls, and the field sits at the bottom of it', async () => {
+        const r = await page.evaluate(() => {
+            const body = document.getElementById('cb-modal-spacer').parentElement;
+            const field = document.getElementById('cb-modal').getBoundingClientRect();
+            return { scrolls: body.scrollHeight > body.clientHeight, gap: Math.round(body.getBoundingClientRect().bottom - field.bottom) };
+        });
+        return (r.scrolls && r.gap >= 0 && r.gap <= 8) || JSON.stringify(r);
+    });
+
+    await check('with every option, the list flips above the field and stays on screen', async () => {
+        await page.click('#cb-modal');
+        await settle(400);
+        const b = await anchorBoxes(listbox, '#cb-modal');
+        if (!b.shown) return 'it did not open';
+        if (b.side !== 'top') return `data-side is ${b.side}`;
+        if (!b.onTop) return 'something else is painted where it is';
+        return insideViewport(b);
+    });
+
+    await check('filtered to one option, it opens below, over the body\'s clipped edge, and is painted there', async () => {
+        await page.fill('#cb-modal', 'comp');
+        await settle(300);
+        const b = await anchorBoxes(listbox, '#cb-modal');
+        const body = await bodyBox();
+        if (b.side !== 'bottom') return `data-side is ${b.side}: there was room below for one option`;
+        if (b.panel.bottom <= body.bottom) return 'the list ends inside the body, so this proves nothing';
+        return b.onTop || 'the body clipped it: the footer is painted where the option is';
+    });
+
+    await check('follows the field as the body scrolls under it', async () => {
+        await page.evaluate(() => { document.getElementById('cb-modal-spacer').parentElement.scrollTop += 60; });
+        await settle(150);
+        const b = await anchorBoxes(listbox, '#cb-modal');
+        const field = await page.evaluate(() => document.getElementById('cb-modal').parentElement.getBoundingClientRect().bottom);
+        const gap = Math.round(b.panel.top - field);
+        if (b.side !== 'bottom') return `data-side is ${b.side}`;
+        return gap === 4 || `${gap}px below the field after scrolling the body`;
+    });
+
+    await page.fill('#cb-modal', '');
+    await page.keyboard.press('Escape');
+    await settle(150);
+    await page.click('#cb-modal-close');
+    await settle(400);
+    await check('closing the modal leaves nothing open behind it', async () =>
+        !(await page.locator(listbox).isVisible()) || 'the list is still showing');
 }
 
 // ---------------------------------------------------------------- the other two host setups
@@ -3167,19 +3245,22 @@ group('the overlays that predate x-ds-anchor, in a host WITHOUT the script (the 
     const fallbacks = [
         { name: 'dropdown', trigger: '#fb-dropdown-trigger', panel: '#fb-dropdown [role=menu]', side: 'bottom', gap: 8 },
         { name: 'select', trigger: '#fb-select', panel: '#fb-select-listbox', side: 'bottom', gap: 4 },
+        // Measured from the field the list hangs from, the text box's parent.
+        { name: 'combobox', trigger: '#fb-combobox', panel: '#fb-combobox-listbox', side: 'bottom', gap: 4, from: 'parent' },
     ];
 
     await check('the markup reached the page', async () =>
         (await tab.locator('#fb-dropdown-trigger').count()) === 1 || 'the fallback specimens were not found');
 
-    for (const { name, trigger, panel, side, gap, open, close } of fallbacks) {
+    for (const { name, trigger, panel, side, gap, open, close, from } of fallbacks) {
         await check(`${name}: opens at its fallback position, beside its trigger`, async () => {
             await (open ? open(tab) : tab.click(trigger));
             await tab.waitForTimeout(350);
-            const r = await tab.evaluate(([p, t]) => {
+            const r = await tab.evaluate(([p, t, parent]) => {
                 const el = document.querySelector(p);
                 const a = el.getBoundingClientRect();
-                const b = document.querySelector(t).getBoundingClientRect();
+                const at = document.querySelector(t);
+                const b = (parent ? at.parentElement : at).getBoundingClientRect();
                 const s = getComputedStyle(el);
                 return {
                     shown: s.display !== 'none',
@@ -3188,7 +3269,7 @@ group('the overlays that predate x-ds-anchor, in a host WITHOUT the script (the 
                     below: Math.round(a.top - b.bottom),
                     above: Math.round(b.top - a.bottom),
                 };
-            }, [panel, trigger]);
+            }, [panel, trigger, from === 'parent']);
             await (close ? close(tab) : tab.keyboard.press('Escape'));
             await tab.waitForTimeout(250);
             if (!r.shown) return 'it did not open';

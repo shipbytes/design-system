@@ -47,6 +47,21 @@ Clicking anywhere in the field focuses the text input. A combobox whose chips
 take the click and leave the caret elsewhere feels broken in a way nobody can
 articulate.
 
+## Where the list opens
+
+Below the field, 4px off it and at its width. `x-ds-anchor` (the package's
+script) places it there with `position: fixed`: it flips above when there is no
+room below, caps its height at the room there is when neither side has it, and
+is not clipped by an `overflow` ancestor. The case that made this worth doing
+is a combobox in a modal, whose body is `overflow-y-auto`: a field near the
+bottom of the body opened a list the body cut off, under the footer. The
+behaviour suite now opens one there and checks the list is painted, on screen,
+and follows the field as the body scrolls.
+
+The anchor is an **enhancement**: the absolute classes are the no-script
+placement, as in 1.x, and Alpine skips the directive in silence where the
+script is missing. With room, the anchor lands where those classes put it.
+
 ## Filtering is client-side
 
 The whole option list is passed in and filtered in the browser. That is the

@@ -534,6 +534,28 @@
                 :options="['free' => 'Free', 'pro' => 'Pro', 'team' => 'Team', 'scale' => 'Scale', 'custom' => 'Custom']" />
         </div>
     </div>
+    <div class="mt-6 flex h-10 justify-end overflow-hidden border border-border">
+        <div class="w-64">
+            <x-ds::combobox name="cb-edge" id="cb-edge" aria-label="Edge tags"
+                :options="['a11y' => 'Accessibility', 'billing' => 'Billing', 'compliance' => 'Compliance', 'design' => 'Design', 'infra' => 'Infrastructure']" />
+        </div>
+    </div>
+
+    {{-- A combobox in a modal whose body scrolls: the body is overflow-y
+         auto, which clipped the list before the anchor. The spacer makes the
+         body taller than the window, so it really scrolls. --}}
+    <div class="mt-6" x-data="{ cbModal: false }">
+        <button type="button" id="cb-modal-open" @click="cbModal = true">Open the scrolling modal</button>
+        <x-ds::modal open="cbModal" title="Tag the report" size="sm">
+            <div id="cb-modal-spacer" class="h-[900px]">Long content above the field.</div>
+            <x-ds::combobox name="cb-modal" id="cb-modal" label="Tags"
+                :options="['a11y' => 'Accessibility', 'billing' => 'Billing', 'compliance' => 'Compliance', 'design' => 'Design']" />
+            <div class="h-[400px]">Long content below the field.</div>
+            <x-slot:footer>
+                <x-ds::button id="cb-modal-close" size="sm" @click="cbModal = false">Close</x-ds::button>
+            </x-slot:footer>
+        </x-ds::modal>
+    </div>
 
     {{-- ── dsClipboard, from the shared script ──
          No component uses it yet, so this is the markup a component would

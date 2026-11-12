@@ -60,6 +60,18 @@ system deliberately doesn't have.
 
 For a list too large to send down, you want a different component than this one.
 
+## Where the list opens
+
+Below the field, at its width. With the package's
+[script](../getting-started.md#3-add-the-script) on the page, it flips above
+the field when there is no room below, and it is placed with
+`position: fixed`, so a card, a table or a **modal body that scrolls** cannot
+clip it; it follows the field as that body scrolls. With room it opens exactly
+where it always did.
+
+Without the script it still works, below the field as before 2.0, and a
+clipping ancestor cuts it off.
+
 ## Keyboard
 
 Typing filters. Arrows walk the **filtered** list, Home and End jump, Enter and

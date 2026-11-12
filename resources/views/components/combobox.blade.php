@@ -164,9 +164,14 @@
         />
     </div>
 
+    {{-- x-ds-anchor is an enhancement, as on ds::select: with the script the
+         list flips above the field when there is no room below and escapes a
+         clipping ancestor, a scrolling modal body included; without it, the
+         absolute classes below place it, as in 1.x. --}}
     <ul
         x-show="open"
         x-cloak
+        x-ds-anchor="{ open: open, reference: $el.previousElementSibling, placement: 'bottom-start', offset: 4, width: 'reference' }"
         id="{{ $id }}-listbox"
         @click.outside="open = false; query = ''"
         @keydown.escape.stop="open = false; $refs.search.focus()"
@@ -180,7 +185,7 @@
         role="listbox"
         :aria-multiselectable="multiple"
         @if ($label) aria-labelledby="{{ $id }}-label" @endif
-        class="absolute z-50 mt-1 max-h-60 w-full origin-top overflow-y-auto rounded-control border border-border bg-surface py-1 shadow-float"
+        class="absolute z-50 mt-1 max-h-60 w-full origin-top data-[side=top]:origin-bottom overflow-y-auto rounded-control border border-border bg-surface py-1 shadow-float"
     >
         <template
             x-for="option in options.filter((o) => o.label.toLowerCase().includes(query.trim().toLowerCase()))"
