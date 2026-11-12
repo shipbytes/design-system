@@ -14,8 +14,9 @@
  *   - the control gets aria-expanded, kept in step, and aria-controls; a
  *     panel given no name is named by the control
  *   - a press on the trigger opens and closes it
- *   - opening moves focus to the first focusable thing in the panel, or to
- *     the panel itself; closing gives it back to the control, if it was in
+ *   - opening moves focus to the element marked data-ds-autofocus or
+ *     autofocus, else the first focusable thing in the panel, else the panel
+ *     itself; closing gives it back to the control, if it was in
  *     the panel
  *   - Escape closes, a press outside closes, and focus moving outside
  *     closes, Tab included: nothing is trapped. `dismissible: false` turns
@@ -126,7 +127,10 @@ function wire(root, api) {
     function focusIn() {
         if (!panel) return;
         const visible = (el) => el.getClientRects().length > 0;
-        const first = panel.querySelector('[autofocus]')
+        // data-ds-autofocus is the component's own mark, for a panel that
+        // names where focus belongs without the page-load meaning of
+        // autofocus: ds::confirm-popover puts it on Cancel or the field.
+        const first = panel.querySelector('[data-ds-autofocus], [autofocus]')
             ?? [...panel.querySelectorAll(FOCUSABLE)].find(visible)
             ?? panel;
         first.focus();
