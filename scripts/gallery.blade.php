@@ -1302,6 +1302,29 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Context menu --}}
+<section class="ds-spec" id="context-menu">
+    <header class="ds-spec-head">
+        <h2>Context menu</h2>
+        <p>The dropdown&rsquo;s menu, opened where the reader points: a right-click, a long press, or Shift+F10 on the focused row. The browser&rsquo;s own menu stays on fields and links inside.</p>
+    </header>
+
+    <div class="ds-note">With <em>no Alpine</em> here the menu stays closed, and a right-click shows the browser&rsquo;s menu: that is the component without its script. The open menu is in the documentation screenshot and driven by the behaviour suite.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">A region <span>&middot; the default slot; the items go in <code>menu</code>, and every one of them must be reachable some other way too</span></div>
+        <x-ds::context-menu label="Report actions" class="rounded-panel border border-border bg-surface p-4">
+            <p class="text-section font-semibold text-fg">Q3 revenue</p>
+            <p class="text-meta text-fg-muted">Ready, &pound;12,400</p>
+            <x-slot:menu>
+                <x-ds::dropdown-item icon="pencil-square" href="#context-menu">Edit</x-ds::dropdown-item>
+                <x-ds::dropdown-item icon="document-duplicate" href="#context-menu">Duplicate</x-ds::dropdown-item>
+                <x-ds::dropdown-item icon="trash" tone="danger" as="button">Delete</x-ds::dropdown-item>
+            </x-slot:menu>
+        </x-ds::context-menu>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Avatar --}}
 <section class="ds-spec" id="avatar">
     <header class="ds-spec-head">

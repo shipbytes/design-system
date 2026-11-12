@@ -252,6 +252,15 @@ const OPERATE = {
         await pane.locator('[data-shot-hover]').dispatchEvent('pointerover', { bubbles: true, pointerType: 'mouse' });
         await tab.waitForTimeout(650);
     },
+    // A right-click on the second row, as the region hears it: a
+    // contextmenu at a point, on the region itself and not bubbling.
+    'context-menu': async (pane) =>
+        pane.locator('[data-shot-region]').evaluate((el) => {
+            const r = el.getBoundingClientRect();
+            el.dispatchEvent(new MouseEvent('contextmenu', {
+                bubbles: false, cancelable: true, button: 2, clientX: r.left + 150, clientY: r.top + 70,
+            }));
+        }),
     'date-picker': async (pane) =>
         pane.locator('[data-ds-date-trigger]').dispatchEvent('click', { bubbles: false }),
     combobox: async (pane) => pane.locator('input[type="text"]').dispatchEvent('focus'),

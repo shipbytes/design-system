@@ -49,6 +49,7 @@ src/              the service provider
   Support/Field.php             reads the field recipe (partials/field.php)
   Support/Tray.php              reads the tray recipe (partials/tray.php)
   Support/Popover.php           reads the popover recipe (partials/popover.php)
+  Support/Menu.php              reads the menu recipe (partials/menu.php)
 config/           blade-ui.php — icon aliases, default icon size
 resources/views/  the Blade components + the two pagination views and
                   their two Livewire variants
@@ -72,6 +73,9 @@ resources/views/  the Blade components + the two pagination views and
                                 hover-card share (surface, widths, transition,
                                 placements: the absolute fallback classes the
                                 anchor overrides), read through Support\Popover
+  partials/menu.php             the menu recipe dropdown and context-menu
+                                share (panel, transition, the arrow-key
+                                handler), read through Support\Menu
 resources/js/     the shared script's source: plain ES modules, hand-edited
   blade-ui.js       the Alpine plugin; lists every behaviour
   global.js         the classic-script entry ds::scripts serves
@@ -671,7 +675,7 @@ three lines of CSS, every component rendering styled in light and dark.
 **Needs Alpine:** modal, drawer, sheet, dropdown, select, combobox, date-picker,
 accordion (with accordion-item), file-upload, tooltip, otp-input, tag-input,
 number-field, password-strength, copy-button, toolbar (with toolbar-button and
-toolbar-separator), toggle-group (with toggle), popover, hover-card, sub-nav —
+toolbar-separator), toggle-group (with toggle), popover, hover-card, context-menu, sub-nav —
 always (sub-nav only to toggle: its open state is rendered from PHP). Plus ONE optional prop each on
 checkbox (`indeterminate`), nav-item (`collapsedWhen`), toast (`dismiss`) and
 input (`reveal`), and the pagination views' Livewire variants, whose scroll to
@@ -686,7 +690,8 @@ number-field (`dsNumberField`), password-strength (`dsPasswordStrength`),
 copy-button (`dsClipboard`, which is also documented for direct use),
 toolbar (`dsToolbar`, `x-ds-glide.hover`), toggle-group (`dsToggleGroup`,
 `x-ds-glide.hover`), popover (`dsPopover`, `x-ds-anchor`), hover-card
-(`dsHoverCard`, `x-ds-anchor`), and input's `reveal` (`dsPassword`). segmented-control
+(`dsHoverCard`, `x-ds-anchor`), context-menu (`dsContextMenu`, `x-ds-anchor`
+with its `at` box), and input's `reveal` (`dsPassword`). segmented-control
 uses `x-ds-glide` as an enhancement only, and dropdown, select, combobox,
 date-picker and tooltip use `x-ds-anchor` as an enhancement only: each works
 without the script exactly as in 1.x, and with it stays on screen. See the
@@ -798,8 +803,8 @@ purpose. An `<iframe>` at phone width would fix it.
 
 The gallery also loads no Alpine, and `theme.css` ships the `[x-cloak]` rule,
 so every overlay panel marked `x-cloak` stays hidden there: dropdown, select,
-combobox, date-picker, popover, hover card (measured in batch 05). The popover
-and hover card sections say so; the dropdown's note still claims its menus
+combobox, date-picker, popover, hover card (measured in batch 05), context
+menu. The popover, hover card and context menu sections say so; the dropdown's note still claims its menus
 "render open", which has been untrue since the rule shipped. Opening them needs
 Alpine in the gallery, or a gallery-only rule that un-cloaks the panels.
 

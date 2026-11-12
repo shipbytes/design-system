@@ -13,6 +13,10 @@
  *       clamp: true,                   when neither side fits, cap the height
  *                                      and let the panel scroll inside
  *       width: null,                   'reference' to match the reference's width
+ *       at: null,                      { x, y, width, height }: hang off this box
+ *                                      instead, measured from the reference's
+ *                                      top-left corner (a point when the size
+ *                                      is 0)
  *   });
  *   anchored.update();                 measure and place, now
  *   anchored.stop();                   stop listening
@@ -40,6 +44,13 @@
  *
  * Writes `data-side` and `data-align` on the panel, the side and alignment it
  * actually took, for an origin or an arrow to read. Never a class.
+ *
+ * `at` is for a panel opened at a place rather than by an element: a context
+ * menu at the pointer. It is kept relative to the reference, so the panel
+ * moves with the content under it when that scrolls. Hung off a point, a panel
+ * that would cross the inline edge takes the other ALIGNMENT, opening back
+ * across the point the way a native context menu does, rather than sliding
+ * along the edge until it covers what was pressed.
  */
 
 const OPPOSITE = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' };
@@ -101,6 +112,14 @@ function originOf(block) {
 
 const vertical = (side) => side === 'top' || side === 'bottom';
 
+function virtualRect(base, at) {
+    const left = base.left + (at.x ?? 0);
+    const top = base.top + (at.y ?? 0);
+    const width = at.width ?? 0;
+    const height = at.height ?? 0;
+    return { left, top, right: left + width, bottom: top + height, width, height };
+}
+
 export function anchor(panel, options = {}) {
     let settings = options;
     let frame = 0;
@@ -140,7 +159,7 @@ export function anchor(panel, options = {}) {
         style.maxHeight = '';
         style.overflowY = '';
 
-        const r = rectOf(reference);
+        const r = settings.at ? virtualRect(rectOf(reference), settings.at) : rectOf(reference);
         if (settings.width === 'reference') style.width = `${r.width}px`;
 
         // offsetWidth and offsetHeight, not the bounding box: the panel is
@@ -172,12 +191,18 @@ export function anchor(panel, options = {}) {
         const rtl = getComputedStyle(reference).direction === 'rtl';
         let x;
         let y;
+        let took = align;
 
         if (vertical(side)) {
             y = side === 'bottom' ? r.bottom + offset : r.top - offset - height;
             const start = rtl ? r.right - w : r.left;
             const end = rtl ? r.left : r.right - w;
-            x = align === 'start' ? start : align === 'end' ? end : r.left + r.width / 2 - w / 2;
+            const fits = (v) => v >= margin && v + w <= vw - margin;
+            if (settings.at && align !== 'center' && !fits(align === 'start' ? start : end)) {
+                const other = align === 'start' ? 'end' : 'start';
+                if (fits(other === 'start' ? start : end)) took = other;
+            }
+            x = took === 'start' ? start : took === 'end' ? end : r.left + r.width / 2 - w / 2;
             x = Math.min(Math.max(x, margin), Math.max(vw - margin - w, margin));
         } else {
             x = side === 'right' ? r.right + offset : r.left - offset - w;
@@ -201,7 +226,7 @@ export function anchor(panel, options = {}) {
         style.top = `${snap(y - origin.y)}px`;
 
         panel.dataset.side = side;
-        panel.dataset.align = align;
+        panel.dataset.align = took;
     }
 
     function schedule() {

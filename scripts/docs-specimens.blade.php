@@ -792,6 +792,30 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── context-menu
+     Opened the way a right-click opens it, by build-docs.mjs, at a point on
+     the second row. --}}
+<div data-shot="context-menu" class="shot shot-tall">
+    @foreach ($themes as $t)
+        <div class="pane bg-surface-sunken {{ $t }}">
+            <x-ds::context-menu label="Report actions" data-shot-region class="overflow-hidden rounded-panel border border-border bg-surface">
+                @foreach ([['Q3 revenue', 'Ready'], ['Churn by cohort', 'Running'], ['Weekly signups', 'Ready']] as [$name, $status])
+                    <div class="flex items-center justify-between border-b border-divider px-4 py-3 text-body last:border-b-0" tabindex="0">
+                        <span class="font-medium text-fg">{{ $name }}</span>
+                        <span class="text-meta text-fg-muted">{{ $status }}</span>
+                    </div>
+                @endforeach
+                <x-slot:menu>
+                    <x-ds::dropdown-item icon="pencil-square" href="#">Edit report</x-ds::dropdown-item>
+                    <x-ds::dropdown-item icon="document-duplicate" href="#">Duplicate</x-ds::dropdown-item>
+                    <x-ds::dropdown-item icon="archive-box" :disabled="true">Archive</x-ds::dropdown-item>
+                    <x-ds::dropdown-item icon="trash" tone="danger" as="button">Delete</x-ds::dropdown-item>
+                </x-slot:menu>
+            </x-ds::context-menu>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── popover
      Open from the host's `shown`, which is true from the start, so it takes
      no focus and both panes hold one open at once. --}}

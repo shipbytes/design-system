@@ -2924,6 +2924,277 @@ group('combobox in a scrolling modal body (overflow-y-auto, x-ds-anchor)');
         !(await page.locator(listbox).isVisible()) || 'the list is still showing');
 }
 
+// ---------------------------------------------------------------- context menu
+
+group('context menu (dsContextMenu, x-ds-anchor at a point)');
+
+{
+    const panel = '#cm [data-ds-context-menu-panel]';
+    const wide = '#cm-wide [data-ds-context-menu-panel]';
+    const menuShown = (sel = panel) => page.locator(sel).isVisible();
+    const box = (sel) => page.evaluate((q) => {
+        const r = document.querySelector(q).getBoundingClientRect();
+        return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    }, sel);
+    const closeAll = async () => {
+        if (await menuShown()) await page.keyboard.press('Escape');
+        if (await menuShown(wide)) await page.keyboard.press('Escape');
+        await settle(150);
+    };
+
+    // Whether anything in the page asked the browser not to show its menu,
+    // read after every handler has had its turn.
+    await page.evaluate(() => {
+        window.addEventListener('contextmenu', (e) => { window.cmPrevented = e.defaultPrevented; });
+    });
+
+    await page.locator('#cm').scrollIntoViewIfNeeded();
+    await settle(100);
+
+    await check('closed until asked, and the region renders its content', async () =>
+        (!(await menuShown()) && (await page.locator('#cm-text').isVisible())) || 'the menu shows before anything opened it');
+
+    const text = await box('#cm-text');
+    const px = Math.round(text.left + 40);
+    const py = Math.round(text.top + 5);
+    await page.mouse.click(px, py, { button: 'right' });
+    await settle(250);
+
+    await check('a right-click opens it, with the browser\'s menu prevented', async () =>
+        ((await menuShown()) && (await page.evaluate(() => window.cmPrevented)) === true)
+        || `shown ${await menuShown()}, prevented ${await page.evaluate(() => window.cmPrevented)}`);
+
+    await check('at the pointer: its top-left corner beside the point pressed', async () => {
+        const p = await box(panel);
+        const dx = Math.round(p.left - px);
+        const dy = Math.round(p.top - py);
+        return (dx >= 0 && dx <= 1 && dy >= 1 && dy <= 3) || `${dx}px across and ${dy}px down from the pointer`;
+    });
+
+    await check('role=menu, named, and focus on the first item', async () => {
+        const a = await page.evaluate((q) => {
+            const el = document.querySelector(q);
+            return { role: el.getAttribute('role'), name: el.getAttribute('aria-label'), orientation: el.getAttribute('aria-orientation') };
+        }, panel);
+        const on = await active();
+        return (a.role === 'menu' && a.name === 'Report actions' && a.orientation === 'vertical' && on === 'cm-edit')
+            || `${JSON.stringify(a)}, focus on ${on}`;
+    });
+
+    await check('the dropdown\'s keys: arrows skip the disabled item and wrap, Home and End', async () => {
+        const seen = [];
+        for (const key of ['ArrowDown', 'ArrowDown', 'ArrowUp', 'End', 'Home']) {
+            await page.keyboard.press(key);
+            seen.push(await active());
+        }
+        return seen.join() === 'cm-delete,cm-edit,cm-delete,cm-delete,cm-edit' || seen.join(' → ');
+    });
+
+    await check('a right-click inside the menu keeps it open and the browser\'s menu away', async () => {
+        const item = await box('#cm-delete');
+        await page.mouse.click(item.left + 10, item.top + 5, { button: 'right' });
+        await settle(100);
+        return ((await menuShown()) && (await page.evaluate(() => window.cmPrevented)) === true) || 'it closed, or the browser menu was allowed';
+    });
+
+    await check('a second right-click in the region moves it there, focus on the first item', async () => {
+        await page.mouse.click(px + 120, py, { button: 'right' });
+        await settle(200);
+        const p = await box(panel);
+        return ((await menuShown()) && Math.round(p.left - (px + 120)) <= 1 && (await active()) === 'cm-edit')
+            || `left ${Math.round(p.left)}, expected ${px + 120}; focus on ${await active()}`;
+    });
+
+    await check('Escape closes it', async () => {
+        await page.keyboard.press('Escape');
+        await settle(200);
+        return !(await menuShown()) || 'still open';
+    });
+
+    // The row takes focus from the press itself, so it is what had focus.
+    const row = await box('#cm-row');
+    await page.mouse.click(row.left + 20, row.top + 5, { button: 'right' });
+    await settle(200);
+    await check('on a focusable row: Escape gives focus back to the row', async () => {
+        if (!(await menuShown())) return 'did not open';
+        await page.keyboard.press('Escape');
+        await settle(200);
+        return (await active()) === 'cm-row' || `focus on ${await active()}`;
+    });
+
+    await check('Shift+F10 on the focused row opens it below the row, on its start edge', async () => {
+        await page.focus('#cm-row');
+        await page.keyboard.press('Shift+F10');
+        await settle(250);
+        if (!(await menuShown())) return 'did not open';
+        const p = await box(panel);
+        const r = await box('#cm-row');
+        const dy = Math.round(p.top - r.bottom);
+        const dx = Math.round(p.left - r.left);
+        return (dy === 4 && Math.abs(dx) <= 1 && (await active()) === 'cm-edit') || `${dx}px across, ${dy}px below, focus on ${await active()}`;
+    });
+
+    await check('choosing an item runs it, with dsTarget the row, closes, and focus goes back', async () => {
+        await page.keyboard.press('Enter');
+        await settle(200);
+        const chosen = await page.locator('#cm-chosen').innerText();
+        return (chosen === 'edit q3' && !(await menuShown()) && (await active()) === 'cm-row')
+            || `chose "${chosen}", open ${await menuShown()}, focus on ${await active()}`;
+    });
+
+    await check('the Menu key opens it too, and Tab closes it back to the row', async () => {
+        await page.focus('#cm-row');
+        await page.keyboard.press('ContextMenu');
+        await settle(250);
+        if (!(await menuShown())) return 'the Menu key did not open it';
+        await page.keyboard.press('Tab');
+        await settle(200);
+        return (!(await menuShown()) && (await active()) === 'cm-row') || `open ${await menuShown()}, focus on ${await active()}`;
+    });
+
+    await check('a press outside on nothing focusable closes it and puts focus back', async () => {
+        await page.focus('#cm-row');
+        await page.keyboard.press('Shift+F10');
+        await settle(250);
+        await page.mouse.click(5, 5);
+        await settle(200);
+        return (!(await menuShown()) && (await active()) === 'cm-row') || `open ${await menuShown()}, focus on ${await active()}`;
+    });
+
+    await check('a press outside on a button closes it and leaves focus on that button', async () => {
+        await page.focus('#cm-row');
+        await page.keyboard.press('Shift+F10');
+        await settle(250);
+        await page.click('#cm-before');
+        await settle(200);
+        return (!(await menuShown()) && (await active()) === 'cm-before') || `open ${await menuShown()}, focus on ${await active()}`;
+    });
+
+    for (const [id, what] of [['cm-link', 'a link'], ['cm-input', 'a field']]) {
+        await check(`on ${what} inside the region the browser's own menu is left alone`, async () => {
+            const b = await box(`#${id}`);
+            await page.mouse.click(b.left + 5, b.top + 5, { button: 'right' });
+            await settle(150);
+            return (!(await menuShown()) && (await page.evaluate(() => window.cmPrevented)) === false)
+                || `menu shown ${await menuShown()}, prevented ${await page.evaluate(() => window.cmPrevented)}`;
+        });
+    }
+
+    await check('Shift+F10 in a field inside the region is left to the browser too', async () => {
+        await page.focus('#cm-input');
+        await page.keyboard.press('Shift+F10');
+        await settle(150);
+        return !(await menuShown()) || 'opened over the field';
+    });
+
+    await check('with native off, a link inside opens this menu instead', async () => {
+        await page.locator('#cm-wide').scrollIntoViewIfNeeded();
+        const b = await box('#cm-wide-link');
+        await page.mouse.click(b.left + 5, b.top + 5, { button: 'right' });
+        await settle(200);
+        const shown = await menuShown(wide);
+        await page.keyboard.press('Escape');
+        await settle(150);
+        return (shown && (await page.evaluate(() => window.cmPrevented)) === true) || 'the browser menu was left, or nothing opened';
+    });
+
+    await check('at the bottom-right corner it opens up and back across the pointer, on screen', async () => {
+        // The region's foot on the window's foot.
+        await page.evaluate(() => {
+            const r = document.getElementById('cm-wide').getBoundingClientRect();
+            window.scrollBy(0, r.bottom - document.documentElement.clientHeight + 2);
+        });
+        await settle(100);
+        const region = await box('#cm-wide');
+        const vw = await page.evaluate(() => document.documentElement.clientWidth);
+        const vh = await page.evaluate(() => document.documentElement.clientHeight);
+        if (vw - region.right > 60 || vh - region.bottom > 20) return `the region is not at the corner: ${Math.round(vw - region.right)}px, ${Math.round(vh - region.bottom)}px off`;
+        const x = Math.round(region.right - 4);
+        const y = Math.round(region.bottom - 4);
+        await page.mouse.click(x, y, { button: 'right' });
+        await settle(250);
+        const b = await anchorBoxes(wide, '#cm-wide');
+        const align = await page.evaluate((q) => document.querySelector(q).dataset.align, wide);
+        if (!b.shown) return 'did not open';
+        if (b.side !== 'top' || align !== 'end') return `took ${b.side}-${align}`;
+        if (Math.round(x - b.panel.right) > 1 || Math.round(y - b.panel.bottom) > 3) {
+            return `its corner is ${Math.round(x - b.panel.right)}px, ${Math.round(y - b.panel.bottom)}px from the pointer`;
+        }
+        return insideViewport(b);
+    });
+
+    await check('it grows from the corner at the pointer (its transform origin)', async () => {
+        const o = await page.evaluate((q) => {
+            const el = document.querySelector(q);
+            const [x, y] = getComputedStyle(el).transformOrigin.split(' ').map(parseFloat);
+            return { x: Math.round(x - el.offsetWidth), y: Math.round(y - el.offsetHeight) };
+        }, wide);
+        return (o.x === 0 && o.y === 0) || `${o.x}px, ${o.y}px from its bottom-right corner`;
+    });
+
+    await check('it moves with the region when the page scrolls', async () => {
+        const before = await box(wide);
+        await page.evaluate(() => window.scrollBy(0, -40));
+        await settle(150);
+        const after = await box(wide);
+        await page.keyboard.press('Escape');
+        await settle(150);
+        return Math.round(after.top - before.top) === 40 || `moved ${Math.round(after.top - before.top)}px for a 40px scroll`;
+    });
+
+    // Touch, as pointer events: the main page has no touch screen.
+    await page.locator('#cm').scrollIntoViewIfNeeded();
+    await settle(100);
+    const touch = (type, x, y) => page.evaluate(([t, cx, cy]) => {
+        const target = document.elementFromPoint(cx, cy);
+        target.dispatchEvent(new PointerEvent(t, { bubbles: true, cancelable: true, pointerType: 'touch', isPrimary: true, clientX: cx, clientY: cy }));
+    }, [type, x, y]);
+    const t = await box('#cm-text');
+    const tx = Math.round(t.left + 30);
+    const ty = Math.round(t.top + 5);
+
+    await check('a touch held still for half a second opens it at the finger', async () => {
+        await touch('pointerdown', tx, ty);
+        await page.waitForTimeout(650);
+        const shown = await menuShown();
+        const p = await box(panel);
+        await touch('pointerup', tx, ty);
+        return (shown && Math.round(p.left - tx) <= 1) || `shown ${shown}, ${Math.round(p.left - tx)}px from the finger`;
+    });
+
+    await check('and the click that ends the hold is swallowed', async () => {
+        await page.evaluate(() => {
+            window.cmClicks = 0;
+            document.getElementById('cm-text').addEventListener('click', () => { window.cmClicks++; }, { once: true });
+            document.getElementById('cm-text').click();
+        });
+        const clicks = await page.evaluate(() => window.cmClicks);
+        await page.keyboard.press('Escape');
+        await settle(150);
+        return clicks === 0 || 'the click went through';
+    });
+
+    await check('a short tap does not open it', async () => {
+        await touch('pointerdown', tx, ty);
+        await page.waitForTimeout(200);
+        await touch('pointerup', tx, ty);
+        await page.waitForTimeout(500);
+        return !(await menuShown()) || 'opened on a tap';
+    });
+
+    await check('moving more than 10px during the hold cancels it (a scroll, not a press)', async () => {
+        await touch('pointerdown', tx, ty);
+        await page.waitForTimeout(100);
+        await touch('pointermove', tx, ty + 20);
+        await page.waitForTimeout(550);
+        const shown = await menuShown();
+        await touch('pointerup', tx, ty + 20);
+        return !shown || 'opened after the finger moved';
+    });
+
+    await closeAll();
+}
+
 // ---------------------------------------------------------------- focus indicators
 
 /*
@@ -3063,6 +3334,7 @@ const overlays = [
     ['combobox options', '#f-combobox', 'ArrowDown', 'ArrowDown', 2],
     ['date picker month buttons and days', '[data-ds-date-trigger]', 'Enter', 'Tab', 5],
     ['popover content', '#f-pop', 'Enter', 'Tab', 1],
+    ['context menu items', '#f-cm-row', 'Shift+F10', 'ArrowDown', 2],
     ['modal, round the trap', '#f-modal-open', 'Enter', 'Tab', 4],
     ['drawer, round the trap', '#f-drawer-open', 'Enter', 'Tab', 3],
 ];
@@ -3246,7 +3518,7 @@ group('host setup (b): Alpine bundled by the host, Alpine.plugin(bladeUi)');
     await check('the plugin works', () => copiesOn(tab));
     await check('plugin twice plus the include: each name registered exactly once', async () => {
         const names = await tab.evaluate(() => window.dsRegistered);
-        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard'];
+        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu'];
         return JSON.stringify(names) === JSON.stringify(expected) || `registered ${JSON.stringify(names)}`;
     });
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));

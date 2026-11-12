@@ -72,6 +72,7 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Dropdown](components/dropdown.md) | A menu of actions — Alpine |
 | [Popover](components/popover.md) | Anything else anchored to a button: fields, a form — needs Alpine and the script |
 | [Hover card](components/hover-card.md) | A preview of a person or a link on hover or focus — needs Alpine and the script |
+| [Context menu](components/context-menu.md) | The dropdown's menu at the pointer: right-click, long press, Shift+F10 — needs Alpine and the script |
 | [Tooltip](components/tooltip.md) | A short label on hover or focus — Alpine |
 | [Toast](components/toast.md) | Something already happened |
 

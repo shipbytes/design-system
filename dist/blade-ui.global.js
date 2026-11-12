@@ -53,6 +53,13 @@ y: r.top + block.clientTop - block.scrollTop,
 };
 }
 const vertical = (side) => side === 'top' || side === 'bottom';
+function virtualRect(base, at) {
+const left = base.left + (at.x ?? 0);
+const top = base.top + (at.y ?? 0);
+const width = at.width ?? 0;
+const height = at.height ?? 0;
+return { left, top, right: left + width, bottom: top + height, width, height };
+}
 function anchor(panel, options = {}) {
 let settings = options;
 let frame = 0;
@@ -84,7 +91,7 @@ style.margin = '0';
 style.translate = 'none';
 style.maxHeight = '';
 style.overflowY = '';
-const r = rectOf(reference);
+const r = settings.at ? virtualRect(rectOf(reference), settings.at) : rectOf(reference);
 if (settings.width === 'reference') style.width = `${r.width}px`;
 const w = panel.offsetWidth;
 const h = panel.offsetHeight;
@@ -107,11 +114,17 @@ side = preferred;
 const rtl = getComputedStyle(reference).direction === 'rtl';
 let x;
 let y;
+let took = align;
 if (vertical(side)) {
 y = side === 'bottom' ? r.bottom + offset : r.top - offset - height;
 const start = rtl ? r.right - w : r.left;
 const end = rtl ? r.left : r.right - w;
-x = align === 'start' ? start : align === 'end' ? end : r.left + r.width / 2 - w / 2;
+const fits = (v) => v >= margin && v + w <= vw - margin;
+if (settings.at && align !== 'center' && !fits(align === 'start' ? start : end)) {
+const other = align === 'start' ? 'end' : 'start';
+if (fits(other === 'start' ? start : end)) took = other;
+}
+x = took === 'start' ? start : took === 'end' ? end : r.left + r.width / 2 - w / 2;
 x = Math.min(Math.max(x, margin), Math.max(vw - margin - w, margin));
 } else {
 x = side === 'right' ? r.right + offset : r.left - offset - w;
@@ -130,7 +143,7 @@ const snap = (v) => Math.round(v * dpr) / dpr;
 style.left = `${snap(x - origin.x)}px`;
 style.top = `${snap(y - origin.y)}px`;
 panel.dataset.side = side;
-panel.dataset.align = align;
+panel.dataset.align = took;
 }
 function schedule() {
 if (!frame) frame = requestAnimationFrame(update);
@@ -261,6 +274,178 @@ focused?.focus?.();
 return ok;
 }
 return { clipboard };
+})();
+const __ds_behaviours_context_menu = (() => {
+const NATIVE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"]), a[href]';
+const HOLD_MS = 500;
+const SLOP_PX = 10;
+function contextMenu(Alpine) {
+Alpine.data('dsContextMenu', (options = {}) => {
+const native = options.native !== false;
+let wired = null;
+return {
+dsOpen: false,
+dsAt: { x: 0, y: 0, width: 0, height: 0, offset: 2 },
+dsTarget: null,
+init() {
+wired = wire(this.$el, {
+native,
+isOpen: () => this.dsOpen,
+open: (at, target) => {
+this.dsAt = at;
+this.dsTarget = target;
+this.dsOpen = true;
+},
+close: () => {
+this.dsOpen = false;
+},
+later: (fn) => this.$nextTick(fn),
+});
+this.$watch('dsOpen', (open) => wired.changed(open));
+},
+destroy() {
+wired?.teardown();
+},
+};
+});
+}
+function wire(root, api) {
+const panel = [...root.querySelectorAll('[data-ds-context-menu-panel]')]
+.find((el) => el.closest('[data-ds-context-menu]') === root) ?? null;
+let returnTo = null;
+let keyed = 0;
+let hold = null;
+let swallowClick = false;
+let pressedOutside = false;
+const inPanel = (node) => Boolean(panel && node instanceof Node && panel.contains(node));
+const leftNative = (node) => {
+if (!api.native || !(node instanceof Element)) return false;
+const control = node.closest(NATIVE);
+return Boolean(control && root.contains(control) && !inPanel(control));
+};
+function at(x, y, width = 0, height = 0, offset = 2) {
+const r = root.getBoundingClientRect();
+return { x: x - r.left, y: y - r.top, width, height, offset };
+}
+function open(box, target) {
+if (!api.isOpen()) returnTo = document.activeElement;
+api.open(box, target);
+api.later(() => {
+const first = panel?.querySelector('[role="menuitem"]:not([aria-disabled="true"])') ?? panel;
+first?.focus({ preventScroll: true });
+});
+}
+function close() {
+if (api.isOpen()) api.close();
+}
+function restore() {
+const to = returnTo;
+returnTo = null;
+if (to && to !== document.body && to.isConnected) to.focus({ preventScroll: true });
+}
+function onContextMenu(event) {
+if (inPanel(event.target)) {
+event.preventDefault();
+return;
+}
+if (event.defaultPrevented || leftNative(event.target)) return;
+event.preventDefault();
+cancelHold();
+if (Date.now() - keyed < 500) return;
+open(at(event.clientX, event.clientY), event.target);
+}
+function onKeyDown(event) {
+if (inPanel(event.target)) {
+if (event.key === 'Escape') {
+event.stopPropagation();
+close();
+} else if (event.key === 'Tab') {
+event.preventDefault();
+close();
+}
+return;
+}
+const menuKey = event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey);
+if (!menuKey || event.defaultPrevented || leftNative(event.target)) return;
+event.preventDefault();
+keyed = Date.now();
+const r = event.target.getBoundingClientRect();
+open(at(r.left, r.top, r.width, r.height, 4), event.target);
+}
+function cancelHold() {
+if (hold) clearTimeout(hold.timer);
+hold = null;
+}
+function onPointerDown(event) {
+swallowClick = false;
+if (event.pointerType !== 'touch' || inPanel(event.target) || leftNative(event.target)) return;
+cancelHold();
+const { clientX: x, clientY: y, target } = event;
+hold = {
+x,
+y,
+timer: setTimeout(() => {
+hold = null;
+swallowClick = true;
+open(at(x, y), target);
+}, HOLD_MS),
+};
+}
+function onPointerMove(event) {
+if (hold && Math.hypot(event.clientX - hold.x, event.clientY - hold.y) > SLOP_PX) cancelHold();
+}
+function onClick(event) {
+if (swallowClick && !inPanel(event.target)) {
+event.preventDefault();
+event.stopPropagation();
+swallowClick = false;
+return;
+}
+if (inPanel(event.target) && event.target.closest('[role="menuitem"]:not([aria-disabled="true"])')) close();
+}
+function onOutside(event) {
+if (inPanel(event.target)) return;
+if (event.button === 2 && root.contains(event.target)) return;
+pressedOutside = true;
+close();
+setTimeout(() => {
+pressedOutside = false;
+if (!document.activeElement || document.activeElement === document.body) restore();
+else returnTo = null;
+});
+}
+function changed(open) {
+if (open) {
+document.addEventListener('pointerdown', onOutside, true);
+return;
+}
+document.removeEventListener('pointerdown', onOutside, true);
+if (pressedOutside) return;
+if (inPanel(document.activeElement) || document.activeElement === document.body) restore();
+}
+root.addEventListener('contextmenu', onContextMenu);
+root.addEventListener('keydown', onKeyDown);
+root.addEventListener('pointerdown', onPointerDown);
+root.addEventListener('pointermove', onPointerMove, { passive: true });
+root.addEventListener('pointerup', cancelHold);
+root.addEventListener('pointercancel', cancelHold);
+root.addEventListener('click', onClick, true);
+return {
+changed,
+teardown() {
+cancelHold();
+document.removeEventListener('pointerdown', onOutside, true);
+root.removeEventListener('contextmenu', onContextMenu);
+root.removeEventListener('keydown', onKeyDown);
+root.removeEventListener('pointerdown', onPointerDown);
+root.removeEventListener('pointermove', onPointerMove);
+root.removeEventListener('pointerup', cancelHold);
+root.removeEventListener('pointercancel', cancelHold);
+root.removeEventListener('click', onClick, true);
+},
+};
+}
+return { contextMenu };
 })();
 const __ds_behaviours_glide = (() => {
 const SELECTED = ':is([aria-current]:not([aria-current="false"]), [aria-checked="true"], [aria-pressed="true"], [aria-selected="true"])';
@@ -1530,6 +1715,7 @@ return { toolbar };
 const __ds_blade_ui = (() => {
 const { anchorDirective } = __ds_behaviours_anchor;
 const { clipboard } = __ds_behaviours_clipboard;
+const { contextMenu } = __ds_behaviours_context_menu;
 const { glide } = __ds_behaviours_glide;
 const { hoverCard } = __ds_behaviours_hover_card;
 const { numberField } = __ds_behaviours_number_field;
@@ -1539,7 +1725,7 @@ const { popover } = __ds_behaviours_popover;
 const { tagInput } = __ds_behaviours_tag_input;
 const { toggleGroup } = __ds_behaviours_toggle_group;
 const { toolbar } = __ds_behaviours_toolbar;
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu];
 const REGISTERED = Symbol.for('shipbytes.blade-ui');
 function bladeUi(Alpine) {
 if (!Alpine || Alpine[REGISTERED]) return;

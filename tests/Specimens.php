@@ -884,6 +884,22 @@ final class Specimens
                 </x-ds::hover-card>
                 BLADE,
 
+            'context-menu/all' => <<<'BLADE'
+                <x-ds::context-menu label="Report actions" class="rounded-panel border border-border p-4">
+                    <p>Q3 revenue</p>
+                    <x-slot:menu>
+                        <x-ds::dropdown-item icon="pencil-square" href="/edit">Edit</x-ds::dropdown-item>
+                        <x-ds::dropdown-item icon="archive-box" :disabled="true">Archive</x-ds::dropdown-item>
+                        <x-ds::dropdown-item icon="trash" tone="danger" as="button">Delete</x-ds::dropdown-item>
+                    </x-slot:menu>
+                </x-ds::context-menu>
+                <x-ds::context-menu :native="false">
+                    <a href="/r/1">A link</a>
+                    <x-slot:menu><x-ds::dropdown-item as="button">One</x-ds::dropdown-item></x-slot:menu>
+                </x-ds::context-menu>
+                <x-ds::context-menu>Empty menu</x-ds::context-menu>
+                BLADE,
+
             // Not a visual component, but it renders inside a host's layout and
             // so inside a Livewire render too; this puts it through the markers
             // test with everything else.

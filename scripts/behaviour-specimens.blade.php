@@ -571,6 +571,38 @@
         </x-ds::modal>
     </div>
 
+    {{-- ── context menu (dsContextMenu, x-ds-anchor at a point) ──
+         A region with a link, a field and a focusable row inside it, and a
+         menu whose second item is disabled. `cmChosen` records what was
+         chosen and on which row, through dsTarget. The second region is full
+         width, for the edges, and has `native` off. --}}
+    <div class="mt-6" x-data="{ cmChosen: '' }">
+        <x-ds::context-menu id="cm" label="Report actions" class="rounded-control border border-border p-4">
+            <p id="cm-text">Right-click anywhere in here.</p>
+            <a href="#cm-link" id="cm-link">A link inside</a>
+            <input id="cm-input" aria-label="A field inside" />
+            <div id="cm-row" data-row="q3" tabindex="0">Q3 revenue</div>
+            <x-slot:menu>
+                <x-ds::dropdown-item id="cm-edit" as="button" @click="cmChosen = 'edit ' + (dsTarget?.closest('[data-row]')?.dataset.row ?? '')">Edit</x-ds::dropdown-item>
+                <x-ds::dropdown-item id="cm-archive" :disabled="true">Archive</x-ds::dropdown-item>
+                <x-ds::dropdown-item id="cm-delete" tone="danger" as="button" @click="cmChosen = 'delete'">Delete</x-ds::dropdown-item>
+            </x-slot:menu>
+        </x-ds::context-menu>
+        <span id="cm-chosen" x-text="cmChosen"></span>
+        <button type="button" id="cm-before">Before the region</button>
+    </div>
+
+    <div class="mt-6">
+        <x-ds::context-menu id="cm-wide" :native="false" class="h-40 border border-border">
+            <a href="#cm-wide-link" id="cm-wide-link">A link, native off</a>
+            <x-slot:menu>
+                <x-ds::dropdown-item as="button">One</x-ds::dropdown-item>
+                <x-ds::dropdown-item as="button">Two</x-ds::dropdown-item>
+                <x-ds::dropdown-item as="button">Three</x-ds::dropdown-item>
+            </x-slot:menu>
+        </x-ds::context-menu>
+    </div>
+
     {{-- ── dsClipboard, from the shared script ──
          No component uses it yet, so this is the markup a component would
          emit, through the same helper. --}}

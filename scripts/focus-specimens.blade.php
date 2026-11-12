@@ -58,6 +58,16 @@
     Analyst
 </x-ds::hover-card>
 </section>
+<section data-focus="context-menu">
+<x-ds::context-menu label="Row actions">
+    {{-- The row is the consumer's, so it carries the system ring itself. --}}
+    <div id="f-cm-row" tabindex="0" class="rounded-control p-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring">Q3 revenue</div>
+    <x-slot:menu>
+        <x-ds::dropdown-item as="button">Edit</x-ds::dropdown-item>
+        <x-ds::dropdown-item tone="danger" as="button">Delete</x-ds::dropdown-item>
+    </x-slot:menu>
+</x-ds::context-menu>
+</section>
 <section data-focus="modal"><x-ds::button id="f-modal-open" @click="modalOpen = true">Open modal</x-ds::button><x-ds::modal open="modalOpen" title="Confirm" size="sm">Body<x-slot:footer><x-ds::button size="sm" @click="modalOpen = false">OK</x-ds::button></x-slot:footer></x-ds::modal></section>
 <section data-focus="drawer"><x-ds::button id="f-drawer-open" @click="drawerOpen = true">Open drawer</x-ds::button><x-ds::drawer open="drawerOpen" title="Filters">Body<x-slot:footer><x-ds::button size="sm" @click="drawerOpen = false">Apply</x-ds::button></x-slot:footer></x-ds::drawer></section>
 {{-- The walk stops here. A plain button, so it is not checked. --}}
