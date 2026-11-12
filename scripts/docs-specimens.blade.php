@@ -1537,4 +1537,88 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── slider --}}
+<div data-shot="slider" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-6">
+                <x-ds::slider name="vol{{ $loop->index }}" label="Volume" :value="40" showValue="inline" :format="['suffix' => '%']" />
+                <x-ds::slider
+                    name="price{{ $loop->index }}"
+                    label="Price"
+                    :range="true"
+                    :value="[20, 80]"
+                    :max="100"
+                    :step="5"
+                    lowLabel="Minimum price"
+                    highLabel="Maximum price"
+                    showValue="inline"
+                    :format="['prefix' => '$']"
+                    :marks="[0, 25, 50, 75, 100]"
+                    help="Per night, before tax."
+                />
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── time-picker --}}
+{{-- Opened by build-docs (a click on the field), so the image shows the list. --}}
+<div data-shot="time-picker" class="shot shot-calendar">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <x-ds::time-picker
+                name="tp{{ $loop->index }}"
+                label="Opens"
+                value="09:30"
+                format="12"
+                min="08:00"
+                max="18:00"
+                :step="30"
+                :clearable="true"
+                help="Shop hours, local time."
+            />
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── inline-edit --}}
+{{-- The second one is opened by build-docs; buttons mode keeps it open when the other pane takes focus. --}}
+<div data-shot="inline-edit" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-4">
+                <h3 class="text-section text-fg"><x-ds::inline-edit name="t{{ $loop->index }}" label="Title" value="Q3 roadmap" /></h3>
+                <div data-shot-press class="text-body text-fg-body">
+                    <x-ds::inline-edit name="d{{ $loop->index }}" label="Owner" value="Platform team" submit="buttons" />
+                </div>
+                <div class="text-body text-fg-body">
+                    <x-ds::inline-edit name="s{{ $loop->index }}" label="Slug" value="q3 roadmap" error="Use letters, numbers and dashes." />
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── scroll-area --}}
+{{-- Scrolled part way by build-docs, so both edge shadows show. --}}
+<div data-shot="scroll-area" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <x-ds::scroll-area :maxHeight="176" label="Release notes" class="rounded-panel border border-border bg-surface">
+                <div class="flex flex-col gap-3 p-4 text-body text-fg-body">
+                    <p class="text-label text-fg">2.0.0</p>
+                    <p>Slider, time picker, inline edit and scroll area.</p>
+                    <p>Charts read out their values and move by keyboard.</p>
+                    <p>The tree keeps its open folders across a morph.</p>
+                    <p>Code blocks clamp long files behind Show more.</p>
+                    <p>Overlays stay on screen near the window's edge.</p>
+                    <p>The theme switcher remembers the reader's choice.</p>
+                    <p>Every component has an accessibility contract.</p>
+                </div>
+            </x-ds::scroll-area>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── In situ --}}

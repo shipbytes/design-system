@@ -401,9 +401,9 @@ ${heatUtilities}
 /*
   The rule Alpine depends on and does not ship.
 
-  Thirteen components mark an overlay \`x-cloak\`: modal, drawer, sheet, dropdown,
-  tooltip, select, combobox, date-picker, file-upload, popover, hover-card,
-  context-menu, and sub-nav's link for the collapsed rail. Alpine removes the attribute once it
+  Fourteen components mark an overlay \`x-cloak\`: modal, drawer, sheet, dropdown,
+  tooltip, select, combobox, date-picker, time-picker, file-upload, popover,
+  hover-card, context-menu, and sub-nav's link for the collapsed rail. Alpine removes the attribute once it
   boots, and \`x-show\` takes over from there — but
   until that moment the attribute is the ONLY thing hiding them. With no rule
   behind it, every dialog on the page renders open, backdrop and all, from first
@@ -475,6 +475,265 @@ ${heatUtilities}
 [data-ds-clearable]::-webkit-search-cancel-button {
   -webkit-appearance: none;
   appearance: none;
+}
+
+/*
+  ds::slider is a native range input, or two sharing one track, so the arrow
+  keys, Home and End, PageUp and PageDown, touch and what the form posts are
+  the browser's. Only the thumb is drawn here: a thumb is a pseudo-element,
+  which no utility class reaches. The track and the fill are the view's own
+  elements, under a transparent input.
+
+  The thumb is 24px square, the smallest target WCAG 2.5.8 allows, at every
+  size; --ds-slider-inset (the view's) is how much of that is a transparent
+  border around the visible disc, whose edge is an inset shadow so it lands
+  on the disc and not on the target. The focus ring is a second shadow on
+  the target's edge: a ring with a gap, as outline-offset-2 draws elsewhere.
+
+  Two thumbs on one track are two inputs stacked: the inputs let the pointer
+  through and only their thumbs take it, so each thumb can be grabbed.
+*/
+[data-ds-slider-input] {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+  background: transparent;
+  outline: none;
+}
+
+[data-ds-slider-input]::-webkit-slider-runnable-track {
+  height: 1.5rem;
+  background: transparent;
+}
+
+[data-ds-slider-input]::-moz-range-track {
+  height: 1.5rem;
+  background: transparent;
+}
+
+[data-ds-slider-input]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: var(--ds-slider-inset, 2px) solid transparent;
+  border-radius: 9999px;
+  background: var(--ds-surface) padding-box;
+  box-shadow: inset 0 0 0 1.5px var(--ds-fg-muted);
+  cursor: grab;
+}
+
+[data-ds-slider-input]::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: var(--ds-slider-inset, 2px) solid transparent;
+  border-radius: 9999px;
+  background: var(--ds-surface) padding-box;
+  box-shadow: inset 0 0 0 1.5px var(--ds-fg-muted);
+  cursor: grab;
+}
+
+[data-ds-slider-input]:hover::-webkit-slider-thumb {
+  box-shadow: inset 0 0 0 1.5px var(--ds-fg);
+}
+
+[data-ds-slider-input]:hover::-moz-range-thumb {
+  box-shadow: inset 0 0 0 1.5px var(--ds-fg);
+}
+
+[data-ds-slider-input]:active::-webkit-slider-thumb {
+  cursor: grabbing;
+}
+
+[data-ds-slider-input]:active::-moz-range-thumb {
+  cursor: grabbing;
+}
+
+[data-ds-slider-input]:focus-visible::-webkit-slider-thumb {
+  box-shadow: inset 0 0 0 1.5px var(--ds-fg), 0 0 0 2px var(--ds-focus-ring);
+}
+
+[data-ds-slider-input]:focus-visible::-moz-range-thumb {
+  box-shadow: inset 0 0 0 1.5px var(--ds-fg), 0 0 0 2px var(--ds-focus-ring);
+}
+
+[data-ds-slider-input]:disabled::-webkit-slider-thumb {
+  background-color: var(--ds-surface-subtle);
+  box-shadow: inset 0 0 0 1.5px var(--ds-border-strong);
+  cursor: not-allowed;
+}
+
+[data-ds-slider-input]:disabled::-moz-range-thumb {
+  background-color: var(--ds-surface-subtle);
+  box-shadow: inset 0 0 0 1.5px var(--ds-border-strong);
+  cursor: not-allowed;
+}
+
+[data-ds-slider="range"] [data-ds-slider-input] {
+  pointer-events: none;
+}
+
+[data-ds-slider="range"] [data-ds-slider-input]::-webkit-slider-thumb {
+  pointer-events: auto;
+}
+
+[data-ds-slider="range"] [data-ds-slider-input]::-moz-range-thumb {
+  pointer-events: auto;
+}
+
+/*
+  Forced colours drop every shadow and repaint every background, which
+  leaves a thumb with no edge and a fill the colour of the page. System
+  colours instead: the thumb and the fill in Highlight, the track outlined.
+*/
+@media (forced-colors: active) {
+  [data-ds-slider-input]::-webkit-slider-thumb {
+    forced-color-adjust: none;
+    background: Highlight padding-box;
+    box-shadow: none;
+  }
+
+  [data-ds-slider-input]::-moz-range-thumb {
+    forced-color-adjust: none;
+    background: Highlight padding-box;
+    box-shadow: none;
+  }
+
+  [data-ds-slider-input]:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 2px CanvasText;
+  }
+
+  [data-ds-slider-input]:focus-visible::-moz-range-thumb {
+    box-shadow: 0 0 0 2px CanvasText;
+  }
+
+  [data-ds-slider-fill] {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
+
+  [data-ds-slider-track] {
+    outline: 1px solid CanvasText;
+  }
+}
+
+/*
+  ds::scroll-area scrolls natively: overflow auto, with the browser's own
+  scrollbar styled through the standard properties, never a scrollbar drawn
+  by script. thin and hidden-until-hover narrow it; every value colours it
+  from the tokens. hidden-until-hover clears the colour until the pointer is
+  over the box or it holds keyboard focus, and NEVER under prefers-contrast:
+  more or forced colours, where a scrollbar that is not there is a box that
+  does not look scrollable.
+*/
+[data-ds-scroll-viewport] {
+  scrollbar-color: var(--ds-border-strong) transparent;
+}
+
+[data-ds-scrollbar="thin"] > [data-ds-scroll-viewport],
+[data-ds-scrollbar="hidden-until-hover"] > [data-ds-scroll-viewport] {
+  scrollbar-width: thin;
+}
+
+@media (forced-colors: none) {
+  @media not (prefers-contrast: more) {
+    [data-ds-scrollbar="hidden-until-hover"] > [data-ds-scroll-viewport]:not(:hover, :focus-visible, :focus-within) {
+      scrollbar-color: transparent transparent;
+    }
+  }
+}
+
+/*
+  Its edge shadows: one at each edge with more content past it. Pure CSS
+  where the browser has scroll-driven animations: the viewport names its
+  scroll timelines, the area lifts them to its own scope so the edges (its
+  siblings) can follow them, and each edge's opacity runs over the first or
+  last 1rem of the scroll. A box that does not overflow has an inactive
+  timeline, and its edges stay at opacity 0. x-ds-scroll-shadows does the
+  same from scroll events where there is no support, through data-ds-shown;
+  with neither, there are no shadows, and the content still scrolls.
+
+  The shadow is the scrim, thinned: black in both themes, and stronger in
+  dark, where a light one would be invisible on the darker ground.
+
+  This is not motion in the reduced-motion sense: nothing moves on its own,
+  the opacity follows the reader's own scrolling. Under reduced motion the
+  shadow still switches on and off, without the fade.
+*/
+[data-ds-scroll-edge] {
+  opacity: 0;
+  --ds-scroll-shadow: color-mix(in oklab, var(--ds-scrim) 30%, transparent);
+}
+
+[data-ds-scroll-edge]:where(.dark, .dark *) {
+  --ds-scroll-shadow: color-mix(in oklab, var(--ds-scrim) 80%, transparent);
+}
+
+[data-ds-scroll-edge="top"] { background: linear-gradient(to bottom, var(--ds-scroll-shadow), transparent); }
+[data-ds-scroll-edge="bottom"] { background: linear-gradient(to top, var(--ds-scroll-shadow), transparent); }
+[data-ds-scroll-edge="start"] { background: linear-gradient(to right, var(--ds-scroll-shadow), transparent); }
+[data-ds-scroll-edge="end"] { background: linear-gradient(to left, var(--ds-scroll-shadow), transparent); }
+[dir="rtl"] [data-ds-scroll-edge="start"], [data-ds-scroll-edge="start"]:dir(rtl) { background: linear-gradient(to left, var(--ds-scroll-shadow), transparent); }
+[dir="rtl"] [data-ds-scroll-edge="end"], [data-ds-scroll-edge="end"]:dir(rtl) { background: linear-gradient(to right, var(--ds-scroll-shadow), transparent); }
+
+[data-ds-scroll-edge][data-ds-shown] {
+  opacity: 1;
+}
+
+@keyframes ds-scroll-edge-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ds-scroll-edge-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@supports (animation-timeline: scroll()) {
+  [data-ds-scroll-area] {
+    timeline-scope: --ds-scroll-block, --ds-scroll-inline;
+  }
+
+  [data-ds-scroll-area] > [data-ds-scroll-viewport] {
+    scroll-timeline: --ds-scroll-block block, --ds-scroll-inline inline;
+  }
+
+  [data-ds-scroll-edge="top"],
+  [data-ds-scroll-edge="start"] {
+    animation: ds-scroll-edge-in linear both;
+    animation-range: 0 1rem;
+  }
+
+  [data-ds-scroll-edge="bottom"],
+  [data-ds-scroll-edge="end"] {
+    animation: ds-scroll-edge-out linear both;
+    animation-range: calc(100% - 1rem) 100%;
+  }
+
+  [data-ds-scroll-edge="top"],
+  [data-ds-scroll-edge="bottom"] {
+    animation-timeline: --ds-scroll-block;
+  }
+
+  [data-ds-scroll-edge="start"],
+  [data-ds-scroll-edge="end"] {
+    animation-timeline: --ds-scroll-inline;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-ds-scroll-edge="top"],
+    [data-ds-scroll-edge="start"] {
+      animation-timing-function: steps(1, jump-start);
+    }
+
+    [data-ds-scroll-edge="bottom"],
+    [data-ds-scroll-edge="end"] {
+      animation-timing-function: steps(1, jump-end);
+    }
+  }
 }
 
 @theme {

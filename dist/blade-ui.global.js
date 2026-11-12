@@ -1274,6 +1274,203 @@ parts?.();
 }
 return { inlineConfirm };
 })();
+const __ds_behaviours_inline_edit = (() => {
+function inlineEdit(Alpine) {
+Alpine.data('dsInlineEdit', (options = {}) => {
+let control = null;
+return {
+dsValue: '',
+dsEditing: false,
+dsReady: false,
+dsSaving: false,
+dsError: '',
+init() {
+control = wire(this.$el, options, this);
+this.dsReady = true;
+this.$watch('dsValue', (value) => control.set(value));
+this.$watch('dsSaving', (saving) => control.saving(saving));
+this.$watch('dsError', (error) => control.error(error));
+},
+destroy() {
+control?.teardown();
+},
+};
+});
+}
+function wire(root, options, scope) {
+const read = root.querySelector('[data-ds-inline-read]');
+const words = root.querySelector('[data-ds-inline-text]');
+const field = root.querySelector('[data-ds-inline-input]');
+const box = root.querySelector('[data-ds-inline-field]');
+const message = root.querySelector('[data-ds-inline-message]');
+const messageText = root.querySelector('[data-ds-inline-message-text]');
+const save = root.querySelector('[data-ds-inline-save]');
+const cancel = root.querySelector('[data-ds-inline-cancel]');
+const form = root.querySelector('[data-ds-inline-form]');
+const mode = ['enter', 'blur', 'buttons'].includes(options.submit) ? options.submit : 'enter';
+const multiline = options.multiline === true;
+const label = String(options.label ?? '');
+const placeholder = words.dataset.placeholder ?? '';
+let value = field.value;
+let previous = value;
+let width = 0;
+function draw() {
+words.textContent = value !== '' ? value : placeholder;
+words.toggleAttribute('data-ds-empty', value === '');
+read.setAttribute('aria-label', `Edit ${label}${value !== '' ? `: ${value}` : ''}`);
+}
+function size() {
+if (multiline) return;
+field.style.minWidth = `${width}px`;
+if (!CSS.supports?.('field-sizing', 'content')) field.style.width = `${Math.max(field.value.length + 2, 4)}ch`;
+}
+function open() {
+if (read.disabled) return;
+width = read.getBoundingClientRect().width;
+field.value = value;
+box.hidden = false;
+size();
+field.focus();
+field.select();
+read.hidden = true;
+scope.dsEditing = true;
+}
+function close(returnFocus) {
+field.style.minWidth = '';
+field.style.width = '';
+read.hidden = false;
+if (returnFocus) read.focus();
+box.hidden = true;
+scope.dsEditing = false;
+}
+function commit(returnFocus) {
+const next = field.value;
+if (next === value && !scope.dsError) {
+close(returnFocus);
+return;
+}
+previous = value;
+value = next;
+draw();
+scope.dsValue = next;
+const event = new CustomEvent('save', { bubbles: true, cancelable: true, detail: { value: next, previous } });
+root.dispatchEvent(event);
+scope.dsError = '';
+close(returnFocus);
+if (form && !event.defaultPrevented) {
+scope.dsSaving = true;
+form.requestSubmit();
+}
+}
+function discard(returnFocus) {
+field.value = value;
+scope.dsError = '';
+root.dispatchEvent(new CustomEvent('cancel', { bubbles: true, detail: { value } }));
+close(returnFocus);
+}
+function onKeydown(event) {
+if (event.target !== field || !scope.dsEditing) return;
+if (event.key === 'Escape') {
+event.preventDefault();
+event.stopPropagation();
+discard(true);
+return;
+}
+if (event.key !== 'Enter' || event.isComposing) return;
+const chord = event.ctrlKey || event.metaKey;
+if (multiline && !chord) return;
+event.preventDefault();
+if (mode !== 'blur') commit(true);
+}
+function onFocusOut(event) {
+if (!scope.dsEditing || root.contains(event.relatedTarget)) return;
+if (mode === 'buttons') return;
+commit(false);
+}
+function onClick(event) {
+if (event.target.closest('[data-ds-inline-read]')) {
+open();
+} else if (save && event.target.closest('[data-ds-inline-save]')) {
+event.preventDefault();
+commit(true);
+} else if (cancel && event.target.closest('[data-ds-inline-cancel]')) {
+event.preventDefault();
+discard(true);
+}
+}
+function onInput(event) {
+if (event.target === field) size();
+}
+function readAttributes() {
+const saving = root.hasAttribute('data-ds-saving');
+const error = root.getAttribute('data-ds-error') ?? '';
+if (saving !== scope.dsSaving) scope.dsSaving = saving;
+if (error !== scope.dsError) scope.dsError = error;
+}
+function setSaving(saving) {
+root.toggleAttribute('data-ds-saving', Boolean(saving));
+if (saving) root.setAttribute('aria-busy', 'true');
+else root.removeAttribute('aria-busy');
+}
+function setError(error) {
+const text = String(error ?? '');
+if (text) root.setAttribute('data-ds-error', text);
+else root.removeAttribute('data-ds-error');
+messageText.textContent = text;
+message.hidden = !text;
+if (text) {
+field.setAttribute('aria-invalid', 'true');
+const fromButton = document.activeElement === read || document.activeElement === document.body
+|| root.contains(document.activeElement);
+field.value = value;
+value = previous;
+draw();
+if (!scope.dsEditing) {
+box.hidden = false;
+if (fromButton) field.focus();
+read.hidden = true;
+scope.dsEditing = true;
+}
+} else {
+field.removeAttribute('aria-invalid');
+}
+}
+const observer = new MutationObserver(readAttributes);
+observer.observe(root, { attributes: true, attributeFilter: ['data-ds-saving', 'data-ds-error'] });
+const listeners = [
+['keydown', onKeydown],
+['focusout', onFocusOut],
+['click', onClick],
+['input', onInput],
+];
+for (const [type, fn] of listeners) root.addEventListener(type, fn);
+scope.dsValue = value;
+scope.dsSaving = root.hasAttribute('data-ds-saving');
+if (scope.dsSaving) root.setAttribute('aria-busy', 'true');
+const rendered = root.getAttribute('data-ds-error') ?? '';
+if (rendered) {
+scope.dsError = rendered;
+scope.dsEditing = true;
+}
+return {
+set(given) {
+const text = given === null || given === undefined ? '' : String(given);
+if (text === value) return;
+value = text;
+previous = text;
+draw();
+if (!scope.dsEditing) field.value = text;
+},
+saving: setSaving,
+error: setError,
+teardown() {
+observer.disconnect();
+for (const [type, fn] of listeners) root.removeEventListener(type, fn);
+},
+};
+}
+return { inlineEdit };
+})();
 const __ds_behaviours_glide = (() => {
 const SELECTED = ':is([aria-current]:not([aria-current="false"]), [aria-checked="true"], [aria-pressed="true"], [aria-selected="true"])';
 const DISABLED = ':is(:disabled, [aria-disabled="true"])';
@@ -2137,9 +2334,43 @@ root.removeEventListener('focusout', onFocusOut);
 }
 return { popover };
 })();
-const __ds_behaviours_roll = (() => {
+const __ds_shared_format = (() => {
 const MINUS = '−';
 const UNITS = ['', 'K', 'M', 'B', 'T'];
+function formatter(o) {
+const max = Number.isInteger(o.maximumFractionDigits) ? o.maximumFractionDigits : 2;
+const min = Number.isInteger(o.minimumFractionDigits) ? Math.min(o.minimumFractionDigits, max) : 0;
+let nf;
+try {
+nf = new Intl.NumberFormat(o.locale || 'en', { minimumFractionDigits: min, maximumFractionDigits: max, useGrouping: o.useGrouping !== false });
+} catch {
+nf = new Intl.NumberFormat('en', { minimumFractionDigits: min, maximumFractionDigits: max, useGrouping: o.useGrouping !== false });
+}
+const round = (n) => Math.round(n * 10 ** max) / 10 ** max;
+return (value) => {
+const number = typeof value === 'string' && value.trim() === '' ? NaN : Number(value);
+if (value === null || value === undefined || !Number.isFinite(number)) return '—';
+let n = number;
+let unit = 0;
+if (o.compact) {
+while (Math.abs(n) >= 1000 && unit < UNITS.length - 1) {
+n /= 1000;
+unit++;
+}
+if (round(Math.abs(n)) >= 1000 && unit < UNITS.length - 1) {
+n /= 1000;
+unit++;
+}
+}
+const rounded = round(Math.abs(n));
+const sign = n < 0 && rounded > 0 ? MINUS : '';
+return `${sign}${o.prefix ?? ''}${nf.format(rounded)}${UNITS[unit]}${o.suffix ?? ''}`;
+};
+}
+return { formatter };
+})();
+const __ds_behaviours_roll = (() => {
+const { formatter } = __ds_shared_format;
 function roll(Alpine) {
 Alpine.directive('ds-roll', (el, { modifiers }, { cleanup }) => {
 const counter = roller(el);
@@ -2260,37 +2491,224 @@ return JSON.parse(root.dataset.dsFormat || '{}');
 return {};
 }
 }
-function formatter(o) {
-const max = Number.isInteger(o.maximumFractionDigits) ? o.maximumFractionDigits : 2;
-const min = Number.isInteger(o.minimumFractionDigits) ? Math.min(o.minimumFractionDigits, max) : 0;
-let nf;
-try {
-nf = new Intl.NumberFormat(o.locale || 'en', { minimumFractionDigits: min, maximumFractionDigits: max, useGrouping: o.useGrouping !== false });
-} catch {
-nf = new Intl.NumberFormat('en', { minimumFractionDigits: min, maximumFractionDigits: max, useGrouping: o.useGrouping !== false });
+return { roll };
+})();
+const __ds_behaviours_scroll_shadows = (() => {
+const SLACK = 1;
+function scrollShadows(Alpine) {
+Alpine.directive('ds-scroll-shadows', (el, _directive, { cleanup }) => {
+if (globalThis.CSS?.supports?.('animation-timeline: scroll()')) return;
+const viewport = el.querySelector('[data-ds-scroll-viewport]');
+if (!viewport) return;
+const edges = Object.fromEntries(
+[...el.querySelectorAll('[data-ds-scroll-edge]')].map((edge) => [edge.dataset.dsScrollEdge, edge]),
+);
+let frame = 0;
+function measure() {
+frame = 0;
+const across = Math.abs(viewport.scrollLeft);
+const room = {
+top: viewport.scrollTop > SLACK,
+bottom: viewport.scrollTop + viewport.clientHeight < viewport.scrollHeight - SLACK,
+start: across > SLACK,
+end: across + viewport.clientWidth < viewport.scrollWidth - SLACK,
+};
+for (const [side, edge] of Object.entries(edges)) edge.toggleAttribute('data-ds-shown', Boolean(room[side]));
 }
-const round = (n) => Math.round(n * 10 ** max) / 10 ** max;
-return (value) => {
-const number = typeof value === 'string' && value.trim() === '' ? NaN : Number(value);
-if (value === null || value === undefined || !Number.isFinite(number)) return '—';
-let n = number;
-let unit = 0;
-if (o.compact) {
-while (Math.abs(n) >= 1000 && unit < UNITS.length - 1) {
-n /= 1000;
-unit++;
+const soon = () => {
+if (!frame) frame = requestAnimationFrame(measure);
+};
+viewport.addEventListener('scroll', soon, { passive: true });
+let observer = null;
+if (typeof ResizeObserver === 'function') {
+observer = new ResizeObserver(soon);
+observer.observe(viewport);
+for (const child of viewport.children) observer.observe(child);
+} else {
+window.addEventListener('resize', soon);
 }
-if (round(Math.abs(n)) >= 1000 && unit < UNITS.length - 1) {
-n /= 1000;
-unit++;
+measure();
+cleanup(() => {
+if (frame) cancelAnimationFrame(frame);
+viewport.removeEventListener('scroll', soon);
+observer?.disconnect();
+window.removeEventListener('resize', soon);
+});
+});
+}
+return { scrollShadows };
+})();
+const __ds_behaviours_slider = (() => {
+const { formatter } = __ds_shared_format;
+function slider(Alpine) {
+Alpine.data('dsSlider', (options = {}) => {
+let control = null;
+return {
+dsValue: null,
+init() {
+control = wire(this.$el, options, (value) => {
+this.dsValue = value;
+});
+this.dsValue = control.value();
+this.$watch('dsValue', (value) => control.set(value));
+},
+destroy() {
+control?.teardown();
+},
+};
+});
+}
+function wire(root, options, report) {
+const body = root.querySelector('[data-ds-slider-body]');
+const inputs = {
+low: root.querySelector('[data-ds-slider-input="low"]'),
+high: root.querySelector('[data-ds-slider-input="high"]'),
+};
+const pair = Boolean(inputs.low);
+const keys = pair ? ['low', 'high'] : ['high'];
+const format = formatter(options.format ?? {});
+const gap = Math.max(0, Number(options.minGap) || 0);
+const tips = Object.fromEntries(keys.map((key) => [key, root.querySelector(`[data-ds-slider-tip="${key}"]`)]));
+const outputs = Object.fromEntries(keys.map((key) => [key, root.querySelector(`[data-ds-slider-output-${key}]`)]));
+let keyed = false;
+let dragging = null;
+const number = (input) => Number(input.value);
+const lowest = () => Number(inputs.high.min);
+const highest = () => Number(inputs.high.max);
+const ratio = (n) => (highest() > lowest() ? (n - lowest()) / (highest() - lowest()) : 0);
+function draw() {
+for (const key of keys) {
+const n = number(inputs[key]);
+const text = format(n);
+body.style.setProperty(`--ds-slider-${key}`, String(ratio(n)));
+inputs[key].setAttribute('aria-valuetext', text);
+if (tips[key]) tips[key].textContent = text;
+if (outputs[key]) outputs[key].textContent = text;
+}
+if (pair) inputs.low.toggleAttribute('data-ds-slider-top', ratio(number(inputs.low)) > 0.5);
+}
+function hold(moved) {
+if (!pair) return;
+const low = number(inputs.low);
+const high = number(inputs.high);
+if (high - low >= gap) return;
+if (moved === 'low') {
+inputs.low.value = String(high - gap);
+if (number(inputs.low) > high - gap) inputs.low.stepDown();
+} else {
+inputs.high.value = String(low + gap);
+if (number(inputs.high) < low + gap) inputs.high.stepUp();
 }
 }
-const rounded = round(Math.abs(n));
-const sign = n < 0 && rounded > 0 ? MINUS : '';
-return `${sign}${o.prefix ?? ''}${nf.format(rounded)}${UNITS[unit]}${o.suffix ?? ''}`;
+function value() {
+if (!pair) return number(inputs.high);
+const low = number(inputs.low);
+const high = number(inputs.high);
+return keyed ? { low, high } : [low, high];
+}
+function keyOf(target) {
+return keys.find((key) => inputs[key] === target) ?? null;
+}
+function onInput(event) {
+const key = keyOf(event.target);
+if (!key) return;
+hold(key);
+draw();
+report(value());
+}
+function showTip(key, shown) {
+if (tips[key]) tips[key].hidden = !shown;
+}
+function onPointerDown(event) {
+const key = keyOf(event.target);
+if (key) {
+dragging = key;
+showTip(key, true);
+return;
+}
+if (pair && event.button === 0) jump(event);
+}
+function onPointerUp() {
+if (!dragging) return;
+const key = dragging;
+dragging = null;
+showTip(key, document.activeElement === inputs[key] && inputs[key].matches(':focus-visible'));
+}
+function onFocusIn(event) {
+const key = keyOf(event.target);
+if (key && event.target.matches(':focus-visible')) showTip(key, true);
+}
+function onFocusOut(event) {
+const key = keyOf(event.target);
+if (key && dragging !== key) showTip(key, false);
+}
+function jump(event) {
+const box = inputs.high.getBoundingClientRect();
+const half = box.height / 2;
+const usable = box.width - half * 2;
+if (usable <= 0) return;
+let t = (event.clientX - box.left - half) / usable;
+if (getComputedStyle(root).direction === 'rtl') t = 1 - t;
+const at = lowest() + Math.max(0, Math.min(1, t)) * (highest() - lowest());
+const low = number(inputs.low);
+const high = number(inputs.high);
+const key = Math.abs(at - low) < Math.abs(at - high) || (low === high && at < low) ? 'low' : 'high';
+const input = inputs[key];
+if (input.disabled) return;
+event.preventDefault();
+const before = input.value;
+input.value = String(at);
+hold(key);
+input.focus({ preventScroll: true });
+if (input.value === before) return;
+draw();
+report(value());
+input.dispatchEvent(new Event('input', { bubbles: true }));
+input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+function set(given) {
+let wanted;
+if (pair) {
+keyed = given !== null && typeof given === 'object' && !Array.isArray(given);
+const list = Array.isArray(given) ? given : keyed ? [given.low, given.high] : [];
+wanted = list.map((n) => (n === null || n === undefined || n === '' ? NaN : Number(n)));
+if (Number.isFinite(wanted[0]) && Number.isFinite(wanted[1])) {
+const [low, high] = wanted[0] <= wanted[1] ? wanted : [wanted[1], wanted[0]];
+inputs.high.value = String(highest());
+inputs.low.value = String(low);
+inputs.high.value = String(high);
+hold('high');
+}
+} else if (given !== null && given !== undefined && given !== '' && Number.isFinite(Number(given))) {
+inputs.high.value = String(Number(given));
+}
+draw();
+const now = value();
+const same = pair
+? Array.isArray(given) && given.length === 2 && Number(given[0]) === now[0] && Number(given[1]) === now[1]
+|| keyed && Number(given.low) === now.low && Number(given.high) === now.high
+: Number(given) === now && given !== null && given !== '';
+if (!same) report(now);
+}
+const listeners = [
+[root, 'input', onInput],
+[root, 'pointerdown', onPointerDown],
+[root, 'focusin', onFocusIn],
+[root, 'focusout', onFocusOut],
+[document, 'pointerup', onPointerUp],
+[document, 'pointercancel', onPointerUp],
+];
+for (const [target, type, fn] of listeners) target.addEventListener(type, fn);
+draw();
+return {
+value,
+set,
+teardown() {
+for (const [target, type, fn] of listeners) target.removeEventListener(type, fn);
+},
 };
 }
-return { roll };
+return { slider };
 })();
 const __ds_behaviours_tag_input = (() => {
 function tagInput(Alpine) {
@@ -2621,6 +3039,275 @@ if (onStorage) window.removeEventListener('storage', onStorage);
 });
 }
 return { theme };
+})();
+const __ds_behaviours_time_picker = (() => {
+function timePicker(Alpine) {
+Alpine.data('dsTimePicker', (options = {}) => {
+let control = null;
+return {
+dsValue: '',
+dsOpen: false,
+dsReady: false,
+init() {
+control = wire(this.$el, options, {
+report: (value) => {
+this.dsValue = value;
+},
+open: (open) => {
+this.dsOpen = open;
+},
+});
+this.dsValue = control.value();
+this.dsReady = true;
+this.$watch('dsValue', (value) => control.set(value));
+},
+destroy() {
+control?.teardown();
+},
+};
+});
+}
+function wire(root, options, hooks) {
+const field = root.querySelector('[data-ds-time-input]');
+const posted = root.querySelector('[data-ds-time-value]');
+const list = root.querySelector('[data-ds-time-list]');
+const words = options.words ?? {};
+const twelve = options.twelve === true;
+const meridiem = Array.isArray(options.meridiem) ? options.meridiem : ['AM', 'PM'];
+const min = typeof options.min === 'string' ? options.min : null;
+const max = typeof options.max === 'string' ? options.max : null;
+const step = Number(options.step) > 0 ? Number(options.step) : 15;
+const serverInvalid = field.getAttribute('aria-invalid') === 'true';
+let open = false;
+const items = () => [...list.querySelectorAll('[role="option"]')];
+const minutes = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+function shown(t) {
+if (!t) return '';
+if (!twelve) return t;
+const h = Number(t.slice(0, 2));
+return `${h % 12 || 12}:${t.slice(3, 5)} ${meridiem[h >= 12 ? 1 : 0]}`;
+}
+function problem(t) {
+if ((min && t < min) || (max && t > max)) return words.range || words.invalid || '';
+if ((minutes(t) - (min ? minutes(min) : 0)) % step !== 0) return words.step || '';
+return '';
+}
+function invalid(message) {
+field.setCustomValidity(message);
+if (message || serverInvalid) field.setAttribute('aria-invalid', 'true');
+else field.removeAttribute('aria-invalid');
+}
+function mark(value) {
+for (const option of items()) option.setAttribute('aria-selected', String(option.dataset.value === value));
+}
+function post(value) {
+if (posted.value === value) return false;
+posted.value = value;
+mark(value);
+return true;
+}
+function announce() {
+posted.dispatchEvent(new Event('input', { bubbles: true }));
+posted.dispatchEvent(new Event('change', { bubbles: true }));
+}
+function commit() {
+const text = field.value.trim();
+let value = '';
+if (text === '') {
+invalid('');
+} else {
+const time = parse(text, meridiem);
+if (time === null) {
+invalid(words.invalid || '');
+} else {
+const message = problem(time);
+invalid(message);
+if (!message) field.value = shown(time);
+value = time;
+}
+}
+if (post(value)) {
+hooks.report(value);
+announce();
+}
+}
+function setOpen(next) {
+if (open === next) return;
+open = next;
+hooks.open(next);
+}
+function target() {
+const all = items();
+if (!all.length) return null;
+const wanted = parse(field.value.trim(), meridiem) ?? (posted.value || null);
+if (!wanted) return all.find((o) => o.getAttribute('aria-selected') === 'true') ?? all[0];
+const at = minutes(wanted);
+return all.reduce((best, o) => (Math.abs(minutes(o.dataset.value) - at) < Math.abs(minutes(best.dataset.value) - at) ? o : best));
+}
+const afterOpen = (fn) => requestAnimationFrame(() => requestAnimationFrame(fn));
+function reveal(focus) {
+setOpen(true);
+afterOpen(() => {
+const option = target();
+if (!option) return;
+if (focus) option.focus({ preventScroll: true });
+scrollInto(option);
+});
+}
+function scrollInto(option) {
+const top = option.offsetTop;
+const bottom = top + option.offsetHeight;
+if (top < list.scrollTop) list.scrollTop = top;
+else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
+}
+function pick(option) {
+field.value = shown(option.dataset.value);
+invalid('');
+setOpen(false);
+field.focus();
+if (post(option.dataset.value)) {
+hooks.report(option.dataset.value);
+announce();
+}
+}
+function onFieldKeydown(event) {
+if (field.disabled) return;
+switch (event.key) {
+case 'ArrowDown':
+event.preventDefault();
+reveal(true);
+return;
+case 'ArrowUp':
+if (!open) return;
+event.preventDefault();
+reveal(true);
+return;
+case 'Enter':
+if (open) event.preventDefault();
+commit();
+setOpen(false);
+return;
+case 'Escape':
+if (!open) return;
+event.stopPropagation();
+setOpen(false);
+return;
+}
+}
+function onListKeydown(event) {
+const option = event.target.closest('[role="option"]');
+if (!option) return;
+if (event.key === 'Enter' || event.key === ' ') {
+event.preventDefault();
+pick(option);
+} else if (event.key === 'Escape') {
+event.stopPropagation();
+setOpen(false);
+field.focus();
+} else if (event.key === 'Tab') {
+setOpen(false);
+} else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+field.focus();
+}
+}
+function onListClick(event) {
+const option = event.target.closest('[role="option"]');
+if (option) pick(option);
+}
+function onListPointerDown(event) {
+if (event.target.closest('[role="option"]')) event.preventDefault();
+}
+function onFieldClick() {
+if (field.disabled) return;
+if (open) setOpen(false);
+else reveal(false);
+}
+function onFieldInput(event) {
+if (!event.isTrusted) return;
+if (!open) setOpen(true);
+afterOpen(() => {
+const option = target();
+if (option) scrollInto(option);
+});
+}
+function onFocusOut(event) {
+if (root.contains(event.relatedTarget)) return;
+setOpen(false);
+commit();
+}
+const listeners = [
+[field, 'keydown', onFieldKeydown],
+[field, 'click', onFieldClick],
+[field, 'input', onFieldInput],
+[field, 'change', commit],
+[list, 'keydown', onListKeydown],
+[list, 'click', onListClick],
+[list, 'pointerdown', onListPointerDown],
+[root, 'focusout', onFocusOut],
+];
+const start = field.value;
+const name = field.getAttribute('name');
+field.type = 'text';
+if (name !== null) {
+posted.name = name;
+field.removeAttribute('name');
+}
+posted.value = start;
+field.value = shown(start);
+mark(start);
+for (const [el, type, fn] of listeners) el.addEventListener(type, fn);
+function set(given) {
+const text = given === null || given === undefined ? '' : String(given);
+const time = text === '' ? '' : parse(text, meridiem);
+const value = time ?? '';
+if (value !== posted.value) {
+post(value);
+field.value = shown(value);
+invalid(value ? problem(value) : '');
+}
+if (value !== text) hooks.report(value);
+}
+return {
+value: () => posted.value,
+set,
+teardown() {
+for (const [el, type, fn] of listeners) el.removeEventListener(type, fn);
+},
+};
+}
+function parse(text, meridiem = ['AM', 'PM']) {
+let s = String(text).trim().toLowerCase();
+if (!s) return null;
+let half = null;
+const own = meridiem.map((w) => String(w).toLowerCase());
+for (const [i, word] of own.entries()) {
+if (word && s.endsWith(word)) {
+half = i;
+s = s.slice(0, -word.length).trim();
+break;
+}
+}
+if (half === null) {
+const suffix = s.match(/\s*([ap])\.?\s*(m\.?)?$/);
+if (suffix) {
+half = suffix[1] === 'a' ? 0 : 1;
+s = s.slice(0, suffix.index).trim();
+}
+}
+const m = s.match(/^(\d{1,2})(?:[:.h\s]?(\d{2})(?::\d{2})?)?$/);
+if (!m) return null;
+let hours = Number(m[1]);
+const mins = m[2] === undefined ? 0 : Number(m[2]);
+if (mins > 59) return null;
+if (half !== null) {
+if (hours < 1 || hours > 12) return null;
+hours = (hours % 12) + (half === 1 ? 12 : 0);
+} else if (hours > 23) {
+return null;
+}
+return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+}
+return { timePicker };
 })();
 const __ds_behaviours_toggle_group = (() => {
 const { roving } = __ds_shared_roving;
@@ -2977,6 +3664,7 @@ const { confirmDialog } = __ds_behaviours_confirm_dialog;
 const { dismiss } = __ds_behaviours_dismiss;
 const { hold } = __ds_behaviours_hold;
 const { inlineConfirm } = __ds_behaviours_confirm;
+const { inlineEdit } = __ds_behaviours_inline_edit;
 const { glide } = __ds_behaviours_glide;
 const { hoverCard } = __ds_behaviours_hover_card;
 const { numberField } = __ds_behaviours_number_field;
@@ -2984,12 +3672,15 @@ const { otp } = __ds_behaviours_otp;
 const { password } = __ds_behaviours_password;
 const { popover } = __ds_behaviours_popover;
 const { roll } = __ds_behaviours_roll;
+const { scrollShadows } = __ds_behaviours_scroll_shadows;
+const { slider } = __ds_behaviours_slider;
 const { tagInput } = __ds_behaviours_tag_input;
 const { theme } = __ds_behaviours_theme;
+const { timePicker } = __ds_behaviours_time_picker;
 const { toggleGroup } = __ds_behaviours_toggle_group;
 const { toolbar } = __ds_behaviours_toolbar;
 const { tree } = __ds_behaviours_tree;
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows];
 const REGISTERED = Symbol.for('shipbytes.blade-ui');
 function bladeUi(Alpine) {
 if (!Alpine || Alpine[REGISTERED]) return;

@@ -65,6 +65,7 @@ src/              the service provider
   Support/Code.php              ds::code-block's lines: escaped, or a
                                 highlighter's HTML balanced per line; the
                                 `highlight` ranges (CodeTest)
+  Support/Listbox.php           reads the listbox recipe (partials/listbox.php)
 config/           blade-ui.php — icon aliases, default icon size
 resources/views/  the Blade components + the two pagination views and
                   their two Livewire variants
@@ -91,6 +92,9 @@ resources/views/  the Blade components + the two pagination views and
   partials/menu.php             the menu recipe dropdown and context-menu
                                 share (panel, transition, the arrow-key
                                 handler), read through Support\Menu
+  partials/listbox.php          the listbox recipe combobox and time-picker
+                                share (panel, option, empty, the arrow-key
+                                handler), read through Support\Listbox
   partials/chart.php            the chart recipe: a mark's colour class per
                                 tone and per series slot, read through
                                 Support\Chart::colour()
@@ -107,7 +111,9 @@ resources/js/     the shared script's source: plain ES modules, hand-edited
                     the roving tabindex toolbar and toggle-group use;
                     anchor.js: the positioning x-ds-anchor drives;
                     confirm.js: the swallow, announce and bfcache-restore
-                    helpers the three confirmation behaviours share)
+                    helpers the three confirmation behaviours share;
+                    format.js: the number formatter roll and slider use,
+                    mirroring Support\Chart::format)
                   (export-ignored: consumers get dist/, not the modules)
 
 tokens/           DTCG source. Edited by hand, like resources/js/.
@@ -243,7 +249,7 @@ composer require shipbytes/blade-ui
 
 Three lines, not four — `theme.css` brings its own `@custom-variant dark`. It
 also carries `[x-cloak] { display: none !important }`, which Alpine expects every
-project to write by hand: nine components mark their overlay root `x-cloak`, so
+project to write by hand: fourteen components mark an overlay `x-cloak`, so
 without it every dialog on the page renders open, backdrop and all, until Alpine
 boots. That is our failure to ship, not the consumer's to remember.
 No npm step: the composer package ships `dist/`.
@@ -707,20 +713,20 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 90 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 94 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
 accordion, accordion-item, activity-heatmap, alert, announcement-bar, avatar, avatar-group, badge, bar-chart, bottom-nav,
 bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, chip,
 button-group, chip-group, code-block, combobox, confirm-button, confirm-popover, copy-button, counter, date-picker, donut-chart, drawer, dropdown,
 context-menu, dropdown-item, empty-state, expandable-text, file-upload, filter-bar, filter-chip, gauge, hold-button, hover-card, icon,
-input, kbd, line-chart, modal,
+inline-edit, input, kbd, line-chart, modal,
 nav-item, number-field, otp-input, panel, panel-row, password-strength,
 popover, progress, radio, radio-card, radio-cards, radio-group, rating,
-segment, segmented-control, select, sheet, sheet-item, skeleton, sparkline, stat-tile,
+scroll-area, segment, segmented-control, select, sheet, sheet-item, skeleton, slider, sparkline, stat-tile,
 step, stepper, sub-nav, switch, tab,
 tab-panel, table, table-cell, table-row, tabs, tag-input, theme-switcher,
-timeline, timeline-group, timeline-item,
+time-picker, timeline, timeline-group, timeline-item,
 toast, toast-region,
 toggle, toggle-group, toolbar, toolbar-button, toolbar-separator, tooltip,
 tree, tree-item, usage-meter.
@@ -735,7 +741,7 @@ accordion (with accordion-item), file-upload, tooltip, otp-input, tag-input,
 number-field, password-strength, copy-button, toolbar (with toolbar-button and
 toolbar-separator), toggle-group (with toggle), popover, hover-card, context-menu, theme-switcher,
 confirm-button, hold-button, confirm-popover, tree (with tree-item),
-expandable-text, sub-nav —
+expandable-text, slider, time-picker, inline-edit, sub-nav —
 always (sub-nav only to toggle: its open state is rendered from PHP; tree's
 structure, selection and open folders are rendered from PHP too). Plus ONE optional prop each on
 checkbox (`indeterminate`), nav-item (`collapsedWhen`), toast (`dismiss`),
@@ -762,7 +768,9 @@ hold-button (`dsHold`), confirm-popover (`dsConfirmDialog`, on `dsPopover` and
 `reveal` (`dsPassword`) and `clearable` (`dsClear`), tree (`dsTree`),
 expandable-text and code-block's `expandable` (`dsClamp`), code-block's copy
 (`dsClipboard`, through copy-button), filter-bar's `collapsible` (`dsPopover`,
-`x-ds-anchor`), and counter when bound to Alpine state (`dsRoll`). kbd and
+`x-ds-anchor`), counter when bound to Alpine state (`dsRoll`), slider
+(`dsSlider`), time-picker (`dsTimePicker`, `dsClear`, `x-ds-anchor`) and
+inline-edit (`dsInlineEdit`). kbd and
 filter-chip are plain Blade and CSS; a chip's `remove` and the bar's `reset`
 are plain inline `onclick` dispatches.
 `<x-ds::theme-script />` is a class component like
@@ -774,7 +782,9 @@ uses `x-ds-roll` as an enhancement only: without it the server's number is
 shown and a morph changes it, with it the digits roll. bar-chart, line-chart
 and donut-chart use `x-ds-chart` as an enhancement only: without it each is
 a static `role="img"` SVG named by its generated summary, with it a readout,
-keyboard access to every mark and legend toggles. timeline (with
+keyboard access to every mark and legend toggles. scroll-area uses
+`x-ds-scroll-shadows` as an enhancement only, and only where the browser has
+no scroll-driven animations: its shadows are CSS, its scrolling native. timeline (with
 timeline-item and timeline-group) is plain Blade and CSS. See the
 shared script section.
 

@@ -1,6 +1,6 @@
 # Shipbytes Blade UI — documentation
 
-Ninety Blade components for Laravel, plus two pagination views. Presentation
+Ninety-four Blade components for Laravel, plus two pagination views. Presentation
 only: no state, no framework assumptions beyond Blade itself.
 
 **New here?** Start with [Getting started](getting-started.md) — install, three
@@ -20,6 +20,9 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [OTP input](components/otp-input.md) | A one-time code, one box per character — needs Alpine and the script |
 | [Tag input](components/tag-input.md) | Typed values kept as chips — needs Alpine and the script |
 | [Number field](components/number-field.md) | A bounded number with step buttons — needs Alpine and the script |
+| [Slider](components/slider.md) | A number, or a range of two, on a track — needs Alpine and the script |
+| [Time picker](components/time-picker.md) | A time of day, typed or picked from a list; posts HH:MM — needs Alpine and the script |
+| [Inline edit](components/inline-edit.md) | Text that turns into a field in place: rename a title, edit a cell — needs Alpine and the script |
 | [Password strength](components/password-strength.md) | A strength hint for a new password, and `reveal` — needs Alpine and the script |
 | [Copy button](components/copy-button.md) | Copies a value and confirms in place — needs Alpine and the script |
 | [Confirm button](components/confirm-button.md) | A destructive button that asks in place first — needs Alpine and the script |
@@ -56,6 +59,7 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Code block](components/code-block.md) | Code to read and copy, with line numbers and highlighted lines; bring your own highlighter |
 | [Kbd](components/kbd.md) | A key on the keyboard, inline in text |
 | [Expandable text](components/expandable-text.md) | Text held to a few lines with Read more — needs Alpine and the script |
+| [Scroll area](components/scroll-area.md) | A bounded box that scrolls natively, with a quiet scrollbar and edge shadows |
 
 ### Data
 
@@ -125,7 +129,7 @@ plain Blade view. The one opt-in exception is the pagination views' Livewire
 variants, which emit `wire:click` for a component that uses `WithPagination`.
 
 [Alpine](https://alpinejs.dev) — a single 15 kB script, not a framework — is
-needed by twenty-seven components, and by nine optional props:
+needed by thirty components, and by nine optional props:
 
 | | Needs Alpine |
 |---|---|
@@ -135,6 +139,8 @@ needed by twenty-seven components, and by nine optional props:
 | `confirm-button` `hold-button` `confirm-popover` | **Always, and the package's script too.** Without them each renders its first face and does nothing, so no single press ever carries out the action. |
 | `tree` | **Always, and the package's script too.** Without them it is drawn as PHP rendered it (open folders, the selection, every link reachable) and posts what it shows, but does not open, close or choose. |
 | `expandable-text` | **Always, and the package's script too.** Without them the text is shown in full and no button appears. |
+| `slider` `time-picker` `inline-edit` | **Always, and the package's script too.** Without them each is the native field it is drawn on and posts its value: a single slider works fully (its fill stays put) and a range's two thumbs can cross, the time picker is the browser's own time field, and the inline edit is a plain field inside its form. |
+| `scroll-area` | **Never.** It scrolls natively. With Alpine and the package's script it also draws its edge shadows in a browser that cannot from CSS. |
 | `sub-nav` | **Only to open and close.** Without it the section holding the current page is open and the rest are closed, as the server rendered them. |
 | `counter` | **Never**, unless its `value` is bound to Alpine state. With Alpine and the package's script its digits roll; without them it shows the number the server rendered, and a re-render changes it. Bound with `::value`, it needs both. |
 | `bar-chart` `line-chart` `donut-chart` | **Never.** With Alpine and the package's script, a readout on hover and focus, every mark reachable by keyboard, and legend toggles; without them each is a static SVG with a generated text alternative, which is complete. |

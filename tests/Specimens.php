@@ -1181,6 +1181,41 @@ final class Specimens
                 <x-ds::panel title="List plain" :collapsible="true" :open="false" body="plain">Body</x-ds::panel>
                 BLADE,
 
+            'slider/single' => <<<'BLADE'
+                <x-ds::slider name="volume" label="Volume" :value="40" />
+                <x-ds::slider name="opacity" label="Opacity" :value="0.35" :min="0" :max="1" step="0.05" showValue="inline" :format="['suffix' => '%', 'decimals' => 2]" help="How see-through." />
+                <x-ds::slider name="zoom" :value="150" :min="50" :max="200" step="any" showValue="tooltip" size="sm" aria-label="Zoom" />
+                <x-ds::slider name="level" label="Level" :value="7" :max="10" :marks="[0, 5, 10]" :disabled="true" />
+                <x-ds::slider name="score" label="Score" value="nonsense" error="Pick a score." wire:model="score" />
+                BLADE,
+            'slider/range' => <<<'BLADE'
+                <x-ds::slider name="price" label="Price" :range="true" :value="[20, 80]" lowLabel="Minimum price" highLabel="Maximum price"
+                    :minGap="10" showValue="inline" :format="['prefix' => '$']" :marks="[0 => 'Free', 50 => '$50', 100 => '$100', 400 => 'never']" />
+                <x-ds::slider name="age" label="Age" :range="true" :value="['low' => 60, 'high' => 18]" :min="18" :max="99" lowLabel="Youngest" highLabel="Oldest"
+                    lowName="age_min" highName="age_max" showValue="tooltip" size="sm" x-model="ages" />
+                <x-ds::slider name="hours" label="Hours" :range="true" lowLabel="From" highLabel="To" :disabled="true" error="Not available." />
+                BLADE,
+            'time-picker/all' => <<<'BLADE'
+                <x-ds::time-picker name="start" label="Start" value="09:30" />
+                <x-ds::time-picker name="end" label="End" value="9:05:00" format="12" min="08:00" max="18:00" :step="30" :clearable="true" placeholder="Choose a time" help="Office hours." />
+                <x-ds::time-picker name="alarm" label="Alarm" :value="\Illuminate\Support\Carbon::create(2026, 1, 1, 21, 45)" :step="2" size="sm" wire:model="alarm" />
+                <x-ds::time-picker name="slot" label="Slot" value="25:00" error="Choose a slot." min="13:15" :step="60" />
+                <x-ds::time-picker name="closed" label="Closed" value="12:00" :disabled="true" :clearable="true" />
+                BLADE,
+            'inline-edit/all' => <<<'BLADE'
+                <h2><x-ds::inline-edit name="title" label="Title" value="Q3 roadmap" /></h2>
+                <x-ds::inline-edit name="subtitle" label="Subtitle" placeholder="Add a subtitle" size="sm" submit="blur" wire:model="subtitle" />
+                <x-ds::inline-edit name="notes" label="Notes" value="Two lines" :multiline="true" submit="buttons" />
+                <x-ds::inline-edit name="name" label="Name" value="Ada &amp; co" action="/projects/1" method="PATCH" error="That name is taken." />
+                <x-ds::inline-edit name="q" label="Query" value="draft" action="/search" method="GET" :saving="true" :disabled="true" />
+                BLADE,
+            'scroll-area/all' => <<<'BLADE'
+                <x-ds::scroll-area maxHeight="10rem" label="Release notes"><p>Text only, so the region is the stop.</p></x-ds::scroll-area>
+                <x-ds::scroll-area :height="240" orientation="horizontal" scrollbar="hidden-until-hover" label="Tags"><div class="flex w-max gap-2"><span>One</span></div></x-ds::scroll-area>
+                <x-ds::scroll-area maxHeight="calc(100dvh - 4rem)" orientation="both" scrollbar="auto" :shadows="false"><a href="#a">A link, so the region is not a stop</a></x-ds::scroll-area>
+                <x-ds::scroll-area maxHeight="50%" label="Form"><input type="hidden" name="x"><button type="button">Press</button></x-ds::scroll-area>
+                BLADE,
+
             // Not a visual component, but it renders inside a host's layout and
             // so inside a Livewire render too; this puts it through the markers
             // test with everything else.

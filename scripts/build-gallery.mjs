@@ -376,6 +376,10 @@ table.ref .samp { color: var(--g-ink); font-family: Inter, ui-sans-serif, system
       <a href="#combobox">Combobox</a>
       <a href="#date-picker">Date</a>
       <a href="#file-upload">Upload</a>
+      <a href="#slider">Slider</a>
+      <a href="#time-picker">Time</a>
+      <a href="#inline-edit">Inline edit</a>
+      <a href="#scroll-area">Scroll area</a>
       <a href="#accordion">Accordion</a>
       <a href="#tree">Tree</a>
       <a href="#filter-bar">Filter bar</a>

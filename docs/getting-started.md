@@ -115,7 +115,7 @@ group, so it starts no session and sets no cookie, and it works under
 
 **A page that cannot reach the route** (a static export, an HTML email
 preview, a host whose routing will not take a package's) can carry the script
-in the page instead, about 89 kB (22 kB compressed), uncached:
+in the page instead, about 109 kB (27 kB compressed), uncached:
 
 ```blade
 <x-ds::scripts inline />
@@ -206,8 +206,12 @@ use the component.
 | `dsRoll` | Behind `ds::counter` when its `value` is bound to Alpine state (`::value="count"`). Follows the expression, formats it as the server does, keeps the hidden text in step, and rolls the digits to each new value. |
 | `dsClamp` | Behind `ds::expandable-text` and `ds::code-block`'s `expandable`. Holds the box to its lines, measures whether the content is taller (again on a resize, a content change and when the fonts arrive), shows the Read more / Show more button only then, and keeps its `aria-expanded` and words in step. |
 | `dsClear` | Behind `ds::input`'s `clearable`. Empties the field it `aria-controls`, puts focus back in it, and dispatches `input` and `change` on it. |
+| `dsSlider` | Behind `ds::slider`. Keeps the fill, `aria-valuetext` and the readouts in step with the native range inputs, formatted as the server formats them; with two thumbs, stops each `minGap` short of the other, moves the nearer one on a press on the track, and shows the tooltip while dragging; binds `wire:model` / `x-model` (a number, or the pair) both ways. |
+| `dsTimePicker` | Behind `ds::time-picker`. Turns the native time field into a text field with a list of times (the ARIA combobox pattern), reads forgiving typing (`930`, `9.30pm`), shows times in 12 or 24 hours and posts `HH:MM` through a hidden input, marks a time it cannot take invalid without changing it, and binds `wire:model` / `x-model` both ways. |
+| `dsInlineEdit` | Behind `ds::inline-edit`. Shows the text as a button and opens a field in its place; Enter, leaving, Save, Cancel and Escape as `submit` says; dispatches `save` with `{ value, previous }` and `cancel`; submits the form it draws for `action`; shows saving and errors from `data-ds-saving` and `data-ds-error` (or `dsSaving` and `dsError`); binds `wire:model` / `x-model` both ways. |
 | `dsTree` | Behind `ds::tree`. One Tab stop for the tree; the arrow keys, Home, End, type-ahead and `*`; opens and closes folders (dispatching `expand` and `collapse`), selects or checks rows with tri-state parents, keeps the posted inputs in step, and binds `wire:model` / `x-model` both ways. |
 | `x-ds-roll` | A directive, behind `ds::counter` when its value comes from the server. Rolls the digits when a re-render (a Livewire morph) changes the number; with `.in`, rolls up from zero the first time the counter is half in view. Instant under reduced motion. |
+| `x-ds-scroll-shadows` | A directive, behind `ds::scroll-area`. Where the browser cannot draw the edge shadows from CSS (no scroll-driven animations), marks each edge that has more content past it, on scroll and on resize. Does nothing where CSS can. |
 | `x-ds-chart` | A directive, behind `ds::bar-chart`, `ds::line-chart` and `ds::donut-chart` when `interactive` (the default). Shows a readout (label, value, series) beside the mark under the pointer or keyboard focus; makes the marks reachable through one Tab stop per chart, the arrow keys moving along a series and across to the next, Home and End to the ends, Escape putting the readout away; and, on a chart with several series, turns the legend's entries into buttons that show and hide their series without re-scaling anything. |
 
 ### When it is missing
@@ -223,8 +227,8 @@ The component renders, because the server rendered it, and does nothing when
 pressed. In your own `x-data` the same cause reads as Alpine's
 `dsClipboard is not defined`.
 
-`x-ds-glide`, `x-ds-anchor`, `x-ds-roll` and `x-ds-chart` are the four
-registrations that are silent when missing, on purpose. `x-ds-glide` only adds the sliding highlight, and
+`x-ds-glide`, `x-ds-anchor`, `x-ds-roll`, `x-ds-chart` and
+`x-ds-scroll-shadows` are the five registrations that are silent when missing, on purpose. `x-ds-glide` only adds the sliding highlight, and
 `ds::segmented-control`, which uses it without any `ds…` behaviour, works and
 posts the same without it: Alpine skips a directive it does not know, and the
 chosen segment keeps the face CSS draws. `x-ds-anchor` keeps an overlay on
@@ -237,7 +241,9 @@ the old one. A counter bound to Alpine state goes through `dsRoll` instead,
 which does report itself, because nothing else would write the number.
 `x-ds-chart` only adds the readout, the keyboard and the legend toggles: the
 chart itself is drawn by the server as an image named by its summary, which
-is what every reader gets without it.
+is what every reader gets without it. `x-ds-scroll-shadows` only draws the
+scroll area's edge shadows in a browser whose CSS cannot: the box scrolls the
+same without it.
 
 ## 4. Use a component
 
@@ -282,16 +288,20 @@ lets them choose light, dark or system, and remembers it:
 `illuminate/view` and `blade-heroicons`, and nothing else. Every component works
 in a plain Blade view.
 
-Twenty-seven need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
+Thirty need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
 framework: **modal, drawer, sheet, dropdown, select, combobox, date-picker,
 accordion, file-upload, tooltip, sub-nav, otp-input, tag-input, number-field,
 password-strength, copy-button, toolbar, toggle-group, popover, hover-card,
 context-menu, theme-switcher, confirm-button, hold-button, confirm-popover,
-tree, expandable-text**.
+tree, expandable-text, slider, time-picker, inline-edit**.
 `sub-nav` only to open and close: without Alpine, the section holding the
 current page is open and the rest are closed, as the server rendered them.
 `tree` likewise draws its folders, selection and links from PHP and posts
-what it shows; `expandable-text` shows all of its text.
+what it shows; `expandable-text` shows all of its text. `slider`,
+`time-picker` and `inline-edit` are each drawn on a native field that works
+and posts without them: a single slider (whose fill stays put) and a range
+whose thumbs can then cross, the browser's own time field, and a plain field
+inside its form.
 
 Seven more use it for **optional props**, and work without them otherwise:
 `checkbox`'s `indeterminate`, `nav-item`'s `collapsedWhen`, `toast`'s
@@ -320,6 +330,10 @@ use the package's script to stay on screen: with it they flip away from the
 window's edge and escape a box with `overflow: hidden`; without it they open
 at their `placement`, as before 2.0.
 
+`scroll-area` needs neither: it scrolls natively and draws its edge shadows
+from CSS. Where the browser has no scroll-driven animations, Alpine and the
+package's script draw them instead; with neither, there are no shadows.
+
 The pagination views' Livewire variants also use Alpine, for the scroll back to
 the top on a page change, and get it from Livewire.
 
@@ -327,13 +341,14 @@ the top on a page change, and get it from Livewire.
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
 ```
 
-Fourteen of them, **otp-input, tag-input, number-field, password-strength,
+Nineteen of them, **otp-input, tag-input, number-field, password-strength,
 copy-button, toolbar, toggle-group, popover, hover-card, context-menu,
-theme-switcher, confirm-button, hold-button and confirm-popover**, and
+theme-switcher, confirm-button, hold-button, confirm-popover, tree,
+expandable-text, slider, time-picker and inline-edit**, and
 `input`'s `reveal` and `announcement-bar`'s dismissal, need Alpine **and** [`<x-ds::scripts />`](#3-add-the-script)
 above it, and say so on their page.
 
-**You do not need to add an `[x-cloak]` rule.** Twelve components hide themselves
+**You do not need to add an `[x-cloak]` rule.** Fourteen components hide themselves
 with `x-cloak` until Alpine boots, and Alpine does not ship the CSS rule that
 makes the attribute mean anything — every project is normally expected to write
 it by hand. Since it is *our* components that break without it, `theme.css`

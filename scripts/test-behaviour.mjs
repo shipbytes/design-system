@@ -173,6 +173,18 @@ await writeFile(join(TMP, 'roll-b.blade.php'), '<x-ds::counter id="ct-morph" :va
 const rollAfter = await render(join(TMP, 'roll-b.blade.php'));
 await writeFile(join(TMP, 'roll.html'), rollInMarkup + rollBefore + rollAfter);
 
+// The time picker, slider and inline edit as a Livewire re-render brings
+// them back: the same server markup, a new value. The morph must keep what
+// the script turned them into.
+const morphBlade = (time, title, volume) => `<div id="c-morph"><x-ds::time-picker id="tp-morph" name="at" label="At" value="${time}" format="12" />`
+    + `<x-ds::inline-edit id="ie-morph" name="t" label="Title" value="${title}" />`
+    + `<x-ds::slider id="sl-morph" name="v" label="Volume" :value="${volume}" /></div>`;
+await writeFile(join(TMP, 'c-morph-a.blade.php'), morphBlade('09:30', 'One', 40));
+const cMorphBefore = await render(join(TMP, 'c-morph-a.blade.php'));
+await writeFile(join(TMP, 'c-morph-b.blade.php'), morphBlade('10:00', 'Two', 70));
+const cMorphAfter = await render(join(TMP, 'c-morph-b.blade.php'));
+await writeFile(join(TMP, 'c-morph.html'), cMorphBefore + cMorphAfter);
+
 await writeFile(
     join(TMP, 'in.css'),
     `@import "tailwindcss";
@@ -184,6 +196,7 @@ await writeFile(
 @source "${join(TMP, 'theme.html')}";
 @source "${join(TMP, 'guards.html')}";
 @source "${join(TMP, 'roll.html')}";
+@source "${join(TMP, 'c-morph.html')}";
 `,
 );
 
@@ -4568,6 +4581,432 @@ group('panel collapsible');
     });
 }
 
+// ---------------------------------------------------------------- batch 11
+
+/** What #c-form would post. */
+const cPosted = () => page.evaluate(() => {
+    const out = {};
+    for (const [k, v] of new FormData(document.getElementById('c-form')).entries()) (out[k] ||= []).push(v);
+    return out;
+});
+
+const sliderState = (id) => page.evaluate((i) => {
+    const input = document.getElementById(i);
+    const root = input.closest('[data-ds-slider]');
+    const body = root.querySelector('[data-ds-slider-body]');
+    return {
+        value: input.value,
+        text: input.getAttribute('aria-valuetext'),
+        low: body.style.getPropertyValue('--ds-slider-low'),
+        high: body.style.getPropertyValue('--ds-slider-high'),
+        output: root.querySelector('[data-ds-slider-output-high]')?.textContent.trim() ?? null,
+    };
+}, id);
+
+group('slider (dsSlider): one thumb');
+{
+    await check('PHP drew the fill, the valuetext and the readout', async () => {
+        const s = await sliderState('sl');
+        return (s.value === '40' && s.text === '40%' && s.high === '0.4' && s.output === '40%') || JSON.stringify(s);
+    });
+    await check('the arrow keys are the native input\'s, and the fill, valuetext and readout follow', async () => {
+        await page.focus('#sl');
+        await page.keyboard.press('ArrowRight');
+        await page.keyboard.press('ArrowRight');
+        const s = await sliderState('sl');
+        return (s.value === '42' && s.text === '42%' && Math.abs(Number(s.high) - 0.42) < 1e-9 && s.output === '42%') || JSON.stringify(s);
+    });
+    await check('it posts under its name', async () => (await cPosted()).volume?.[0] === '42' || JSON.stringify(await cPosted()));
+}
+
+group('slider: two thumbs (range)');
+{
+    const pair = () => page.evaluate(() => ({
+        low: document.getElementById('slr-low').value,
+        high: document.getElementById('slr-high').value,
+        tipLow: document.querySelector('#slr-low ~ [data-ds-slider-tip="low"], [data-ds-slider-tip="low"]')?.textContent.trim(),
+        tipLowHidden: document.querySelector('[data-ds-slider-tip="low"]')?.hidden,
+        lowVar: document.querySelector('#slr-low').closest('[data-ds-slider-body]').style.getPropertyValue('--ds-slider-low'),
+        top: document.getElementById('slr-low').hasAttribute('data-ds-slider-top'),
+    }));
+    await check('a group named by the label, each thumb named by its own', async () => {
+        const r = await page.evaluate(() => {
+            const root = document.getElementById('slr-low').closest('[data-ds-slider]');
+            const label = document.getElementById(root.getAttribute('aria-labelledby'))?.textContent.trim();
+            return { role: root.getAttribute('role'), label, low: document.getElementById('slr-low').getAttribute('aria-label'), high: document.getElementById('slr-high').getAttribute('aria-label') };
+        });
+        return (r.role === 'group' && r.label === 'Price' && r.low === 'Minimum price' && r.high === 'Maximum price') || JSON.stringify(r);
+    });
+    await check('the low thumb stops minGap short of the high one', async () => {
+        await page.focus('#slr-low');
+        await page.keyboard.press('End');
+        const r = await pair();
+        return (r.low === '70' && r.high === '80' && r.top) || JSON.stringify(r);
+    });
+    await check('the high thumb stops minGap short of the low one', async () => {
+        await page.focus('#slr-high');
+        await page.keyboard.press('Home');
+        const r = await pair();
+        return (r.low === '70' && r.high === '80') || JSON.stringify(r);
+    });
+    await check('the tooltip shows its thumb\'s value while it has keyboard focus, and hides on leaving', async () => {
+        await page.focus('#slr-low');
+        await page.keyboard.press('Home');
+        const on = await pair();
+        await page.keyboard.press('Tab');
+        const off = await pair();
+        return (on.low === '0' && on.tipLow === '$0' && on.tipLowHidden === false && off.tipLowHidden === true && !on.top) || JSON.stringify({ on, off });
+    });
+    await check('a press on the track moves the nearer thumb there and focuses it', async () => {
+        const box = await page.locator('#slr-high').boundingBox();
+        const half = box.height / 2;
+        await page.mouse.click(box.x + half + 0.3 * (box.width - 2 * half), box.y + half);
+        await page.mouse.up();
+        const r = await pair();
+        const focus = await active();
+        return (Math.abs(Number(r.low) - 30) <= 1 && r.high === '80' && focus === 'slr-low' && Math.abs(Number(r.lowVar) - Number(r.low) / 100) < 1e-9) || JSON.stringify({ r, focus });
+    });
+    await check('it posts name[low] and name[high]', async () => {
+        const p = await cPosted();
+        return (p['price[low]']?.length === 1 && p['price[high]']?.[0] === '80') || JSON.stringify(p);
+    });
+}
+
+const timeState = (id) => page.evaluate((i) => {
+    const field = document.getElementById(i);
+    const root = field.closest('[data-ds-time-picker]') ?? field.closest('[x-data]');
+    const hidden = root.querySelector('[data-ds-time-value]');
+    const list = root.querySelector('[data-ds-time-list]');
+    return {
+        type: field.type, name: field.getAttribute('name'), role: field.getAttribute('role'),
+        shown: field.value, posted: hidden.value, postedName: hidden.name,
+        invalid: field.getAttribute('aria-invalid'), message: field.validationMessage,
+        // checkVisibility, not offsetParent: the anchored list is position: fixed.
+        open: list.checkVisibility(), expanded: field.getAttribute('aria-expanded'),
+        options: list.querySelectorAll('[role="option"]').length,
+        selected: list.querySelector('[aria-selected="true"]')?.dataset.value ?? null,
+        focus: document.activeElement?.dataset?.value ?? document.activeElement?.id,
+    };
+}, id);
+
+/** Type into a time field as the reader would: select what is there, type, then leave. */
+const typeTime = async (id, text, leave = 'Tab') => {
+    await page.focus(`#${id}`);
+    await page.keyboard.press('ControlOrMeta+A');
+    if (text === '') await page.keyboard.press('Backspace');
+    else await page.keyboard.type(text);
+    if (leave) await page.keyboard.press(leave);
+    await settle(100);
+};
+
+group('time picker (dsTimePicker)');
+{
+    await check('the native time field became a combobox; the name moved to a hidden HH:MM', async () => {
+        const s = await timeState('tp');
+        return (s.type === 'text' && s.name === null && s.role === 'combobox' && s.shown === '9:30 AM' && s.posted === '09:30' && s.postedName === 'starts' && s.selected === '09:30' && !s.open && s.expanded === 'false')
+            || JSON.stringify(s);
+    });
+    await check('the list runs from min to max at the step', async () => {
+        const s = await timeState('tp');
+        const all = await timeState('tp24');
+        return (s.options === 21 && all.options === 96) || `bounded ${s.options}, whole day ${all.options}`;
+    });
+    await check('forgiving typing: "2:30pm", "930", "9.30" and "21h30" all read, and are shown back the list\'s way', async () => {
+        const seen = [];
+        for (const [text, id] of [['2:30pm', 'tp'], ['930', 'tp24'], ['9.30', 'tp24'], ['21h30', 'tp24']]) {
+            await typeTime(id, text);
+            const s = await timeState(id);
+            seen.push(`${text}→${s.shown}/${s.posted}${s.invalid ? '!' : ''}`);
+        }
+        return seen.join(' ') === '2:30pm→2:30 PM/14:30 930→09:30/09:30 9.30→09:30/09:30 21h30→21:30/21:30' || seen.join(' ');
+    });
+    await check('text that is not a time is kept as typed, marked invalid, posts nothing, and blocks the form', async () => {
+        await typeTime('tp', 'soon');
+        const s = await timeState('tp');
+        const valid = await page.evaluate(() => document.getElementById('c-form').checkValidity());
+        return (s.shown === 'soon' && s.invalid === 'true' && s.message !== '' && s.posted === '' && !valid) || JSON.stringify({ s, valid });
+    });
+    await check('a time outside min and max is kept, marked invalid, and still posts as typed', async () => {
+        await typeTime('tp', '7:00');
+        const s = await timeState('tp');
+        return (s.shown === '7:00' && s.invalid === 'true' && s.posted === '07:00') || JSON.stringify(s);
+    });
+    await check('a time off the step is invalid; a good one clears it', async () => {
+        await typeTime('tp', '9:10');
+        const off = await timeState('tp');
+        await typeTime('tp', '10:00');
+        const on = await timeState('tp');
+        return (off.invalid === 'true' && on.invalid === null && on.message === '' && on.shown === '10:00 AM' && on.posted === '10:00') || JSON.stringify({ off, on });
+    });
+    await check('ArrowDown opens the list on the chosen time; the arrows move; Enter picks and returns to the field', async () => {
+        await page.focus('#tp');
+        await page.keyboard.press('ArrowDown');
+        await settle(100);
+        const opened = await timeState('tp');
+        await page.keyboard.press('ArrowDown');
+        const moved = await timeState('tp');
+        await page.keyboard.press('Enter');
+        await settle(100);
+        const picked = await timeState('tp');
+        return (opened.open && opened.expanded === 'true' && opened.focus === '10:00' && moved.focus === '10:30'
+            && !picked.open && picked.focus === 'tp' && picked.shown === '10:30 AM' && picked.posted === '10:30' && picked.selected === '10:30')
+            || JSON.stringify({ opened, moved, picked });
+    });
+    await check('typing opens the list at the nearest time without moving focus', async () => {
+        await page.focus('#tp');
+        await page.keyboard.press('ControlOrMeta+A');
+        await page.keyboard.type('4:30 pm');
+        await settle(150);
+        const s = await timeState('tp');
+        const near = await page.evaluate(() => {
+            const list = document.querySelector('#tp').closest('[x-data]').querySelector('[data-ds-time-list]');
+            const o = list.querySelector('[data-value="16:30"]');
+            return o.offsetTop >= list.scrollTop && o.offsetTop + o.offsetHeight <= list.scrollTop + list.clientHeight;
+        });
+        return (s.open && s.focus === 'tp' && near) || JSON.stringify({ s, near });
+    });
+    await check('Escape closes the list and is kept from the page; with the list closed it is the page\'s', async () => {
+        await page.evaluate(() => { window.cEscapes = 0; document.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.cEscapes++; }, { once: false }); });
+        await page.keyboard.press('Escape');
+        // Past the list's leave transition.
+        await settle(250);
+        const shut = await timeState('tp');
+        const swallowed = await page.evaluate(() => window.cEscapes);
+        await page.keyboard.press('Escape');
+        const passed = await page.evaluate(() => window.cEscapes);
+        return (!shut.open && swallowed === 0 && passed === 1) || JSON.stringify({ shut, swallowed, passed });
+    });
+    await check('a press on an option picks it', async () => {
+        await page.keyboard.press('Tab');
+        await page.click('#tp');
+        await settle(150);
+        await page.click('#tp ~ * [data-value="12:00"], [data-ds-time-list] [id="tp-1200"]');
+        await settle(100);
+        const s = await timeState('tp');
+        return (s.shown === '12:00 PM' && s.posted === '12:00' && !s.open && s.focus === 'tp') || JSON.stringify(s);
+    });
+    await check('the clear button empties it and posts nothing', async () => {
+        await page.click('#tp ~ button[aria-controls="tp"], button[aria-controls="tp"]');
+        await settle(100);
+        const s = await timeState('tp');
+        return (s.shown === '' && s.posted === '' && s.invalid === null) || JSON.stringify(s);
+    });
+    await check('it posts HH:MM under its name, and the shown text not at all', async () => {
+        await typeTime('tp', '5pm');
+        const p = await cPosted();
+        return (JSON.stringify(p.starts) === '["17:00"]' && JSON.stringify(p.ends) === '["21:30"]') || JSON.stringify(p);
+    });
+}
+
+const inlineState = (id) => page.evaluate((i) => {
+    const field = document.getElementById(i);
+    const root = field.closest('[data-ds-inline-edit]');
+    const read = root.querySelector('[data-ds-inline-read]');
+    const message = root.querySelector('[data-ds-inline-message]');
+    return {
+        reading: read.offsetParent !== null, editing: field.offsetParent !== null,
+        text: root.querySelector('[data-ds-inline-text]').textContent.trim(), label: read.getAttribute('aria-label'),
+        value: field.value, invalid: field.getAttribute('aria-invalid'), message: message.hidden ? null : message.textContent.trim(),
+        buttons: root.querySelector('[data-ds-inline-save]')?.offsetParent !== null,
+        focus: document.activeElement === read ? 'read' : document.activeElement?.id,
+        selected: field.selectionStart === 0 && field.selectionEnd === field.value.length,
+        saving: root.hasAttribute('data-ds-saving'), busy: root.getAttribute('aria-busy'),
+    };
+}, id);
+
+const ieEvents = () => page.evaluate(() => { const e = window.ieEvents ?? []; window.ieEvents = []; return e.join(); });
+const readButton = (id) => `[data-ds-inline-edit]:has(#${id}) [data-ds-inline-read]`;
+
+group('inline edit (dsInlineEdit)');
+{
+    await check('the script shows the text as a button named "Edit Title: Q3 roadmap"; the field hides', async () => {
+        const s = await inlineState('ie');
+        return (s.reading && !s.editing && s.text === 'Q3 roadmap' && s.label === 'Edit Title: Q3 roadmap') || JSON.stringify(s);
+    });
+    await check('a press opens the field in its place, focused, the text selected', async () => {
+        await page.click(readButton('ie'));
+        const s = await inlineState('ie');
+        return (!s.reading && s.editing && s.focus === 'ie' && s.selected) || JSON.stringify(s);
+    });
+    await check('Enter saves: `save` with value and previous, the new text shown, focus back on it, no form submit', async () => {
+        await page.evaluate(() => { window.cSubmits = 0; });
+        await page.keyboard.type('Q4 roadmap');
+        await page.keyboard.press('Enter');
+        const s = await inlineState('ie');
+        const said = await ieEvents();
+        const submits = await page.evaluate(() => window.cSubmits);
+        return (s.reading && s.text === 'Q4 roadmap' && s.label === 'Edit Title: Q4 roadmap' && s.focus === 'read' && said === 'save:Q4 roadmap|Q3 roadmap' && submits === 0)
+            || JSON.stringify({ s, said, submits });
+    });
+    await check('Escape cancels: the text goes back, `cancel`, focus back on it', async () => {
+        await page.keyboard.press('Enter');
+        await page.keyboard.type('nope');
+        await page.keyboard.press('Escape');
+        const s = await inlineState('ie');
+        const said = await ieEvents();
+        return (s.reading && s.text === 'Q4 roadmap' && s.value === 'Q4 roadmap' && s.focus === 'read' && said === 'cancel:Q4 roadmap') || JSON.stringify({ s, said });
+    });
+    await check('a save that changed nothing just closes, saying nothing', async () => {
+        await page.keyboard.press('Enter');
+        await page.keyboard.press('Enter');
+        const s = await inlineState('ie');
+        return (s.reading && (await ieEvents()) === '') || JSON.stringify(s);
+    });
+    await check('leaving saves, and focus stays where the reader went', async () => {
+        await page.keyboard.press('Enter');
+        await page.keyboard.type('Q1');
+        await page.keyboard.press('Tab');
+        const s = await inlineState('ie');
+        const said = await ieEvents();
+        const at = await page.evaluate(() => document.activeElement.closest('[data-ds-inline-edit]')?.querySelector('[data-ds-inline-input]')?.id);
+        return (s.reading && s.text === 'Q1' && said === 'save:Q1|Q4 roadmap' && at === 'ie-blur') || JSON.stringify({ s, said, at });
+    });
+    await check('submit="blur": Enter does not save, leaving does', async () => {
+        await page.click(readButton('ie-blur'));
+        await page.keyboard.type('Infra');
+        await page.keyboard.press('Enter');
+        const still = await inlineState('ie-blur');
+        await page.focus('#c-after');
+        const s = await inlineState('ie-blur');
+        const said = await ieEvents();
+        return (still.editing && s.reading && s.text === 'Infra' && said === 'blur-save:Infra') || JSON.stringify({ still, s, said });
+    });
+    await check('submit="buttons", multiline: Enter is a new line, leaving keeps editing, Save saves', async () => {
+        await page.click(readButton('ie-btn'));
+        await page.keyboard.press('End');
+        await page.keyboard.press('Enter');
+        await page.keyboard.type('two');
+        await page.focus('#c-after');
+        const kept = await inlineState('ie-btn');
+        await page.click('[data-ds-inline-edit]:has(#ie-btn) [data-ds-inline-save]');
+        const s = await inlineState('ie-btn');
+        const said = await ieEvents();
+        return (kept.editing && kept.buttons && s.reading && s.text === 'Draft\ntwo' && s.focus === 'read' && said === 'btn-save:Draft\ntwo') || JSON.stringify({ kept, s, said });
+    });
+    await check('a rendered error is drawn editing, invalid, with the message', async () => {
+        const s = await inlineState('ie-err');
+        return (s.editing && !s.reading && s.invalid === 'true' && s.message === 'Use letters, numbers and dashes.') || JSON.stringify(s);
+    });
+    await check('an error the host sets after a save reopens the field on the text the reader tried', async () => {
+        await page.click(readButton('ie'));
+        await page.keyboard.type('Taken');
+        await page.keyboard.press('Enter');
+        await page.evaluate(() => document.getElementById('ie').closest('[data-ds-inline-edit]').setAttribute('data-ds-error', 'That name is taken.'));
+        await settle(100);
+        const s = await inlineState('ie');
+        await page.keyboard.press('Escape');
+        const after = await inlineState('ie');
+        await ieEvents();
+        return (s.editing && s.value === 'Taken' && s.text === 'Q1' && s.invalid === 'true' && s.message === 'That name is taken.' && s.focus === 'ie'
+            && after.reading && after.text === 'Q1' && after.message === null && after.invalid === null) || JSON.stringify({ s, after });
+    });
+    await check('with `action`, a save submits the form it drew, spoofed, and shows saving', async () => {
+        await page.click(readButton('ie-form'));
+        await page.keyboard.type('q4');
+        await page.keyboard.press('Enter');
+        await settle(100);
+        const s = await inlineState('ie-form');
+        const sent = await page.evaluate(() => window.ieSubmitted);
+        return (sent === 'q4|PATCH' && s.saving && s.busy === 'true' && s.reading) || JSON.stringify({ sent, s });
+    });
+}
+
+group('scroll area');
+{
+    const edges = (id) => page.evaluate((i) => {
+        const o = {};
+        for (const e of document.querySelectorAll(`#${i} [data-ds-scroll-edge]`)) o[e.dataset.dsScrollEdge] = Number(getComputedStyle(e).opacity);
+        return o;
+    }, id);
+    const scrollTo = (id, to) => page.evaluate(([i, t]) => {
+        const v = document.querySelector(`#${i} [data-ds-scroll-viewport]`);
+        v.scrollTop = t === 'end' ? v.scrollHeight : t;
+    }, [id, to]);
+
+    await check('plain text: the region is a named Tab stop', async () => {
+        const r = await page.evaluate(() => {
+            const v = document.querySelector('#sa [data-ds-scroll-viewport]');
+            return { tab: v.getAttribute('tabindex'), role: v.getAttribute('role'), name: v.getAttribute('aria-label'), max: v.style.maxHeight };
+        });
+        return (r.tab === '0' && r.role === 'region' && r.name === 'Release notes' && r.max === '80px') || JSON.stringify(r);
+    });
+    await check('links inside: no Tab stop of its own, no role without a label', async () => {
+        const r = await page.evaluate(() => {
+            const v = document.querySelector('#sa-links [data-ds-scroll-viewport]');
+            return { tab: v.getAttribute('tabindex'), role: v.getAttribute('role') };
+        });
+        return (r.tab === null && r.role === null) || JSON.stringify(r);
+    });
+    await check('the keyboard scrolls it', async () => {
+        await scrollTo('sa', 0);
+        await page.focus('#sa [data-ds-scroll-viewport]');
+        await page.keyboard.press('PageDown');
+        await settle(300);
+        const top = await page.evaluate(() => document.querySelector('#sa [data-ds-scroll-viewport]').scrollTop);
+        return top > 0 || `scrollTop ${top}`;
+    });
+    await check('the shadows, from CSS: only bottom at the top, both midway, only top at the end', async () => {
+        await scrollTo('sa', 0);
+        await settle(100);
+        const start = await edges('sa');
+        await scrollTo('sa', 60);
+        await settle(100);
+        const mid = await edges('sa');
+        await scrollTo('sa', 'end');
+        await settle(100);
+        const end = await edges('sa');
+        return (start.top === 0 && start.bottom > 0.9 && mid.top > 0.9 && mid.bottom > 0.9 && end.top > 0.9 && end.bottom === 0) || JSON.stringify({ start, mid, end });
+    });
+    await check('content that fits has no shadows', async () => {
+        const e = await edges('sa-short');
+        return (e.top === 0 && e.bottom === 0) || JSON.stringify(e);
+    });
+    await check('where CSS can draw them, the directive leaves the edges alone', async () =>
+        (await page.evaluate(() => document.querySelectorAll('[data-ds-scroll-edge][data-ds-shown]').length)) === 0 || 'an edge was marked');
+}
+
+group('slider, time picker and inline edit bound with x-model');
+{
+    const model = () => page.evaluate(() => JSON.parse(document.getElementById('c-model-out').textContent));
+    await check('each draws the host\'s value at start', async () => {
+        const r = await page.evaluate(() => ({
+            sl: document.getElementById('slm').value,
+            low: document.getElementById('slmr-low').value, high: document.getElementById('slmr-high').value,
+            tp: document.querySelector('#tpm').closest('[x-data]').querySelector('[data-ds-time-value]').value,
+            ie: document.querySelector('[data-ds-inline-edit]:has(#iem) [data-ds-inline-text]').textContent.trim(),
+        }));
+        return (r.sl === '30' && r.low === '10' && r.high === '90' && r.tp === '14:00' && r.ie === 'Ada') || JSON.stringify(r);
+    });
+    await check('the reader\'s changes reach the host\'s state', async () => {
+        await page.focus('#slm');
+        await page.keyboard.press('ArrowRight');
+        await page.focus('#slmr-high');
+        await page.keyboard.press('ArrowLeft');
+        await typeTime('tpm', '8:15');
+        await page.click(readButton('iem'));
+        await page.keyboard.type('Grace');
+        await page.keyboard.press('Enter');
+        const m = await model();
+        return (m.vol === 31 && JSON.stringify(m.range) === '[10,89]' && m.at === '08:15' && m.name === 'Grace') || JSON.stringify(m);
+    });
+    await check('the host\'s changes are drawn, clamped as the inputs take them', async () => {
+        await page.evaluate(() => {
+            const s = window.Alpine.$data(document.getElementById('c-model'));
+            s.vol = 250; s.range = [70, 20]; s.at = '23:45'; s.name = 'Lin';
+        });
+        await settle(100);
+        const r = await page.evaluate(() => ({
+            sl: document.getElementById('slm').value,
+            low: document.getElementById('slmr-low').value, high: document.getElementById('slmr-high').value,
+            tp: document.getElementById('tpm').value,
+            ie: document.querySelector('[data-ds-inline-edit]:has(#iem) [data-ds-inline-text]').textContent.trim(),
+        }));
+        const m = await model();
+        return (r.sl === '100' && r.low === '20' && r.high === '70' && r.tp === '23:45' && r.ie === 'Lin' && m.vol === 100 && JSON.stringify(m.range) === '[20,70]')
+            || JSON.stringify({ r, m });
+    });
+}
+
 // ---------------------------------------------------------------- focus indicators
 
 /*
@@ -4653,13 +5092,23 @@ const tabWalk = async () => {
             const el = document.activeElement;
             if (!el || el === document.body || el.id === 'f-end') return null;
             el.dataset.stop = n;
-            return { n, section: el.closest('[data-focus]')?.dataset.focus, what: window.dsDescribe(el), on: window.dsFocusMarks(el) };
+            return { n, section: el.closest('[data-focus]')?.dataset.focus, what: window.dsDescribe(el), on: window.dsFocusMarks(el), range: el.matches('input[type="range"]') };
         }, i);
         if (!stop) break;
+        // A range input's ring is drawn on its thumb, a pseudo-element
+        // getComputedStyle cannot reach (it answers with the input's own
+        // style). So the input is photographed focused, and again unfocused.
+        if (stop.range) stop.picture = await fpage.locator(`[data-stop="${i}"]`).screenshot();
         stops.push(stop);
     }
     await fpage.evaluate(() => document.activeElement?.blur());
     for (const stop of stops) {
+        if (stop.range) {
+            const off = await fpage.locator(`[data-stop="${stop.n}"]`).screenshot();
+            stop.verdict = Buffer.compare(stop.picture, off) !== 0 ? 'ring' : 'nothing';
+            delete stop.picture;
+            continue;
+        }
         const off = await fpage.evaluate((n) => window.dsFocusMarks(document.querySelector(`[data-stop="${n}"]`)), stop.n);
         stop.verdict = verdict(stop.on, off);
     }
@@ -4705,6 +5154,8 @@ const overlays = [
     ['dropdown items', '#f-dd', 'Enter', 'ArrowDown', 2],
     ['select options', '#f-select', 'ArrowDown', 'ArrowDown', 2],
     ['combobox options', '#f-combobox', 'ArrowDown', 'ArrowDown', 2],
+    ['time picker options', '#f-time', 'ArrowDown', 'ArrowDown', 2],
+    ['inline edit, its field', '[data-focus=inline-edit] [data-ds-inline-read]', 'Enter', 'Tab', 1],
     ['date picker month buttons and days', '[data-ds-date-trigger]', 'Enter', 'Tab', 5],
     ['popover content', '#f-pop', 'Enter', 'Tab', 1],
     ['confirm button, asking', '[data-focus=confirm-button] [data-ds-confirm-trigger]', 'Enter', 'Tab', 2],
@@ -4802,6 +5253,7 @@ const listsMarkup = [
     specimens.match(/<div class="mt-6 w-\[480px\]" id="code"[\s\S]*?<\/figure>\s*<\/div>/)?.[0],
     specimens.match(/<div class="mt-6 w-64" id="et-box"[\s\S]*?Short enough\.[\s\S]*?<\/button>\s*<\/div>\s*<\/div>/)?.[0],
 ].join('');
+const inputsCMarkup = specimens.match(/<div class="mt-6 w-\[640px\]" id="inputs-c"[\s\S]*?<!-- \/inputs-c -->/)?.[0];
 const clipMarkup = specimens.match(/<div class="mt-6" id="clip"[\s\S]*?<\/span>\s*<\/div>/)?.[0];
 
 const hostPages = {
@@ -4871,6 +5323,28 @@ ${include}
     'lists-static.html': `<!doctype html><html><head><meta charset="utf-8">
 <style>${css}</style>
 </head><body>${listsMarkup}</body></html>`,
+
+    // Batch 11 with no Alpine at all: native fields that work and post.
+    'inputs-c-static.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+</head><body>${inputsCMarkup}</body></html>`,
+
+    // A browser without scroll-driven animations, as far as the script can
+    // tell: x-ds-scroll-shadows draws the edges instead.
+    'scroll-fallback.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+<script>{ const real = CSS.supports.bind(CSS); CSS.supports = (...a) => (String(a[0]).includes('animation-timeline') ? false : real(...a)); }</script>
+${include}
+<script defer src="alpine.js"></script>
+</head><body>${inputsCMarkup}</body></html>`,
+
+    'c-morph.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+${include}
+</head><body>${cMorphBefore}
+<script>window.cMorphNext = ${JSON.stringify(cMorphAfter)};</script>
+<script src="livewire.js"></script>
+</body></html>`,
 
     'charts-static.html': `<!doctype html><html><head><meta charset="utf-8">
 <style>${css}</style>
@@ -5002,7 +5476,7 @@ group('host setup (b): Alpine bundled by the host, Alpine.plugin(bladeUi)');
     await check('the plugin works', () => copiesOn(tab));
     await check('plugin twice plus the include: each name registered exactly once', async () => {
         const names = await tab.evaluate(() => window.dsRegistered);
-        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme', 'dsDismiss', 'dsConfirm', 'dsHold', 'dsConfirmDialog', 'dsRoll', 'dsClamp', 'dsClear', 'dsTree'];
+        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme', 'dsDismiss', 'dsConfirm', 'dsHold', 'dsConfirmDialog', 'dsRoll', 'dsClamp', 'dsClear', 'dsTree', 'dsSlider', 'dsTimePicker', 'dsInlineEdit'];
         return JSON.stringify(names) === JSON.stringify(expected) || `registered ${JSON.stringify(names)}`;
     });
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
@@ -5022,7 +5496,7 @@ group('host setup (c): Livewire\'s bundled Alpine, include loaded twice');
     await tab.close();
 }
 
-group('wire:model on otp-input, tag-input, chip-group, radio-cards, segmented-control and toggle-group, in a real Livewire component');
+group('wire:model on otp-input, tag-input, chip-group, radio-cards, segmented-control, toggle-group, slider, time-picker and inline-edit, in a real Livewire component');
 {
     const { tab, errors } = await openHost('_ds/livewire', LARAVEL);
     const wire = (name) => tab.evaluate((n) => JSON.parse(JSON.stringify(window.Livewire.first()[n])), name);
@@ -5121,6 +5595,42 @@ group('wire:model on otp-input, tag-input, chip-group, radio-cards, segmented-co
         const on = await tab.evaluate(() =>
             [...document.querySelectorAll('#lw-marks [data-ds-toggle]')].map((t) => t.getAttribute('aria-pressed')).join(' '));
         return on === 'false true' || `aria-pressed: ${on}`;
+    });
+
+    await check('slider: an arrow key reaches $wire.volume; a value Livewire sets moves the thumb', async () => {
+        await tab.focus('#lw-slider');
+        await tab.keyboard.press('ArrowRight');
+        await tab.waitForTimeout(100);
+        const typed = await wire('volume');
+        await tab.evaluate(() => { window.Livewire.first().volume = 70; });
+        await tab.waitForTimeout(100);
+        const drawn = await tab.evaluate(() => ({ value: document.getElementById('lw-slider').value, text: document.getElementById('lw-slider').getAttribute('aria-valuetext') }));
+        return (typed === 41 && drawn.value === '70' && drawn.text === '70') || JSON.stringify({ typed, drawn });
+    });
+
+    await check('time picker: a typed time reaches $wire.opens as HH:MM; one Livewire sets is shown', async () => {
+        await tab.focus('#lw-time');
+        await tab.keyboard.press('ControlOrMeta+A');
+        await tab.keyboard.type('1030');
+        await tab.keyboard.press('Tab');
+        await tab.waitForTimeout(100);
+        const typed = await wire('opens');
+        await tab.evaluate(() => { window.Livewire.first().opens = '18:15'; });
+        await tab.waitForTimeout(100);
+        const shown = await tab.locator('#lw-time').inputValue();
+        return (typed === '10:30' && shown === '18:15') || JSON.stringify({ typed, shown });
+    });
+
+    await check('inline edit: a saved text reaches $wire.title; one Livewire sets is shown', async () => {
+        await tab.click('[data-ds-inline-edit]:has(#lw-title) [data-ds-inline-read]');
+        await tab.keyboard.type('Q4 roadmap');
+        await tab.keyboard.press('Enter');
+        await tab.waitForTimeout(100);
+        const saved = await wire('title');
+        await tab.evaluate(() => { window.Livewire.first().title = 'Renamed'; });
+        await tab.waitForTimeout(100);
+        const shown = await tab.evaluate(() => document.querySelector('[data-ds-inline-edit]:has(#lw-title) [data-ds-inline-text]').textContent.trim());
+        return (saved === 'Q4 roadmap' && shown === 'Renamed') || JSON.stringify({ saved, shown });
     });
 
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
@@ -5672,6 +6182,129 @@ group('tree, code block and expandable text with no Alpine at all (the script is
         });
         return (r.capped && r.scrolls === 'auto') || JSON.stringify(r);
     });
+    await tab.close();
+}
+
+group('slider, time picker, inline edit and scroll area with no Alpine at all (native fields)');
+{
+    const { tab, errors } = await openHost('inputs-c-static.html');
+    const sent = () => tab.evaluate(() => {
+        const out = {};
+        for (const [k, v] of new FormData(document.getElementById('c-form')).entries()) (out[k] ||= []).push(v);
+        return out;
+    });
+
+    await check('the markup reached the page', async () =>
+        (await tab.locator('#sl, #slr-low, #tp, #ie, #sa').count()) === 5 || 'a specimen was not found in the rendered page');
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await check('the sliders are native range inputs, the fill drawn where PHP put it, and post', async () => {
+        const r = await tab.evaluate(() => ({
+            type: document.getElementById('sl').type,
+            high: document.getElementById('sl').closest('[data-ds-slider-body]').style.getPropertyValue('--ds-slider-high'),
+            fill: document.querySelector('#sl').closest('[data-ds-slider-body]').querySelector('[data-ds-slider-fill]').getBoundingClientRect().width > 0,
+        }));
+        const p = await sent();
+        return (r.type === 'range' && r.high === '0.4' && r.fill && JSON.stringify(p.volume) === '["40"]' && JSON.stringify(p['price[low]']) === '["20"]' && JSON.stringify(p['price[high]']) === '["80"]')
+            || JSON.stringify({ r, p });
+    });
+    await check('the time picker is the browser\'s own time field, with its bounds and step, posting once', async () => {
+        const r = await tab.evaluate(() => {
+            const f = document.getElementById('tp');
+            return { type: f.type, name: f.name, value: f.value, min: f.min, max: f.max, step: f.step, list: f.closest('[x-data]').querySelector('[data-ds-time-list]').checkVisibility() };
+        });
+        const p = await sent();
+        return (r.type === 'time' && r.name === 'starts' && r.value === '09:30' && r.min === '08:00' && r.max === '18:00' && r.step === '1800' && !r.list && JSON.stringify(p.starts) === '["09:30"]')
+            || JSON.stringify({ r, p });
+    });
+    await check('each inline edit is a visible, named field posting its text; the read button stays hidden', async () => {
+        const r = await tab.evaluate(() => ({
+            field: document.getElementById('ie').checkVisibility(),
+            read: document.querySelector('[data-ds-inline-edit]:has(#ie) [data-ds-inline-read]').checkVisibility(),
+            name: document.getElementById('ie').getAttribute('aria-label'),
+            formButtons: [...document.querySelectorAll('[data-ds-inline-edit]:has(#ie-form) [data-ds-inline-save], [data-ds-inline-edit]:has(#ie-form) [data-ds-inline-cancel]')].map((b) => `${b.type}:${b.checkVisibility()}`).join(),
+            hostButtons: document.querySelector('[data-ds-inline-edit]:has(#ie) [data-ds-inline-save]').checkVisibility(),
+        }));
+        const p = await sent();
+        return (r.field && !r.read && r.name === 'Title' && r.formButtons === 'submit:true,reset:true' && !r.hostButtons && JSON.stringify(p.title) === '["Q3 roadmap"]')
+            || JSON.stringify({ r, p });
+    });
+    await check('the scroll area is still a named stop, and its shadows still come from CSS', async () => {
+        const r = await tab.evaluate(() => ({
+            tab: document.querySelector('#sa [data-ds-scroll-viewport]').getAttribute('tabindex'),
+            bottom: Number(getComputedStyle(document.querySelector('#sa [data-ds-scroll-edge="bottom"]')).opacity),
+        }));
+        return (r.tab === '0' && r.bottom > 0.9) || JSON.stringify(r);
+    });
+    await tab.close();
+}
+
+group('scroll area where CSS cannot draw the shadows (x-ds-scroll-shadows)');
+{
+    const { tab, errors } = await openHost('scroll-fallback.html');
+    const marks = (id) => tab.evaluate((i) =>
+        [...document.querySelectorAll(`#${i} [data-ds-scroll-edge][data-ds-shown]`)].map((e) => e.dataset.dsScrollEdge).join() || 'none', id);
+    const scrollTo = async (to) => {
+        await tab.evaluate((t) => { const v = document.querySelector('#sa [data-ds-scroll-viewport]'); v.scrollTop = t === 'end' ? v.scrollHeight : t; }, to);
+        await tab.waitForTimeout(100);
+    };
+
+    await check('the script believes it has to draw them', async () =>
+        (await tab.evaluate(() => CSS.supports('animation-timeline: scroll()'))) === false || 'the stub did not take');
+    await check('at the top only the bottom edge is marked; midway both; at the end only the top', async () => {
+        const start = await marks('sa');
+        await scrollTo(60);
+        const mid = await marks('sa');
+        await scrollTo('end');
+        const end = await marks('sa');
+        return (start === 'bottom' && mid === 'top,bottom' && end === 'top') || JSON.stringify({ start, mid, end });
+    });
+    await check('content that fits marks nothing; content that grows is measured again', async () => {
+        const before = await marks('sa-short');
+        await tab.evaluate(() => { document.querySelector('#sa-short [data-ds-scroll-viewport] p').style.height = '600px'; });
+        await tab.waitForTimeout(150);
+        const grown = await marks('sa-short');
+        return (before === 'none' && grown === 'bottom') || JSON.stringify({ before, grown });
+    });
+    await check('a marked edge shows', async () =>
+        Number(await tab.evaluate(() => getComputedStyle(document.querySelector('#sa [data-ds-scroll-edge="top"]')).opacity)) > 0.9 || 'still transparent');
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+
+group('time picker, inline edit and slider re-rendered by a morph (Livewire\'s Alpine.morph)');
+{
+    const { tab, errors } = await openHost('c-morph.html');
+    const state = () => tab.evaluate(() => {
+        const field = document.getElementById('tp-morph');
+        const root = field.closest('[x-data]');
+        const ie = document.querySelector('[data-ds-inline-edit]:has(#ie-morph)');
+        return {
+            type: field.type, name: field.getAttribute('name'), posted: root.querySelector('[data-ds-time-value]').name, role: field.getAttribute('role'),
+            read: ie.querySelector('[data-ds-inline-read]').checkVisibility(), field: document.getElementById('ie-morph').checkVisibility(), live: ie.hasAttribute('data-ds-live'),
+            editing: document.getElementById('ie-morph').checkVisibility(),
+        };
+    });
+
+    await check('Livewire started its Alpine, which carries morph', async () =>
+        (await tab.evaluate(() => typeof window.Alpine?.morph === 'function')) || 'no Alpine.morph on the page');
+    await check('before: upgraded', async () => {
+        const s = await state();
+        return (s.type === 'text' && s.name === null && s.posted === 'at' && s.role === 'combobox' && s.read && !s.field && s.live) || JSON.stringify(s);
+    });
+    await check('after a morph with new values: still upgraded, nothing flashed back to the native field', async () => {
+        await tab.evaluate(() => window.Alpine.morph(document.getElementById('c-morph'), window.cMorphNext));
+        await tab.waitForTimeout(200);
+        const s = await state();
+        return (s.type === 'text' && s.name === null && s.posted === 'at' && s.role === 'combobox' && s.read && !s.field && s.live) || JSON.stringify(s);
+    });
+    await check('an inline edit open when the morph lands stays open', async () => {
+        await tab.click('[data-ds-inline-edit]:has(#ie-morph) [data-ds-inline-read]');
+        await tab.evaluate(() => window.Alpine.morph(document.getElementById('c-morph'), window.cMorphNext));
+        await tab.waitForTimeout(200);
+        const s = await state();
+        return (s.editing && !s.read) || JSON.stringify(s);
+    });
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
     await tab.close();
 }
 

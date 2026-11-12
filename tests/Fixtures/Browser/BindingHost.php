@@ -8,7 +8,8 @@ use Livewire\Component;
 
 /**
  * The Livewire host the behaviour tests drive: otp-input, tag-input, chip-group,
- * radio-cards, segmented-control and toggle-group bound with wire:model, the way docs/components/otp-input.md and tag-input.md show.
+ * radio-cards, segmented-control, toggle-group, slider, time-picker and
+ * inline-edit bound with wire:model, the way docs/components/otp-input.md and tag-input.md show.
  * Served by scripts/request.php as <livewire:binding-host />.
  */
 final class BindingHost extends Component
@@ -27,6 +28,12 @@ final class BindingHost extends Component
 
     /** @var list<string> */
     public array $marks = ['bold'];
+
+    public int|float $volume = 40;
+
+    public string $opens = '09:30';
+
+    public string $title = 'Q3 roadmap';
 
     public function render(): string
     {
@@ -50,6 +57,9 @@ final class BindingHost extends Component
                     <x-ds::toggle value="bold" label="Bold" :pressed="in_array('bold', $marks)" />
                     <x-ds::toggle value="italic" label="Italic" :pressed="in_array('italic', $marks)" />
                 </x-ds::toggle-group>
+                <x-ds::slider name="volume" id="lw-slider" label="Volume" wire:model="volume" :value="$volume" />
+                <x-ds::time-picker name="opens" id="lw-time" label="Opens" wire:model="opens" :value="$opens" />
+                <x-ds::inline-edit name="title" id="lw-title" label="Title" wire:model="title" :value="$title" />
             </div>
             BLADE;
     }

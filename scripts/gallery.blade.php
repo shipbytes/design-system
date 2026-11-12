@@ -2449,6 +2449,88 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Slider --}}
+<section class="ds-spec" id="slider">
+    <header class="ds-spec-head">
+        <h2>Slider</h2>
+        <p>One value or a range on a track. Every thumb is a native <code>input type=&quot;range&quot;</code>, so the keyboard, the screen reader and the post are the browser's; the track and the fill are drawn around them.</p>
+    </header>
+
+    <div class="ds-note">The fill is rendered from PHP, so here, with no script, it is in the right place. It is the script that keeps it in step while a thumb moves.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Single, value inline <span>&middot; a range with marks &middot; small, disabled</span></div>
+        <div class="mx-auto flex max-w-md flex-col gap-6">
+            <x-ds::slider name="g-volume" label="Volume" :value="40" showValue="inline" :format="['suffix' => '%']" />
+            <x-ds::slider name="g-price" label="Price" :range="true" :value="[20, 80]" :step="5" lowLabel="Minimum price" highLabel="Maximum price" showValue="inline" :format="['prefix' => '$']" :marks="[0, 25, 50, 75, 100]" help="Per night, before tax." />
+            <x-ds::slider name="g-level" label="Level" :value="7" :max="10" size="sm" :disabled="true" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Time picker --}}
+<section class="ds-spec" id="time-picker">
+    <header class="ds-spec-head">
+        <h2>Time picker</h2>
+        <p>A time typed the way people type times, or picked from a list. It posts <code>HH:MM</code> in 24 hours whatever it shows.</p>
+    </header>
+
+    <div class="ds-note">This is the field without the script: the browser's own <code>input type=&quot;time&quot;</code>, with the same name, bounds and step. The script turns it into a text field with a list of times.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Without the script <span>&middot; native, 08:00 to 18:00 every 30 minutes</span></div>
+        <div class="mx-auto max-w-sm">
+            <x-ds::time-picker name="g-opens" label="Opens" value="09:30" format="12" min="08:00" max="18:00" :step="30" help="Shop hours, local time." />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Inline edit --}}
+<section class="ds-spec" id="inline-edit">
+    <header class="ds-spec-head">
+        <h2>Inline edit</h2>
+        <p>Text that turns into a field where it stands, in the font of where it sits. Enter saves, Escape puts it back.</p>
+    </header>
+
+    <div class="ds-note">With no script there is no text to press: each is a plain field, named and posting in the form around it, and with <code>action</code> inside a form it draws, with a Save and a Cancel (the form's reset). The script hides the field behind the text until it is pressed.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Without the script <span>&middot; in a heading, with <code>action</code>, a failed save</span></div>
+        <div class="mx-auto flex max-w-md flex-col gap-4">
+            <h3 class="text-section text-fg"><x-ds::inline-edit name="g-title" label="Title" value="Q3 roadmap" /></h3>
+            <div class="text-body text-fg-body"><x-ds::inline-edit name="g-owner" label="Owner" value="Platform team" submit="buttons" action="/projects/1" method="PATCH" /></div>
+            <div class="text-body text-fg-body"><x-ds::inline-edit name="g-slug" label="Slug" value="q3 roadmap" error="Use letters, numbers and dashes." /></div>
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Scroll area --}}
+<section class="ds-spec" id="scroll-area">
+    <header class="ds-spec-head">
+        <h2>Scroll area</h2>
+        <p>A box that scrolls natively within a height, with a thin scrollbar in the tokens' colours and a shadow at each edge that has more past it.</p>
+    </header>
+
+    <div class="ds-note">No script here and none needed: the shadows are scroll-driven CSS. A box of plain text is a Tab stop of its own, a named region, so a keyboard can scroll it.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Vertical, 11rem <span>&middot; scroll it: the top shadow appears</span></div>
+        <div class="mx-auto max-w-md">
+            <x-ds::scroll-area maxHeight="11rem" label="Release notes" class="rounded-panel border border-border bg-surface">
+                <div class="flex flex-col gap-3 p-4 text-body text-fg-body">
+                    <p class="text-label text-fg">2.0.0</p>
+                    <p>Slider, time picker, inline edit and scroll area.</p>
+                    <p>Charts read out their values and move by keyboard.</p>
+                    <p>The tree keeps its open folders across a morph.</p>
+                    <p>Code blocks clamp long files behind Show more.</p>
+                    <p>Overlays stay on screen near the window's edge.</p>
+                    <p>Every component has an accessibility contract.</p>
+                </div>
+            </x-ds::scroll-area>
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── In situ --}}
 <section class="ds-spec" id="in-situ">
     <header class="ds-spec-head">
