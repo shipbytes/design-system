@@ -65,9 +65,54 @@ A panel with nothing in it still renders its header — the reader needs to know
 *what* is empty. The body takes a centred message; see the empty-state spec for
 the illustration rules.
 
+## Collapsible
+
+`collapsible` turns the header into a button that shows and hides the body: a
+settings page of panels, a sidebar of reference. The disclosure pattern, as
+[accordion.md](accordion.md) has it, with the panel's own chrome:
+
+```
+┌──────────────────────────────────────┐
+│ <h2><button aria-expanded>           │
+│ [icon]  Title          ⌄  View all → │  ← the action sits beside the button
+├──────────────────────────────────────┤
+│  body: role=region, labelled by it   │
+```
+
+- `open` (default `true`) is rendered by PHP: `aria-expanded`, the chevron and
+  the body's grid row and visibility. Nothing moves when Alpine starts.
+- The body closes with the accordion's grid-rows trick, and `visibility:
+  hidden`, so what is inside leaves the Tab order and the accessibility tree.
+- Pressing dispatches `expand` or `collapse` from the panel, bubbling, with
+  `{ name }`. `name` is for the host to remember the state (a cookie, the
+  session, a user setting) and render it back through `open`: the panel itself
+  remembers nothing, because state that outlives the page is the host's.
+- The header action stays a link **beside** the button, never inside it: a
+  link in a button is two controls in one, and neither works properly.
+- It needs a `title` (the button's name) and throws without one, and throws
+  with a `header` slot, whose content the button could not hold safely.
+
+Without the prop the panel's markup is byte for byte the 1.x panel
+(`PanelUnchangedTest` holds it to a fixture), because collapsible is a partial
+of its own.
+
+Needs Alpine (inline, not the shared script). Without it the panel is drawn as
+PHP rendered it and does not toggle.
+
+## Accessibility
+
+- The header is a heading (`h2`), so a reader can jump between panels.
+- Collapsible: a `<button>` inside the heading, with `aria-expanded` and
+  `aria-controls`; the body is `role="region"` labelled by the button. The
+  chevron is decorative; the state is `aria-expanded`.
+- A closed body is `visibility: hidden`: not focusable, not announced.
+- Rows that are links are each a Tab stop; rows that are not are not.
+
 ## Do not
 
 - Nest a panel inside a panel. If content needs its own frame inside a frame,
   the outer one should be a page section instead.
 - Put a primary button in the header. The header action is navigation; an
   action that changes something belongs with the thing it changes.
+- Hide required form fields in a collapsed panel: submit fails on a field the
+  browser cannot focus, as in [accordion.md](accordion.md).

@@ -25,6 +25,10 @@ A bordered card. Covers `panel` and `panel-row`.
 | `actionHref` | string | — | Where it goes. |
 | `body` | `rows` `plain` | `rows` | How the body is laid out. |
 
+| `collapsible` | bool | `false` | The header becomes a button that shows and hides the body. Needs a `title`. |
+| `open` | bool | `true` | With `collapsible`: whether the body shows on first paint. |
+| `name` | string | — | With `collapsible`: a key for you to remember the state by; sent with its events. |
+
 `panel-row` takes one prop, `href`, which makes the row a link.
 
 ## Two looks, chosen by `icon`
@@ -65,11 +69,38 @@ For a header that needs more than a title and a link, use the `header` slot:
 </x-ds::panel>
 ```
 
+## Collapsible
+
+> **Needs Alpine** (no package script). See [getting started](../getting-started.md#alpine).
+> Without it the panel shows as `open` says and does not toggle.
+
+![Collapsible panels](../images/panel-collapsible.png)
+
+```blade
+<x-ds::panel title="Advanced" name="advanced" :collapsible="true"
+    :open="session('panels.advanced', false)"
+    x-on:expand="fetch('/panels/advanced', { method: 'PUT' })"
+    x-on:collapse="fetch('/panels/advanced', { method: 'DELETE' })">
+    …
+</x-ds::panel>
+```
+
+The header becomes a button with a chevron, inside the heading; the action
+link, if any, stays beside it. The state is rendered from `open`, so nothing
+jumps when the page loads. Each press dispatches `expand` or `collapse`, with
+`{ name }`: the panel remembers nothing itself, so keep the state where you
+keep other preferences and pass it back as `open`.
+
+It throws without a `title` (the button needs a name) and with a `header` slot.
+Without `collapsible` the panel's markup is exactly what it was.
+
 ## Don't
 
 - **Don't nest a panel in a panel.** Two frames is a box in a box; use `body="rows"`
   and dividers instead.
 - **Don't use `subtitle` without an icon.** It is part of the feature header.
+- **Don't hide required fields in a collapsed panel.** Submit fails on a field
+  the browser cannot focus.
 - **Don't put a panel's only action in its header link.** `action` is for "see
   more of this", not for the thing the panel exists to do.
 
