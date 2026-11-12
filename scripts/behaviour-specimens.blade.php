@@ -528,6 +528,12 @@
             <x-ds::dropdown-item href="#edge-move">Move</x-ds::dropdown-item>
         </x-ds::dropdown>
     </div>
+    <div class="mt-6 flex h-10 justify-end overflow-hidden border border-border">
+        <div class="w-64">
+            <x-ds::select name="sel-edge" id="sel-edge" aria-label="Edge plan"
+                :options="['free' => 'Free', 'pro' => 'Pro', 'team' => 'Team', 'scale' => 'Scale', 'custom' => 'Custom']" />
+        </div>
+    </div>
 
     {{-- ── dsClipboard, from the shared script ──
          No component uses it yet, so this is the markup a component would

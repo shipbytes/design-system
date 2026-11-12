@@ -46,6 +46,14 @@ row line up exactly.
 The listbox is `shadow-float` and `max-h-60`: it hovers, it does not block, and a
 long list scrolls inside itself rather than running off the page.
 
+It opens below the trigger, 4px off it and at its width. `x-ds-anchor` (the
+package's script) places it there with `position: fixed`, flips it above when
+there is no room below, and, when neither side has 240px, caps its height at
+the room there is. With room it lands exactly where `absolute mt-1 w-full` puts
+it; the behaviour suite measures both. The anchor is an **enhancement**: the
+absolute classes are the no-script placement, as in 1.x, and Alpine skips the
+directive in silence where the script is missing.
+
 ## `options` is an array, not a slot
 
 ```blade

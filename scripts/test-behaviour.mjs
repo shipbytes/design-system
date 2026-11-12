@@ -93,6 +93,9 @@ await writeFile(join(TMP, 'fallback.blade.php'), `<div class="p-8">
         <x-ds::dropdown-item href="#b">Duplicate</x-ds::dropdown-item>
     </x-ds::dropdown>
 </div>
+<div class="mt-6 max-w-xs">
+    <x-ds::select name="fb-select" id="fb-select" label="Plan" :options="['free' => 'Free', 'pro' => 'Pro']" value="pro" />
+</div>
 </div>`);
 const fallbackMarkup = await render(join(TMP, 'fallback.blade.php'));
 await writeFile(join(TMP, 'fallback.html'), fallbackMarkup);
@@ -2707,7 +2710,6 @@ await check('the shipped stylesheet hides a cloaked element', async () => {
 group('overlay edges (reported, not enforced — the overlays not yet on x-ds-anchor)');
 
 const overlays = [
-    ['select', '#plan', '[role=listbox]'],
     ['date-picker', '#period', '[role=dialog][aria-modal="false"]'],
 ];
 
@@ -2778,6 +2780,10 @@ const anchored = [
         name: 'dropdown', trigger: '#dd-edge-trigger', panel: '#dd-edge [role=menu]',
         open: () => page.click('#dd-edge-trigger'), close: pressEscape,
     },
+    {
+        name: 'select', trigger: '#sel-edge', panel: '#sel-edge-listbox',
+        open: () => page.click('#sel-edge'), close: pressEscape,
+    },
 ];
 
 /*
@@ -2789,6 +2795,7 @@ const anchored = [
 */
 const roomy = [
     { name: 'dropdown', trigger: '#menu-trigger', panel: '[data-ds-dropdown]:has(#menu-trigger) [role=menu]' },
+    { name: 'select', trigger: '#plan', panel: '#plan-listbox' },
 ];
 
 const PLACED = ['position', 'left', 'top', 'right', 'bottom', 'margin', 'translate', 'width', 'maxHeight', 'overflowY'];
@@ -3159,6 +3166,7 @@ group('the overlays that predate x-ds-anchor, in a host WITHOUT the script (the 
     */
     const fallbacks = [
         { name: 'dropdown', trigger: '#fb-dropdown-trigger', panel: '#fb-dropdown [role=menu]', side: 'bottom', gap: 8 },
+        { name: 'select', trigger: '#fb-select', panel: '#fb-select-listbox', side: 'bottom', gap: 4 },
     ];
 
     await check('the markup reached the page', async () =>

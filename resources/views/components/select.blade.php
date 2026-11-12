@@ -146,9 +146,14 @@
         />
     </button>
 
+    {{-- x-ds-anchor is an enhancement: with the script the list flips above
+         the field when there is no room below and escapes a clipping
+         ancestor; without it, the absolute classes below place it, as in 1.x.
+         4px and the trigger's width, as mt-1 and w-full give it. --}}
     <ul
         x-show="open"
         x-cloak
+        x-ds-anchor="{ open: open, reference: $el.previousElementSibling, placement: 'bottom-start', offset: 4, width: 'reference' }"
         @click.outside="open = false"
         {{-- Just closes. Returning focus to the trigger is x-effect's job, and
              doing it here as well fights it. --}}
@@ -169,7 +174,7 @@
         @if ($label) aria-labelledby="{{ $id }}-label" @endif
         {{-- max-h so a long list scrolls inside itself instead of running off the
              page. `float`, not `overlay`: it hovers, it does not block. --}}
-        class="absolute z-50 mt-1 max-h-60 w-full origin-top overflow-y-auto rounded-control border border-border bg-surface py-1 shadow-float"
+        class="absolute z-50 mt-1 max-h-60 w-full origin-top data-[side=top]:origin-bottom overflow-y-auto rounded-control border border-border bg-surface py-1 shadow-float"
     >
         @foreach ($options as $option)
             @php
