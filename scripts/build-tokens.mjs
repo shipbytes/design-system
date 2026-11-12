@@ -368,9 +368,10 @@ const themeCss = `${banner('Tailwind CSS v4 theme, mapping the tokens onto utili
 /*
   The rule Alpine depends on and does not ship.
 
-  Nine components mark their overlay root \`x-cloak\`: modal, drawer, sheet,
-  dropdown, tooltip, select, combobox, date-picker and file-upload. Alpine
-  removes the attribute once it boots, and \`x-show\` takes over from there — but
+  Twelve components mark an overlay \`x-cloak\`: modal, drawer, sheet, dropdown,
+  tooltip, select, combobox, date-picker, file-upload, popover, hover-card, and
+  sub-nav's link for the collapsed rail. Alpine removes the attribute once it
+  boots, and \`x-show\` takes over from there — but
   until that moment the attribute is the ONLY thing hiding them. With no rule
   behind it, every dialog on the page renders open, backdrop and all, from first
   paint until Alpine runs. On a slow connection that is the whole page load.

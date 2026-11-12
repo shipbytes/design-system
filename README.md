@@ -12,7 +12,7 @@
 A design system for Laravel and Blade, with design tokens any other stack can
 use from plain CSS or JavaScript.
 
-**64 Blade components**, a spec and a documentation page for each, design tokens
+**67 Blade components**, a spec and a documentation page for each, design tokens
 with light and dark values, and three test suites — including one that drives
 every interactive component in a real browser.
 
@@ -38,7 +38,7 @@ compiled CSS; the install is one `composer require` and three lines of CSS. Add
 `@shipbytes/design-tokens` only if your own JavaScript needs the token *values*
 — a chart palette reading `tokens.js` rather than repeating hex literals.
 
-**Laravel with Inertia + React?** Skip `blade-ui` — 64 Blade components you
+**Laravel with Inertia + React?** Skip `blade-ui` — 67 Blade components you
 cannot render are not useful — and take `@shipbytes/design-tokens`: the same
 `tokens.css` and `theme.css`, so your own React components draw from the same
 values. If you have both, Blade marketing pages and a React app behind login,
@@ -182,7 +182,7 @@ source, in both themes.
 
 ### What you get
 
-Fifty-six components, plus a pagination view.
+Sixty-seven components, plus a pagination view.
 
 **Layout & content** — `panel` `panel-row` `table` `table-cell` `table-row`
 `stat-tile` `empty-state` `skeleton` `progress` `usage-meter` `accordion`
@@ -190,11 +190,12 @@ Fifty-six components, plus a pagination view.
 **Forms** — `input` `select` `combobox` `checkbox` `radio` `radio-group`
 `radio-cards` `radio-card` `chip-group` `chip` `rating` `switch` `date-picker`
 `file-upload` `otp-input` `tag-input` `number-field` `password-strength`
-`button` `copy-button`
-**Navigation** — `nav-item` `bottom-nav` `bottom-nav-item` `tabs` `tab`
+`button` `copy-button` `button-group` `segmented-control` `segment`
+`toggle-group` `toggle` `toolbar` `toolbar-button` `toolbar-separator`
+**Navigation** — `nav-item` `sub-nav` `bottom-nav` `bottom-nav-item` `tabs` `tab`
 `tab-panel` `breadcrumb` `breadcrumb-item` `stepper` `step`
 **Overlays** — `modal` `drawer` `sheet` `sheet-item` `dropdown` `dropdown-item`
-`tooltip` `toast` `toast-region`
+`popover` `hover-card` `tooltip` `toast` `toast-region`
 **Marks** — `icon` `avatar` `avatar-group` `badge` `alert`
 
 Wire pagination up in a service provider:
@@ -213,11 +214,11 @@ changes call the component instead of reloading the page.
 `illuminate/view` and `blade-heroicons`, and nothing else. It works the same in a
 plain Blade view or inside a Livewire component.
 
-Seventeen need [Alpine](https://alpinejs.dev) — `modal`, `drawer`, `sheet`,
+Twenty need [Alpine](https://alpinejs.dev) — `modal`, `drawer`, `sheet`,
 `dropdown`, `select`, `combobox`, `date-picker`, `accordion`, `file-upload`,
-`tooltip`, `otp-input`, `tag-input`, `number-field`, `password-strength`,
-`copy-button`, `toolbar` and `toggle-group`, the last seven with the package's
-own script as well — plus one optional prop each on `checkbox`, `nav-item`,
+`tooltip`, `sub-nav`, `otp-input`, `tag-input`, `number-field`,
+`password-strength`, `copy-button`, `toolbar`, `toggle-group`, `popover` and
+`hover-card`, the last nine with the package's own script as well — plus one optional prop each on `checkbox`, `nav-item`,
 `toast` and `input`, and the pagination views' Livewire variants, which get it
 from Livewire. `segmented-control` slides its highlight when Alpine and the
 script are there and works the same without them. Everything else is plain
@@ -234,10 +235,11 @@ Volt:
 </div>
 ```
 
-`dropdown` and `tooltip` scope their own state, so a menu or a tip per table row
-needs no wrapper. `select` posts through a hidden input, so it submits in a plain
-form exactly like a `<select>` — and it renders its selected state from PHP, so
-there is no flash of the wrong option before Alpine boots.
+`dropdown`, `tooltip`, `popover`, `hover-card` and `sub-nav` scope their own
+state, so a menu or a tip per table row needs no wrapper. `select` posts
+through a hidden input, so it submits in a plain form exactly like a
+`<select>` — and it renders its selected state from PHP, so there is no flash
+of the wrong option before Alpine boots.
 
 A textarea and a native select are `input`'s `as="textarea"` and `as="select"`.
 The native select is still the better choice on anything phone-first: it gets

@@ -245,10 +245,12 @@ How you decide to put it there is yours: a user setting, a cookie, or
 `illuminate/view` and `blade-heroicons`, and nothing else. Every component works
 in a plain Blade view.
 
-Seventeen need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
+Twenty need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
 framework: **modal, drawer, sheet, dropdown, select, combobox, date-picker,
-accordion, file-upload, tooltip, otp-input, tag-input, number-field,
-password-strength, copy-button, toolbar, toggle-group**.
+accordion, file-upload, tooltip, sub-nav, otp-input, tag-input, number-field,
+password-strength, copy-button, toolbar, toggle-group, popover, hover-card**.
+`sub-nav` only to open and close: without Alpine, the section holding the
+current page is open and the rest are closed, as the server rendered them.
 
 Four more use it for **one optional prop** each, and work without it otherwise:
 `checkbox`'s `indeterminate`, `nav-item`'s `collapsedWhen`, `toast`'s
@@ -265,12 +267,12 @@ the top on a page change, and get it from Livewire.
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
 ```
 
-Seven of them, **otp-input, tag-input, number-field, password-strength,
-copy-button, toolbar and toggle-group**, and
+Nine of them, **otp-input, tag-input, number-field, password-strength,
+copy-button, toolbar, toggle-group, popover and hover-card**, and
 `input`'s `reveal`, need Alpine **and** [`<x-ds::scripts />`](#3-add-the-script)
 above it, and say so on their page.
 
-**You do not need to add an `[x-cloak]` rule.** Nine components hide themselves
+**You do not need to add an `[x-cloak]` rule.** Twelve components hide themselves
 with `x-cloak` until Alpine boots, and Alpine does not ship the CSS rule that
 makes the attribute mean anything — every project is normally expected to write
 it by hand. Since it is *our* components that break without it, `theme.css`

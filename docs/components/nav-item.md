@@ -36,7 +36,6 @@ page usually has more than one navigation landmark.
 | `href` | string | *required* | |
 | `label` | string | *required* | |
 | `active` | bool | `false` | Sets `aria-current="page"`. |
-
 | `badge` | string\|int | — | Trailing count. Hidden with the label when collapsed. |
 | `chip` | bool | `false` | Wraps the icon in a tinted chip. |
 | `collapsedWhen` | Alpine expression | — | True when the rail is collapsed to icons. |
@@ -74,5 +73,7 @@ hover.
 - **Don't use it for a page's own tabs.** That is [tabs](tabs.md).
 - **Don't hide primary navigation in a [dropdown](dropdown.md).**
 - **Don't set `active` on more than one item.**
+- **Don't mark a section as active because the page is inside it.** A section
+  with pages of its own is a [sub-nav](sub-nav.md), which shows that itself.
 
 More in [specs/nav-item.md](../../specs/nav-item.md).
