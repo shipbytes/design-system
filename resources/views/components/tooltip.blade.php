@@ -61,10 +61,10 @@
         x-show="tipOpen"
         x-cloak
         x-ds-anchor="{{ $anchor }}"
-        x-transition:enter="transition ease-out duration-100"
+        x-transition:enter="motion-safe:transition motion-safe:duration-hint-enter motion-safe:ease-enter"
         x-transition:enter-start="opacity-0"
         x-transition:enter-end="opacity-100"
-        x-transition:leave="transition ease-in duration-75"
+        x-transition:leave="motion-safe:transition motion-safe:duration-hint-leave motion-safe:ease-leave"
         x-transition:leave-start="opacity-100"
         x-transition:leave-end="opacity-0"
         id="{{ $id }}"

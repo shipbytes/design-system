@@ -7,6 +7,6 @@
     'hover' => true,
 ])
 
-<tr {{ $attributes->class(['transition-colors hover:bg-surface-subtle' => $hover]) }}>
+<tr {{ $attributes->class(['motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle' => $hover]) }}>
     {{ $slot }}
 </tr>

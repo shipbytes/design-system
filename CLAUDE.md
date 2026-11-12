@@ -125,7 +125,9 @@ render through the same three lines and a clean clone needs nothing but
 
 **Tokens** (`test-tokens.mjs`) — structure, WCAG contrast in both themes, theme
 collisions, and that the motion tokens compile to working `duration-*` /
-`ease-*` utilities, under `motion-safe:` too. No Blade involved.
+`ease-*` utilities, under `motion-safe:` too. It also reads every view as text
+and fails on a literal duration, a non-token curve, or a transition with no
+reduced-motion branch. No Blade is rendered.
 
 **Script** (`test-js.mjs`) — `dist/blade-ui*.js` match what `resources/js/`
 builds to (ds::scripts serves the COMMITTED file, so stale means stale in
@@ -465,8 +467,8 @@ writes a page for a browser to open by `file://` needs the same line.
   `ease-enter` — never a bare `duration-150`: pick the pair for the kind of
   surface (`hint`, `popover`, `dialog`, `slide`) and use `-leave` on the way
   out. A JavaScript animation (the stat tile's count-up) checks
-  `matchMedia('(prefers-reduced-motion: reduce)')` and skips. The components
-  built before 2.0 predate this rule; see Known gaps.
+  `matchMedia('(prefers-reduced-motion: reduce)')` and skips.
+  `test-tokens.mjs` scans every view for this and fails the build.
 - **Comments explain why, not what.** The reason a value is what it is, or the
   bug that made it necessary.
 - **Never name the app this came from.** It is deliberately anonymous.
@@ -763,12 +765,16 @@ Recorded as ADVISORY in `test-tokens.mjs` rather than fixed, because closing it
 means moving `fg-muted` off zinc-500 — the most-used colour in the system. A
 deliberate decision with a wide blast radius, not a quiet fix.
 
-**4. The components built before 2.0 ignore reduced motion.** Their
-`x-transition` classes are plain `transition ease-out duration-150` and the like,
-not `motion-safe:`, and the numbers are literals rather than the motion
-utilities (the tokens were derived FROM those numbers, so the values agree).
-Moving them over is a restyle of existing components, which batch 00 was told
-not to do. The skeleton's pulse and the stat tile's count-up already honour it.
+**4. Closed in batch 06: every view is on the motion tokens.** The components
+built before 2.0 had plain `transition ease-out duration-150` and the like, not
+`motion-safe:`, with literal numbers. They now use the token utilities behind
+`motion-safe:` (the tokens were derived FROM those numbers, so the timings at
+rest are unchanged, and the documentation screenshots are byte for byte the
+same). Hover and colour transitions that had no curve of their own moved from
+Tailwind's default curve to `ease-enter` at the same 150 ms. `test-tokens.mjs`
+scans every view and fails on a literal `duration-NNN`, an `ease-*` that is not
+a token, a bare `x-transition`, or a transition or animation with no
+`motion-safe:` and no `motion-reduce:` branch.
 
 **5. The gallery cannot show `sheet` or `bottom-nav`.** Both are `lg:hidden`, and
 the gallery is a page a person opens on a desktop, so at that viewport they

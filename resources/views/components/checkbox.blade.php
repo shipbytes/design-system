@@ -34,7 +34,7 @@
      */
     $control = implode(' ', [
         'peer col-start-1 row-start-1 size-4.5 shrink-0 appearance-none rounded-chip',
-        'border bg-surface transition-colors',
+        'border bg-surface motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter',
         'checked:border-accent checked:bg-accent',
         'indeterminate:border-accent indeterminate:bg-accent',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring',

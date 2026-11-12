@@ -143,10 +143,10 @@
         @keydown.arrow-up.prevent="{{ $moveFocus }}"
         @keydown.home.prevent="{{ $moveFocus }}"
         @keydown.end.prevent="{{ $moveFocus }}"
-        x-transition:enter="transition ease-out duration-150"
+        x-transition:enter="motion-safe:transition motion-safe:duration-popover-enter motion-safe:ease-enter"
         x-transition:enter-start="opacity-0 scale-95"
         x-transition:enter-end="opacity-100 scale-100"
-        x-transition:leave="transition ease-in duration-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-popover-leave motion-safe:ease-leave"
         x-transition:leave-start="opacity-100 scale-100"
         x-transition:leave-end="opacity-0 scale-95"
         {{-- `float`, not `overlay`: this hovers over the page, it does not block

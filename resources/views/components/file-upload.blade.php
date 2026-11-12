@@ -57,7 +57,7 @@
      */
     $zone = implode(' ', [
         'relative flex flex-col items-center justify-center gap-1 rounded-control',
-        'border-2 border-dashed px-6 py-8 text-center transition-colors',
+        'border-2 border-dashed px-6 py-8 text-center motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter',
         $error ? 'border-danger' : 'border-border-strong',
         $disabled
             ? 'cursor-not-allowed bg-surface-subtle'
@@ -174,7 +174,7 @@
 
                 <button
                     type="button"
-                    class="shrink-0 rounded-control p-1.5 text-fg-muted transition-colors hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                    class="shrink-0 rounded-control p-1.5 text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
                     :aria-label="'Remove ' + file.name"
                     @click="const name = file.name; {{ $onRemove }}"
                 >

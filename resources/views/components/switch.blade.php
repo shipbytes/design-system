@@ -30,7 +30,7 @@
      * support, and both failures are invisible in a normal browser.
      */
     $track = implode(' ', [
-        'peer relative h-5 w-9 shrink-0 appearance-none rounded-full transition-colors',
+        'peer relative h-5 w-9 shrink-0 appearance-none rounded-full motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter',
         'bg-fg/20 checked:bg-accent',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring',
         $disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
@@ -82,7 +82,7 @@
              render on an `input` in every browser, and finding that out means
              finding it in the one browser that does not. --}}
         <span
-            class="pointer-events-none absolute top-1 left-0.5 size-4 rounded-full bg-white shadow-raised transition-transform peer-checked:translate-x-4"
+            class="pointer-events-none absolute top-1 left-0.5 size-4 rounded-full bg-white shadow-raised motion-safe:transition-transform motion-safe:duration-popover-enter motion-safe:ease-enter peer-checked:translate-x-4"
             aria-hidden="true"
         ></span>
     </span>

@@ -48,7 +48,7 @@
         'relative flex w-full items-center justify-between gap-2 rounded-control border',
         'bg-surface px-[calc(--spacing(3.5)-1px)] py-[calc(--spacing(2.5)-1px)] text-left',
         'sm:px-[calc(--spacing(3)-1px)] sm:py-[calc(--spacing(1.5)-1px)]',
-        'text-body-touch sm:text-body shadow-raised transition-colors',
+        'text-body-touch sm:text-body shadow-raised motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring',
         $error ? 'border-danger' : 'border-border',
         $disabled ? 'cursor-not-allowed bg-surface-subtle text-fg-subtle' : 'cursor-pointer hover:border-fg/20',
@@ -141,7 +141,7 @@
             name="chevron-down"
             variant="mini"
             size="5"
-            class="shrink-0 text-fg-muted transition-transform sm:size-4"
+            class="shrink-0 text-fg-muted motion-safe:transition-transform motion-safe:duration-popover-enter motion-safe:ease-enter sm:size-4"
             ::class="open && 'rotate-180'"
         />
     </button>
@@ -163,10 +163,10 @@
         @keydown.arrow-up.prevent="{{ $moveFocus }}"
         @keydown.home.prevent="{{ $moveFocus }}"
         @keydown.end.prevent="{{ $moveFocus }}"
-        x-transition:enter="transition ease-out duration-150"
+        x-transition:enter="motion-safe:transition motion-safe:duration-popover-enter motion-safe:ease-enter"
         x-transition:enter-start="opacity-0 scale-95"
         x-transition:enter-end="opacity-100 scale-100"
-        x-transition:leave="transition ease-in duration-100"
+        x-transition:leave="motion-safe:transition motion-safe:duration-popover-leave motion-safe:ease-leave"
         x-transition:leave-start="opacity-100 scale-100"
         x-transition:leave-end="opacity-0 scale-95"
         id="{{ $id }}-listbox"
@@ -203,7 +203,7 @@
                 @click="value = {{ $optionValueJs }}; label = {{ $optionLabelJs }}; open = false"
                 @keydown.enter.prevent="$el.click()"
                 @keydown.space.prevent="$el.click()"
-                class="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-body text-fg-body transition-colors hover:bg-surface-subtle hover:text-fg focus-visible:bg-surface-subtle focus-visible:text-fg focus-visible:outline-hidden aria-selected:font-medium aria-selected:text-fg"
+                class="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-body text-fg-body motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:bg-surface-subtle focus-visible:text-fg focus-visible:outline-hidden aria-selected:font-medium aria-selected:text-fg"
             >
                 <span class="truncate">{{ $option['label'] }}</span>
 

@@ -60,7 +60,7 @@
         'flex w-full items-center justify-between gap-2 rounded-control border bg-surface',
         'px-[calc(--spacing(3.5)-1px)] py-[calc(--spacing(2.5)-1px)] text-left',
         'sm:px-[calc(--spacing(3)-1px)] sm:py-[calc(--spacing(1.5)-1px)]',
-        'text-body-touch sm:text-body shadow-raised transition-colors',
+        'text-body-touch sm:text-body shadow-raised motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring',
         $error ? 'border-danger' : 'border-border',
         $disabled ? 'cursor-not-allowed bg-surface-subtle text-fg-subtle' : 'cursor-pointer hover:border-fg/20',
@@ -266,7 +266,7 @@
         x-ds-anchor="{ open: open, reference: $el.previousElementSibling, placement: 'bottom-start', offset: 4 }"
         @click.outside="open = false"
         @keydown.escape.stop="open = false; $el.closest('[x-data]').querySelector('[data-ds-date-trigger]').focus()"
-        x-transition:enter="transition ease-out duration-150"
+        x-transition:enter="motion-safe:transition motion-safe:duration-popover-enter motion-safe:ease-enter"
         x-transition:enter-start="opacity-0 scale-95"
         x-transition:enter-end="opacity-100 scale-100"
         role="dialog"
@@ -279,7 +279,7 @@
                 type="button"
                 @click="shiftMonth(-1)"
                 aria-label="Previous month"
-                class="rounded-control p-1.5 text-fg-muted transition-colors hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                class="rounded-control p-1.5 text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
             >
                 <x-ds::icon name="chevron-left" variant="mini" size="4" />
             </button>
@@ -292,7 +292,7 @@
                 type="button"
                 @click="shiftMonth(1)"
                 aria-label="Next month"
-                class="rounded-control p-1.5 text-fg-muted transition-colors hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                class="rounded-control p-1.5 text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
             >
                 <x-ds::icon name="chevron-right" variant="mini" size="4" />
             </button>
@@ -326,7 +326,7 @@
                                 :aria-current="day === todayIso() ? 'date' : null"
                                 @click="pick(day)"
                                 @mouseenter="hovered = day"
-                                class="size-9 rounded-control text-body tabular-nums transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:text-fg-subtle"
+                                class="size-9 rounded-control text-body tabular-nums motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:text-fg-subtle"
                                 :class="isSelected(day)
                                     ? 'bg-surface-inverse text-on-inverse font-medium'
                                     : isBetween(day)
@@ -346,13 +346,13 @@
             <button
                 type="button"
                 @click="clear()"
-                class="rounded-control px-2 py-1 text-meta font-medium text-fg-muted transition-colors hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                class="rounded-control px-2 py-1 text-meta font-medium text-fg-muted motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
             >Clear</button>
 
             <button
                 type="button"
                 @click="open = false; $el.closest('[x-data]').querySelector('[data-ds-date-trigger]').focus()"
-                class="rounded-control px-2 py-1 text-meta font-medium text-fg transition-colors hover:bg-surface-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                class="rounded-control px-2 py-1 text-meta font-medium text-fg motion-safe:transition-colors motion-safe:duration-popover-enter motion-safe:ease-enter hover:bg-surface-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
             >Done</button>
         </div>
     </div>

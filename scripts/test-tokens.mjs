@@ -440,6 +440,136 @@ head('motion');
     }
 }
 
+/*
+  Every transition and animation a component view asks for is reduced-motion
+  aware and timed by the tokens. Batch 00 recorded that the components built
+  before 2.0 used `transition ease-out duration-150` and the like: literal
+  numbers, and a transition that ran whatever the reader's settings said.
+
+  A transition or animation utility must carry `motion-safe:` in its variant
+  chain, or sit in the same class string as a `motion-reduce:transition-none`
+  (or `-animate-none`) branch. A duration is one of the motion tokens'
+  utilities and an easing is `ease-enter` or `ease-leave`; any number or any
+  other curve fails. Alpine's bare `x-transition` fails too: its defaults are
+  inline styles with their own durations, which no media query reaches.
+
+  Comments are stripped first, and so are PHP array keys and index lookups
+  (`'transition' =>`, `$recipe['transition']`), which are names, not classes.
+*/
+head('motion in the component views');
+
+const MOTION_DURATIONS = new Set(['hint', 'popover', 'dialog', 'slide'].flatMap((j) => [`duration-${j}-enter`, `duration-${j}-leave`]));
+
+/** Split a class token into its variants and its utility, ignoring colons inside brackets. */
+function splitVariants(token) {
+    const parts = [];
+    let depth = 0;
+    let at = 0;
+    for (let i = 0; i < token.length; i++) {
+        const c = token[i];
+        if (c === '[' || c === '(') depth++;
+        else if (c === ']' || c === ')') depth--;
+        else if (c === ':' && depth === 0) {
+            parts.push(token.slice(at, i));
+            at = i + 1;
+        }
+    }
+    parts.push(token.slice(at));
+    return { variants: parts.slice(0, -1), utility: parts.at(-1).replace(/^!/, '') };
+}
+
+/** What is wrong with the motion in this source, one string per finding. */
+export function motionFindings(source) {
+    // Blanked rather than removed, so a finding's line number is the file's.
+    const blank = (m) => m.replace(/[^\n]/g, ' ');
+    const stripped = source
+        .replace(/\{\{--[\s\S]*?--\}\}/g, blank)
+        .replace(/\/\*[\s\S]*?\*\//g, blank)
+        .replace(/^\s*\/\/.*$/gm, ' ')
+        .replace(/'[\w-]+'\s*=>/g, ' ')
+        .replace(/\[\s*'[\w-]+'\s*\]/g, ' ');
+
+    const found = [];
+    const lines = stripped.split('\n');
+
+    lines.forEach((line, index) => {
+        const where = `line ${index + 1}`;
+
+        for (const m of line.matchAll(/\bx-transition(?![:\w-])(\.[\w.]+)?/g)) {
+            found.push(`${where}: Alpine's default ${m[0]}, whose inline timings ignore reduced motion`);
+        }
+
+        const tokens = line.split(/[\s"'`]+/).filter(Boolean);
+        const reduced = (kind) => tokens.some((t) => {
+            const { variants, utility } = splitVariants(t);
+            return variants.includes('motion-reduce') && utility === `${kind}-none`;
+        });
+
+        for (const token of tokens) {
+            if (/^(x-transition|@|\$|:|=)/.test(token)) continue;
+            const { variants, utility } = splitVariants(token);
+
+            if (/^duration-/.test(utility) && !MOTION_DURATIONS.has(utility)) {
+                found.push(`${where}: ${token} is a literal duration; use a motion token's utility (duration-popover-enter, …)`);
+            } else if (/^ease-/.test(utility) && utility !== 'ease-enter' && utility !== 'ease-leave') {
+                found.push(`${where}: ${token} is not one of the motion curves; use ease-enter or ease-leave`);
+            } else if (/^(transition|animate)(-|$)/.test(utility) && !/-none$/.test(utility)) {
+                const kind = utility.startsWith('animate') ? 'animate' : 'transition';
+                if (!variants.includes('motion-safe') && !reduced(kind)) {
+                    found.push(`${where}: ${token} runs under reduced motion; write motion-safe:${utility}`);
+                }
+            }
+        }
+    });
+
+    return found;
+}
+
+{
+    // The scanner, proven against what it exists to catch, so a quiet pass
+    // below means the views are clean rather than that nothing was read.
+    const sample = [
+        '<div class="transition ease-out duration-150"></div>',
+        '<span x-transition></span>',
+        "'class' => 'animate-spin hover:transition-colors',",
+        '<p class="motion-safe:transition motion-safe:duration-[250ms]"></p>',
+    ].join('\n');
+    const caught = motionFindings(sample).length;
+    expect(caught === 7, 'the motion scanner catches literal durations, curves, bare transitions and animations, and bare x-transition',
+        `the scanner found ${caught} of the 7 planted problems`);
+
+    const clean = [
+        '<div x-transition:enter="motion-safe:transition motion-safe:duration-popover-enter motion-safe:ease-enter"></div>',
+        "'transition' => ['x-transition:enter' => 'motion-safe:transition'],",
+        "...$recipe['transition'],",
+        '<svg class="motion-safe:animate-spin"></svg><i class="transition-none motion-reduce:transition-none transition-colors"></i>',
+        '{{-- transition ease-out duration-150 in a comment --}}',
+    ].join('\n');
+    const noise = motionFindings(clean);
+    expect(!noise.length, 'and passes motion-safe utilities, recipe keys, a motion-reduce branch and comments',
+        `false findings: ${noise.join('; ')}`);
+
+    const views = [];
+    const walk = async (dir) => {
+        for (const entry of await readdir(dir, { withFileTypes: true })) {
+            const path = join(dir, entry.name);
+            if (entry.isDirectory()) await walk(path);
+            else if (entry.name.endsWith('.php')) views.push(path);
+        }
+    };
+    await walk(join(ROOT, 'resources/views'));
+
+    const problems = [];
+    for (const file of views) {
+        for (const finding of motionFindings(await readFile(file, 'utf8'))) {
+            problems.push(`${file.slice(ROOT.length + 1)} ${finding}`);
+        }
+    }
+    expect(views.length && !problems.length,
+        `every transition and animation in the ${views.length} view files is motion-safe and timed by the motion tokens`,
+        `${problems.length} found:\n      ${problems.join('\n      ')}`);
+}
+
 async function compileProbe(classes) {
     const { execFile } = await import('node:child_process');
     const { promisify } = await import('node:util');
