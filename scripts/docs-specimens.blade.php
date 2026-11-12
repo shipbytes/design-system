@@ -216,6 +216,23 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── rating --}}
+<div data-shot="rating" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-5">
+                <x-ds::rating name="visit{{ $loop->index }}" label="How was your visit?" :value="4" help="Shown to the host after your stay." />
+                <x-ds::rating name="clean{{ $loop->index }}" label="Cleanliness" size="sm" error="Choose a rating, or pick No rating." />
+                <div class="flex flex-wrap items-end gap-8">
+                    <x-ds::rating :readonly="true" :value="4.5" label="Average, 128 reviews" />
+                    <x-ds::rating :readonly="true" :value="3.2" size="sm" />
+                    <x-ds::rating :readonly="true" :value="null" size="sm" />
+                </div>
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── number-field --}}
 <div data-shot="number-field" class="shot">
     @foreach ($themes as $t)

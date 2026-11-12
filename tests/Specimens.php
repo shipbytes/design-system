@@ -169,6 +169,18 @@ final class Specimens
                 <x-ds::copy-button value="x" size="lg" @copy-failed="$dispatch('notify', 'Could not copy')" />
                 BLADE,
 
+            'rating/all' => <<<'BLADE'
+                <x-ds::rating name="score" label="How was your visit?" help="Optional." />
+                <x-ds::rating name="score" label="Quality" :value="4" size="sm" />
+                <x-ds::rating name="score" label="Value" :value="2" :max="10" size="lg" required />
+                <x-ds::rating name="score" label="Support" error="Choose a rating." />
+                <x-ds::rating name="score" label="Locked" :value="3" :disabled="true" />
+                <x-ds::rating name="score" wire:model.live="score" aria-label="Score" />
+                <x-ds::rating :readonly="true" :value="3.5" label="Average" />
+                <x-ds::rating :readonly="true" :value="4.24" size="sm" />
+                <x-ds::rating :readonly="true" :value="null" size="lg" />
+                BLADE,
+
             'number-field/all' => <<<'BLADE'
                 <x-ds::number-field name="seats" label="Seats" :value="3" :min="1" :max="10" help="Up to ten on this plan." />
                 <x-ds::number-field name="seats" label="Seats" :value="1" :min="1" :max="10" />

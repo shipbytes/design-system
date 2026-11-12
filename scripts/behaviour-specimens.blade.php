@@ -203,6 +203,14 @@
             <button type="button" id="emails-host-clear" @click="emails = []">Clear</button>
         </div>
 
+        {{-- ── rating: radios and CSS, no script ── --}}
+        <div class="mt-6" id="rating">
+            <x-ds::rating name="score" label="How was your visit?" :value="2" />
+        </div>
+        <div class="mt-6">
+            <x-ds::rating id="avg" :readonly="true" :value="3.5" label="Average" />
+        </div>
+
         {{-- ── number field, from the shared script ── --}}
         <div class="mt-6 max-w-xs">
             <x-ds::number-field name="seats" id="seats" label="Seats" :value="2" :min="1" :max="5" />

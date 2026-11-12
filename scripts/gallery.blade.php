@@ -278,6 +278,46 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Rating --}}
+<section class="ds-spec" id="rating">
+    <header class="ds-spec-head">
+        <h2>Rating</h2>
+        <p>Stars that are radios underneath: one name, one value posted, the arrow keys and the form&rsquo;s required check for free. Hovering previews &ldquo;up to here&rdquo; and leaving restores the choice, all in CSS. Readonly is one image, named &ldquo;4.5 out of 5&rdquo;.</p>
+    </header>
+
+    <div class="ds-note">No script at all. The faint cross after the stars is &ldquo;No rating&rdquo;, the way back once a star is chosen; it is transparent while it is itself the choice, and omitted when the rating is <code>required</code>.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Choosing <span>&middot; <code>sm</code>, <code>md</code>, <code>lg</code></span></div>
+        <div class="{{ $row }} px-4 items-end">
+            <x-ds::rating name="g-r1" label="Small" size="sm" :value="3" />
+            <x-ds::rating name="g-r2" label="Medium" :value="4" />
+            <x-ds::rating name="g-r3" label="Large" size="lg" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">States <span>&middot; help, error, disabled, required, ten stars</span></div>
+        <div class="flex flex-col gap-5 px-4">
+            <x-ds::rating name="g-r4" label="Cleanliness" :value="2" help="Shown to the host after your stay." />
+            <x-ds::rating name="g-r5" label="Location" error="Choose a rating." />
+            <x-ds::rating name="g-r6" label="Locked" :value="3" :disabled="true" />
+            <x-ds::rating name="g-r7" label="Required: no way back to none" required />
+            <x-ds::rating name="g-r8" label="Out of ten" :max="10" :value="7" size="sm" />
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Readonly <span>&middot; to the nearest half, named as drawn</span></div>
+        <div class="{{ $row }} px-4 items-end">
+            <x-ds::rating :readonly="true" :value="4.5" label="Average" />
+            <x-ds::rating :readonly="true" :value="3.24" />
+            <x-ds::rating :readonly="true" :value="1" size="sm" />
+            <x-ds::rating :readonly="true" :value="null" size="lg" label="No reviews yet" />
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Tag input --}}
 <section class="ds-spec" id="tag-input">
     <header class="ds-spec-head">

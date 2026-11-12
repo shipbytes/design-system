@@ -1308,6 +1308,80 @@ await check('and an empty list from the host empties the field and hides the lis
     return ((await tags()).length === 0 && hidden) || `posted ${JSON.stringify(await tags())}, list hidden ${hidden}`;
 });
 
+// ---------------------------------------------------------------- rating
+
+/*
+ * No script: what is pressed and posted is native radios, and every star's
+ * look is CSS reading them. So "lit" is read from the computed fill, which is
+ * the thing a reader sees.
+ */
+group('rating (radios and CSS, no script)');
+
+const ratingLit = () => page.evaluate(() =>
+    [...document.querySelectorAll('#rating .group\\/stars > label')]
+        .map((star) => (getComputedStyle(star).fill === 'rgba(0, 0, 0, 0)' ? 0 : 1)).join(''));
+const score = async () => JSON.stringify((await posted()).score ?? null);
+const star = (n) => `#rating input[name=score][value="${n}"]`;
+
+await page.mouse.move(0, 0);
+
+await check('posts the value it was rendered with, and lights that many stars', async () =>
+    ((await score()) === '["2"]' && (await ratingLit()) === '11000') || `posted ${await score()}, lit ${await ratingLit()}`);
+
+await check('a press on a star chooses it, natively', async () => {
+    await page.click(`${star(4)} >> xpath=..`);
+    await page.mouse.move(0, 0);
+    await settle(150);
+    return ((await score()) === '["4"]' && (await ratingLit()) === '11110') || `posted ${await score()}, lit ${await ratingLit()}`;
+});
+
+await check('hovering previews "up to here" over the chosen value, and leaving restores it', async () => {
+    await page.hover(`${star(2)} >> xpath=..`);
+    await settle(150);
+    const preview = await ratingLit();
+    await page.mouse.move(0, 0);
+    await settle(150);
+    const after = await ratingLit();
+    return (preview === '11000' && after === '11110') || `while hovering 2: ${preview}; after: ${after}`;
+});
+
+await check('the arrow keys move the rating, as in any radio group', async () => {
+    await page.focus(star(4));
+    await page.keyboard.press('ArrowRight');
+    await settle(150);
+    return ((await score()) === '["5"]' && (await ratingLit()) === '11111') || `posted ${await score()}, lit ${await ratingLit()}`;
+});
+
+await check('past the last star is "No rating": posts empty, lights nothing, and is named', async () => {
+    await page.keyboard.press('ArrowRight');
+    await settle(150);
+    const name = await page.evaluate(() => document.activeElement.parentElement.textContent.trim());
+    if (name !== 'No rating') return `focus is on ${JSON.stringify(name)}`;
+    return ((await score()) === '[""]' && (await ratingLit()) === '00000') || `posted ${await score()}, lit ${await ratingLit()}`;
+});
+
+await check('focus shows on the star it is on, before anything is chosen there', async () => {
+    await page.keyboard.press('ArrowRight');
+    await settle(150);
+    const ring = await page.evaluate(() => getComputedStyle(document.activeElement.parentElement).outlineStyle);
+    return ((await score()) === '["1"]' && ring !== 'none') || `posted ${await score()}, outline ${ring}`;
+});
+
+await check('readonly is one image, named for the value, half a star drawn as half', async () => {
+    const r = await page.evaluate(() => {
+        const img = document.querySelector('#avg [role=img]');
+        const half = img.children[3].querySelector('.overflow-hidden');
+        return {
+            name: img.getAttribute('aria-label'),
+            focusable: img.querySelectorAll('input, button, [tabindex]').length,
+            ratio: half ? half.getBoundingClientRect().width / img.children[3].getBoundingClientRect().width : null,
+        };
+    });
+    if (r.name !== '3.5 out of 5') return `named ${JSON.stringify(r.name)}`;
+    if (r.focusable) return 'a readonly rating has something to focus';
+    return r.ratio === 0.5 || `the fourth star is ${r.ratio} filled`;
+});
+
 // ---------------------------------------------------------------- number field
 
 group('number field (dsNumberField)');
