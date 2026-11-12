@@ -338,6 +338,22 @@ head('shared helpers: amounts as digits, shortcuts as strings, colours');
     for (const [a, b, want] of fixture.contrast) if (colour.ratio(colour.contrast(colour.parse(a), colour.parse(b))) !== want) wrong.push(`contrast ${a} on ${b}`);
     const total = ['parse', 'convert', 'write', 'contrast'].reduce((n, k) => n + fixture[k].length, 0);
     expect(!wrong.length, `colours: the ${total} cases of tests/Fixtures/colour.json, the server's answers`, `shared/colour.js disagrees with tests/Fixtures/colour.json: ${wrong.join(', ')}`);
+
+    // tests/Fixtures/dates.json is CalendarTest's too: Support\Calendar draws
+    // the first month and shared/dates.js every one after it.
+    const dates = await import(pathToFileURL(join(ROOT, 'resources/js/shared/dates.js')).href);
+    const dfix = JSON.parse(await readFile(join(ROOT, 'tests/Fixtures/dates.json'), 'utf8'));
+    const off = [];
+    for (const [day, by, want] of dfix.addDays) if (dates.addDays(day, by) !== want) off.push(`addDays ${day} ${by}`);
+    for (const [day, by, want] of dfix.addMonths) if (dates.addMonths(day, by) !== want) off.push(`addMonths ${day} ${by}`);
+    for (const [y, m, start, first, last, rows] of dfix.weeks) {
+        const w = dates.weeks(y, m, start);
+        if (w[0][0] !== first || w[w.length - 1][6] !== last || w.length !== rows) off.push(`weeks ${y}-${m} from ${start}`);
+    }
+    for (const [from, , want] of dfix.isoWeek) if (dates.isoWeek([0, 1, 2, 3, 4, 5, 6].map((i) => dates.addDays(from, i))) !== want) off.push(`isoWeek ${from}`);
+    for (const [today, want] of dfix.presets) if (JSON.stringify(dates.presets(today)) !== JSON.stringify(want)) off.push(`presets ${today}`);
+    const dtotal = ['addDays', 'addMonths', 'weeks', 'isoWeek', 'presets'].reduce((n, k) => n + dfix[k].length, 0);
+    expect(!off.length, `dates: the ${dtotal} cases of tests/Fixtures/dates.json, the server's answers`, `shared/dates.js disagrees with tests/Fixtures/dates.json: ${off.join(', ')}`);
 }
 
 finish();
