@@ -179,8 +179,12 @@ ${css}
      TRANSITIONS are left alone. Alpine drives x-transition by reading the
      computed duration, and killing transitions globally can leave an element
      parked at its enter-start state — opacity-0 — which photographs as an
-     empty box. They are waited out below instead. */
-  *, *::before, *::after { animation: none !important; }
+     empty box. They are waited out below instead.
+
+     The scroll area's edge shadows are let through: they are scroll-driven,
+     not timed, so they photograph the same on every run, and frozen they
+     would not photograph at all. */
+  *:not([data-ds-scroll-edge]), *::before, *::after { animation: none !important; }
 </style>
 ${specimens}
 <script>${alpine}</script>
@@ -308,6 +312,24 @@ const OPERATE = {
     // A click no press began, as a screen reader sends one: it arms.
     'hold-button': async (pane) =>
         pane.locator('[data-shot-press]').dispatchEvent('click', { bubbles: false }),
+    // A press on the field, as dsTimePicker hears it: it opens the list at
+    // the chosen time without moving focus, so the other pane stays open.
+    'time-picker': async (pane) =>
+        pane.locator('[data-ds-time-input]').dispatchEvent('click', { bubbles: false }),
+    // The text pressed: the field opens in its place. Bubbling, because
+    // dsInlineEdit listens on its root, and harmless, because nothing at the
+    // document closes an inline edit on a click. Buttons mode keeps it open
+    // when the other pane's press takes focus away; focus is then taken off
+    // the field, or the ring would show in one pane and not the other.
+    'inline-edit': async (pane) => {
+        await pane.locator('[data-shot-press] [data-ds-inline-read]').dispatchEvent('click', { bubbles: true });
+        await tab.waitForTimeout(100);
+        await tab.evaluate(() => document.activeElement?.blur());
+    },
+    // Scrolled the way the reader would, part way, so both edges have more
+    // past them and the image shows both shadows.
+    'scroll-area': async (pane) =>
+        pane.locator('[data-ds-scroll-viewport]').evaluate((el) => { el.scrollTop = 56; }),
     // Real files, set on the real input, so the list and the thumbnail are the
     // component's own doing rather than a pose arranged for the photograph.
     'file-upload': async (pane) =>

@@ -905,4 +905,48 @@
         <button type="button" id="pc-after">after the panels</button>
     </div>
 
+    {{-- ── batch 11: slider, time picker, inline edit, scroll area. The block
+         marked #inputs-c is also cut out for a host page with no Alpine at
+         all, by its id and the closing comment. ── --}}
+    <div class="mt-6 w-[640px]" id="inputs-c">
+        <form id="c-form" onsubmit="event.preventDefault(); window.cSubmits = (window.cSubmits ?? 0) + 1">
+            <button type="button" id="c-before">before the fields</button>
+            <x-ds::slider id="sl" name="volume" label="Volume" :value="40" showValue="inline" :format="['suffix' => '%']" />
+            <x-ds::slider id="slr" name="price" label="Price" :range="true" :value="[20, 80]" :minGap="10"
+                lowLabel="Minimum price" highLabel="Maximum price" showValue="tooltip" :format="['prefix' => '$']" />
+            <x-ds::time-picker id="tp" name="starts" label="Start" value="09:30" format="12" min="08:00" max="18:00" :step="30" :clearable="true" />
+            <x-ds::time-picker id="tp24" name="ends" label="End" />
+            <x-ds::inline-edit id="ie" name="title" label="Title" value="Q3 roadmap"
+                @save="(window.ieEvents ??= []).push('save:' + $event.detail.value + '|' + $event.detail.previous)"
+                @cancel="(window.ieEvents ??= []).push('cancel:' + $event.detail.value)" />
+            <x-ds::inline-edit id="ie-blur" name="owner" label="Owner" value="Platform" submit="blur"
+                @save="(window.ieEvents ??= []).push('blur-save:' + $event.detail.value)" />
+            <x-ds::inline-edit id="ie-btn" name="note" label="Note" value="Draft" submit="buttons" :multiline="true"
+                @save="(window.ieEvents ??= []).push('btn-save:' + $event.detail.value)" />
+            <x-ds::inline-edit id="ie-err" name="code" label="Code" value="q3 roadmap" error="Use letters, numbers and dashes." />
+            <button type="button" id="c-after">after the fields</button>
+        </form>
+        <x-ds::inline-edit id="ie-form" name="slug" label="Slug" value="q3" :action="'/projects/1'" method="PATCH"
+            x-on:submit.prevent="window.ieSubmitted = new FormData($event.target).get('slug') + '|' + new FormData($event.target).get('_method')" />
+        <x-ds::scroll-area id="sa" :maxHeight="80" label="Release notes" class="mt-4 w-64 border border-border">
+            <div class="p-2">
+                @foreach (range(1, 12) as $n)<p>Line {{ $n }} of the notes.</p>@endforeach
+            </div>
+        </x-ds::scroll-area>
+        <x-ds::scroll-area id="sa-links" :maxHeight="48" class="mt-4 w-64">
+            @foreach (range(1, 6) as $n)<a class="block" href="#sa-{{ $n }}">Link {{ $n }}</a>@endforeach
+        </x-ds::scroll-area>
+        <x-ds::scroll-area id="sa-short" :maxHeight="200" label="Short notes" class="mt-4 w-64"><p>Short.</p></x-ds::scroll-area>
+    </div>
+    <!-- /inputs-c -->
+
+    {{-- ── batch 11, bound to Alpine state with x-model ── --}}
+    <div class="mt-6 w-[640px]" id="c-model" x-data="{ vol: 30, range: [10, 90], at: '14:00', name: 'Ada' }">
+        <x-ds::slider id="slm" name="m" label="Bound" x-model="vol" />
+        <x-ds::slider id="slmr" name="mr" label="Bound range" :range="true" lowLabel="Low" highLabel="High" x-model="range" />
+        <x-ds::time-picker id="tpm" name="tm" label="Bound time" x-model="at" />
+        <x-ds::inline-edit id="iem" label="Bound name" x-model="name" />
+        <output id="c-model-out" x-text="JSON.stringify({ vol, range, at, name })"></output>
+    </div>
+
 </div>

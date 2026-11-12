@@ -2081,6 +2081,295 @@ const __ds_behaviours_confirm = (() => {
     return { inlineConfirm };
 })();
 
+// behaviours/inline-edit.js
+const __ds_behaviours_inline_edit = (() => {
+    /*
+     * dsInlineEdit: text that turns into a field in place.
+     *
+     *   x-data="dsInlineEdit({ submit: 'enter', multiline: false, label: 'Title' })"
+     *
+     * The view renders the field (data-ds-inline-input) visible and editable,
+     * inside the form it draws for `action`, so with no script the text can
+     * still be changed and posted; and, hidden, the read state: a button
+     * (data-ds-inline-read) holding the text (data-ds-inline-text). Starting,
+     * this shows the button instead of the field. The view binds what changes to
+     * `dsReady` and `dsEditing`, so a Livewire morph keeps the state the reader
+     * is in.
+     *
+     * Pressing the button opens the field, at the width the text took, with the
+     * text selected. Enter saves (Ctrl or Cmd+Enter when multiline) unless
+     * `submit` is blur; leaving the component saves unless `submit` is buttons;
+     * the Save button saves and Cancel cancels; Escape cancels and puts the text
+     * back. Focus goes back to the button after a save or a cancel from the
+     * keyboard or the buttons, and stays wherever the reader went after one by
+     * leaving.
+     *
+     * A save that changed nothing just closes. Otherwise it dispatches `save`
+     * from the root (bubbling, cancelable, detail { value, previous }), shows the
+     * new text and writes dsValue, and that is all it assumes: the host decides.
+     * Inside the view's form, a save nobody cancelled submits the form, marked
+     * as saving. A cancel dispatches `cancel` with { value }, the text kept.
+     *
+     * Saving and failing are the host's to say, three ways, all ending in the
+     * same two attributes on the root: the props render them, a host sets them
+     * (Livewire's wire:loading.attr="data-ds-saving"), or an Alpine host sets
+     * dsSaving and dsError in this scope. data-ds-saving draws a spinner and
+     * aria-busy; data-ds-error opens the field again on the text the reader
+     * tried, marks it invalid and shows the message under it, and it stays open
+     * until a save succeeds or the reader cancels. A morph that brings or clears
+     * either is heard by an observer.
+     *
+     * The scope exposes dsValue (for x-modelable), dsEditing, dsReady, dsSaving
+     * and dsError, and nothing else.
+     */
+
+    function inlineEdit(Alpine) {
+        Alpine.data('dsInlineEdit', (options = {}) => {
+            let control = null;
+
+            return {
+                dsValue: '',
+                dsEditing: false,
+                dsReady: false,
+                dsSaving: false,
+                dsError: '',
+
+                init() {
+                    control = wire(this.$el, options, this);
+                    this.dsReady = true;
+                    this.$watch('dsValue', (value) => control.set(value));
+                    this.$watch('dsSaving', (saving) => control.saving(saving));
+                    this.$watch('dsError', (error) => control.error(error));
+                },
+
+                destroy() {
+                    control?.teardown();
+                },
+            };
+        });
+    }
+
+    function wire(root, options, scope) {
+        const read = root.querySelector('[data-ds-inline-read]');
+        const words = root.querySelector('[data-ds-inline-text]');
+        const field = root.querySelector('[data-ds-inline-input]');
+        const box = root.querySelector('[data-ds-inline-field]');
+        const message = root.querySelector('[data-ds-inline-message]');
+        const messageText = root.querySelector('[data-ds-inline-message-text]');
+        const save = root.querySelector('[data-ds-inline-save]');
+        const cancel = root.querySelector('[data-ds-inline-cancel]');
+        const form = root.querySelector('[data-ds-inline-form]');
+        const mode = ['enter', 'blur', 'buttons'].includes(options.submit) ? options.submit : 'enter';
+        const multiline = options.multiline === true;
+        const label = String(options.label ?? '');
+        const placeholder = words.dataset.placeholder ?? '';
+
+        // The text as last saved or rendered; what Escape goes back to.
+        let value = field.value;
+        let previous = value;
+        // The width the text took when the field opened.
+        let width = 0;
+
+        function draw() {
+            words.textContent = value !== '' ? value : placeholder;
+            words.toggleAttribute('data-ds-empty', value === '');
+            read.setAttribute('aria-label', `Edit ${label}${value !== '' ? `: ${value}` : ''}`);
+        }
+
+        function size() {
+            if (multiline) return;
+            field.style.minWidth = `${width}px`;
+            // Where the browser cannot grow a field to its text, a character
+            // wider per character typed.
+            if (!CSS.supports?.('field-sizing', 'content')) field.style.width = `${Math.max(field.value.length + 2, 4)}ch`;
+        }
+
+        /*
+         * Shown and focused at once, ahead of Alpine's redraw (which agrees): a
+         * focused button hidden first would drop focus to the page, and the
+         * focusout would read as the reader leaving.
+         */
+        function open() {
+            if (read.disabled) return;
+            width = read.getBoundingClientRect().width;
+            field.value = value;
+            box.hidden = false;
+            size();
+            field.focus();
+            field.select();
+            read.hidden = true;
+            scope.dsEditing = true;
+        }
+
+        function close(returnFocus) {
+            field.style.minWidth = '';
+            field.style.width = '';
+            read.hidden = false;
+            if (returnFocus) read.focus();
+            box.hidden = true;
+            scope.dsEditing = false;
+        }
+
+        function commit(returnFocus) {
+            const next = field.value;
+            if (next === value && !scope.dsError) {
+                close(returnFocus);
+                return;
+            }
+
+            previous = value;
+            value = next;
+            draw();
+            scope.dsValue = next;
+
+            const event = new CustomEvent('save', { bubbles: true, cancelable: true, detail: { value: next, previous } });
+            root.dispatchEvent(event);
+
+            scope.dsError = '';
+            close(returnFocus);
+
+            if (form && !event.defaultPrevented) {
+                scope.dsSaving = true;
+                form.requestSubmit();
+            }
+        }
+
+        function discard(returnFocus) {
+            field.value = value;
+            scope.dsError = '';
+            root.dispatchEvent(new CustomEvent('cancel', { bubbles: true, detail: { value } }));
+            close(returnFocus);
+        }
+
+        function onKeydown(event) {
+            if (event.target !== field || !scope.dsEditing) return;
+
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopPropagation();
+                discard(true);
+                return;
+            }
+
+            if (event.key !== 'Enter' || event.isComposing) return;
+            const chord = event.ctrlKey || event.metaKey;
+
+            if (multiline && !chord) return;
+            // Enter in a one-line field would submit the form around it.
+            event.preventDefault();
+            if (mode !== 'blur') commit(true);
+        }
+
+        function onFocusOut(event) {
+            if (!scope.dsEditing || root.contains(event.relatedTarget)) return;
+            if (mode === 'buttons') return;
+            commit(false);
+        }
+
+        function onClick(event) {
+            if (event.target.closest('[data-ds-inline-read]')) {
+                open();
+            } else if (save && event.target.closest('[data-ds-inline-save]')) {
+                event.preventDefault();
+                commit(true);
+            } else if (cancel && event.target.closest('[data-ds-inline-cancel]')) {
+                event.preventDefault();
+                discard(true);
+            }
+        }
+
+        function onInput(event) {
+            if (event.target === field) size();
+        }
+
+        // The props and a host's attributes, read into the scope. Its own
+        // writes come back here too, and change nothing.
+        function readAttributes() {
+            const saving = root.hasAttribute('data-ds-saving');
+            const error = root.getAttribute('data-ds-error') ?? '';
+            if (saving !== scope.dsSaving) scope.dsSaving = saving;
+            if (error !== scope.dsError) scope.dsError = error;
+        }
+
+        function setSaving(saving) {
+            root.toggleAttribute('data-ds-saving', Boolean(saving));
+            if (saving) root.setAttribute('aria-busy', 'true');
+            else root.removeAttribute('aria-busy');
+        }
+
+        function setError(error) {
+            const text = String(error ?? '');
+            if (text) root.setAttribute('data-ds-error', text);
+            else root.removeAttribute('data-ds-error');
+            messageText.textContent = text;
+            message.hidden = !text;
+            if (text) {
+                field.setAttribute('aria-invalid', 'true');
+                // The save did not take: back to the text the reader tried, and
+                // into the field again. Focus follows only from the button it
+                // left on, never from wherever the reader has gone since.
+                const fromButton = document.activeElement === read || document.activeElement === document.body
+                    || root.contains(document.activeElement);
+                field.value = value;
+                value = previous;
+                draw();
+                if (!scope.dsEditing) {
+                    box.hidden = false;
+                    if (fromButton) field.focus();
+                    read.hidden = true;
+                    scope.dsEditing = true;
+                }
+            } else {
+                field.removeAttribute('aria-invalid');
+            }
+        }
+
+        const observer = new MutationObserver(readAttributes);
+        observer.observe(root, { attributes: true, attributeFilter: ['data-ds-saving', 'data-ds-error'] });
+
+        const listeners = [
+            ['keydown', onKeydown],
+            ['focusout', onFocusOut],
+            ['click', onClick],
+            ['input', onInput],
+        ];
+        for (const [type, fn] of listeners) root.addEventListener(type, fn);
+
+        // What PHP rendered: a failed save comes back already in the field.
+        scope.dsValue = value;
+        scope.dsSaving = root.hasAttribute('data-ds-saving');
+        if (scope.dsSaving) root.setAttribute('aria-busy', 'true');
+        const rendered = root.getAttribute('data-ds-error') ?? '';
+        if (rendered) {
+            scope.dsError = rendered;
+            scope.dsEditing = true;
+        }
+
+        return {
+            /*
+             * The host's value, shown. While the reader is typing it is left
+             * alone; the next save or cancel works from it.
+             */
+            set(given) {
+                const text = given === null || given === undefined ? '' : String(given);
+                if (text === value) return;
+                value = text;
+                previous = text;
+                draw();
+                if (!scope.dsEditing) field.value = text;
+            },
+            saving: setSaving,
+            error: setError,
+            teardown() {
+                observer.disconnect();
+                for (const [type, fn] of listeners) root.removeEventListener(type, fn);
+            },
+        };
+    }
+
+    return { inlineEdit };
+})();
+
 // behaviours/glide.js
 const __ds_behaviours_glide = (() => {
     /*
@@ -3457,6 +3746,61 @@ const __ds_behaviours_popover = (() => {
     return { popover };
 })();
 
+// shared/format.js
+const __ds_shared_format = (() => {
+    /*
+     * A number as Support\Chart::format() writes it, for a behaviour that has to
+     * write one in the browser and agree with the server: dsRoll's counter and
+     * dsSlider's readout. Registers nothing.
+     *
+     *   const format = formatter(options);   options: Chart::formatOptions(), as JSON
+     *   format(1234.5)                       "1,234.5"
+     *
+     * The same Intl options, the same compact units, a real minus before the
+     * prefix, and a long dash for nothing. PHP rounds half away from zero to match
+     * Intl, not the other way.
+     */
+
+    const MINUS = '−';
+    const UNITS = ['', 'K', 'M', 'B', 'T'];
+
+    function formatter(o) {
+        const max = Number.isInteger(o.maximumFractionDigits) ? o.maximumFractionDigits : 2;
+        const min = Number.isInteger(o.minimumFractionDigits) ? Math.min(o.minimumFractionDigits, max) : 0;
+        let nf;
+        try {
+            nf = new Intl.NumberFormat(o.locale || 'en', { minimumFractionDigits: min, maximumFractionDigits: max, useGrouping: o.useGrouping !== false });
+        } catch {
+            nf = new Intl.NumberFormat('en', { minimumFractionDigits: min, maximumFractionDigits: max, useGrouping: o.useGrouping !== false });
+        }
+        const round = (n) => Math.round(n * 10 ** max) / 10 ** max;
+
+        return (value) => {
+            const number = typeof value === 'string' && value.trim() === '' ? NaN : Number(value);
+            if (value === null || value === undefined || !Number.isFinite(number)) return '—';
+
+            let n = number;
+            let unit = 0;
+            if (o.compact) {
+                while (Math.abs(n) >= 1000 && unit < UNITS.length - 1) {
+                    n /= 1000;
+                    unit++;
+                }
+                if (round(Math.abs(n)) >= 1000 && unit < UNITS.length - 1) {
+                    n /= 1000;
+                    unit++;
+                }
+            }
+
+            const rounded = round(Math.abs(n));
+            const sign = n < 0 && rounded > 0 ? MINUS : '';
+            return `${sign}${o.prefix ?? ''}${nf.format(rounded)}${UNITS[unit]}${o.suffix ?? ''}`;
+        };
+    }
+
+    return { formatter };
+})();
+
 // behaviours/roll.js
 const __ds_behaviours_roll = (() => {
     /*
@@ -3495,8 +3839,7 @@ const __ds_behaviours_roll = (() => {
      * anything to the markup.
      */
 
-    const MINUS = '−';
-    const UNITS = ['', 'K', 'M', 'B', 'T'];
+    const { formatter } = __ds_shared_format;
 
     function roll(Alpine) {
         Alpine.directive('ds-roll', (el, { modifiers }, { cleanup }) => {
@@ -3662,46 +4005,334 @@ const __ds_behaviours_roll = (() => {
         }
     }
 
+    return { roll };
+})();
+
+// behaviours/scroll-shadows.js
+const __ds_behaviours_scroll_shadows = (() => {
     /*
-     * A number as Support\Chart::format() writes it: the same Intl options, the
-     * same compact units, a real minus before the prefix, and a long dash for
-     * nothing. PHP rounds half away from zero to match Intl, not the other way.
+     * x-ds-scroll-shadows: ds::scroll-area's edge shadows, where CSS cannot.
+     *
+     *   x-data x-ds-scroll-shadows   on the area (data-ds-scroll-area), whose
+     *                                data-ds-scroll-viewport scrolls and whose
+     *                                data-ds-scroll-edge spans are the shadows
+     *
+     * A browser with scroll-driven animations draws the shadows from theme.css
+     * alone, and this does nothing there. Elsewhere it marks each edge
+     * data-ds-shown while there is content past it, measured on scroll and
+     * whenever the viewport or its content changes size (ResizeObserver, or the
+     * window's resize without one). In a right-to-left page "start" is the
+     * right edge, as it is for the CSS.
+     *
+     * An ENHANCEMENT (test-js.mjs): without it there are no shadows, and the
+     * content scrolls exactly the same. It registers nothing else and exposes
+     * nothing.
      */
-    function formatter(o) {
-        const max = Number.isInteger(o.maximumFractionDigits) ? o.maximumFractionDigits : 2;
-        const min = Number.isInteger(o.minimumFractionDigits) ? Math.min(o.minimumFractionDigits, max) : 0;
-        let nf;
-        try {
-            nf = new Intl.NumberFormat(o.locale || 'en', { minimumFractionDigits: min, maximumFractionDigits: max, useGrouping: o.useGrouping !== false });
-        } catch {
-            nf = new Intl.NumberFormat('en', { minimumFractionDigits: min, maximumFractionDigits: max, useGrouping: o.useGrouping !== false });
-        }
-        const round = (n) => Math.round(n * 10 ** max) / 10 ** max;
 
-        return (value) => {
-            const number = typeof value === 'string' && value.trim() === '' ? NaN : Number(value);
-            if (value === null || value === undefined || !Number.isFinite(number)) return '—';
+    // A pixel of slack: a zoomed page reports fractional scroll positions, and
+    // one that is a hair short of the end is at the end.
+    const SLACK = 1;
 
-            let n = number;
-            let unit = 0;
-            if (o.compact) {
-                while (Math.abs(n) >= 1000 && unit < UNITS.length - 1) {
-                    n /= 1000;
-                    unit++;
-                }
-                if (round(Math.abs(n)) >= 1000 && unit < UNITS.length - 1) {
-                    n /= 1000;
-                    unit++;
-                }
+    function scrollShadows(Alpine) {
+        Alpine.directive('ds-scroll-shadows', (el, _directive, { cleanup }) => {
+            if (globalThis.CSS?.supports?.('animation-timeline: scroll()')) return;
+
+            const viewport = el.querySelector('[data-ds-scroll-viewport]');
+            if (!viewport) return;
+            const edges = Object.fromEntries(
+                [...el.querySelectorAll('[data-ds-scroll-edge]')].map((edge) => [edge.dataset.dsScrollEdge, edge]),
+            );
+
+            let frame = 0;
+
+            function measure() {
+                frame = 0;
+                // In a right-to-left box scrollLeft runs from 0 down to negative,
+                // so its size is how far from the start either way.
+                const across = Math.abs(viewport.scrollLeft);
+                const room = {
+                    top: viewport.scrollTop > SLACK,
+                    bottom: viewport.scrollTop + viewport.clientHeight < viewport.scrollHeight - SLACK,
+                    start: across > SLACK,
+                    end: across + viewport.clientWidth < viewport.scrollWidth - SLACK,
+                };
+                for (const [side, edge] of Object.entries(edges)) edge.toggleAttribute('data-ds-shown', Boolean(room[side]));
             }
 
-            const rounded = round(Math.abs(n));
-            const sign = n < 0 && rounded > 0 ? MINUS : '';
-            return `${sign}${o.prefix ?? ''}${nf.format(rounded)}${UNITS[unit]}${o.suffix ?? ''}`;
+            const soon = () => {
+                if (!frame) frame = requestAnimationFrame(measure);
+            };
+
+            viewport.addEventListener('scroll', soon, { passive: true });
+
+            let observer = null;
+            if (typeof ResizeObserver === 'function') {
+                observer = new ResizeObserver(soon);
+                observer.observe(viewport);
+                for (const child of viewport.children) observer.observe(child);
+            } else {
+                window.addEventListener('resize', soon);
+            }
+
+            measure();
+
+            cleanup(() => {
+                if (frame) cancelAnimationFrame(frame);
+                viewport.removeEventListener('scroll', soon);
+                observer?.disconnect();
+                window.removeEventListener('resize', soon);
+            });
+        });
+    }
+
+    return { scrollShadows };
+})();
+
+// behaviours/slider.js
+const __ds_behaviours_slider = (() => {
+    /*
+     * dsSlider: one native range input, or two sharing one track.
+     *
+     *   x-data="dsSlider({ minGap: 0, format: { …Chart::formatOptions() } })"
+     *
+     * The markup is the view's, rendered complete by PHP: the inputs
+     * (data-ds-slider-input="high", and "low" with two thumbs), the body that
+     * carries --ds-slider-low and --ds-slider-high as ratios from 0 to 1 (the
+     * fill and the tips are placed from them in CSS), and the optional readouts
+     * data-ds-slider-output-low/-high and data-ds-slider-tip. The keyboard, the
+     * pointer on a thumb, touch and what the form posts are the browser's own.
+     * This keeps the rest in step:
+     *
+     *   - the two variables, so the fill follows the thumbs;
+     *   - aria-valuetext and the readouts, formatted as Support\Chart::format()
+     *     formats them on the server (shared/format.js);
+     *   - with two thumbs, neither passes the other: each stops `minGap` short
+     *     of it, and the low thumb comes to the top past halfway
+     *     (data-ds-slider-top), so two thumbs parked at one end can be parted;
+     *   - with two thumbs, a press on the track moves the nearer thumb there,
+     *     which a native input does for itself when it is alone;
+     *   - the tips, shown while their thumb is dragged or has keyboard focus.
+     *
+     * Two-way binding goes through `dsValue`, the one name the scope exposes
+     * beside init and destroy: a number, or with two thumbs [low, high] (or
+     * { low, high }, when that is the shape the host gave). The view puts
+     * x-modelable="dsValue" on the root with the host's x-model or wire:model.
+     * A value the host sets is drawn, clamped and stepped as the inputs would
+     * take it, and the host is handed back what they hold when it differs. It
+     * dispatches nothing: the inputs' own `input` and `change` bubble from them
+     * as they always do.
+     */
+    const { formatter } = __ds_shared_format;
+
+    function slider(Alpine) {
+        Alpine.data('dsSlider', (options = {}) => {
+            let control = null;
+
+            return {
+                dsValue: null,
+
+                init() {
+                    control = wire(this.$el, options, (value) => {
+                        this.dsValue = value;
+                    });
+                    this.dsValue = control.value();
+                    this.$watch('dsValue', (value) => control.set(value));
+                },
+
+                destroy() {
+                    control?.teardown();
+                },
+            };
+        });
+    }
+
+    function wire(root, options, report) {
+        const body = root.querySelector('[data-ds-slider-body]');
+        const inputs = {
+            low: root.querySelector('[data-ds-slider-input="low"]'),
+            high: root.querySelector('[data-ds-slider-input="high"]'),
+        };
+        const pair = Boolean(inputs.low);
+        const keys = pair ? ['low', 'high'] : ['high'];
+        const format = formatter(options.format ?? {});
+        const gap = Math.max(0, Number(options.minGap) || 0);
+        const tips = Object.fromEntries(keys.map((key) => [key, root.querySelector(`[data-ds-slider-tip="${key}"]`)]));
+        const outputs = Object.fromEntries(keys.map((key) => [key, root.querySelector(`[data-ds-slider-output-${key}]`)]));
+
+        // The shape the host's value came in, so it is handed back the same way.
+        let keyed = false;
+        let dragging = null;
+
+        const number = (input) => Number(input.value);
+        const lowest = () => Number(inputs.high.min);
+        const highest = () => Number(inputs.high.max);
+        const ratio = (n) => (highest() > lowest() ? (n - lowest()) / (highest() - lowest()) : 0);
+
+        function draw() {
+            for (const key of keys) {
+                const n = number(inputs[key]);
+                const text = format(n);
+                body.style.setProperty(`--ds-slider-${key}`, String(ratio(n)));
+                inputs[key].setAttribute('aria-valuetext', text);
+                if (tips[key]) tips[key].textContent = text;
+                if (outputs[key]) outputs[key].textContent = text;
+            }
+            if (pair) inputs.low.toggleAttribute('data-ds-slider-top', ratio(number(inputs.low)) > 0.5);
+        }
+
+        /*
+         * Each thumb stops `minGap` short of the other. Written back into the
+         * input, which steps it as it steps the reader's own drag: so the gap is
+         * at least minGap, rounded out to the next step.
+         */
+        function hold(moved) {
+            if (!pair) return;
+            const low = number(inputs.low);
+            const high = number(inputs.high);
+            if (high - low >= gap) return;
+
+            if (moved === 'low') {
+                inputs.low.value = String(high - gap);
+                if (number(inputs.low) > high - gap) inputs.low.stepDown();
+            } else {
+                inputs.high.value = String(low + gap);
+                if (number(inputs.high) < low + gap) inputs.high.stepUp();
+            }
+        }
+
+        function value() {
+            if (!pair) return number(inputs.high);
+            const low = number(inputs.low);
+            const high = number(inputs.high);
+            return keyed ? { low, high } : [low, high];
+        }
+
+        function keyOf(target) {
+            return keys.find((key) => inputs[key] === target) ?? null;
+        }
+
+        function onInput(event) {
+            const key = keyOf(event.target);
+            if (!key) return;
+            hold(key);
+            draw();
+            report(value());
+        }
+
+        function showTip(key, shown) {
+            if (tips[key]) tips[key].hidden = !shown;
+        }
+
+        function onPointerDown(event) {
+            const key = keyOf(event.target);
+            if (key) {
+                dragging = key;
+                showTip(key, true);
+                return;
+            }
+            if (pair && event.button === 0) jump(event);
+        }
+
+        function onPointerUp() {
+            if (!dragging) return;
+            const key = dragging;
+            dragging = null;
+            showTip(key, document.activeElement === inputs[key] && inputs[key].matches(':focus-visible'));
+        }
+
+        function onFocusIn(event) {
+            const key = keyOf(event.target);
+            if (key && event.target.matches(':focus-visible')) showTip(key, true);
+        }
+
+        function onFocusOut(event) {
+            const key = keyOf(event.target);
+            if (key && dragging !== key) showTip(key, false);
+        }
+
+        /*
+         * A press on the track between or beyond two thumbs moves the nearer one
+         * there and gives it focus, as a lone native input does. The inputs let
+         * the pointer through to the track, so without this nothing would.
+         */
+        function jump(event) {
+            const box = inputs.high.getBoundingClientRect();
+            const half = box.height / 2;
+            const usable = box.width - half * 2;
+            if (usable <= 0) return;
+
+            let t = (event.clientX - box.left - half) / usable;
+            if (getComputedStyle(root).direction === 'rtl') t = 1 - t;
+            const at = lowest() + Math.max(0, Math.min(1, t)) * (highest() - lowest());
+
+            const low = number(inputs.low);
+            const high = number(inputs.high);
+            const key = Math.abs(at - low) < Math.abs(at - high) || (low === high && at < low) ? 'low' : 'high';
+            const input = inputs[key];
+            if (input.disabled) return;
+
+            event.preventDefault();
+            const before = input.value;
+            input.value = String(at);
+            hold(key);
+            input.focus({ preventScroll: true });
+            if (input.value === before) return;
+
+            draw();
+            report(value());
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        function set(given) {
+            let wanted;
+            if (pair) {
+                keyed = given !== null && typeof given === 'object' && !Array.isArray(given);
+                const list = Array.isArray(given) ? given : keyed ? [given.low, given.high] : [];
+                wanted = list.map((n) => (n === null || n === undefined || n === '' ? NaN : Number(n)));
+                if (Number.isFinite(wanted[0]) && Number.isFinite(wanted[1])) {
+                    const [low, high] = wanted[0] <= wanted[1] ? wanted : [wanted[1], wanted[0]];
+                    // High first, so a low above the old high is not stopped by it.
+                    inputs.high.value = String(highest());
+                    inputs.low.value = String(low);
+                    inputs.high.value = String(high);
+                    hold('high');
+                }
+            } else if (given !== null && given !== undefined && given !== '' && Number.isFinite(Number(given))) {
+                inputs.high.value = String(Number(given));
+            }
+            draw();
+
+            const now = value();
+            const same = pair
+                ? Array.isArray(given) && given.length === 2 && Number(given[0]) === now[0] && Number(given[1]) === now[1]
+                    || keyed && Number(given.low) === now.low && Number(given.high) === now.high
+                : Number(given) === now && given !== null && given !== '';
+            if (!same) report(now);
+        }
+
+        const listeners = [
+            [root, 'input', onInput],
+            [root, 'pointerdown', onPointerDown],
+            [root, 'focusin', onFocusIn],
+            [root, 'focusout', onFocusOut],
+            [document, 'pointerup', onPointerUp],
+            [document, 'pointercancel', onPointerUp],
+        ];
+        for (const [target, type, fn] of listeners) target.addEventListener(type, fn);
+
+        draw();
+
+        return {
+            value,
+            set,
+            teardown() {
+                for (const [target, type, fn] of listeners) target.removeEventListener(type, fn);
+            },
         };
     }
 
-    return { roll };
+    return { slider };
 })();
 
 // behaviours/tag-input.js
@@ -4210,6 +4841,391 @@ const __ds_behaviours_theme = (() => {
     }
 
     return { theme };
+})();
+
+// behaviours/time-picker.js
+const __ds_behaviours_time_picker = (() => {
+    /*
+     * dsTimePicker: a time typed or picked from a list, posted as HH:MM.
+     *
+     *   x-data="dsTimePicker({ twelve, meridiem, min, max, step, words })"
+     *
+     * The view renders a native time field (data-ds-time-input) that works with
+     * no script, a hidden input with no name (data-ds-time-value) and, hidden,
+     * a listbox of times at `step` (data-ds-time-list), all from PHP. Starting,
+     * this turns the field into a text field with the listbox under it: the name
+     * moves to the hidden input, which always holds HH:MM (24-hour) or nothing,
+     * whatever the field shows. The view binds every attribute that change
+     * touches to `dsReady`, so a Livewire morph keeps it.
+     *
+     * Typing is forgiving: 9, 930, 9:30, 9.30pm and 21:30 all read. The reader's
+     * text is settled when it is committed (Enter, leaving the component, a
+     * `change` such as dsClear's, or a press on an option): a time is shown the
+     * way the list shows it ("09:30", or "9:30 AM"); text that is not a time, or
+     * a time outside min and max or off the step, KEEPS the reader's text, sets
+     * aria-invalid and a validity message (so the form does not submit, as a
+     * native time field would not), and is never quietly turned into some other
+     * time. A time outside the bounds still posts, as typed; text that is not a
+     * time posts nothing.
+     *
+     * The list follows the ARIA combobox pattern ds::combobox uses, and its
+     * arrow keys are the listbox recipe's (partials/listbox.php), written in the
+     * view: ArrowDown or Alt+ArrowDown in the field opens it and focuses the
+     * chosen time, or the one nearest what is typed; the arrows, Home and End
+     * move; Enter or Space picks; Escape closes it and returns to the field;
+     * typing a character in the list sends it back to the field.
+     *
+     * The scope exposes `dsValue` (HH:MM or '', for x-modelable), `dsOpen` and
+     * `dsReady`, which the view's bindings read, and nothing else. A value the
+     * host sets is shown, not announced: no events, as setting a field from
+     * script fires none. A committed change dispatches `input` and `change` from
+     * the hidden input, bubbling.
+     */
+
+    function timePicker(Alpine) {
+        Alpine.data('dsTimePicker', (options = {}) => {
+            let control = null;
+
+            return {
+                dsValue: '',
+                dsOpen: false,
+                dsReady: false,
+
+                init() {
+                    control = wire(this.$el, options, {
+                        report: (value) => {
+                            this.dsValue = value;
+                        },
+                        open: (open) => {
+                            this.dsOpen = open;
+                        },
+                    });
+                    this.dsValue = control.value();
+                    this.dsReady = true;
+                    this.$watch('dsValue', (value) => control.set(value));
+                },
+
+                destroy() {
+                    control?.teardown();
+                },
+            };
+        });
+    }
+
+    function wire(root, options, hooks) {
+        const field = root.querySelector('[data-ds-time-input]');
+        const posted = root.querySelector('[data-ds-time-value]');
+        const list = root.querySelector('[data-ds-time-list]');
+        const words = options.words ?? {};
+        const twelve = options.twelve === true;
+        const meridiem = Array.isArray(options.meridiem) ? options.meridiem : ['AM', 'PM'];
+        const min = typeof options.min === 'string' ? options.min : null;
+        const max = typeof options.max === 'string' ? options.max : null;
+        const step = Number(options.step) > 0 ? Number(options.step) : 15;
+        // aria-invalid that the server rendered for its own error stays put: a
+        // time that parses here does not answer what the server objected to.
+        const serverInvalid = field.getAttribute('aria-invalid') === 'true';
+
+        let open = false;
+
+        const items = () => [...list.querySelectorAll('[role="option"]')];
+        const minutes = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+
+        function shown(t) {
+            if (!t) return '';
+            if (!twelve) return t;
+            const h = Number(t.slice(0, 2));
+            return `${h % 12 || 12}:${t.slice(3, 5)} ${meridiem[h >= 12 ? 1 : 0]}`;
+        }
+
+        /** What is wrong with a time, as a message; '' when nothing is. */
+        function problem(t) {
+            if ((min && t < min) || (max && t > max)) return words.range || words.invalid || '';
+            if ((minutes(t) - (min ? minutes(min) : 0)) % step !== 0) return words.step || '';
+            return '';
+        }
+
+        function invalid(message) {
+            field.setCustomValidity(message);
+            if (message || serverInvalid) field.setAttribute('aria-invalid', 'true');
+            else field.removeAttribute('aria-invalid');
+        }
+
+        function mark(value) {
+            for (const option of items()) option.setAttribute('aria-selected', String(option.dataset.value === value));
+        }
+
+        /** Write the value the form posts; whether it changed. */
+        function post(value) {
+            if (posted.value === value) return false;
+            posted.value = value;
+            mark(value);
+            return true;
+        }
+
+        function announce() {
+            posted.dispatchEvent(new Event('input', { bubbles: true }));
+            posted.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        /** Settle what the reader typed. */
+        function commit() {
+            const text = field.value.trim();
+            let value = '';
+
+            if (text === '') {
+                invalid('');
+            } else {
+                const time = parse(text, meridiem);
+                if (time === null) {
+                    invalid(words.invalid || '');
+                } else {
+                    const message = problem(time);
+                    invalid(message);
+                    // A time the field takes is shown the way the list shows it;
+                    // one it does not take keeps the reader's own text.
+                    if (!message) field.value = shown(time);
+                    value = time;
+                }
+            }
+
+            if (post(value)) {
+                hooks.report(value);
+                announce();
+            }
+        }
+
+        function setOpen(next) {
+            if (open === next) return;
+            open = next;
+            hooks.open(next);
+        }
+
+        /** The option for the chosen time, or the one nearest what is typed. */
+        function target() {
+            const all = items();
+            if (!all.length) return null;
+            const wanted = parse(field.value.trim(), meridiem) ?? (posted.value || null);
+            if (!wanted) return all.find((o) => o.getAttribute('aria-selected') === 'true') ?? all[0];
+            const at = minutes(wanted);
+            return all.reduce((best, o) => (Math.abs(minutes(o.dataset.value) - at) < Math.abs(minutes(best.dataset.value) - at) ? o : best));
+        }
+
+        // After x-show has drawn the list, so it has a box to scroll in.
+        const afterOpen = (fn) => requestAnimationFrame(() => requestAnimationFrame(fn));
+
+        function reveal(focus) {
+            setOpen(true);
+            afterOpen(() => {
+                const option = target();
+                if (!option) return;
+                if (focus) option.focus({ preventScroll: true });
+                scrollInto(option);
+            });
+        }
+
+        // Within the list only: scrollIntoView would scroll the page as well.
+        function scrollInto(option) {
+            const top = option.offsetTop;
+            const bottom = top + option.offsetHeight;
+            if (top < list.scrollTop) list.scrollTop = top;
+            else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
+        }
+
+        function pick(option) {
+            field.value = shown(option.dataset.value);
+            invalid('');
+            setOpen(false);
+            field.focus();
+            if (post(option.dataset.value)) {
+                hooks.report(option.dataset.value);
+                announce();
+            }
+        }
+
+        function onFieldKeydown(event) {
+            if (field.disabled) return;
+            switch (event.key) {
+                case 'ArrowDown':
+                    event.preventDefault();
+                    reveal(true);
+                    return;
+                case 'ArrowUp':
+                    if (!open) return;
+                    event.preventDefault();
+                    reveal(true);
+                    return;
+                case 'Enter':
+                    // Closing the list is what this Enter was for; with it closed
+                    // the reader may mean the form, which submits as usual, with
+                    // the time settled first.
+                    if (open) event.preventDefault();
+                    commit();
+                    setOpen(false);
+                    return;
+                case 'Escape':
+                    // Only when it consumes the key: with the list closed, Escape
+                    // belongs to whatever holds the field.
+                    if (!open) return;
+                    event.stopPropagation();
+                    setOpen(false);
+                    return;
+            }
+        }
+
+        function onListKeydown(event) {
+            const option = event.target.closest('[role="option"]');
+            if (!option) return;
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                pick(option);
+            } else if (event.key === 'Escape') {
+                event.stopPropagation();
+                setOpen(false);
+                field.focus();
+            } else if (event.key === 'Tab') {
+                setOpen(false);
+            } else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                // Typing in the list types in the field: focus moves before the
+                // character is inserted, so it lands there.
+                field.focus();
+            }
+        }
+
+        function onListClick(event) {
+            const option = event.target.closest('[role="option"]');
+            if (option) pick(option);
+        }
+
+        // A press on an option would blur the field first and close the list
+        // under the pointer; keep focus where it is until the click lands.
+        function onListPointerDown(event) {
+            if (event.target.closest('[role="option"]')) event.preventDefault();
+        }
+
+        function onFieldClick() {
+            if (field.disabled) return;
+            if (open) setOpen(false);
+            else reveal(false);
+        }
+
+        // The reader typing opens the list at the nearest time. A script
+        // emptying the field (dsClear) does not.
+        function onFieldInput(event) {
+            if (!event.isTrusted) return;
+            if (!open) setOpen(true);
+            afterOpen(() => {
+                const option = target();
+                if (option) scrollInto(option);
+            });
+        }
+
+        function onFocusOut(event) {
+            if (root.contains(event.relatedTarget)) return;
+            setOpen(false);
+            commit();
+        }
+
+        const listeners = [
+            [field, 'keydown', onFieldKeydown],
+            [field, 'click', onFieldClick],
+            [field, 'input', onFieldInput],
+            [field, 'change', commit],
+            [list, 'keydown', onListKeydown],
+            [list, 'click', onListClick],
+            [list, 'pointerdown', onListPointerDown],
+            [root, 'focusout', onFocusOut],
+        ];
+
+        /*
+         * The upgrade itself, done here at once rather than waiting for the
+         * bindings: the field must be a text field before a 12-hour time is
+         * written into it, or the browser would sanitise it to nothing.
+         */
+        const start = field.value;
+        const name = field.getAttribute('name');
+        field.type = 'text';
+        if (name !== null) {
+            posted.name = name;
+            field.removeAttribute('name');
+        }
+        posted.value = start;
+        field.value = shown(start);
+        mark(start);
+
+        for (const [el, type, fn] of listeners) el.addEventListener(type, fn);
+
+        /*
+         * The host's value, shown. One that is not a time is cleared, and the
+         * host is handed back what the field now holds, so the two agree.
+         */
+        function set(given) {
+            const text = given === null || given === undefined ? '' : String(given);
+            const time = text === '' ? '' : parse(text, meridiem);
+            const value = time ?? '';
+            if (value !== posted.value) {
+                post(value);
+                field.value = shown(value);
+                invalid(value ? problem(value) : '');
+            }
+            if (value !== text) hooks.report(value);
+        }
+
+        return {
+            value: () => posted.value,
+            set,
+            teardown() {
+                for (const [el, type, fn] of listeners) el.removeEventListener(type, fn);
+            },
+        };
+    }
+
+    /*
+     * HH:MM from what a person types, or null. Hours alone ("9"), hours and
+     * minutes run together ("930", "2130"), or split by a colon, a point, a
+     * space or an "h" ("9:30", "9.30", "9 30", "9h30"); seconds are dropped; a
+     * trailing am or pm (a, p, a.m., P.M.) or the view's own words for them make
+     * it a 12-hour time, where 12 am is midnight.
+     */
+    function parse(text, meridiem = ['AM', 'PM']) {
+        let s = String(text).trim().toLowerCase();
+        if (!s) return null;
+
+        let half = null;
+        const own = meridiem.map((w) => String(w).toLowerCase());
+        for (const [i, word] of own.entries()) {
+            if (word && s.endsWith(word)) {
+                half = i;
+                s = s.slice(0, -word.length).trim();
+                break;
+            }
+        }
+        if (half === null) {
+            const suffix = s.match(/\s*([ap])\.?\s*(m\.?)?$/);
+            if (suffix) {
+                half = suffix[1] === 'a' ? 0 : 1;
+                s = s.slice(0, suffix.index).trim();
+            }
+        }
+
+        const m = s.match(/^(\d{1,2})(?:[:.h\s]?(\d{2})(?::\d{2})?)?$/);
+        if (!m) return null;
+
+        let hours = Number(m[1]);
+        const mins = m[2] === undefined ? 0 : Number(m[2]);
+        if (mins > 59) return null;
+
+        if (half !== null) {
+            if (hours < 1 || hours > 12) return null;
+            hours = (hours % 12) + (half === 1 ? 12 : 0);
+        } else if (hours > 23) {
+            return null;
+        }
+
+        return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+    }
+
+    return { timePicker };
 })();
 
 // behaviours/toggle-group.js
@@ -4759,6 +5775,7 @@ const __ds_blade_ui = (() => {
     const { dismiss } = __ds_behaviours_dismiss;
     const { hold } = __ds_behaviours_hold;
     const { inlineConfirm } = __ds_behaviours_confirm;
+    const { inlineEdit } = __ds_behaviours_inline_edit;
     const { glide } = __ds_behaviours_glide;
     const { hoverCard } = __ds_behaviours_hover_card;
     const { numberField } = __ds_behaviours_number_field;
@@ -4766,13 +5783,16 @@ const __ds_blade_ui = (() => {
     const { password } = __ds_behaviours_password;
     const { popover } = __ds_behaviours_popover;
     const { roll } = __ds_behaviours_roll;
+    const { scrollShadows } = __ds_behaviours_scroll_shadows;
+    const { slider } = __ds_behaviours_slider;
     const { tagInput } = __ds_behaviours_tag_input;
     const { theme } = __ds_behaviours_theme;
+    const { timePicker } = __ds_behaviours_time_picker;
     const { toggleGroup } = __ds_behaviours_toggle_group;
     const { toolbar } = __ds_behaviours_toolbar;
     const { tree } = __ds_behaviours_tree;
 
-    const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree];
+    const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows];
 
     // Symbol.for, not a module-level flag. Two copies of this script, say the
     // inlined one AND a Vite import, are two separate modules with two separate

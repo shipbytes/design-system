@@ -71,6 +71,9 @@ independent implementations the same component rather than three lookalikes.
 | [otp-input.md](otp-input.md) | One box per character, one posted field, the `complete` event |
 | [tag-input.md](tag-input.md) | Free-text chips, refusals that stay, separators |
 | [number-field.md](number-field.md) | Native number input, step buttons, press-and-hold |
+| [slider.md](slider.md) | Native range inputs, one or two on a track; the thumb, the fill, thumbs that do not cross |
+| [time-picker.md](time-picker.md) | A native time field the script turns into a combobox; forgiving typing that never changes the time |
+| [inline-edit.md](inline-edit.md) | Read state as a button, a field in the same box, save and fail as attributes the host sets |
 | [password-strength.md](password-strength.md) | The four-level hint and its heuristic |
 | [copy-button.md](copy-button.md) | Copy, the in-place confirmation, the failure event |
 | [rating.md](rating.md) | Stars over radios, "No rating", the readonly image |
@@ -92,6 +95,7 @@ independent implementations the same component rather than three lookalikes.
 | [tree.md](tree.md) | Navigation, single and checkbox trees, structure counted in PHP, the keyboard model |
 | [filter-bar.md](filter-bar.md) | Search, controls and chips as layout, the collapsible fold rendered once, filter-chip |
 | [code-block.md](code-block.md) | Chrome without a highlighter, the token colours, the indentation trap, lines that copy |
+| [scroll-area.md](scroll-area.md) | Native scrolling, scroll-driven edge shadows with a script fallback, when the region is a Tab stop |
 | [kbd.md](kbd.md) | A key sized by its text, and combinations |
 | [expandable-text.md](expandable-text.md) | A measured clamp that fails open, the fade, the button that moves no focus |
 

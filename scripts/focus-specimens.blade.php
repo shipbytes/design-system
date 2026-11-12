@@ -92,6 +92,12 @@
 <section data-focus="code-block"><x-ds::code-block filename="a.txt" :maxHeight="2" :expandable="true" :code="implode(PHP_EOL, ['one', 'two', 'three', 'four'])" /></section>
 <section data-focus="expandable-text"><div class="w-48"><x-ds::expandable-text :lines="1">A sentence long enough to need more than one line in a box this narrow.</x-ds::expandable-text></div></section>
 <section data-focus="panel-collapsible"><x-ds::panel title="Billing" :collapsible="true" action="Manage" actionHref="#manage"><x-ds::panel-row>Row</x-ds::panel-row></x-ds::panel></section>
+{{-- A range input's ring is on its thumb, which getComputedStyle cannot read: the walk compares pictures for it. --}}
+<section data-focus="slider" class="max-w-sm"><x-ds::slider name="fvol" label="Volume" :value="40" /><x-ds::slider name="fprice" label="Price" :range="true" :value="[20, 80]" lowLabel="Minimum price" highLabel="Maximum price" /></section>
+<section data-focus="time-picker" class="max-w-sm"><x-ds::time-picker name="fat" id="f-time" label="Start" value="09:30" :clearable="true" /></section>
+<section data-focus="inline-edit"><x-ds::inline-edit name="ftitle" label="Title" value="Q3 roadmap" /></section>
+{{-- Plain text: the region is the stop. With a link inside, the link is. --}}
+<section data-focus="scroll-area"><x-ds::scroll-area :maxHeight="40" label="Notes" class="w-48"><p>One</p><p>Two</p><p>Three</p><p>Four</p></x-ds::scroll-area></section>
 {{-- The walk stops here. A plain button, so it is not checked. --}}
 <p><button id="f-end" type="button">end</button></p>
 </div>
