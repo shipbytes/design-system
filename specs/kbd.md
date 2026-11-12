@@ -18,6 +18,26 @@ way HTML defines it: an outer `kbd` holding one `kbd` per key, with a separator
 (`+` by default, `separator=""` for none) between them, which a screen reader
 reads as written: "Ctrl plus Shift plus P".
 
+## A stored shortcut
+
+`shortcut="mod+shift+k"` draws the string ds::shortcut-input records
+(`Support\Shortcut::caps`): the same outer `kbd`, here with `x-data
+x-ds-shortcut data-ds-shortcut data-ds-separator`, holding
+
+```
+kbd[x-ds-shortcut][data-ds-shortcut]
+├─ span.sr-only[data-ds-kbd-words]       Control+Shift+K   always words
+└─ span.contents[aria-hidden][data-ds-kbd-caps]
+   └─ kbd Ctrl, +, kbd Shift, +, kbd K
+```
+
+The server cannot know the platform, so it draws the words form, with mod as
+Ctrl. `x-ds-shortcut`, an enhancement that needs no scope, redraws on a Mac
+as ⌘⇧K with no separator, and words "Command+Shift+K". It redraws whenever
+`data-ds-shortcut` changes. An empty shortcut renders `hidden`, carrying the
+cap's classes in `data-ds-key` for a later redraw. Without the prop the output
+is byte for byte what it was.
+
 ## Accessibility
 
 - `<kbd>`, which a screen reader may announce as keyboard input.

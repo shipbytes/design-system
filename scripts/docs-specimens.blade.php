@@ -1476,6 +1476,70 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── money-input --}}
+<div data-shot="money-input" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex max-w-sm flex-col gap-3.5">
+                <x-ds::money-input name="m1{{ $loop->index }}" label="Price" currency="USD" locale="en" value="1249.5" help="Before tax." />
+                <x-ds::money-input name="m2{{ $loop->index }}" label="Budget" currency="INR" locale="en-IN" value="1234567.5" />
+                <x-ds::money-input name="m3{{ $loop->index }}" label="Payout" :currencies="['EUR', 'GBP', 'JPY']" currency="EUR" locale="de" value="1234.5" />
+                <x-ds::money-input name="m4{{ $loop->index }}" label="Deposit" currency="KWD" locale="en" value="0.5" min="1" error="Enter at least 1.000." />
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── phone-input --}}
+<div data-shot="phone-input" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex max-w-sm flex-col gap-3.5">
+                <x-ds::phone-input name="p1{{ $loop->index }}" label="Mobile" value="+447911123456" :flags="true" help="We text the sign-in code here." />
+                <x-ds::phone-input name="p2{{ $loop->index }}" label="Phone" value="+919876543210" :preferred="['IN', 'US', 'GB']" />
+                <x-ds::phone-input name="p3{{ $loop->index }}" label="Office" country="US" placeholder="(415) 555-0123" />
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── shortcut-input --}}
+<div data-shot="shortcut-input" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex max-w-sm flex-col gap-3.5">
+                <x-ds::shortcut-input name="s1{{ $loop->index }}" label="Open search" value="mod+k" />
+                <x-ds::shortcut-input name="s2{{ $loop->index }}" label="Toggle sidebar" value="mod+shift+b" help="Works anywhere in the app." />
+                <x-ds::shortcut-input name="s3{{ $loop->index }}" label="Next item" />
+                <p class="text-body text-fg-body">Search with <x-ds::kbd shortcut="mod+k" />, anywhere.</p>
+            </div>
+        </div>
+    @endforeach
+</div>
+
+{{-- ─────────────────────────── input-expanding
+     Collapsed, and open because it holds text: both from CSS. --}}
+<div data-shot="input-expanding" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-5">
+                <form role="search" class="flex items-center gap-3 rounded-panel border border-border bg-surface px-3 py-2">
+                    <span class="text-body font-medium text-fg">Invoices</span>
+                    <span class="ml-auto"></span>
+                    <x-ds::input name="e1{{ $loop->index }}" label="Search invoices" :expanding="true" />
+                    <x-ds::button variant="primary" size="sm">New</x-ds::button>
+                </form>
+                <form role="search" class="flex items-center gap-3 rounded-panel border border-border bg-surface px-3 py-2">
+                    <span class="text-body font-medium text-fg">Invoices</span>
+                    <span class="ml-auto"></span>
+                    <x-ds::input name="e2{{ $loop->index }}" label="Search invoices" :expanding="true" :clearable="true" value="acme" />
+                    <x-ds::button variant="primary" size="sm">New</x-ds::button>
+                </form>
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── tooltip --}}
 <div data-shot="tooltip" class="shot">
     @foreach ($themes as $t)

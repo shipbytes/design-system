@@ -674,9 +674,91 @@ return 0;
 }
 return { fold, rank };
 })();
+const __ds_shared_shortcut = (() => {
+const MODIFIERS = ['mod', 'ctrl', 'meta', 'alt', 'shift'];
+const EDITABLE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
+function isMac() {
+return /mac|iphone|ipad|ipod/i.test(navigator.userAgentData?.platform ?? navigator.platform ?? '');
+}
+function keyName(key) {
+const k = String(key).toLowerCase();
+return k === ' ' ? 'space' : k === '+' ? 'plus' : k;
+}
+const ALIASES = { cmd: 'meta', command: 'meta', control: 'ctrl', option: 'alt' };
+function split(shortcut) {
+const parts = String(shortcut ?? '').toLowerCase().split('+').map((p) => p.trim()).filter(Boolean);
+const key = parts.pop();
+if (!key) return [];
+const mods = new Set(parts.map((p) => ALIASES[p] ?? p).filter((p) => MODIFIERS.includes(p)));
+return [...MODIFIERS.filter((m) => mods.has(m)), key];
+}
+function normalise(shortcut) {
+return split(shortcut).join('+');
+}
+function same(a, b, mac = isMac()) {
+const resolve = (s) => normalise(split(s).map((p, i, all) => (p === 'mod' && i < all.length - 1 ? (mac ? 'meta' : 'ctrl') : p)).join('+'));
+return resolve(a) !== '' && resolve(a) === resolve(b);
+}
+function parse(shortcut) {
+const parts = split(shortcut);
+const key = parts.pop();
+if (!key) return null;
+const mac = isMac();
+const want = { key, ctrl: false, meta: false, alt: false, shift: false };
+for (const part of parts) want[part === 'mod' ? (mac ? 'meta' : 'ctrl') : part] = true;
+want.chord = want.ctrl || want.meta;
+return want;
+}
+function matches(combo, event) {
+if (keyName(event.key) !== combo.key) return false;
+if (event.ctrlKey !== combo.ctrl || event.metaKey !== combo.meta || event.altKey !== combo.alt) return false;
+return combo.key.length === 1 && !/[a-z]/.test(combo.key) ? true : event.shiftKey === combo.shift;
+}
+const LONE = ['shift', 'control', 'alt', 'meta', 'altgraph', 'capslock', 'fn', 'os', 'super', 'hyper', 'dead', 'unidentified', 'process'];
+const CODES = { minus: '-', equal: '=', bracketleft: '[', bracketright: ']', backslash: '\\', semicolon: ';', quote: "'", comma: ',', period: '.', slash: '/', backquote: '\u0060' };
+function record(event, { portable = true, by = 'key' } = {}) {
+if (LONE.includes(String(event.key).toLowerCase())) return null;
+let key;
+if (by === 'code') {
+const c = String(event.code).toLowerCase();
+key = /^key[a-z]$/.test(c) ? c.slice(3) : /^digit\d$/.test(c) ? c.slice(5) : c === 'space' ? 'space' : CODES[c] ?? c;
+} else {
+key = keyName(event.key);
+}
+if (!key) return null;
+const mac = isMac();
+const held = { ctrl: event.ctrlKey, meta: event.metaKey, alt: event.altKey, shift: event.shiftKey };
+if (by !== 'code' && key.length === 1 && !/[a-z]/.test(key)) held.shift = false;
+const mods = [];
+if (portable && held[mac ? 'meta' : 'ctrl']) {
+mods.push('mod');
+held[mac ? 'meta' : 'ctrl'] = false;
+}
+return [...mods, ...MODIFIERS.slice(1).filter((m) => held[m]), key].join('+');
+}
+const MAC = { mod: ['⌘', 'Command'], meta: ['⌘', 'Command'], ctrl: ['⌃', 'Control'], alt: ['⌥', 'Option'], shift: ['⇧', 'Shift'] };
+const PC = { mod: ['Ctrl', 'Control'], meta: ['Meta', 'Meta'], ctrl: ['Ctrl', 'Control'], alt: ['Alt', 'Alt'], shift: ['Shift', 'Shift'] };
+const KEYS = {
+space: ['Space', 'Space'], plus: ['+', 'Plus'], escape: ['Esc', 'Escape'], enter: ['Enter', 'Enter'],
+arrowup: ['↑', 'Up Arrow'], arrowdown: ['↓', 'Down Arrow'], arrowleft: ['←', 'Left Arrow'], arrowright: ['→', 'Right Arrow'],
+pageup: ['Page Up', 'Page Up'], pagedown: ['Page Down', 'Page Down'],
+};
+function caps(shortcut, mac = isMac()) {
+const parts = split(shortcut);
+return parts.map((part, i) => {
+if (i < parts.length - 1) {
+const [cap, word] = (mac ? MAC : PC)[part];
+return { cap, word };
+}
+const [cap, word] = KEYS[part] ?? (part.length === 1 ? [part.toUpperCase(), part.toUpperCase()] : [part[0].toUpperCase() + part.slice(1), part[0].toUpperCase() + part.slice(1)]);
+return { cap, word };
+});
+}
+return { MODIFIERS, EDITABLE, isMac, keyName, split, normalise, same, parse, matches, record, caps };
+})();
 const __ds_behaviours_command_palette = (() => {
 const { fold, rank } = __ds_shared_rank;
-const EDITABLE = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
+const { EDITABLE, parse, matches } = __ds_shared_shortcut;
 const SEARCH_DELAY = 200;
 function commandPalette(Alpine) {
 Alpine.data('dsCommandPalette', (options = {}) => {
@@ -860,28 +942,6 @@ window.removeEventListener('close-command-palette', onClose);
 function order(nodes, score, q) {
 const ranked = nodes.map((node, i) => [node, score(node), i]).sort((a, b) => b[1] - a[1] || a[2] - b[2]);
 ranked.forEach(([node], i) => (q ? node.style.setProperty('order', String(i + 1)) : node.style.removeProperty('order')));
-}
-function parse(shortcut) {
-if (!shortcut) return null;
-const parts = String(shortcut).toLowerCase().split('+').map((p) => p.trim()).filter(Boolean);
-const key = parts.pop();
-if (!key) return null;
-const mac = /mac|iphone|ipad|ipod/i.test(navigator.userAgentData?.platform ?? navigator.platform ?? '');
-const want = { key, ctrl: false, meta: false, alt: false, shift: false };
-for (const part of parts) {
-if (part === 'mod') want[mac ? 'meta' : 'ctrl'] = true;
-else if (part === 'cmd' || part === 'meta') want.meta = true;
-else if (part === 'ctrl' || part === 'control') want.ctrl = true;
-else if (part === 'alt' || part === 'option') want.alt = true;
-else if (part === 'shift') want.shift = true;
-}
-want.chord = want.ctrl || want.meta;
-return want;
-}
-function matches(combo, event) {
-if (String(event.key).toLowerCase() !== combo.key) return false;
-if (event.ctrlKey !== combo.ctrl || event.metaKey !== combo.meta || event.altKey !== combo.alt) return false;
-return combo.key.length === 1 && !/[a-z]/.test(combo.key) ? true : event.shiftKey === combo.shift;
 }
 return { commandPalette };
 })();
@@ -1720,6 +1780,48 @@ for (const [type, fn] of listeners) root.removeEventListener(type, fn);
 }
 return { inlineEdit };
 })();
+const __ds_behaviours_kbd_shortcut = (() => {
+const { caps, isMac } = __ds_shared_shortcut;
+function kbdShortcut(Alpine) {
+Alpine.directive('ds-shortcut', (el, _directive, { cleanup }) => {
+const shown = el.querySelector('[data-ds-kbd-caps]');
+const said = el.querySelector('[data-ds-kbd-words]');
+if (!shown || !said) return;
+const mac = isMac();
+const key = shown.querySelector('kbd')?.className ?? el.dataset.dsKey ?? '';
+let drawn = null;
+function draw() {
+const value = el.dataset.dsShortcut ?? '';
+if (value === drawn) return;
+drawn = value;
+const parts = caps(value, mac);
+const between = mac ? '' : el.dataset.dsSeparator ?? '+';
+const nodes = [];
+parts.forEach((part, i) => {
+const cap = document.createElement('kbd');
+cap.className = key;
+cap.textContent = part.cap;
+nodes.push(cap);
+if (between && i < parts.length - 1) {
+const sep = document.createElement('span');
+sep.className = 'text-[0.8125em]';
+sep.textContent = between;
+nodes.push(sep);
+}
+});
+shown.replaceChildren(...nodes);
+said.textContent = parts.map((part) => part.word).join('+');
+el.hidden = !parts.length;
+}
+if (mac) draw();
+else drawn = el.dataset.dsShortcut ?? '';
+const observer = new MutationObserver(draw);
+observer.observe(el, { attributes: true, attributeFilter: ['data-ds-shortcut'] });
+cleanup(() => observer.disconnect());
+});
+}
+return { kbdShortcut };
+})();
 const __ds_behaviours_glide = (() => {
 const SELECTED = ':is([aria-current]:not([aria-current="false"]), [aria-checked="true"], [aria-pressed="true"], [aria-selected="true"])';
 const DISABLED = ':is(:disabled, [aria-disabled="true"])';
@@ -2092,6 +2194,312 @@ root.removeEventListener('keydown', onKeyDown);
 };
 }
 return { hoverCard };
+})();
+const __ds_shared_money = (() => {
+function shape(locale) {
+let nf;
+try {
+nf = new Intl.NumberFormat(locale || 'en', { numberingSystem: 'latn', minimumFractionDigits: 1 });
+} catch {
+nf = new Intl.NumberFormat('en', { minimumFractionDigits: 1 });
+}
+const parts = nf.formatToParts(1234567890.5);
+const ints = parts.filter((p) => p.type === 'integer').map((p) => p.value.length);
+return {
+decimal: parts.find((p) => p.type === 'decimal')?.value ?? '.',
+group: parts.find((p) => p.type === 'group')?.value ?? '',
+primary: ints.length > 1 ? ints[ints.length - 1] : 0,
+secondary: ints.length > 2 ? ints[ints.length - 2] : ints[ints.length - 1],
+min: nf.formatToParts(1000).some((p) => p.type === 'group') ? 1 : 2,
+};
+}
+function group(int, s) {
+if (!s.primary || !s.group || int.length < s.primary + s.min) return int;
+let out = int.slice(-s.primary);
+let rest = int.slice(0, -s.primary);
+while (rest) {
+out = rest.slice(-s.secondary) + s.group + out;
+rest = rest.slice(0, -s.secondary);
+}
+return out;
+}
+const trim = (digits) => digits.replace(/^0+(?=\d)/, '');
+function typed(text, decimal) {
+const s = String(text ?? '');
+const sign = /^\s*[-−]/.test(s) ? '-' : '';
+const at = s.indexOf(decimal);
+const int = trim((at < 0 ? s : s.slice(0, at)).replace(/\D/g, ''));
+const frac = at < 0 ? '' : s.slice(at + 1).replace(/\D/g, '');
+if (!int && !frac && at < 0 && !sign) return null;
+return { sign, int, frac, point: at >= 0 };
+}
+function read(text, decimal = '.') {
+let s = String(text ?? '');
+const first = s.search(/\d/);
+if (first < 0) return null;
+const sign = /[-−(]/.test(s.slice(0, first)) ? '-' : '';
+if (decimal !== '.' && decimal !== ',') s = s.split(decimal).join('.');
+const body = s.slice(first).replace(/[^\d.,]/g, '');
+const marks = [...body.matchAll(/[.,]/g)];
+let at = -1;
+if (marks.length) {
+const last = marks[marks.length - 1];
+const after = body.length - last.index - 1;
+if (new Set(marks.map((m) => m[0])).size > 1) at = last.index;
+else if (marks.length === 1 && (last[0] === decimal || after !== 3)) at = last.index;
+}
+const int = trim((at < 0 ? body : body.slice(0, at)).replace(/\D/g, ''));
+const frac = at < 0 ? '' : body.slice(at + 1).replace(/\D/g, '');
+return { sign, int, frac, point: at >= 0 };
+}
+function given(value, decimals, minor = false) {
+if (value === null || value === undefined || value === '') return null;
+let text = String(value);
+if (typeof value === 'number') {
+if (!Number.isFinite(value)) return null;
+if (/e/i.test(text)) text = Number.isInteger(value) ? BigInt(value).toString() : value.toFixed(20);
+}
+if (minor) {
+const m = /^\s*([-−]?)(\d+)\s*$/.exec(text);
+if (!m) return null;
+const digits = m[2].padStart(decimals + 1, '0');
+return { sign: m[1] ? '-' : '', int: trim(digits.slice(0, digits.length - decimals)), frac: digits.slice(digits.length - decimals), point: decimals > 0 };
+}
+return read(text, '.');
+}
+function increment(digits) {
+const d = digits.split('');
+let i = d.length - 1;
+while (i >= 0 && d[i] === '9') d[i--] = '0';
+if (i < 0) d.unshift('1');
+else d[i] = String(Number(d[i]) + 1);
+return d.join('');
+}
+function round(a, decimals) {
+if (!a || a.frac.length <= decimals) return a;
+const kept = (a.int || '0') + a.frac.slice(0, decimals);
+const digits = a.frac[decimals] >= '5' ? increment(kept) : kept;
+const cut = digits.length - decimals;
+return { ...a, int: trim(digits.slice(0, cut)) || '0', frac: digits.slice(cut) };
+}
+function machine(a, decimals, minor = false) {
+if (!a || (!a.int && !a.frac)) return '';
+const int = a.int || '0';
+const frac = a.frac.padEnd(decimals, '0').slice(0, decimals);
+const sign = /[1-9]/.test(int + frac) ? a.sign : '';
+if (minor) return sign + trim(int + frac);
+return sign + int + (decimals ? `.${frac}` : '');
+}
+function write(a, s, decimals, pad = false) {
+if (!a) return '';
+if (pad && !a.int && !a.frac) return '';
+let frac = a.frac.slice(0, decimals);
+if (pad && decimals) frac = frac.padEnd(decimals, '0');
+const int = a.int || (frac || a.point ? '0' : '');
+const point = decimals > 0 && (frac || (a.point && !pad)) ? s.decimal : '';
+const sign = pad && !/[1-9]/.test(int + frac) ? '' : a.sign;
+return sign + group(int, s) + point + frac;
+}
+function units(value, scale) {
+const m = /^(-?)(\d+)(?:\.(\d*))?$/.exec(String(value ?? ''));
+if (!m) return null;
+return BigInt(m[1] + m[2] + (m[3] ?? '').padEnd(scale, '0').slice(0, scale));
+}
+function check(value, { min = null, max = null, step = null } = {}) {
+if (value === '') return '';
+const places = (v) => (String(v ?? '').split('.')[1] ?? '').length;
+const scale = Math.max(places(value), places(min), places(max), places(step));
+const v = units(value, scale);
+if (min !== null && v < units(min, scale)) return 'min';
+if (max !== null && v > units(max, scale)) return 'max';
+const by = step === null ? null : units(step, scale);
+if (by && (v - (min === null ? 0n : units(min, scale))) % by !== 0n) return 'step';
+return '';
+}
+return { shape, group, typed, read, given, round, machine, write, units, check };
+})();
+const __ds_shared_caret = (() => {
+function rewrite(field, text, keep) {
+const before = field.value;
+let count = 0;
+for (const ch of before.slice(0, field.selectionStart ?? before.length)) if (keep(ch)) count++;
+if (before !== text) field.value = text;
+if (document.activeElement !== field) return;
+let at = 0;
+while (at < text.length && count > 0) if (keep(text[at++])) count--;
+field.setSelectionRange(at, at);
+}
+function skipSeparators(event, field, keep) {
+const back = event.inputType === 'deleteContentBackward';
+if (!back && event.inputType !== 'deleteContentForward') return;
+const { selectionStart: start, selectionEnd: end, value } = field;
+if (start !== end) return;
+let at = back ? start - 1 : start;
+if (at < 0 || at >= value.length || keep(value[at])) return;
+while (at >= 0 && at < value.length && !keep(value[at])) at += back ? -1 : 1;
+if (at < 0 || at >= value.length) return;
+event.preventDefault();
+field.setRangeText('', at, at + 1, 'end');
+field.dispatchEvent(new Event('input', { bubbles: true }));
+}
+return { rewrite, skipSeparators };
+})();
+const __ds_behaviours_money_input = (() => {
+const { shape, typed, read, given, round, machine, write, check } = __ds_shared_money;
+const { rewrite, skipSeparators } = __ds_shared_caret;
+function moneyInput(Alpine) {
+Alpine.data('dsMoneyInput', (options = {}) => {
+let control = null;
+return {
+dsValue: '',
+dsReady: false,
+init() {
+control = wire(this.$el, options, (value) => {
+this.dsValue = value;
+});
+this.dsValue = control.value();
+this.dsReady = true;
+this.$watch('dsValue', (value) => control.set(value));
+},
+destroy() {
+control?.teardown();
+},
+};
+});
+}
+function wire(root, o, report) {
+const field = root.querySelector('[data-ds-money-input]');
+const posted = root.querySelector('[data-ds-money-value]');
+const currency = root.querySelector('[data-ds-money-currency]');
+const s = shape(o.locale);
+const words = o.words ?? {};
+const minor = o.minor === true;
+const serverInvalid = field.getAttribute('aria-invalid') === 'true';
+let decimals = Number.isInteger(o.decimals) ? o.decimals : 2;
+let committed = posted.value;
+let mine = posted.value;
+const keep = (ch) => /\d/.test(ch) || ch === s.decimal || ch === '-' || ch === '−';
+const amount = () => typed(field.value, s.decimal);
+function invalid(message) {
+field.setCustomValidity(message);
+if (message || serverInvalid) field.setAttribute('aria-invalid', 'true');
+else field.removeAttribute('aria-invalid');
+}
+function validate(value) {
+const whole = minor && value !== '' ? machine(given(value, decimals, true), decimals) : value;
+invalid(words[check(whole, o)] ?? '');
+}
+function post(value) {
+if (posted.value === value) return;
+posted.value = mine = value;
+report(value);
+posted.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function onInput() {
+let a = amount();
+if (a && !o.negative) a.sign = '';
+if (a) a.frac = a.frac.slice(0, decimals);
+rewrite(field, write(a, s, decimals), keep);
+post(machine(a, decimals, minor));
+}
+function onBeforeInput(event) {
+skipSeparators(event, field, keep);
+if (event.defaultPrevented || !event.data || /^\d+$/.test(event.data)) return;
+if (event.inputType !== 'insertText' || event.data.length > 1) {
+if (!['insertText', 'insertReplacementText', 'insertFromDrop'].includes(event.inputType)) return;
+event.preventDefault();
+arrive(event.data);
+return;
+}
+const ch = event.data;
+event.preventDefault();
+const start = field.selectionStart;
+const end = field.selectionEnd;
+let insert = '';
+if ((ch === '.' || ch === ',' || ch === s.decimal) && decimals > 0 && !field.value.slice(0, start).concat(field.value.slice(end)).includes(s.decimal)) insert = s.decimal;
+else if ((ch === '-' || ch === '−') && o.negative && start === 0 && !/^[-−]/.test(field.value.slice(end))) insert = '-';
+if (!insert) return;
+field.setRangeText(insert, start, end, 'end');
+field.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function arrive(text) {
+const a = round(read(text, s.decimal), decimals);
+if (!a) return;
+const insert = (a.sign && o.negative ? '-' : '') + (a.int || '0') + (a.frac ? s.decimal + a.frac : '');
+field.setRangeText(insert, field.selectionStart, field.selectionEnd, 'end');
+field.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function onPaste(event) {
+event.preventDefault();
+arrive(event.clipboardData?.getData('text') ?? '');
+}
+function commit() {
+const a = amount();
+const value = machine(a, decimals, minor);
+field.value = write(a, s, decimals, true);
+post(value);
+validate(value);
+if (value !== committed) {
+committed = value;
+posted.dispatchEvent(new Event('change', { bubbles: true }));
+}
+}
+function onCurrency() {
+const before = decimals;
+if (!o.fixed) decimals = Number(currency.selectedOptions[0]?.dataset.dsDecimals ?? decimals);
+const a = round(given(posted.value, before, minor), decimals);
+field.value = write(a, s, decimals, true);
+post(machine(a, decimals, minor));
+validate(posted.value);
+committed = posted.value;
+}
+function onFramePointerDown(event) {
+if (event.target === field || event.target.closest('select') || field.disabled) return;
+event.preventDefault();
+field.focus();
+}
+function set(value) {
+const a = round(given(value, decimals, minor), decimals);
+const next = machine(a, decimals, minor);
+if (next !== posted.value) {
+posted.value = mine = next;
+committed = next;
+field.value = write(a, s, decimals, true);
+validate(next);
+}
+if (next !== String(value ?? '')) report(next);
+}
+const frame = root.querySelector('[data-ds-money-frame]');
+const listeners = [
+[field, 'beforeinput', onBeforeInput],
+[field, 'input', onInput],
+[field, 'paste', onPaste],
+[field, 'blur', commit],
+[frame, 'pointerdown', onFramePointerDown],
+];
+if (currency) listeners.push([currency, 'change', onCurrency]);
+for (const [el, type, fn] of listeners) el?.addEventListener(type, fn);
+if (currency && !o.fixed) decimals = Number(currency.selectedOptions[0]?.dataset.dsDecimals ?? decimals);
+field.value = write(round(given(posted.value, decimals, minor), decimals), s, decimals, true);
+const observer = new MutationObserver(() => {
+if (posted.value === mine) return;
+const a = round(given(posted.value, decimals, minor), decimals);
+posted.value = mine = committed = machine(a, decimals, minor);
+field.value = write(a, s, decimals, true);
+validate(mine);
+report(mine);
+});
+observer.observe(posted, { attributes: true, attributeFilter: ['value'] });
+return {
+value: () => posted.value,
+set,
+teardown() {
+observer.disconnect();
+for (const [el, type, fn] of listeners) el?.removeEventListener(type, fn);
+},
+};
+}
+return { moneyInput };
 })();
 const __ds_behaviours_number_field = (() => {
 const HOLD_DELAY = 400;
@@ -2480,6 +2888,287 @@ return [trim(lower), plain(trim(lower)), trim(plain(lower))]
 }
 return { password };
 })();
+const __ds_shared_picker = (() => {
+const { fold } = __ds_shared_rank;
+function picker(root, { option, search, empty, score, choose }) {
+const find = (selector) => root.querySelector(selector);
+const all = () => [...root.querySelectorAll(option)];
+const item = (o) => o.closest('li') ?? o;
+const order = (o) => Number(item(o).style.order || 0);
+const shown = () => all().filter((o) => !item(o).hidden).sort((a, b) => order(a) - order(b));
+function filter() {
+const q = fold((find(search)?.value ?? '').trim());
+const scored = all().map((o, i) => [o, q ? score(o, q) : 1, i]);
+scored.sort((a, b) => b[1] - a[1] || a[2] - b[2]);
+scored.forEach(([o, s], i) => {
+item(o).hidden = s <= 0;
+if (q) item(o).style.setProperty('order', String(i + 1));
+else item(o).style.removeProperty('order');
+});
+const none = find(empty);
+if (none) none.hidden = scored.some(([, s]) => s > 0);
+}
+function reset() {
+const field = find(search);
+if (field) field.value = '';
+filter();
+}
+const onClick = (event) => {
+const o = event.target.closest(option);
+if (o && root.contains(o)) choose(o);
+};
+const onKeyDown = (event) => {
+const field = find(search);
+const list = shown();
+if (field && event.target === field) {
+if (event.key === 'ArrowDown' && list.length) {
+event.preventDefault();
+list[0].focus();
+} else if (event.key === 'Enter') {
+event.preventDefault();
+list[0]?.click();
+}
+return;
+}
+const at = list.indexOf(event.target);
+if (at < 0) return;
+if (event.key === 'Enter' || event.key === ' ') {
+event.preventDefault();
+list[at].click();
+return;
+}
+const keys = { Home: 0, End: list.length - 1, ArrowDown: (at + 1) % list.length, ArrowUp: at - 1 };
+if (!(event.key in keys)) return;
+event.preventDefault();
+const to = keys[event.key];
+(to < 0 ? field ?? list[list.length - 1] : list[to]).focus();
+};
+const onInput = (event) => {
+if (event.target.matches?.(search)) filter();
+};
+root.addEventListener('click', onClick);
+root.addEventListener('keydown', onKeyDown);
+root.addEventListener('input', onInput);
+return {
+filter,
+reset,
+teardown() {
+root.removeEventListener('click', onClick);
+root.removeEventListener('keydown', onKeyDown);
+root.removeEventListener('input', onInput);
+},
+};
+}
+return { picker };
+})();
+const __ds_behaviours_phone_input = (() => {
+const { fold, rank } = __ds_shared_rank;
+const { picker } = __ds_shared_picker;
+const { rewrite, skipSeparators } = __ds_shared_caret;
+function phoneInput(Alpine) {
+Alpine.data('dsPhoneInput', (options = {}) => {
+let control = null;
+return {
+dsValue: '',
+dsReady: false,
+init() {
+control = wire(this.$el, options, Alpine, (value) => {
+this.dsValue = value;
+});
+this.dsValue = control.value();
+this.dsReady = true;
+this.$watch('dsValue', (value) => control.set(value));
+},
+destroy() {
+control?.teardown();
+},
+};
+});
+}
+const digit = (ch) => ch >= '0' && ch <= '9';
+function wire(root, o, Alpine, report) {
+const find = (selector) => root.querySelector(selector);
+const select = find('[data-ds-phone-select]');
+const field = find('[data-ds-phone-input]');
+const posted = find('[data-ds-phone-value]');
+const words = o.words ?? {};
+const serverInvalid = field.getAttribute('aria-invalid') === 'true';
+let committed = posted.value;
+const countries = () => [...select.options];
+const current = () => select.selectedOptions[0] ?? select.options[0];
+const code = (c) => c.dataset.dsDial.replace(/\D/g, '');
+const national = (digits, c = current()) => (!c.hasAttribute('data-ds-zero') && digits.startsWith('0') ? digits.slice(1) : digits);
+function mask(digits, pattern) {
+if (!pattern || !digits) return digits;
+let out = '';
+let at = 0;
+for (const ch of pattern) {
+if (at >= digits.length) break;
+out += ch === '#' ? digits[at++] : ch;
+}
+return out + digits.slice(at);
+}
+const shown = (digits, c = current()) => {
+const rest = national(digits, c);
+return digits.slice(0, digits.length - rest.length) + mask(rest, c.dataset.dsMask);
+};
+const e164 = (digits, c = current()) => (national(digits, c) ? `+${code(c)}${national(digits, c)}` : '');
+function match(digits) {
+const order = (c) => (c === current() ? 0 : c.value === o.country ? 1 : (o.primary ?? []).includes(c.value) ? 2 : 3);
+const fits = countries().filter((c) => digits.startsWith(code(c)));
+fits.sort((a, b) => code(b).length - code(a).length || order(a) - order(b));
+return fits[0] ? [fits[0], digits.slice(code(fits[0]).length)] : null;
+}
+function face(c) {
+const trigger = find('[data-ds-phone-trigger]');
+for (const part of ['name', 'iso', 'dial', 'flag']) {
+const el = trigger?.querySelector(`[data-ds-phone-${part}]`);
+if (el) el.textContent = part === 'iso' ? c.value : part === 'dial' ? `+${c.dataset.dsDial}` : part === 'name' ? c.dataset.dsName : c.dataset.dsFlag ?? '';
+}
+for (const option of root.querySelectorAll('[data-ds-phone-option]')) option.setAttribute('aria-selected', String(option.dataset.value === c.value));
+}
+function choose(c) {
+if (select.value !== c.value) select.value = c.value;
+face(c);
+}
+function note(message) {
+const box = find('[data-ds-phone-note]');
+const text = find('[data-ds-phone-note-text]');
+if (text) text.textContent = message;
+if (box) box.hidden = !message;
+if (message || serverInvalid) field.setAttribute('aria-invalid', 'true');
+else field.removeAttribute('aria-invalid');
+}
+function post(value) {
+if (posted.value === value) return;
+posted.value = value;
+report(value);
+posted.dispatchEvent(new Event('input', { bubbles: true }));
+}
+function settle() {
+if (posted.value === committed) return;
+committed = posted.value;
+posted.dispatchEvent(new Event('change', { bubbles: true }));
+}
+function onInput() {
+const text = field.value;
+let digits = text.replace(/\D/g, '');
+if (/^\s*(\+|00)/.test(text)) {
+const found = match(text.trim().startsWith('+') ? digits : digits.slice(2));
+if (!found) {
+post('');
+return;
+}
+choose(found[0]);
+field.value = shown(found[1]);
+field.setSelectionRange(field.value.length, field.value.length);
+post(e164(found[1]));
+return;
+}
+rewrite(field, shown(digits), digit);
+post(e164(digits));
+}
+function onBeforeInput(event) {
+skipSeparators(event, field, digit);
+if (!event.defaultPrevented && event.inputType === 'insertText' && event.data && /[^\d\s+()./-]/.test(event.data)) event.preventDefault();
+}
+function check() {
+const c = current();
+const length = national(field.value.replace(/\D/g, ''), c).length;
+const problem = !length ? '' : length < Number(c.dataset.dsMin) ? 'short' : Number(c.dataset.dsMax) && length > Number(c.dataset.dsMax) ? 'long' : '';
+note(problem ? (words[problem] ?? '').replace(':country', c.dataset.dsName) : '');
+}
+function onBlur() {
+check();
+settle();
+}
+function fill() {
+const list = find('[data-ds-phone-list]');
+const template = find('template[data-ds-phone-template]');
+if (!list || !template || list.querySelector('[data-ds-phone-option]')) return;
+const items = countries().map((c) => {
+const item = template.content.firstElementChild.cloneNode(true);
+const option = item.querySelector('[data-ds-phone-option]');
+option.id = `${list.id}-${c.value}`;
+option.dataset.value = c.value;
+option.dataset.dsLabel = c.dataset.dsName;
+option.dataset.dsDial = c.dataset.dsDial;
+option.setAttribute('aria-selected', String(c === current()));
+option.querySelector('[data-ds-phone-flag]').textContent = c.dataset.dsFlag ?? '';
+option.querySelector('[data-ds-phone-name]').textContent = c.dataset.dsName;
+option.querySelector('[data-ds-phone-dial]').textContent = `+${c.dataset.dsDial}`;
+return item;
+});
+list.replaceChildren(...items);
+}
+const list = picker(root, {
+option: '[data-ds-phone-option]',
+search: '[data-ds-phone-search]',
+empty: '[data-ds-phone-empty]',
+score(option, q) {
+if (q === option.dataset.value.toLowerCase()) return 10;
+const dial = q.replace(/[\s+]/g, '');
+if (/^\d+$/.test(dial)) return option.dataset.dsDial.replace(/\D/g, '').startsWith(dial) ? 5 : 0;
+return rank(fold(option.dataset.dsLabel), q) * 2;
+},
+choose(option) {
+const c = countries().find((x) => x.value === option.dataset.value);
+const popover = find('[data-ds-popover]');
+if (popover) Alpine.$data(popover).dsOpen = false;
+if (!c) return;
+const digits = field.value.replace(/\D/g, '');
+choose(c);
+field.value = shown(digits);
+post(e164(digits));
+if (field.value) check();
+settle();
+},
+});
+function onClick(event) {
+if (!event.target.closest('[data-ds-phone-trigger]')) return;
+fill();
+list.reset();
+face(current());
+if (!find('[data-ds-phone-search]')) {
+for (const option of root.querySelectorAll('[data-ds-phone-option]')) option.toggleAttribute('data-ds-autofocus', option.dataset.value === select.value);
+}
+}
+const listeners = [
+[field, 'beforeinput', onBeforeInput],
+[field, 'input', onInput],
+[field, 'blur', onBlur],
+[root, 'click', onClick],
+];
+for (const [el, type, fn] of listeners) el.addEventListener(type, fn);
+function set(given) {
+const text = given === null || given === undefined ? '' : String(given).trim();
+let c = current();
+let digits = text.replace(/\D/g, '');
+if (/^(\+|00)/.test(text)) {
+const found = match(text.startsWith('+') ? digits : digits.slice(2));
+[c, digits] = found ?? [c, ''];
+}
+const next = e164(digits, c);
+if (next !== posted.value) {
+choose(c);
+field.value = shown(national(digits, c), c);
+posted.value = next;
+committed = next;
+note('');
+}
+if (next !== text) report(next);
+}
+return {
+value: () => posted.value,
+set,
+teardown() {
+list.teardown();
+for (const [el, type, fn] of listeners) el.removeEventListener(type, fn);
+},
+};
+}
+return { phoneInput };
+})();
 const __ds_behaviours_popover = (() => {
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable="true"]';
 const CONTROL = 'button, a[href], input, select, textarea, [role="button"], [tabindex]';
@@ -2786,6 +3475,224 @@ window.removeEventListener('resize', soon);
 });
 }
 return { scrollShadows };
+})();
+const __ds_behaviours_search = (() => {
+const { EDITABLE, parse, matches } = __ds_shared_shortcut;
+function search(Alpine) {
+Alpine.data('dsSearch', (options = {}) => {
+let teardown = null;
+return {
+init() {
+teardown = wire(this.$el, options);
+},
+destroy() {
+teardown?.();
+},
+};
+});
+}
+function wire(root, options) {
+const field = root.querySelector('[data-ds-search-input]');
+const button = root.querySelector('[data-ds-search-button]');
+const combo = parse(options.shortcut);
+function onFieldKeyDown(event) {
+if (event.key !== 'Escape' || event.isComposing) return;
+event.preventDefault();
+event.stopPropagation();
+if (field.value !== '') {
+field.value = '';
+field.dispatchEvent(new Event('input', { bubbles: true }));
+field.dispatchEvent(new Event('change', { bubbles: true }));
+} else {
+button.focus();
+}
+}
+const onButtonClick = () => field.focus();
+function onButtonKeyDown(event) {
+if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) field.focus();
+}
+function onShortcut(event) {
+if (!combo || field.disabled || event.defaultPrevented || event.isComposing || !matches(combo, event)) return;
+if (!combo.chord && event.target.closest?.(EDITABLE)) return;
+event.preventDefault();
+field.focus();
+field.select();
+}
+field.addEventListener('keydown', onFieldKeyDown);
+button.addEventListener('click', onButtonClick);
+button.addEventListener('keydown', onButtonKeyDown);
+window.addEventListener('keydown', onShortcut);
+return () => {
+field.removeEventListener('keydown', onFieldKeyDown);
+button.removeEventListener('click', onButtonClick);
+button.removeEventListener('keydown', onButtonKeyDown);
+window.removeEventListener('keydown', onShortcut);
+};
+}
+return { search };
+})();
+const __ds_behaviours_shortcut_input = (() => {
+const { caps, isMac, normalise, record, same } = __ds_shared_shortcut;
+function shortcutInput(Alpine) {
+Alpine.data('dsShortcutInput', (options = {}) => {
+let control = null;
+return {
+dsValue: '',
+dsReady: false,
+dsRecording: false,
+init() {
+control = wire(this.$el, options, {
+report: (value) => (this.dsValue = value),
+recording: (on) => (this.dsRecording = on),
+});
+this.dsValue = control.value();
+this.dsReady = true;
+this.$watch('dsValue', (value) => control.set(value));
+},
+destroy() {
+control?.teardown();
+},
+};
+});
+}
+function wire(root, o, scope) {
+const find = (selector) => root.querySelector(selector);
+const text = find('[data-ds-shortcut-text]');
+const button = find('[data-ds-shortcut-record]');
+const keys = find('[data-ds-shortcut-keys]');
+const words = o.words ?? {};
+const mac = isMac();
+const said = (value) => caps(value, mac).map((part) => part.word).join('+');
+let recording = false;
+function show() {
+const value = text.value;
+keys.dataset.dsShortcut = value;
+keys.hidden = recording || !value;
+find('[data-ds-shortcut-placeholder]').hidden = recording || Boolean(value);
+find('[data-ds-shortcut-prompt]').hidden = !recording;
+button.toggleAttribute('data-ds-recording', recording);
+}
+function say(message) {
+const live = find('[data-ds-shortcut-live]');
+live.textContent = '';
+requestAnimationFrame(() => (live.textContent = message));
+}
+function note(message) {
+find('[data-ds-shortcut-note-text]').textContent = message;
+find('[data-ds-shortcut-note]').hidden = !message;
+}
+function setRecording(on) {
+if (recording === on) return;
+recording = on;
+scope.recording(on);
+show();
+}
+function commit(value) {
+const previous = text.value;
+if (value === previous) return;
+text.value = value;
+scope.report(value);
+show();
+text.dispatchEvent(new Event('input', { bubbles: true }));
+const change = new Event('change', { bubbles: true });
+change.detail = { value, previous };
+text.dispatchEvent(change);
+}
+function cancel(quiet) {
+if (!recording) return;
+setRecording(false);
+if (!quiet) say(words.cancelled ?? '');
+}
+function clear() {
+note('');
+if (text.value) say(words.cleared ?? '');
+commit('');
+}
+function onClick() {
+if (recording) return cancel();
+note('');
+setRecording(true);
+say(words.recording ?? '');
+}
+function onKeyDown(event) {
+if (!recording) {
+if ((event.key === 'Backspace' || event.key === 'Delete') && text.value) {
+event.preventDefault();
+clear();
+}
+return;
+}
+if (event.key === 'Tab') return cancel(true);
+event.preventDefault();
+event.stopPropagation();
+const bare = !event.ctrlKey && !event.metaKey && !event.altKey;
+if (event.key === 'Escape' && bare && !event.shiftKey) return cancel();
+if ((event.key === 'Backspace' || event.key === 'Delete') && bare && !event.shiftKey) {
+setRecording(false);
+return clear();
+}
+const combo = record(event, { portable: o.portable !== false, by: o.by });
+if (!combo) return;
+if (bare && !o.bare) {
+const message = mac ? words.bareMac : words.bare;
+note(message ?? '');
+return say(message ?? '');
+}
+if ((o.reserved ?? []).some((r) => same(r, combo, mac))) {
+const message = (words.reserved ?? '').replace(':keys', said(combo));
+note(message);
+return say(message);
+}
+const taken = Object.keys(o.conflicts ?? {}).find((c) => same(c, combo, mac));
+const warning = taken ? (words.conflict ?? '').replace(':use', o.conflicts[taken]) : '';
+setRecording(false);
+note(warning);
+commit(combo);
+say(`${(words.set ?? '').replace(':keys', said(combo))} ${warning}`.trim());
+}
+function onRootClick(event) {
+if (event.target.closest('label')) {
+event.preventDefault();
+button.focus();
+}
+if (event.target.closest('[data-ds-shortcut-clear]')) {
+cancel(true);
+clear();
+button.focus();
+}
+}
+function onInvalid(event) {
+event.preventDefault();
+note(text.validationMessage);
+button.focus();
+}
+const listeners = [
+[button, 'click', onClick],
+[button, 'keydown', onKeyDown],
+[button, 'blur', () => cancel(true)],
+[root, 'click', onRootClick],
+[text, 'invalid', onInvalid],
+];
+for (const [el, type, fn] of listeners) el.addEventListener(type, fn);
+show();
+function set(given) {
+const value = normalise(given ?? '');
+if (value !== text.value) {
+text.value = value;
+note('');
+show();
+}
+if (value !== given) scope.report(value);
+}
+return {
+value: () => text.value,
+set,
+teardown() {
+for (const [el, type, fn] of listeners) el.removeEventListener(type, fn);
+},
+};
+}
+return { shortcutInput };
 })();
 const __ds_behaviours_slider = (() => {
 const { formatter } = __ds_shared_format;
@@ -3716,6 +4623,7 @@ return { tagInput };
 })();
 const __ds_behaviours_team_switcher = (() => {
 const { fold, rank } = __ds_shared_rank;
+const { picker } = __ds_shared_picker;
 function teamSwitcher(Alpine) {
 Alpine.data('dsTeamSwitcher', (options = {}) => {
 let teardown = null;
@@ -3725,30 +4633,10 @@ init() {
 const root = this.$el;
 const find = (selector) => root.querySelector(selector);
 const all = () => [...root.querySelectorAll('[data-ds-team-option]')];
-const item = (option) => option.closest('li') ?? option;
-const order = (option) => Number(item(option).style.order || 0);
-const shown = () => all().filter((o) => !item(o).hidden).sort((a, b) => order(a) - order(b));
 const close = () => {
 const popover = find('[data-ds-popover]');
 if (popover) Alpine.$data(popover).dsOpen = false;
 };
-function filter() {
-const field = find('[data-ds-team-search]');
-const q = fold((field?.value ?? '').trim());
-const scored = all().map((o, i) => {
-const name = rank(fold(o.dataset.dsLabel ?? ''), q) * 2;
-const meta = rank(fold(o.dataset.dsKeywords ?? ''), q) * 2 - 1;
-return [o, q ? Math.max(name, meta) : 1, i];
-});
-scored.sort((a, b) => b[1] - a[1] || a[2] - b[2]);
-scored.forEach(([o, score], i) => {
-item(o).hidden = score <= 0;
-if (q) item(o).style.setProperty('order', String(i + 1));
-else item(o).style.removeProperty('order');
-});
-const empty = find('[data-ds-team-empty]');
-if (empty) empty.hidden = scored.some(([, score]) => score > 0);
-}
 function choose(option) {
 if (option.matches('a[href]')) {
 close();
@@ -3774,49 +4662,21 @@ change.detail = { id };
 select.dispatchEvent(change);
 if (options.submit === true) select.form?.requestSubmit();
 }
+const list = picker(root, {
+option: '[data-ds-team-option]',
+search: '[data-ds-team-search]',
+empty: '[data-ds-team-empty]',
+score: (o, q) => Math.max(rank(fold(o.dataset.dsLabel ?? ''), q) * 2, rank(fold(o.dataset.dsKeywords ?? ''), q) * 2 - 1),
+choose,
+});
 const onClick = (event) => {
-const option = event.target.closest('[data-ds-team-option]');
-if (option && root.contains(option)) choose(option);
-if (event.target.closest('[data-ds-team-trigger]')) {
-const field = find('[data-ds-team-search]');
-if (field) field.value = '';
-filter();
-}
-};
-const onKeyDown = (event) => {
-const field = find('[data-ds-team-search]');
-const list = shown();
-if (event.target === field) {
-if (event.key === 'ArrowDown' && list.length) {
-event.preventDefault();
-list[0].focus();
-} else if (event.key === 'Enter') {
-event.preventDefault();
-list[0]?.click();
-}
-return;
-}
-const at = list.indexOf(event.target);
-if (at < 0) return;
-if (event.key === 'Enter' || event.key === ' ') {
-event.preventDefault();
-list[at].click();
-return;
-}
-const keys = { Home: 0, End: list.length - 1, ArrowDown: (at + 1) % list.length, ArrowUp: at - 1 };
-if (!(event.key in keys)) return;
-event.preventDefault();
-const to = keys[event.key];
-(to < 0 ? field ?? list[list.length - 1] : list[to]).focus();
+if (event.target.closest('[data-ds-team-trigger]')) list.reset();
 };
 root.addEventListener('click', onClick);
-root.addEventListener('keydown', onKeyDown);
-root.addEventListener('input', filter);
 this.dsReady = true;
 teardown = () => {
+list.teardown();
 root.removeEventListener('click', onClick);
-root.removeEventListener('keydown', onKeyDown);
-root.removeEventListener('input', filter);
 };
 },
 destroy() {
@@ -4554,14 +5414,19 @@ const { dismiss } = __ds_behaviours_dismiss;
 const { hold } = __ds_behaviours_hold;
 const { inlineConfirm } = __ds_behaviours_confirm;
 const { inlineEdit } = __ds_behaviours_inline_edit;
+const { kbdShortcut } = __ds_behaviours_kbd_shortcut;
 const { glide } = __ds_behaviours_glide;
 const { hoverCard } = __ds_behaviours_hover_card;
+const { moneyInput } = __ds_behaviours_money_input;
 const { numberField } = __ds_behaviours_number_field;
 const { otp } = __ds_behaviours_otp;
 const { password } = __ds_behaviours_password;
+const { phoneInput } = __ds_behaviours_phone_input;
 const { popover } = __ds_behaviours_popover;
 const { roll } = __ds_behaviours_roll;
 const { scrollShadows } = __ds_behaviours_scroll_shadows;
+const { search } = __ds_behaviours_search;
+const { shortcutInput } = __ds_behaviours_shortcut_input;
 const { slider } = __ds_behaviours_slider;
 const { sortable } = __ds_behaviours_sortable;
 const { split } = __ds_behaviours_split;
@@ -4573,7 +5438,7 @@ const { timePicker } = __ds_behaviours_time_picker;
 const { toggleGroup } = __ds_behaviours_toggle_group;
 const { toolbar } = __ds_behaviours_toolbar;
 const { tree } = __ds_behaviours_tree;
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split, swap, teamSwitcher];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split, swap, teamSwitcher, moneyInput, phoneInput, search, kbdShortcut, shortcutInput];
 const REGISTERED = Symbol.for('shipbytes.blade-ui');
 function bladeUi(Alpine) {
 if (!Alpine || Alpine[REGISTERED]) return;

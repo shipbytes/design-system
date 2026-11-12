@@ -112,6 +112,10 @@
 {{-- A range input's ring is on its thumb, which getComputedStyle cannot read: the walk compares pictures for it. --}}
 <section data-focus="slider" class="max-w-sm"><x-ds::slider name="fvol" label="Volume" :value="40" /><x-ds::slider name="fprice" label="Price" :range="true" :value="[20, 80]" lowLabel="Minimum price" highLabel="Maximum price" /></section>
 <section data-focus="time-picker" class="max-w-sm"><x-ds::time-picker name="fat" id="f-time" label="Start" value="09:30" :clearable="true" /></section>
+<section data-focus="money-input" class="max-w-sm"><x-ds::money-input name="fmoney" id="f-money" label="Price" value="12.5" /><x-ds::money-input name="fpay" id="f-pay" label="Pay" :currencies="['USD', 'EUR']" value="3" /></section>
+<section data-focus="phone-input" class="max-w-sm"><x-ds::phone-input name="fphone" id="f-phone" label="Phone" :countries="['GB', 'US', 'IN']" country="GB" /></section>
+<section data-focus="input-expanding" class="flex"><x-ds::input name="fq" id="f-search" label="Search" :expanding="true" :clearable="true" value="acme" /></section>
+<section data-focus="shortcut-input" class="max-w-sm"><x-ds::shortcut-input name="fkeys" id="f-keys" label="Open search" value="mod+k" /></section>
 <section data-focus="inline-edit"><x-ds::inline-edit name="ftitle" label="Title" value="Q3 roadmap" /></section>
 {{-- Plain text: the region is the stop. With a link inside, the link is. --}}
 <section data-focus="scroll-area"><x-ds::scroll-area :maxHeight="40" label="Notes" class="w-48"><p>One</p><p>Two</p><p>Three</p><p>Four</p></x-ds::scroll-area></section>

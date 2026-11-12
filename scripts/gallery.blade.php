@@ -2788,6 +2788,88 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Money input --}}
+<section class="ds-spec" id="money-input">
+    <header class="ds-spec-head">
+        <h2>Money input</h2>
+        <p>An amount grouped the way the locale groups it, Indian lakhs included, posted as a plain decimal string. Digits all the way through, never a float.</p>
+    </header>
+
+    <div class="ds-note">The gallery loads <em>no Alpine</em>: this is the no-script field, a text field with <code>inputmode=&quot;decimal&quot;</code> and a <code>pattern</code>, posting what was typed. The grouping shown is the server&rsquo;s first paint; the script regroups as you type and posts the digits from a hidden input.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Without the script <span>&middot; USD in en, INR in en-IN, a currency select in de</span></div>
+        <div class="mx-auto flex max-w-sm flex-col gap-4">
+            <x-ds::money-input name="g-price" label="Price" currency="USD" locale="en" value="1249.5" help="Before tax." />
+            <x-ds::money-input name="g-budget" label="Budget" currency="INR" locale="en-IN" value="1234567.5" />
+            <x-ds::money-input name="g-payout" label="Payout" :currencies="['EUR', 'GBP', 'JPY']" currency="EUR" locale="de" value="1234.5" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Phone input --}}
+<section class="ds-spec" id="phone-input">
+    <header class="ds-spec-head">
+        <h2>Phone input</h2>
+        <p>A country and a national number, posted as E.164. The picker searches by name, ISO code and dial code; a pasted <code>+44&hellip;</code> chooses its country. A formatter and a length check, not libphonenumber.</p>
+    </header>
+
+    <div class="ds-note">Without the script it is a native select of dial codes and a tel field, posting <code>name[country]</code> and <code>name[number]</code>. The script swaps the select for a searchable list and posts E.164 under <code>name</code>.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Without the script <span>&middot; a UK mobile, and an empty field defaulting to the US</span></div>
+        <div class="mx-auto flex max-w-sm flex-col gap-4">
+            <x-ds::phone-input name="g-mobile" label="Mobile" value="+447911123456" help="We text the sign-in code here." />
+            <x-ds::phone-input name="g-office" label="Office" country="US" :countries="['US', 'CA', 'GB', 'IN']" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Shortcut input --}}
+<section class="ds-spec" id="shortcut-input">
+    <header class="ds-spec-head">
+        <h2>Shortcut input</h2>
+        <p>A keyboard shortcut set by pressing it, stored as <code>mod+shift+k</code> and shown as &#8984;&#8679;K on a Mac. Tab is never taken; the browser&rsquo;s own shortcuts are refused; a shortcut already in use is warned about and kept.</p>
+    </header>
+
+    <div class="ds-note">Without the script it is a text field holding the string, which can be typed. The script hides it behind a recorder. ds::kbd&rsquo;s <code>shortcut</code> draws the same string anywhere: Ctrl + K from the server, redrawn for a Mac by the script.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Without the script <span>&middot; the stored strings, and kbd drawing one</span></div>
+        <div class="mx-auto flex max-w-sm flex-col gap-4">
+            <x-ds::shortcut-input name="g-search" label="Open search" value="mod+k" />
+            <x-ds::shortcut-input name="g-next" label="Next item" help="Hold Ctrl or Alt with the key." />
+            <p class="text-body text-fg-body">Search with <x-ds::kbd shortcut="mod+shift+k" />.</p>
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Expanding search --}}
+<section class="ds-spec" id="input-expanding">
+    <header class="ds-spec-head">
+        <h2>Expanding search</h2>
+        <p>ds::input with <code>expanding</code>: an icon button that grows into a search field on a press, a Tab or its shortcut, and shrinks back when it is left empty. The width is CSS, so this works here with no script.</p>
+    </header>
+
+    <div class="ds-note">Press or Tab into the square. With the script, Escape clears it and then closes it, and <code>shortcut=&quot;/&quot;</code> opens it from anywhere.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Push and overlay <span>&middot; the second grows over the title instead of moving it</span></div>
+        <div class="flex flex-col gap-4 px-4">
+            <form role="search" class="flex items-center gap-3">
+                <span class="text-body font-medium text-fg">Invoices</span>
+                <x-ds::input name="g-q1" label="Search invoices" :expanding="true" :clearable="true" />
+                <span class="text-meta text-fg-muted">pushes this along</span>
+            </form>
+            <form role="search" class="flex items-center gap-3">
+                <span class="text-body font-medium text-fg">A title the field grows over</span>
+                <span class="ml-auto"></span>
+                <x-ds::input name="g-q2" label="Search docs" :expanding="true" mode="overlay" />
+            </form>
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Inline edit --}}
 <section class="ds-spec" id="inline-edit">
     <header class="ds-spec-head">

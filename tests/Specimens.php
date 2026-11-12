@@ -1430,6 +1430,34 @@ final class Specimens
                 <x-ds::team-switcher :teams="$many" name="team_id" wire:model.live="teamId" :searchFrom="6" placeholder="Search teams" emptyText="Nothing here" />
                 <x-ds::team-switcher :teams="$few" />
                 BLADE,
+            'money-input/all' => <<<'BLADE'
+                <x-ds::money-input name="price" label="Price" value="1234.5" />
+                <x-ds::money-input name="budget" label="Budget" currency="INR" locale="en-IN" value="1234567.5" symbol="code" help="Per year." />
+                <x-ds::money-input name="cost" label="Cost" currency="EUR" locale="de" :value="19.99" min="1" max="1000" step="0.5" :allowNegative="true" />
+                <x-ds::money-input name="cents" label="Amount" :value="123450" :minor="true" wire:model="cents" size="sm" />
+                <x-ds::money-input name="pay" label="Pay" :currencies="['USD', 'JPY' => 'Yen', 'BHD']" currency="JPY" value="1500" error="Too much." />
+                <x-ds::money-input name="locked" label="Locked" value="0.1" symbol="none" :decimals="4" :disabled="true" x-model="locked" />
+                BLADE,
+            'phone-input/all' => <<<'BLADE'
+                <x-ds::phone-input name="phone" label="Phone" value="+447911123456" />
+                <x-ds::phone-input name="mobile" label="Mobile" country="IN" :preferred="['IN', 'US']" countryName="mobile_country" :flags="true" help="We text the code here." />
+                <x-ds::phone-input name="office" label="Office" :countries="['GB', 'IE', 'FR']" value="0161 496 0000" country="GB" wire:model.blur="office" size="sm" />
+                <x-ds::phone-input name="fax" label="Fax" value="+15551234567" error="Not a fax." :disabled="true" x-model="fax" />
+                BLADE,
+            'shortcut-input/all' => <<<'BLADE'
+                <x-ds::shortcut-input name="search" label="Open search" value="Shift+Mod+K" :conflicts="['mod+j' => 'Jump to']" help="Anywhere in the app." />
+                <x-ds::shortcut-input name="next" label="Next" :allowBare="true" by="code" :portable="false" :reserved="['ctrl+n']" wire:model.live="next" size="sm" />
+                <x-ds::shortcut-input name="off" label="Off" value="mod+/" error="Pick another." :disabled="true" x-model="off" placeholder="None" />
+                BLADE,
+            'input/expanding' => <<<'BLADE'
+                <form role="search"><x-ds::input name="q" label="Search" :expanding="true" :clearable="true" shortcut="/" /></form>
+                <x-ds::input name="docs" aria-label="Search docs" :expanding="true" mode="overlay" placeholder="Search docs" wire:model.live="docs" />
+                <x-ds::input name="off" label="Find" :expanding="true" :disabled="true" icon="funnel" />
+                <x-ds::input name="plain" label="Plain" :expanding="false" />
+                BLADE,
+            'kbd/shortcut' => <<<'BLADE'
+                <p>Press <x-ds::kbd shortcut="Shift+Mod+K" />, <x-ds::kbd shortcut="mod+/" separator="" class="ms-1" />, <x-ds::kbd shortcut="alt+arrowup" /> or <x-ds::kbd shortcut="" />.</p>
+                BLADE,
 
             // Not a visual component, but it renders inside a host's layout and
             // so inside a Livewire render too; this puts it through the markers

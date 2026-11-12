@@ -207,6 +207,18 @@ const b15MorphBefore = await render(join(TMP, 'b15-morph-a.blade.php'));
 await writeFile(join(TMP, 'b15-morph-b.blade.php'), b15Blade(2));
 const b15MorphAfter = await render(join(TMP, 'b15-morph-b.blade.php'));
 
+// Batch 16's fields as a Livewire re-render brings them back with the
+// server's new values: each name has to stay where the script put it.
+const b16Blade = ([amount, phone, keys]) => '<div id="b16-morph">'
+    + `<x-ds::money-input id="mim" name="amount" label="Amount" value="${amount}" />`
+    + `<x-ds::phone-input id="phm" name="phone" label="Phone" value="${phone}" country="GB" />`
+    + `<x-ds::shortcut-input id="scm" name="keys" label="Keys" value="${keys}" />`
+    + '<x-ds::input id="srm" name="q" label="Search" :expanding="true" /></div>';
+await writeFile(join(TMP, 'b16-morph-a.blade.php'), b16Blade(['10', '+447911123456', 'mod+k']));
+const b16MorphBefore = await render(join(TMP, 'b16-morph-a.blade.php'));
+await writeFile(join(TMP, 'b16-morph-b.blade.php'), b16Blade(['2500.5', '+14155550123', 'mod+shift+p']));
+const b16MorphAfter = await render(join(TMP, 'b16-morph-b.blade.php'));
+
 await writeFile(
     join(TMP, 'in.css'),
     `@import "tailwindcss";
@@ -5894,7 +5906,10 @@ group('user menu (on ds::dropdown)');
         await page.keyboard.press('End');
         for (let i = 0; i < 2; i++) await page.keyboard.press('ArrowUp');
         await page.keyboard.press('Enter');
-        await settle(250);
+        // The theme's view transition snapshots the whole page, which on this
+        // page now takes longer than a fixed wait: wait for the close itself.
+        await page.waitForFunction(() => !document.querySelector('#um [role=menu]').checkVisibility(), null, { timeout: 2000 }).catch(() => {});
+        await settle(100);
         const r = await page.evaluate(() => ({
             checked: [...document.querySelectorAll('#um-theme [role=menuitemradio]')].map((b) => b.getAttribute('aria-checked')).join(),
             dark: document.documentElement.classList.contains('dark'),
@@ -6015,6 +6030,389 @@ group('team switcher (dsTeamSwitcher, on dsPopover)');
         await settle(250);
         const r = { hash: await page.evaluate(() => location.hash), open: (await look('tsl')).open };
         return (r.hash === '#team-1' && !r.open) || JSON.stringify(r);
+    });
+}
+
+group('money input (dsMoneyInput)');
+{
+    const money = (id) => page.evaluate((i) => {
+        const field = document.getElementById(i);
+        const root = field.closest('[data-ds-money]');
+        const hidden = root.querySelector('[data-ds-money-value]');
+        return { shown: field.value, posted: hidden.value, named: hidden.getAttribute('name'), fieldName: field.getAttribute('name'), invalid: field.getAttribute('aria-invalid'), message: field.validationMessage };
+    }, id);
+    const retype = async (id, text) => {
+        await page.click(`#${id}`);
+        await page.keyboard.press('Control+A');
+        await page.keyboard.press('Backspace');
+        await page.keyboard.type(text);
+    };
+
+    await check('with the script the amount posts as digits from the hidden input, and the field has no name', async () => {
+        const r = await money('mi');
+        return (r.shown === '1,234.50' && r.posted === '1234.50' && r.named === 'price' && r.fieldName === null) || JSON.stringify(r);
+    });
+    await check('typing groups as it goes, in lakhs for en-IN', async () => {
+        await retype('mi-in', '1234567');
+        const r = await money('mi-in');
+        return (r.shown === '12,34,567' && r.posted === '1234567.00') || JSON.stringify(r);
+    });
+    await check('the caret stays where it was when a group separator arrives before it', async () => {
+        await retype('mi-in', '1234');
+        await page.keyboard.press('Home');
+        await page.keyboard.press('ArrowRight');
+        await page.keyboard.type('5');
+        const r = { ...(await money('mi-in')), caret: await page.evaluate(() => document.activeElement.selectionStart) };
+        return (r.shown === '15,234' && r.caret === 2) || JSON.stringify(r);
+    });
+    await check('Backspace just after a separator deletes the digit before it', async () => {
+        await retype('mi-in', '15234');
+        await page.keyboard.press('Home');
+        for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
+        await page.keyboard.press('Backspace');
+        const r = await money('mi-in');
+        return r.shown === '1,234' || JSON.stringify(r);
+    });
+    await check('in de, the "." key types the decimal comma; a minus at the start with allowNegative', async () => {
+        await retype('mi-de', '-1234.5');
+        const r = await money('mi-de');
+        return (r.shown === '-1.234,5' && r.posted === '-1234.50') || JSON.stringify(r);
+    });
+    await check('a pasted amount with a symbol and the other locale\'s marks is read, and rounded on leaving', async () => {
+        await retype('mi-de', '');
+        await page.evaluate(() => {
+            const field = document.getElementById('mi-de');
+            const data = new DataTransfer();
+            data.setData('text/plain', '$1,234.567');
+            field.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+        });
+        await page.keyboard.press('Tab');
+        const r = await money('mi-de');
+        return (r.shown === '1.234,57' && r.posted === '1234.57') || JSON.stringify(r);
+    });
+    await check('letters are refused', async () => {
+        await retype('mi', '12ab3');
+        const r = await money('mi');
+        return r.shown === '123' || JSON.stringify(r);
+    });
+    await check('leaving pads to the places, and an amount under min is invalid with the browser\'s message', async () => {
+        await retype('mi', '0.5');
+        await page.keyboard.press('Tab');
+        const r = await money('mi');
+        return (r.shown === '0.50' && r.invalid === 'true' && /at least/.test(r.message)) || JSON.stringify(r);
+    });
+    await check('back in range, it is valid again', async () => {
+        await retype('mi', '12');
+        await page.keyboard.press('Tab');
+        const r = await money('mi');
+        return (r.shown === '12.00' && r.invalid === null && r.message === '' && r.posted === '12.00') || JSON.stringify(r);
+    });
+    await check('choosing JPY rounds the amount to no places; BHD shows three', async () => {
+        await page.selectOption('#mi-cur ~ * select, [data-ds-money]:has(#mi-cur) [data-ds-money-currency]', 'JPY');
+        const jpy = await money('mi-cur');
+        await page.selectOption('[data-ds-money]:has(#mi-cur) [data-ds-money-currency]', 'BHD');
+        const bhd = await money('mi-cur');
+        return (jpy.shown === '12' && jpy.posted === '12' && bhd.shown === '12.000' && bhd.posted === '12.000') || JSON.stringify({ jpy, bhd });
+    });
+    await check('minor units: 1999 shows as 19.99 and posts 1999', async () => {
+        const r = await money('mi-minor');
+        await retype('mi-minor', '5.5');
+        await page.keyboard.press('Tab');
+        const after = await money('mi-minor');
+        return (r.shown === '19.99' && r.posted === '1999' && after.posted === '550') || JSON.stringify({ r, after });
+    });
+    await check('x-model: the host\'s value is shown, typing reaches it, and a value it sets is drawn', async () => {
+        const first = await money('mi-model');
+        await retype('mi-model', '7.25');
+        const typed = await page.locator('#mi-out').innerText();
+        await page.evaluate(() => { Alpine.$data(document.getElementById('mi-out')).tip = '1234567.8'; });
+        await settle(50);
+        const set = await money('mi-model');
+        return (first.shown === '2.50' && typed === '7.25' && set.shown === '1,234,567.80' && set.posted === '1234567.80') || JSON.stringify({ first, typed, set });
+    });
+}
+
+group('phone input (dsPhoneInput, on dsPopover)');
+{
+    const phone = (id) => page.evaluate((i) => {
+        const field = document.getElementById(i);
+        const root = field.closest('[data-ds-phone]');
+        const trigger = root.querySelector('[data-ds-phone-trigger]');
+        return {
+            shown: field.value,
+            posted: root.querySelector('[data-ds-phone-value]').value,
+            iso: trigger.querySelector('[data-ds-phone-iso]').textContent.trim(),
+            trigger: trigger.checkVisibility(),
+            select: root.querySelector('[data-ds-phone-select]').checkVisibility(),
+            invalid: field.getAttribute('aria-invalid'),
+            note: root.querySelector('[data-ds-phone-note]').hidden ? '' : root.querySelector('[data-ds-phone-note]').textContent.trim(),
+            open: root.querySelector('[data-ds-popover-panel], [role=dialog]')?.checkVisibility() ?? false,
+        };
+    }, id);
+    const retype = async (id, text) => {
+        await page.click(`#${id}`);
+        await page.keyboard.press('Control+A');
+        await page.keyboard.press('Backspace');
+        await page.keyboard.type(text);
+    };
+    const shownCountries = (id) => page.evaluate((i) => [...document.getElementById(i).closest('[data-ds-phone]').querySelectorAll('[data-ds-phone-option]')]
+        .filter((o) => !o.closest('li').hidden)
+        .sort((a, b) => Number(a.closest('li').style.order || 0) - Number(b.closest('li').style.order || 0))
+        .map((o) => o.dataset.value).slice(0, 4).join('|'), id);
+
+    await check('with the script the select is hidden and the trigger shows the country', async () => {
+        const r = await phone('ph');
+        return (r.trigger && !r.select && r.iso === 'GB' && r.posted === '') || JSON.stringify(r);
+    });
+    await check('typing masks the number, and the trunk 0 is dropped from E.164', async () => {
+        await retype('ph', '07911123456');
+        const r = await phone('ph');
+        return (r.shown === '07911 123456' && r.posted === '+447911123456') || JSON.stringify(r);
+    });
+    await check('a number typed with + chooses its country, the primary one of a shared code', async () => {
+        await retype('ph', '+1 415 555 0123');
+        const r = await phone('ph');
+        return (r.iso === 'US' && r.shown === '(415) 555-0123' && r.posted === '+14155550123') || JSON.stringify(r);
+    });
+    await check('a number clearly too short is marked on leaving, and the form still submits', async () => {
+        await retype('ph', '41555');
+        await page.keyboard.press('Tab');
+        const r = await phone('ph');
+        const valid = await page.evaluate(() => document.getElementById('b16-form').checkValidity());
+        return (r.invalid === 'true' && /too short/.test(r.note) && valid) || JSON.stringify({ ...r, valid });
+    });
+    await check('the picker searches by name, and choosing keeps the number, closes and returns focus', async () => {
+        await page.click('[data-ds-phone]:has(#ph) [data-ds-phone-trigger]');
+        await settle(250);
+        await page.keyboard.type('germ');
+        await settle(50);
+        const first = await shownCountries('ph');
+        await page.keyboard.press('Enter');
+        await settle(250);
+        const r = await phone('ph');
+        const focus = await page.evaluate(() => document.activeElement.matches('[data-ds-phone]:has(#ph) [data-ds-phone-trigger]'));
+        return (first.startsWith('DE') && r.iso === 'DE' && r.posted === '+4941555' && !r.open && focus) || JSON.stringify({ first, ...r, focus });
+    });
+    await check('by ISO code first, and by dial code', async () => {
+        await page.click('[data-ds-phone]:has(#ph) [data-ds-phone-trigger]');
+        await settle(250);
+        await page.keyboard.type('gb');
+        const iso = await shownCountries('ph');
+        await page.keyboard.press('Control+A');
+        await page.keyboard.type('+44');
+        const dial = await shownCountries('ph');
+        await page.keyboard.press('Escape');
+        await settle(250);
+        return (iso.startsWith('GB') && dial === 'GB|GG|IM|JE') || JSON.stringify({ iso, dial });
+    });
+    await check('countryName posts the ISO code beside E.164', async () => {
+        await page.click('#b16-submit');
+        const sent = Object.fromEntries((await page.evaluate(() => window.b16Sent)).filter(([k]) => ['phone', 'phone_country', 'few', 'phone[country]'].includes(k)));
+        return (sent.phone === '+4941555' && sent.phone_country === 'DE' && sent.few === '+33612345678' && !('phone[country]' in sent)) || JSON.stringify(sent);
+    });
+    await check('three countries: no search field, and focus starts on the current one', async () => {
+        await page.click('[data-ds-phone]:has(#ph-few) [data-ds-phone-trigger]');
+        await settle(250);
+        const r = await page.evaluate(() => ({ search: Boolean(document.getElementById('ph-few').closest('[data-ds-phone]').querySelector('[data-ds-phone-search]')), focus: document.activeElement.dataset.value }));
+        // In name order, France then Ireland.
+        await page.keyboard.press('ArrowDown');
+        await page.keyboard.press('Enter');
+        await settle(250);
+        const after = await phone('ph-few');
+        return (!r.search && r.focus === 'FR' && after.iso === 'IE' && after.posted === '+353612345678') || JSON.stringify({ ...r, after });
+    });
+    await check('x-model: E.164 in, the country chosen from it; a value the host sets is drawn', async () => {
+        const first = await phone('ph-model');
+        await page.evaluate(() => { Alpine.$data(document.getElementById('ph-out')).tel = '+447911123456'; });
+        await settle(50);
+        const set = await phone('ph-model');
+        await retype('ph-model', '07700900123');
+        const typed = await page.locator('#ph-out').innerText();
+        return (first.iso === 'IN' && first.shown === '98765 43210' && set.iso === 'GB' && set.shown === '7911 123456' && typed === '+447700900123') || JSON.stringify({ first, set, typed });
+    });
+}
+
+group('expanding search (ds::input expanding, dsSearch)');
+{
+    const box = (id) => page.evaluate((i) => {
+        const field = document.getElementById(i);
+        const root = field.closest('[data-ds-search]');
+        return { width: Math.round(field.getBoundingClientRect().width), value: field.value, focus: document.activeElement === field ? 'field' : document.activeElement.matches('[data-ds-search-button]') ? 'button' : document.activeElement.id || document.activeElement.tagName, after: Math.round(document.getElementById('srch-after').getBoundingClientRect().left), before: Math.round(document.getElementById('ov-before').getBoundingClientRect().left), root: Math.round(root.getBoundingClientRect().width) };
+    }, id);
+    const reduced = () => page.emulateMedia({ reducedMotion: 'reduce' });
+    await reduced();
+
+    await check('collapsed it is an icon button\'s square, named by its label', async () => {
+        const r = await box('srch');
+        const name = await page.locator('[data-ds-search]:has(#srch) [data-ds-search-button]').getAttribute('aria-label');
+        return (r.width === 36 && name === 'Search') || JSON.stringify({ ...r, name });
+    });
+    await check('focus widens it and pushes what follows; typing holds it open after focus leaves', async () => {
+        const start = await box('srch');
+        await page.click('#srch');
+        await settle(50);
+        const open = await box('srch');
+        await page.keyboard.type('acme');
+        await page.click('#srch-after');
+        await settle(50);
+        const left = await box('srch');
+        return (open.width === 256 && open.after > start.after + 200 && left.width === 256 && left.value === 'acme') || JSON.stringify({ start, open, left });
+    });
+    await check('Escape clears first, then collapses with focus on its button', async () => {
+        await page.click('#srch');
+        await page.keyboard.press('Escape');
+        const cleared = await box('srch');
+        await page.keyboard.press('Escape');
+        await settle(50);
+        const closed = await box('srch');
+        return (cleared.value === '' && cleared.focus === 'field' && cleared.width === 256 && closed.focus === 'button' && closed.width === 36) || JSON.stringify({ cleared, closed });
+    });
+    await check('a key typed on the button goes into the field', async () => {
+        await page.keyboard.type('x');
+        const r = await box('srch');
+        await page.keyboard.press('Escape');
+        await page.keyboard.press('Escape');
+        return (r.focus === 'field' && r.value === 'x') || JSON.stringify(r);
+    });
+    await check('its shortcut opens it from the page, and not from inside another field', async () => {
+        await page.click('#srch-after');
+        await page.keyboard.press('f');
+        const fromPage = await box('srch');
+        await page.click('#mi');
+        await page.keyboard.press('f');
+        const fromField = await box('srch');
+        return (fromPage.focus === 'field' && fromField.focus === 'mi') || JSON.stringify({ fromPage, fromField });
+    });
+    await check('overlay grows over what is before it, and nothing on the page moves', async () => {
+        const start = await box('srch-ov');
+        await page.click('#srch-ov');
+        await settle(50);
+        const open = await box('srch-ov');
+        await page.click('#srch-after');
+        await settle(50);
+        const closed = await box('srch-ov');
+        return (start.width === 36 && open.width === 256 && open.before === start.before && open.root === start.root && closed.width === 36) || JSON.stringify({ start, open, closed });
+    });
+    await page.emulateMedia({ reducedMotion: null });
+}
+
+group('shortcut input (dsShortcutInput) and kbd shortcut (x-ds-shortcut)');
+{
+    const rec = (id) => `[data-ds-shortcut-input]:has(#${id}) [data-ds-shortcut-record]`;
+    const sc = (id) => page.evaluate((i) => {
+        const text = document.getElementById(i);
+        const root = text.closest('[data-ds-shortcut-input]');
+        const button = root.querySelector('[data-ds-shortcut-record]');
+        const note = root.querySelector('[data-ds-shortcut-note]');
+        return {
+            value: text.value,
+            text: text.checkVisibility(),
+            button: button.checkVisibility(),
+            recording: button.hasAttribute('data-ds-recording'),
+            keys: [...button.querySelectorAll('[data-ds-kbd-caps] kbd')].map((k) => k.textContent).join(' '),
+            note: note.hidden ? '' : note.textContent.trim(),
+            live: root.querySelector('[data-ds-shortcut-live]').textContent,
+            focus: document.activeElement === button ? 'recorder' : document.activeElement.getAttribute('aria-label') ?? document.activeElement.id ?? document.activeElement.tagName,
+        };
+    }, id);
+
+    await check('with the script the text field is hidden and the recorder shows the keys; its name is the label and the keys', async () => {
+        const r = await sc('sc');
+        const name = await page.evaluate((s) => document.querySelector(s).getAttribute('aria-labelledby').split(' ').map((i) => document.getElementById(i).textContent.replace(/\s+/g, ' ').trim()).join(' '), rec('sc'));
+        return (!r.text && r.button && r.value === 'mod+k' && r.keys === 'Ctrl K' && /^Open search .*Control\+K/.test(name)) || JSON.stringify({ ...r, name });
+    });
+    await check('Enter starts recording, and says so', async () => {
+        await page.focus(rec('sc'));
+        await page.keyboard.press('Enter');
+        await settle(50);
+        const r = await sc('sc');
+        return (r.recording && /Recording/.test(r.live)) || JSON.stringify(r);
+    });
+    await check('a modifier alone completes nothing; a bare key is refused', async () => {
+        await page.keyboard.press('Shift');
+        const lone = await sc('sc');
+        await page.keyboard.press('k');
+        await settle(50);
+        const bare = await sc('sc');
+        return (lone.recording && bare.recording && bare.value === 'mod+k' && /Hold Ctrl or Alt/.test(bare.note)) || JSON.stringify({ lone, bare });
+    });
+    await check('the browser\'s own shortcut is refused, inline and aloud', async () => {
+        await page.keyboard.press('Control+w');
+        await settle(50);
+        const r = await sc('sc');
+        return (r.recording && r.value === 'mod+k' && /Control\+W belongs to the browser/.test(r.note) && /belongs/.test(r.live)) || JSON.stringify(r);
+    });
+    await check('a combination in conflicts is kept, with "Already used by", and change says { value, previous }', async () => {
+        await page.evaluate(() => { window.b16Changes = []; });
+        await page.keyboard.press('Control+j');
+        await settle(50);
+        const r = await sc('sc');
+        const changes = await page.evaluate(() => window.b16Changes);
+        return (!r.recording && r.value === 'mod+j' && r.keys === 'Ctrl J' && r.note === 'Already used by Jump to.' && JSON.stringify(changes) === '[{"value":"mod+j","previous":"mod+k"}]') || JSON.stringify({ ...r, changes });
+    });
+    await check('recording takes the key from the page: the command palette\'s Ctrl+K does not open it', async () => {
+        await page.keyboard.press('Enter');
+        await page.keyboard.press('Control+k');
+        await settle(250);
+        const r = await sc('sc');
+        const palette = await page.evaluate(() => [...document.querySelectorAll('[data-ds-command-palette] [role=dialog], [data-ds-command-palette]')].some((d) => d.checkVisibility() && d.querySelector('[role=combobox]')?.checkVisibility()));
+        return (r.value === 'mod+k' && !palette) || JSON.stringify({ ...r, palette });
+    });
+    await check('Escape cancels and keeps the value; Backspace clears', async () => {
+        await page.keyboard.press('Space');
+        await settle(50);
+        await page.keyboard.press('Escape');
+        const cancelled = await sc('sc');
+        await page.keyboard.press('Backspace');
+        await settle(50);
+        const cleared = await sc('sc');
+        return (!cancelled.recording && cancelled.value === 'mod+k' && cleared.value === '' && /cleared/.test(cleared.live)) || JSON.stringify({ cancelled, cleared });
+    });
+    await check('Tab is never taken: it cancels and moves on', async () => {
+        await page.keyboard.press('Enter');
+        await page.keyboard.press('Tab');
+        await settle(50);
+        const r = await sc('sc');
+        const moved = await page.evaluate(() => !document.activeElement.closest('[data-ds-shortcut-input]:has(#sc)'));
+        return (!r.recording && moved) || JSON.stringify({ ...r, moved });
+    });
+    await check('allowBare takes a key on its own', async () => {
+        await page.click(rec('sc-bare'));
+        await page.keyboard.press('n');
+        await settle(50);
+        const r = await sc('sc-bare');
+        return (r.value === 'n' && r.keys === 'N' && !r.recording) || JSON.stringify(r);
+    });
+    await check('the clear button empties it and puts focus back on the recorder', async () => {
+        await page.click('[data-ds-shortcut-input]:has(#sc-bare) [data-ds-shortcut-clear]');
+        const r = await sc('sc-bare');
+        return (r.value === '' && r.focus === 'recorder') || JSON.stringify(r);
+    });
+    await check('x-model: the host\'s value is drawn, and a recorded one reaches it', async () => {
+        const first = await sc('sc-model');
+        await page.evaluate(() => { Alpine.$data(document.getElementById('sc-out')).keys = 'Shift+Ctrl+P'; });
+        await settle(50);
+        const set = await sc('sc-model');
+        await page.click(rec('sc-model'));
+        await page.keyboard.press('Control+Alt+m');
+        await settle(50);
+        const out = await page.locator('#sc-out').innerText();
+        return (first.keys === 'Alt N' && set.value === 'ctrl+shift+p' && set.keys === 'Ctrl Shift P' && out === 'mod+alt+m') || JSON.stringify({ first, set, out });
+    });
+    await check('it posts the string under its name', async () => {
+        await page.click('#b16-submit');
+        const sent = Object.fromEntries((await page.evaluate(() => window.b16Sent)).filter(([k]) => ['sc', 'bare', 'keys'].includes(k)));
+        return (sent.sc === '' && sent.bare === '' && sent.keys === 'mod+alt+m') || JSON.stringify(sent);
+    });
+    await check('kbd shortcut: words off a Mac, caps hidden from screen readers, and a change of data-ds-shortcut redraws', async () => {
+        const r = await page.evaluate(async () => {
+            const k = document.getElementById('kbd-sc');
+            const before = { words: k.querySelector('[data-ds-kbd-words]').textContent, caps: k.querySelector('[data-ds-kbd-caps]').textContent, hidden: k.querySelector('[data-ds-kbd-caps]').getAttribute('aria-hidden') };
+            k.dataset.dsShortcut = 'alt+arrowup';
+            await new Promise((r) => setTimeout(r, 20));
+            return { ...before, after: k.querySelector('[data-ds-kbd-caps]').textContent, said: k.querySelector('[data-ds-kbd-words]').textContent };
+        });
+        return (r.words === 'Control+Shift+K' && r.caps === 'Ctrl+Shift+K' && r.hidden === 'true' && r.after === 'Alt+↑' && r.said === 'Alt+Up Arrow') || JSON.stringify(r);
     });
 }
 
@@ -6183,6 +6581,7 @@ const overlays = [
     ['user menu items, the theme row and sign-out', '#f-um [data-ds-user-menu-trigger]', 'Enter', 'ArrowDown', 5],
     ['team switcher options', '#f-ts [data-ds-team-trigger]', 'Enter', 'ArrowDown', 3],
     ['team switcher, its search field', '#f-ts-search [data-ds-team-trigger]', 'Enter', 'ArrowDown', 1],
+    ['phone input countries', '[data-ds-phone]:has(#f-phone) [data-ds-phone-trigger]', 'Enter', 'ArrowDown', 2],
     ['modal, round the trap', '#f-modal-open', 'Enter', 'Tab', 4],
     ['drawer, round the trap', '#f-drawer-open', 'Enter', 'Tab', 3],
     // Tab cannot leave the field, the only stop; Escape closes it, so the
@@ -6284,6 +6683,7 @@ const listsMarkup = [
 const inputsCMarkup = specimens.match(/<div class="mt-6 w-\[640px\]" id="inputs-c"[\s\S]*?<!-- \/inputs-c -->/)?.[0];
 const b12Markup = specimens.match(/<div class="mt-6 w-\[640px\]" id="b12"[\s\S]*?<!-- \/b12 -->/)?.[0];
 const b15Markup = specimens.match(/<div class="mt-6 w-\[640px\]" id="b15"[\s\S]*?<!-- \/b15 -->/)?.[0];
+const b16Markup = specimens.match(/<div class="mt-6 w-\[640px\]" id="b16"[\s\S]*?<!-- \/b16 -->/)?.[0];
 const clipMarkup = specimens.match(/<div class="mt-6" id="clip"[\s\S]*?<\/span>\s*<\/div>/)?.[0];
 
 const hostPages = {
@@ -6377,6 +6777,19 @@ ${include}
     'b15-static.html': `<!doctype html><html><head><meta charset="utf-8">
 <style>${css}</style>
 </head><body>${b15Markup}</body></html>`,
+
+    // Batch 16 with no Alpine at all: plain fields that post.
+    'b16-static.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+</head><body>${b16Markup}</body></html>`,
+
+    'b16-morph.html': `<!doctype html><html><head><meta charset="utf-8">
+<style>${css}</style>
+${include}
+</head><body>${b16MorphBefore}
+<script>window.b16MorphNext = ${JSON.stringify(b16MorphAfter)};</script>
+<script src="livewire.js"></script>
+</body></html>`,
 
     'b15-morph.html': `<!doctype html><html><head><meta charset="utf-8">
 <style>${css}</style>
@@ -6532,7 +6945,7 @@ group('host setup (b): Alpine bundled by the host, Alpine.plugin(bladeUi)');
     await check('the plugin works', () => copiesOn(tab));
     await check('plugin twice plus the include: each name registered exactly once', async () => {
         const names = await tab.evaluate(() => window.dsRegistered);
-        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme', 'dsDismiss', 'dsConfirm', 'dsHold', 'dsConfirmDialog', 'dsRoll', 'dsClamp', 'dsClear', 'dsTree', 'dsSlider', 'dsTimePicker', 'dsInlineEdit', 'dsCommandPalette', 'dsSortable', 'dsSplit', 'dsSwap', 'dsTeamSwitcher'];
+        const expected = ['dsClipboard', 'dsOtp', 'dsTagInput', 'dsNumberField', 'dsPassword', 'dsPasswordStrength', 'dsToolbar', 'dsToggleGroup', 'dsPopover', 'dsHoverCard', 'dsContextMenu', 'dsTheme', 'dsDismiss', 'dsConfirm', 'dsHold', 'dsConfirmDialog', 'dsRoll', 'dsClamp', 'dsClear', 'dsTree', 'dsSlider', 'dsTimePicker', 'dsInlineEdit', 'dsCommandPalette', 'dsSortable', 'dsSplit', 'dsSwap', 'dsTeamSwitcher', 'dsMoneyInput', 'dsPhoneInput', 'dsSearch', 'dsShortcutInput'];
         return JSON.stringify(names) === JSON.stringify(expected) || `registered ${JSON.stringify(names)}`;
     });
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
@@ -6552,7 +6965,7 @@ group('host setup (c): Livewire\'s bundled Alpine, include loaded twice');
     await tab.close();
 }
 
-group('wire:model on otp-input, tag-input, chip-group, radio-cards, segmented-control, toggle-group, slider, time-picker, inline-edit and team-switcher, in a real Livewire component');
+group('wire:model on otp-input, tag-input, chip-group, radio-cards, segmented-control, toggle-group, slider, time-picker, inline-edit, team-switcher, money-input, phone-input, shortcut-input and an expanding search, in a real Livewire component');
 {
     const { tab, errors } = await openHost('_ds/livewire', LARAVEL);
     const wire = (name) => tab.evaluate((n) => JSON.parse(JSON.stringify(window.Livewire.first()[n])), name);
@@ -6699,6 +7112,49 @@ group('wire:model on otp-input, tag-input, chip-group, radio-cards, segmented-co
         const after = await wire('team');
         const face = await tab.locator('#lw-team [data-ds-team-trigger] [data-ds-team-name]').innerText();
         return (before === '2' && after === '3' && face === 'Initech') || JSON.stringify({ before, after, face });
+    });
+
+    await check('money input: a typed amount reaches $wire.price as digits; one Livewire sets is drawn', async () => {
+        await tab.click('#lw-price');
+        await tab.keyboard.press('Control+A');
+        await tab.keyboard.type('1234.5');
+        await tab.waitForTimeout(100);
+        const typed = await wire('price');
+        await tab.evaluate(() => { window.Livewire.first().price = '99'; });
+        await tab.waitForTimeout(100);
+        const shown = await tab.inputValue('#lw-price');
+        return (typed === '1234.50' && shown === '99.00') || JSON.stringify({ typed, shown });
+    });
+    await check('phone input: E.164 reaches $wire.phone; one Livewire sets chooses its country', async () => {
+        await tab.click('#lw-phone');
+        await tab.keyboard.press('Control+A');
+        await tab.keyboard.type('07700900123');
+        await tab.waitForTimeout(100);
+        const typed = await wire('phone');
+        await tab.evaluate(() => { window.Livewire.first().phone = '+919876543210'; });
+        await tab.waitForTimeout(100);
+        const iso = await tab.locator('[data-ds-phone]:has(#lw-phone) [data-ds-phone-iso]').innerText();
+        return (typed === '+447700900123' && iso === 'IN' && (await tab.inputValue('#lw-phone')) === '98765 43210') || JSON.stringify({ typed, iso });
+    });
+    await check('shortcut input: a recorded shortcut reaches $wire.keys; one Livewire sets is drawn', async () => {
+        await tab.click('[data-ds-shortcut-input]:has(#lw-keys) [data-ds-shortcut-record]');
+        await tab.keyboard.press('Control+Shift+l');
+        await tab.waitForTimeout(100);
+        const recorded = await wire('keys');
+        await tab.evaluate(() => { window.Livewire.first().keys = 'alt+n'; });
+        await tab.waitForTimeout(100);
+        const caps = await tab.evaluate(() => [...document.querySelectorAll('[data-ds-shortcut-input]:has(#lw-keys) [data-ds-kbd-caps] kbd')].map((k) => k.textContent).join(' '));
+        return (recorded === 'mod+shift+l' && caps === 'Alt N') || JSON.stringify({ recorded, caps });
+    });
+    await check('expanding search: typing reaches $wire.q, and Escape clearing it does too', async () => {
+        await tab.click('#lw-q');
+        await tab.keyboard.type('acme');
+        await tab.waitForTimeout(100);
+        const typed = await wire('q');
+        await tab.keyboard.press('Escape');
+        await tab.waitForTimeout(100);
+        const cleared = await wire('q');
+        return (typed === 'acme' && cleared === '') || JSON.stringify({ typed, cleared });
     });
 
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
@@ -7573,6 +8029,94 @@ group('team switcher and swap button re-rendered by a morph (Livewire\'s Alpine.
         await tab.waitForTimeout(250);
         const s = await state();
         return s.pressed === 'true' || JSON.stringify(s);
+    });
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await tab.close();
+}
+
+group('money, phone, shortcut and expanding search with no Alpine at all (plain fields that post)');
+{
+    const { tab, errors } = await openHost('b16-static.html');
+
+    await check('the markup reached the page', async () =>
+        (await tab.locator('#mi, #ph, #srch, #sc, #kbd-sc').count()) === 5 || 'a specimen was not found in the rendered page');
+    await check('nothing in the console', async () => !errors.length || errors.join(' | '));
+    await check('each posts a real value under a real name: the money as typed, the phone as two fields, the shortcut as its string', async () => {
+        const sent = await tab.evaluate(() => {
+            const out = {};
+            for (const [k, v] of new FormData(document.getElementById('b16-form'))) out[k] = v;
+            return out;
+        });
+        const want = { price: '1,234.50', cents: '19.99', 'phone[country]': 'GB', 'phone[number]': '', 'few[country]': 'FR', 'few[number]': '6 12 34 56 78', sc: 'mod+k', keys: '', q: '' };
+        const wrong = Object.entries(want).filter(([k, v]) => sent[k] !== v);
+        const extra = ['phone', 'phone_country', 'price_currency'].filter((k) => k in sent);
+        return (!wrong.length && !extra.length) || JSON.stringify({ wrong, extra, sent });
+    });
+    await check('the visible controls are the native ones: a text field, a select and a tel field, a text field', async () => {
+        const r = await tab.evaluate(() => ({
+            money: document.getElementById('mi').checkVisibility() && document.getElementById('mi').inputMode,
+            pattern: document.getElementById('mi').getAttribute('pattern'),
+            select: document.querySelector('[data-ds-phone]:has(#ph) [data-ds-phone-select]').checkVisibility(),
+            trigger: document.querySelector('[data-ds-phone]:has(#ph) [data-ds-phone-trigger]').checkVisibility(),
+            tel: document.getElementById('ph').type,
+            text: document.getElementById('sc').checkVisibility(),
+            recorder: document.querySelector('[data-ds-shortcut-input]:has(#sc) [data-ds-shortcut-record]').checkVisibility(),
+            kbd: document.getElementById('kbd-sc').textContent.replace(/\s+/g, ''),
+        }));
+        return (r.money === 'decimal' && r.pattern && r.select && !r.trigger && r.tel === 'tel' && r.text && !r.recorder && r.kbd === 'Control+Shift+KCtrl+Shift+K') || JSON.stringify(r);
+    });
+    await check('the expanding search opens on focus and closes empty, from CSS alone', async () => {
+        await tab.emulateMedia({ reducedMotion: 'reduce' });
+        const width = () => tab.evaluate(() => Math.round(document.getElementById('srch').getBoundingClientRect().width));
+        const before = await width();
+        await tab.click('#srch');
+        const open = await width();
+        await tab.click('#srch-after');
+        const after = await width();
+        return (before === 36 && open === 256 && after === 36) || JSON.stringify({ before, open, after });
+    });
+    await tab.close();
+}
+
+group('money, phone, shortcut and expanding search re-rendered by a morph (Livewire\'s Alpine.morph)');
+{
+    const { tab, errors } = await openHost('b16-morph.html');
+    const state = () => tab.evaluate(() => {
+        const at = (sel) => document.querySelector(sel);
+        return {
+            amount: at('#mim').value, amountPost: at('[data-ds-money]:has(#mim) [data-ds-money-value]').value,
+            amountNames: [at('#mim').getAttribute('name'), at('[data-ds-money]:has(#mim) [data-ds-money-value]').getAttribute('name')].join(),
+            phone: at('#phm').value, phonePost: at('[data-ds-phone]:has(#phm) [data-ds-phone-value]').value,
+            iso: at('[data-ds-phone]:has(#phm) [data-ds-phone-iso]').textContent.trim(),
+            phoneNames: [at('#phm').getAttribute('name'), at('[data-ds-phone]:has(#phm) [data-ds-phone-select]').getAttribute('name'), at('[data-ds-phone]:has(#phm) [data-ds-phone-value]').getAttribute('name')].join(),
+            trigger: at('[data-ds-phone]:has(#phm) [data-ds-phone-trigger]').checkVisibility(),
+            keys: at('#scm').value, recorder: at('[data-ds-shortcut-input]:has(#scm) [data-ds-shortcut-record]').checkVisibility(),
+            caps: [...document.querySelectorAll('[data-ds-shortcut-input]:has(#scm) [data-ds-kbd-caps] kbd')].map((k) => k.textContent).join(' '),
+        };
+    });
+
+    await check('before: each with its script, names moved to the posted values', async () => {
+        const s = await state();
+        return (s.amount === '10.00' && s.amountNames === ',amount' && s.iso === 'GB' && s.phonePost === '+447911123456' && s.phoneNames === ',,phone' && s.trigger && s.recorder && s.caps === 'Ctrl K') || JSON.stringify(s);
+    });
+    await check('after a morph to new values: the new values drawn, the names still moved', async () => {
+        await tab.evaluate(() => window.Alpine.morph(document.getElementById('b16-morph'), window.b16MorphNext));
+        await tab.waitForTimeout(200);
+        const s = await state();
+        return (s.amount === '2,500.50' && s.amountPost === '2500.50' && s.amountNames === ',amount' && s.iso === 'US' && s.phone === '(415) 555-0123' && s.phonePost === '+14155550123' && s.phoneNames === ',,phone' && s.trigger && s.keys === 'mod+shift+p' && s.recorder && s.caps === 'Ctrl Shift P') || JSON.stringify(s);
+    });
+    await check('and they still work: typing, recording', async () => {
+        await tab.click('#mim');
+        await tab.keyboard.press('End');
+        await tab.keyboard.press('Backspace');
+        await tab.keyboard.press('Backspace');
+        await tab.keyboard.press('Backspace');
+        await tab.keyboard.type('5');
+        await tab.click('[data-ds-shortcut-input]:has(#scm) [data-ds-shortcut-record]');
+        await tab.keyboard.press('Control+b');
+        await tab.waitForTimeout(50);
+        const s = await state();
+        return (s.amount === '25,005.00' && s.amountPost === '25005.00' && s.keys === 'mod+b') || JSON.stringify(s);
     });
     await check('nothing in the console', async () => !errors.length || errors.join(' | '));
     await tab.close();

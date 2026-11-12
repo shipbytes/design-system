@@ -9,7 +9,8 @@ use Livewire\Component;
 /**
  * The Livewire host the behaviour tests drive: otp-input, tag-input, chip-group,
  * radio-cards, segmented-control, toggle-group, slider, time-picker,
- * inline-edit and team-switcher bound with wire:model, the way docs/components/otp-input.md and tag-input.md show.
+ * inline-edit, team-switcher, money-input, phone-input, shortcut-input and an
+ * expanding search bound with wire:model, the way docs/components/otp-input.md and tag-input.md show.
  * Served by scripts/request.php as <livewire:binding-host />.
  */
 final class BindingHost extends Component
@@ -36,6 +37,14 @@ final class BindingHost extends Component
     public string $title = 'Q3 roadmap';
 
     public string $team = '2';
+
+    public string $price = '19.99';
+
+    public string $phone = '+447911123456';
+
+    public string $keys = 'mod+k';
+
+    public string $q = '';
 
     public function render(): string
     {
@@ -64,6 +73,10 @@ final class BindingHost extends Component
                 <x-ds::inline-edit name="title" id="lw-title" label="Title" wire:model="title" :value="$title" />
                 <x-ds::team-switcher id="lw-team" name="team" wire:model="team" :current="$team"
                     :teams="[['id' => 1, 'name' => 'Acme Inc'], ['id' => 2, 'name' => 'Globex'], ['id' => 3, 'name' => 'Initech']]" />
+                <x-ds::money-input id="lw-price" name="price" label="Price" wire:model="price" :value="$price" />
+                <x-ds::phone-input id="lw-phone" name="phone" label="Phone" wire:model="phone" :value="$phone" :countries="['GB', 'US', 'IN']" />
+                <x-ds::shortcut-input id="lw-keys" name="keys" label="Keys" wire:model="keys" :value="$keys" />
+                <x-ds::input id="lw-q" name="q" label="Search" :expanding="true" wire:model="q" />
             </div>
             BLADE;
     }

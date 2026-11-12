@@ -1109,4 +1109,56 @@
     </div>
     <!-- /b15 -->
 
+    {{-- ── batch 16: money input, phone input, expanding search, shortcut
+         input. The block marked #b16 is also cut out for a host page with no
+         Alpine at all, by its id and the closing comment. The form records
+         what it would post rather than leaving the page. ── --}}
+    <div class="mt-6 w-[640px]" id="b16">
+        <form id="b16-form" onsubmit="event.preventDefault(); window.b16Sent = [...new FormData(event.target)]" onchange="event.target.closest('[data-ds-shortcut-input]') && (window.b16Changes ??= []).push(event.detail ?? null)">
+            <div class="grid grid-cols-2 gap-4">
+                <x-ds::money-input id="mi" name="price" label="Price" value="1234.5" min="1" max="100000" />
+                <x-ds::money-input id="mi-in" name="budget" label="Budget" currency="INR" locale="en-IN" />
+                <x-ds::money-input id="mi-de" name="cost" label="Cost" currency="EUR" locale="de" :allowNegative="true" />
+                <x-ds::money-input id="mi-cur" name="pay" label="Pay" :currencies="['USD', 'JPY', 'BHD']" currency="USD" value="12.34" step="0.05" />
+                <x-ds::money-input id="mi-minor" name="cents" label="Cents" :minor="true" :value="1999" />
+                <div x-data="{ tip: '2.5' }">
+                    <x-ds::money-input id="mi-model" name="tip" label="Tip" x-model="tip" />
+                    <output id="mi-out" x-text="tip">2.5</output>
+                </div>
+            </div>
+
+            <div class="mt-4 grid grid-cols-2 gap-4">
+                <x-ds::phone-input id="ph" name="phone" label="Phone" country="GB" countryName="phone_country" :preferred="['GB', 'US']" />
+                <x-ds::phone-input id="ph-few" name="few" label="Few" :countries="['GB', 'IE', 'FR']" country="FR" value="+33612345678" />
+                <div x-data="{ tel: '+919876543210' }">
+                    <x-ds::phone-input id="ph-model" name="tel" label="Bound" x-model="tel" />
+                    <output id="ph-out" x-text="tel"></output>
+                </div>
+            </div>
+
+            <div class="mt-4 flex items-center gap-3" role="search">
+                {{-- Not "/": the remote palette above takes that one. --}}
+                <x-ds::input id="srch" name="q" label="Search" :expanding="true" :clearable="true" shortcut="f" />
+                <span id="srch-after">after</span>
+            </div>
+            <div class="mt-4 flex w-[480px] items-center gap-3">
+                <span id="ov-before">A title</span>
+                <span class="ml-auto"></span>
+                <x-ds::input id="srch-ov" name="q2" label="Search docs" :expanding="true" mode="overlay" />
+            </div>
+
+            <div class="mt-4 grid grid-cols-2 gap-4">
+                <x-ds::shortcut-input id="sc" name="sc" label="Open search" value="mod+k" :conflicts="['mod+j' => 'Jump to']" />
+                <x-ds::shortcut-input id="sc-bare" name="bare" label="Next" :allowBare="true" />
+                <div x-data="{ keys: 'alt+n' }">
+                    <x-ds::shortcut-input id="sc-model" name="keys" label="Bound" x-model="keys" />
+                    <output id="sc-out" x-text="keys"></output>
+                </div>
+                <p id="kbd-sc-line">Press <x-ds::kbd id="kbd-sc" shortcut="mod+shift+k" />.</p>
+            </div>
+            <button id="b16-submit" type="submit">Send</button>
+        </form>
+    </div>
+    <!-- /b16 -->
+
 </div>

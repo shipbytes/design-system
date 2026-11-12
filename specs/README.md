@@ -79,6 +79,9 @@ independent implementations the same component rather than three lookalikes.
 | [tag-input.md](tag-input.md) | Free-text chips, refusals that stay, separators |
 | [number-field.md](number-field.md) | Native number input, step buttons, press-and-hold |
 | [slider.md](slider.md) | Native range inputs, one or two on a track; the thumb, the fill, thumbs that do not cross |
+| [money-input.md](money-input.md) | Amounts as digit strings in PHP and JS, locale grouping with a stable caret, the moving name, minor units |
+| [phone-input.md](phone-input.md) | A select as the country store, the popover picker, masks, the trunk 0, E.164, a length check that is not libphonenumber |
+| [shortcut-input.md](shortcut-input.md) | Recording on keydown, refusals and conflicts, Tab never taken, the change event, the platform drawing |
 | [time-picker.md](time-picker.md) | A native time field the script turns into a combobox; forgiving typing that never changes the time |
 | [inline-edit.md](inline-edit.md) | Read state as a button, a field in the same box, save and fail as attributes the host sets |
 | [command-palette.md](command-palette.md) | The modal's layer, a combobox that keeps focus, ranking by CSS order, options that change under it |
