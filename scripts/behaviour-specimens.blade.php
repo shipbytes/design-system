@@ -236,6 +236,25 @@
             <button type="button" id="picked-host-set" @click="picked = ['sales']">host sets sales</button>
         </div>
 
+        {{-- ── radio cards: radios and CSS, no script ── --}}
+        <div class="mt-6" id="cards">
+            <x-ds::radio-cards name="tier" label="Plan" :columns="3">
+                <x-ds::radio-card value="free" title="Free" description="For trying it out.">
+                    <x-slot:meta>$0</x-slot:meta>
+                </x-ds::radio-card>
+                <x-ds::radio-card value="pro" title="Pro" description="For a small team." :checked="true">
+                    <x-slot:meta>$12 a month</x-slot:meta>
+                </x-ds::radio-card>
+                <x-ds::radio-card value="scale" title="Scale" :disabled="true" />
+            </x-ds::radio-cards>
+        </div>
+        <div class="mt-6" id="cards-required">
+            <x-ds::radio-cards name="ship" label="Shipping" required>
+                <x-ds::radio-card value="standard" title="Standard" />
+                <x-ds::radio-card value="express" title="Express" />
+            </x-ds::radio-cards>
+        </div>
+
         {{-- ── number field, from the shared script ── --}}
         <div class="mt-6 max-w-xs">
             <x-ds::number-field name="seats" id="seats" label="Seats" :value="2" :min="1" :max="5" />

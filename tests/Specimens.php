@@ -202,6 +202,30 @@ final class Specimens
                 </x-ds::chip-group>
                 BLADE,
 
+            'radio-cards/all' => <<<'BLADE'
+                <x-ds::radio-cards name="plan" label="Plan" help="Change or cancel at any time." :columns="3">
+                    <x-ds::radio-card value="free" title="Free" description="For trying it out.">
+                        <x-slot:meta>$0</x-slot:meta>
+                    </x-ds::radio-card>
+                    <x-ds::radio-card value="pro" title="Pro" description="For a small team." :checked="true">
+                        <x-slot:icon><x-ds::icon name="rocket-launch" /></x-slot:icon>
+                        <x-slot:meta>$12 a month</x-slot:meta>
+                        Up to ten seats, priority support.
+                    </x-ds::radio-card>
+                    <x-ds::radio-card value="scale" title="Scale" :disabled="true" />
+                </x-ds::radio-cards>
+                <x-ds::radio-cards name="shipping" label="Shipping" error="Choose a shipping method." :columns="2" required wire:model.live="shipping">
+                    <x-ds::radio-card value="standard" title="Standard" description="3 to 5 working days." />
+                    <x-ds::radio-card value="express" title="Express" id="ship-express" />
+                </x-ds::radio-cards>
+                <x-ds::radio-cards name="size" label="Size" :columns="4">
+                    <x-ds::radio-card value="s" title="Small" />
+                </x-ds::radio-cards>
+                <x-ds::radio-cards name="one" label="One" x-model="one">
+                    <x-ds::radio-card value="a" title="A" class="shadow-raised" />
+                </x-ds::radio-cards>
+                BLADE,
+
             'number-field/all' => <<<'BLADE'
                 <x-ds::number-field name="seats" label="Seats" :value="3" :min="1" :max="10" help="Up to ten on this plan." />
                 <x-ds::number-field name="seats" label="Seats" :value="1" :min="1" :max="10" />

@@ -259,6 +259,38 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── radio-cards --}}
+<div data-shot="radio-cards" class="shot">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <div class="flex flex-col gap-6">
+                <x-ds::radio-cards name="plan{{ $loop->index }}" label="Plan" help="Change or cancel at any time." :columns="3">
+                    <x-ds::radio-card value="free" title="Free" description="For trying it out.">
+                        <x-slot:meta>$0</x-slot:meta>
+                    </x-ds::radio-card>
+                    <x-ds::radio-card value="pro" title="Pro" description="For a small team." :checked="true">
+                        <x-slot:meta>$12 a month</x-slot:meta>
+                        Ten seats, priority support.
+                    </x-ds::radio-card>
+                    <x-ds::radio-card value="scale" title="Scale" description="Talk to us first." :disabled="true">
+                        <x-slot:meta>Custom</x-slot:meta>
+                    </x-ds::radio-card>
+                </x-ds::radio-cards>
+                <x-ds::radio-cards name="ship{{ $loop->index }}" label="Shipping" :columns="2" error="Choose how it should be sent.">
+                    <x-ds::radio-card value="standard" title="Standard" description="3 to 5 working days.">
+                        <x-slot:icon><x-ds::icon name="truck" size="5" /></x-slot:icon>
+                        <x-slot:meta>Free</x-slot:meta>
+                    </x-ds::radio-card>
+                    <x-ds::radio-card value="express" title="Express" description="Next working day.">
+                        <x-slot:icon><x-ds::icon name="bolt" size="5" /></x-slot:icon>
+                        <x-slot:meta>$9</x-slot:meta>
+                    </x-ds::radio-card>
+                </x-ds::radio-cards>
+            </div>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── number-field --}}
 <div data-shot="number-field" class="shot">
     @foreach ($themes as $t)

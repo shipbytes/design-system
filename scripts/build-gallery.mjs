@@ -353,6 +353,7 @@ table.ref .samp { color: var(--g-ink); font-family: Inter, ui-sans-serif, system
       <a href="#copy-button">Copy</a>
       <a href="#rating">Rating</a>
       <a href="#chip-group">Chips</a>
+      <a href="#radio-cards">Cards</a>
       <a href="#tag-input">Tags</a>
       <a href="#number-field">Number</a>
       <a href="#password-strength">Password</a>

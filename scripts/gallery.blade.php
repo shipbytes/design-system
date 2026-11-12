@@ -365,6 +365,61 @@
     </div>
 </section>
 
+{{-- ─────────────────────────────────────────── Radio cards --}}
+<section class="ds-spec" id="radio-cards">
+    <header class="ds-spec-head">
+        <h2>Radio cards</h2>
+        <p>Options big enough to compare: plans, shipping methods. The whole card is the label of a real, visible radio, so the arrow keys, <code>required</code> and posting are the browser&rsquo;s. The chosen card is ringed by <code>:has(:checked)</code>; no ring slides between them.</p>
+    </header>
+
+    <div class="ds-note">No script. The name a screen reader hears is the title and the meta (&ldquo;Pro, $12 a month&rdquo;); the description and body are read after it. Every column count collapses to one on a phone.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Three columns <span>&middot; title, description, meta, body; one disabled</span></div>
+        <div class="px-4">
+            <x-ds::radio-cards name="g-plan" label="Plan" help="Change or cancel at any time." :columns="3">
+                <x-ds::radio-card value="free" title="Free" description="For trying it out.">
+                    <x-slot:meta>$0</x-slot:meta>
+                </x-ds::radio-card>
+                <x-ds::radio-card value="pro" title="Pro" description="For a small team." :checked="true">
+                    <x-slot:meta>$12 a month</x-slot:meta>
+                    Ten seats, priority support.
+                </x-ds::radio-card>
+                <x-ds::radio-card value="scale" title="Scale" description="Talk to us first." :disabled="true">
+                    <x-slot:meta>Custom</x-slot:meta>
+                </x-ds::radio-card>
+            </x-ds::radio-cards>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">One column, with icons <span>&middot; and an error</span></div>
+        <div class="px-4">
+            <x-ds::radio-cards name="g-ship" label="Shipping" error="Choose how it should be sent.">
+                <x-ds::radio-card value="standard" title="Standard" description="3 to 5 working days.">
+                    <x-slot:icon><x-ds::icon name="truck" size="5" /></x-slot:icon>
+                    <x-slot:meta>Free</x-slot:meta>
+                </x-ds::radio-card>
+                <x-ds::radio-card value="express" title="Express" description="Next working day, ordered by 2pm.">
+                    <x-slot:icon><x-ds::icon name="bolt" size="5" /></x-slot:icon>
+                    <x-slot:meta>$9</x-slot:meta>
+                </x-ds::radio-card>
+            </x-ds::radio-cards>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Four columns <span>&middot; title alone</span></div>
+        <div class="px-4">
+            <x-ds::radio-cards name="g-size" label="Size" :columns="4">
+                @foreach (['S', 'M', 'L', 'XL'] as $s)
+                    <x-ds::radio-card :value="$s" :title="$s" :checked="$s === 'M'" />
+                @endforeach
+            </x-ds::radio-cards>
+        </div>
+    </div>
+</section>
+
 {{-- ─────────────────────────────────────────── Tag input --}}
 <section class="ds-spec" id="tag-input">
     <header class="ds-spec-head">

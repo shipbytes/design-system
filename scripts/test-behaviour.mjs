@@ -1454,6 +1454,72 @@ await check('x-model on the group: a press reaches the host, and the host sets t
         || `posted ${JSON.stringify(p['picked[]'])}, check widths ${JSON.stringify(await checkWidths('#chips-model'))}`;
 });
 
+// ---------------------------------------------------------------- radio cards
+
+group('radio cards (radios and CSS, no script)');
+
+const card = (value) => `#cards input[value="${value}"] >> xpath=ancestor::label`;
+const plan = async () => JSON.stringify((await posted()).tier ?? null);
+const cardLook = (value) => page.evaluate((v) => {
+    const style = getComputedStyle(document.querySelector(`#cards input[value="${v}"]`).closest('label'));
+    return { ring: style.boxShadow !== 'none', outline: style.outlineStyle !== 'none' };
+}, value);
+
+await check('posts the card it was rendered with, and only that card wears the ring', async () => {
+    const [free, pro] = [await cardLook('free'), await cardLook('pro')];
+    return ((await plan()) === '["pro"]' && pro.ring && !free.ring) || `posted ${await plan()}, ring free ${free.ring} pro ${pro.ring}`;
+});
+
+await check('a press anywhere on the card chooses it, its description included', async () => {
+    await page.click('#cards input[value="free"] >> xpath=ancestor::label >> text=For trying it out.');
+    await settle(250);
+    return ((await plan()) === '["free"]' && (await cardLook('free')).ring) || `posted ${await plan()}`;
+});
+
+await check('the arrow keys move the choice, past the disabled card; focus is drawn on the card', async () => {
+    await page.focus('#cards input[value="pro"]');
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowLeft');
+    await settle(250);
+    const look = await cardLook('pro');
+    const radioRing = await page.evaluate(() => getComputedStyle(document.activeElement).outlineStyle);
+    if ((await plan()) !== '["pro"]') return `posted ${await plan()} after Left, Left from Free`;
+    return (look.outline && radioRing === 'none') || `card outline ${look.outline}, radio outline ${radioRing}`;
+});
+
+await check('a press on a disabled card does nothing', async () => {
+    await page.click(card('scale'), { force: true });
+    return (await plan()) === '["pro"]' || `posted ${await plan()}`;
+});
+
+await check('the name is the title and meta; the description is the description', async () => {
+    const r = await page.evaluate(() => {
+        const radio = document.querySelector('#cards input[value="pro"]');
+        const text = (ids) => ids.split(' ').map((id) => document.getElementById(id).textContent.trim()).join(', ');
+        return { name: text(radio.getAttribute('aria-labelledby')), desc: text(radio.getAttribute('aria-describedby')) };
+    });
+    return (r.name === 'Pro, $12 a month' && r.desc === 'For a small team.') || JSON.stringify(r);
+});
+
+await check('required on the group: the browser holds the form until a card is chosen', async () => {
+    const missing = await page.evaluate(() => document.querySelector('#cards-required input').validity.valueMissing);
+    await page.click('#cards-required input[value="express"] >> xpath=ancestor::label');
+    const after = await page.evaluate(() => document.querySelector('#cards-required input').validity.valueMissing);
+    return (missing && !after) || `valueMissing before ${missing}, after ${after}`;
+});
+
+await check('three columns on a wide screen, one on a phone', async () => {
+    const tops = () => page.evaluate(() =>
+        [...document.querySelectorAll('#cards label')].map((l) => Math.round(l.getBoundingClientRect().top)));
+    const size = page.viewportSize();
+    await page.setViewportSize({ width: 1280, height: size.height });
+    const wide = new Set(await tops()).size;
+    await page.setViewportSize({ width: 375, height: size.height });
+    const narrow = new Set(await tops()).size;
+    await page.setViewportSize(size);
+    return (wide === 1 && narrow === 3) || `rows: ${wide} wide, ${narrow} on a phone`;
+});
+
 // ---------------------------------------------------------------- number field
 
 group('number field (dsNumberField)');
@@ -1880,7 +1946,7 @@ group('host setup (c): Livewire\'s bundled Alpine, include loaded twice');
     await tab.close();
 }
 
-group('wire:model on otp-input, tag-input and chip-group, in a real Livewire component');
+group('wire:model on otp-input, tag-input, chip-group and radio-cards, in a real Livewire component');
 {
     const { tab, errors } = await openHost('_ds/livewire', LARAVEL);
     const wire = (name) => tab.evaluate((n) => JSON.parse(JSON.stringify(window.Livewire.first()[n])), name);
@@ -1934,6 +2000,19 @@ group('wire:model on otp-input, tag-input and chip-group, in a real Livewire com
         await tab.waitForTimeout(100);
         const on = await tab.evaluate(() => [...document.querySelectorAll('#lw-chips input:checked')].map((i) => i.value));
         return JSON.stringify(on) === '["billing"]' || `checked: ${JSON.stringify(on)}`;
+    });
+
+    await check('radio cards: the card the reader presses reaches $wire.plan', async () => {
+        await tab.click('#lw-plan input[value="pro"] >> xpath=ancestor::label');
+        await tab.waitForTimeout(100);
+        return (await wire('plan')) === 'pro' || `$wire.plan is ${JSON.stringify(await wire('plan'))}`;
+    });
+
+    await check('radio cards: a plan Livewire sets on $wire.plan checks that card', async () => {
+        await tab.evaluate(() => { window.Livewire.first().plan = 'free'; });
+        await tab.waitForTimeout(100);
+        const on = await tab.evaluate(() => document.querySelector('#lw-plan input:checked')?.value);
+        return on === 'free' || `checked: ${JSON.stringify(on)}`;
     });
 
     await check('no errors or warnings on the page', async () => !errors.length || errors.join(' | '));
