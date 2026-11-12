@@ -523,6 +523,12 @@ final class Specimens
                 <x-ds::avatar />
                 BLADE,
 
+            // Apart from avatar/all, whose rendering ButtonUnchangedTest holds.
+            'avatar/xl' => <<<'BLADE'
+                <x-ds::avatar name="Ada Lovelace" size="xl" />
+                <x-ds::avatar name="Acme Ltd" :square="true" size="xl" src="/acme.png" />
+                BLADE,
+
             'avatar-group/all' => <<<'BLADE'
                 @php
                     $people = [
@@ -804,6 +810,14 @@ final class Specimens
                 <x-ds::file-upload name="plain" label="No previews" :preview="false" />
                 BLADE,
 
+            'avatar-upload/all' => <<<'BLADE'
+                <x-ds::avatar-upload name="photo" alt="Ada Lovelace" :maxSize="2097152" help="JPEG, PNG or WebP, up to 2 MB." />
+                <x-ds::avatar-upload name="logo" label="Logo" alt="Acme Ltd" shape="square" src="/acme.png" accept="image/png,.svg" outputType="image/png" :outputSize="256" size="lg" :rotate="false" />
+                <x-ds::avatar-upload name="avatar" alt="Grace Hopper" src="/grace.jpg" :uploading="true" :progress="40" removeName="avatar_clear" wire:model="avatar" />
+                <x-ds::avatar-upload name="bad" alt="Ada Lovelace" error="The photo must be an image." :removable="false" />
+                <x-ds::avatar-upload name="off" alt="Ada Lovelace" src="/ada.jpg" :disabled="true" />
+                BLADE,
+
             'date-picker/all' => <<<'BLADE'
                 <x-ds::date-picker name="due" label="Due date" value="2026-09-30" help="Anything after today." />
                 <x-ds::date-picker name="period" label="Reporting period" :range="true" :value="['2026-07-01', '2026-09-30']" />
@@ -811,6 +825,20 @@ final class Specimens
                 <x-ds::date-picker name="sunday" label="Week starts Sunday" :weekStartsOn="0" />
                 <x-ds::date-picker name="bad" label="Start" error="Pick a start date." />
                 <x-ds::date-picker name="off" label="Locked" :disabled="true" />
+                BLADE,
+
+            'date-picker/options' => <<<'BLADE'
+                <x-ds::date-picker name="period" label="Reporting period" :range="true" :months="2" :presets="true" today="2026-09-14" :value="['2026-09-08', '2026-09-14']" />
+                <x-ds::date-picker name="stay" label="Stay" :range="true" :minDays="2" :maxDays="14" :confirm="true" today="2026-09-14" error="Choose your nights." />
+                <x-ds::date-picker name="quarter" label="Quarter" :range="true" :presets="['Q3' => ['2026-07-01', '2026-09-30'], 'Q4' => ['2026-10-01', '2026-12-31']]" today="2026-09-14" :weekStartsOn="0" min="2026-01-01" />
+                <x-ds::date-picker name="due" label="Due" :confirm="true" value="2026-09-30" help="Applied, not picked." :disabled="true" />
+                BLADE,
+
+            'calendar/all' => <<<'BLADE'
+                <x-ds::calendar name="day" label="Delivery day" value="2026-09-10" today="2026-09-14" min="2026-09-02" :disabledDays="[0, 6]" :events="['2026-09-03' => 'success', '2026-09-04' => 3, '2026-09-10' => 'danger']" />
+                <x-ds::calendar name="stay" aria-label="Stay" :range="true" :months="2" :value="['2026-09-20', '2026-09-08']" today="2026-09-14" :showOutsideDays="true" :showWeekNumbers="true" size="sm" :disabledDates="['2026-09-25']" />
+                <x-ds::calendar name="days" aria-label="Days off" :multiple="true" :value="['2026-09-01', '2026-09-15']" :months="3" today="2026-09-14" :jump="false" size="lg" locale="de" />
+                <x-ds::calendar aria-label="Bookings" month="2027-02" :weekStartsOn="0" :today="false" :events="['2027-02-14' => 'accent', '2027-02-15' => 12, '2027-02-16' => 'neutral', '2027-02-17' => 'warning']" wire:model.live="day" />
                 BLADE,
 
             'dropdown/all' => <<<'BLADE'

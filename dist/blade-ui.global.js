@@ -199,6 +199,685 @@ cleanup(() => anchored?.stop());
 }
 return { anchorDirective };
 })();
+const __ds_behaviours_avatar_upload = (() => {
+function avatarUpload(Alpine) {
+Alpine.data('dsAvatarUpload', (options = {}) => {
+let control = null;
+return {
+dsReady: false,
+dsCropping: false,
+dsHasPhoto: false,
+init() {
+control = wire(this.$el, options, {
+cropping: (on) => {
+this.dsCropping = on;
+},
+photo: (on) => {
+this.dsHasPhoto = on;
+},
+});
+this.$watch('dsCropping', (on) => {
+if (!on) control.closed();
+});
+this.dsReady = true;
+},
+destroy() {
+control?.teardown();
+},
+};
+});
+}
+const EXTENSIONS = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+const clamp = (n, low, high) => Math.min(high, Math.max(low, n));
+function wire(root, options, hooks) {
+const find = (selector) => root.querySelector(selector);
+const input = find('[data-ds-avatar-input]');
+const picker = find('[data-ds-avatar-picker]');
+const drop = find('[data-ds-avatar-drop]');
+const preview = find('[data-ds-avatar-preview]');
+const current = find('[data-ds-avatar-current]');
+const initials = find('[data-ds-avatar-initials]');
+const removed = find('[data-ds-avatar-removed]');
+const error = find('[data-ds-avatar-error]');
+const stage = find('[data-ds-avatar-stage]');
+const image = find('[data-ds-avatar-image]');
+const crop = find('[data-ds-avatar-crop]');
+const dialog = find('[data-ds-modal-panel]');
+const words = options.words ?? {};
+const pointers = new Map();
+let source = null;
+let view = { x: 0, y: 0, zoom: 1, turn: 0 };
+let pinch = null;
+let shown = null;
+const disabled = () => input.disabled;
+const zoomInput = () => crop.querySelector('[data-ds-avatar-zoom] input[type="range"]');
+function say(message) {
+error.querySelector('[data-ds-avatar-error-text]').textContent = message;
+error.hidden = !message;
+}
+function acceptable(file) {
+const name = file.name.toLowerCase();
+const type = file.type.toLowerCase();
+const list = String(options.accept ?? '').toLowerCase().split(',').map((a) => a.trim()).filter(Boolean);
+if (!list.length) return type.startsWith('image/');
+return list.some((a) => (a.startsWith('.') ? name.endsWith(a) : a.endsWith('/*') ? type.startsWith(a.slice(0, -1)) : type === a));
+}
+async function load(file) {
+const url = URL.createObjectURL(file);
+let bitmap = null;
+if (typeof createImageBitmap === 'function') {
+bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => null);
+}
+bitmap ??= await new Promise((resolve, reject) => {
+const img = new Image();
+img.onload = () => resolve(img);
+img.onerror = reject;
+img.src = url;
+}).catch(() => null);
+const width = bitmap?.naturalWidth || bitmap?.width;
+const height = bitmap?.naturalHeight || bitmap?.height;
+if (!width || !height) {
+URL.revokeObjectURL(url);
+return null;
+}
+return { url, bitmap, width, height, file };
+}
+async function choose(file) {
+if (!file || disabled()) return;
+if (!acceptable(file)) return say(words.type);
+if (options.maxSize && file.size > options.maxSize) return say(words.size);
+const loaded = await load(file);
+if (!loaded) return say(words.unreadable);
+say('');
+forget();
+source = loaded;
+view = { x: 0, y: 0, zoom: 1, turn: 0 };
+image.src = source.url;
+zoomTo(1);
+hooks.cropping(true);
+}
+function forget() {
+if (source) URL.revokeObjectURL(source.url);
+source?.bitmap.close?.();
+source = null;
+}
+function geometry() {
+const box = stage.clientWidth || 1;
+const size = box * 0.8;
+const turned = view.turn % 180 !== 0;
+const w = turned ? source.height : source.width;
+const h = turned ? source.width : source.height;
+const scale = (size / Math.min(w, h)) * view.zoom;
+return { size, scale, maxX: Math.max(0, (w * scale - size) / 2), maxY: Math.max(0, (h * scale - size) / 2) };
+}
+function draw() {
+if (!source) return;
+const g = geometry();
+view.x = clamp(view.x, -g.maxX, g.maxX);
+view.y = clamp(view.y, -g.maxY, g.maxY);
+image.style.width = `${source.width}px`;
+image.style.height = `${source.height}px`;
+image.style.transform = `translate(-50%, -50%) translate(${view.x}px, ${view.y}px) rotate(${view.turn}deg) scale(${g.scale})`;
+}
+function zoomTo(zoom, fromSlider = false) {
+zoom = clamp(zoom, 1, 4);
+view.x *= zoom / view.zoom;
+view.y *= zoom / view.zoom;
+view.zoom = zoom;
+const range = zoomInput();
+if (range && !fromSlider) {
+range.value = String(Math.round(zoom * 100));
+range.dispatchEvent(new Event('input', { bubbles: true }));
+}
+draw();
+}
+function show(url) {
+if (shown) URL.revokeObjectURL(shown);
+shown = url;
+if (url) preview.src = url;
+preview.hidden = !url;
+const saved = Boolean(!removed?.checked && current?.querySelector('img'));
+if (current) current.hidden = Boolean(url) || !saved;
+if (initials) initials.hidden = !url && saved;
+hooks.photo(Boolean(url) || saved);
+}
+function put(file) {
+try {
+const transfer = new DataTransfer();
+transfer.items.add(file);
+input.files = transfer.files;
+} catch {
+if (picker.files?.length) input.files = picker.files;
+}
+input.dispatchEvent(new Event('input', { bubbles: true }));
+input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+async function apply() {
+if (!source) return;
+const g = geometry();
+const size = options.outputSize ?? 512;
+const k = size / g.size;
+const canvas = document.createElement('canvas');
+canvas.width = size;
+canvas.height = size;
+const context = canvas.getContext('2d');
+if (options.outputType !== 'image/png') {
+context.fillStyle = '#fff';
+context.fillRect(0, 0, size, size);
+}
+context.imageSmoothingQuality = 'high';
+context.translate(size / 2 + view.x * k, size / 2 + view.y * k);
+context.rotate((view.turn * Math.PI) / 180);
+context.scale(g.scale * k, g.scale * k);
+context.drawImage(source.bitmap, -source.width / 2, -source.height / 2);
+const blob = await new Promise((resolve) => canvas.toBlob(resolve, options.outputType, options.quality));
+if (!blob) return say(words.unreadable);
+const base = source.file.name.replace(/\.[^.]*$/, '') || 'photo';
+put(new File([blob], `${base}.${EXTENSIONS[blob.type] ?? 'png'}`, { type: blob.type }));
+if (removed) removed.checked = false;
+show(URL.createObjectURL(blob));
+forget();
+hooks.cropping(false);
+root.dispatchEvent(new CustomEvent('crop', { bubbles: true, detail: { blob, width: size, height: size } }));
+}
+function remove() {
+if (removed) {
+removed.checked = true;
+removed.dispatchEvent(new Event('change', { bubbles: true }));
+}
+input.value = '';
+show(null);
+find('[data-ds-avatar-change]')?.focus();
+}
+function onClick(event) {
+const target = event.target.closest('button');
+if (!target) return;
+if (target.matches('[data-ds-avatar-change]')) {
+picker.value = '';
+picker.click();
+} else if (target.matches('[data-ds-avatar-remove]')) remove();
+else if (target.matches('[data-ds-avatar-rotate]')) {
+view = { ...view, x: 0, y: 0, turn: (view.turn + 90) % 360 };
+draw();
+} else if (target.matches('[data-ds-avatar-apply]')) apply();
+else if (target.matches('[data-ds-avatar-cancel]')) hooks.cropping(false);
+}
+const onPick = () => choose(picker.files?.[0]);
+function onPaste(event) {
+const file = [...(event.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'));
+if (!file || source) return;
+event.preventDefault();
+choose(file);
+}
+function onDrag(event) {
+if (!event.dataTransfer?.types.includes('Files') || disabled()) return;
+event.preventDefault();
+drop.toggleAttribute('data-ds-dragging', event.type === 'dragover');
+if (event.type === 'drop') choose(event.dataTransfer.files[0]);
+}
+function onSlider(event) {
+if (event.target === zoomInput()) zoomTo(Number(event.target.value) / 100, true);
+}
+function onDown(event) {
+stage.setPointerCapture(event.pointerId);
+pointers.set(event.pointerId, [event.clientX, event.clientY]);
+if (pointers.size === 2) pinch = { distance: spread(), zoom: view.zoom };
+}
+function spread() {
+const [[ax, ay], [bx, by]] = [...pointers.values()];
+return Math.hypot(ax - bx, ay - by) || 1;
+}
+function onMove(event) {
+const last = pointers.get(event.pointerId);
+if (!last) return;
+pointers.set(event.pointerId, [event.clientX, event.clientY]);
+if (pinch && pointers.size > 1) return zoomTo((pinch.zoom * spread()) / pinch.distance);
+view.x += event.clientX - last[0];
+view.y += event.clientY - last[1];
+draw();
+}
+function onUp(event) {
+pointers.delete(event.pointerId);
+if (pointers.size < 2) pinch = null;
+}
+function onWheel(event) {
+event.preventDefault();
+zoomTo(view.zoom * Math.exp(-event.deltaY / 500));
+}
+function onKey(event) {
+const step = event.shiftKey ? 40 : 8;
+const move = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[event.key];
+if (move) {
+view.x += move[0];
+view.y += move[1];
+draw();
+} else if (event.key === '+' || event.key === '=') zoomTo(view.zoom * 1.1);
+else if (event.key === '-' || event.key === '_') zoomTo(view.zoom / 1.1);
+else return;
+event.preventDefault();
+}
+const resized = new ResizeObserver(draw);
+const listeners = [
+[root, 'click', onClick], [root, 'paste', onPaste], [picker, 'change', onPick],
+[drop, 'dragover', onDrag], [drop, 'dragleave', onDrag], [drop, 'drop', onDrag],
+[crop, 'input', onSlider], [stage, 'pointerdown', onDown], [stage, 'pointermove', onMove],
+[stage, 'pointerup', onUp], [stage, 'pointercancel', onUp], [stage, 'wheel', onWheel, { passive: false }],
+[stage, 'keydown', onKey],
+];
+for (const [target, type, fn, opts] of listeners) target.addEventListener(type, fn, opts);
+resized.observe(stage);
+hooks.photo(Boolean(current && !current.hidden));
+return {
+closed() {
+requestAnimationFrame(() => {
+if (!root.contains(document.activeElement) || dialog?.contains(document.activeElement)) {
+find('[data-ds-avatar-change]')?.focus();
+}
+});
+forget();
+pointers.clear();
+pinch = null;
+},
+teardown() {
+for (const [target, type, fn, opts] of listeners) target.removeEventListener(type, fn, opts);
+resized.disconnect();
+forget();
+if (shown) URL.revokeObjectURL(shown);
+},
+};
+}
+return { avatarUpload };
+})();
+const __ds_shared_dates = (() => {
+function key(year, month, day) {
+const at = new Date(Date.UTC(year, month - 1, day));
+return `${String(at.getUTCFullYear()).padStart(4, '0')}-${String(at.getUTCMonth() + 1).padStart(2, '0')}-${String(at.getUTCDate()).padStart(2, '0')}`;
+}
+function parts(iso) {
+return [Number(iso.slice(0, 4)), Number(iso.slice(5, 7)), Number(iso.slice(8, 10))];
+}
+function addDays(iso, days) {
+const [y, m, d] = parts(iso);
+return key(y, m, d + days);
+}
+function addMonths(iso, months) {
+const [y, m, d] = parts(iso);
+return key(y, m + months, Math.min(d, monthLength(y, m + months)));
+}
+function monthLength(year, month) {
+return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+function weekday(iso) {
+const [y, m, d] = parts(iso);
+return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+function weeks(year, month, weekStart) {
+const first = key(year, month, 1);
+let day = addDays(first, -((weekday(first) - weekStart + 7) % 7));
+const rows = [];
+while (rows.length === 0 || day.slice(0, 7) === first.slice(0, 7)) {
+const row = [];
+for (let i = 0; i < 7; i++, day = addDays(day, 1)) row.push(day);
+rows.push(row);
+}
+return rows;
+}
+function isoWeek(row) {
+const thursday = row.find((iso) => weekday(iso) === 4);
+const [y] = parts(thursday);
+const jan4 = key(y, 1, 4);
+const monday = addDays(jan4, -((weekday(jan4) + 6) % 7));
+return Math.floor(days(monday, thursday) / 7) + 1;
+}
+function days(from, to) {
+const [a, b, c] = parts(from);
+const [x, y, z] = parts(to);
+return Math.round((Date.UTC(x, y - 1, z) - Date.UTC(a, b - 1, c)) / 86400000);
+}
+function presets(today) {
+const [y, m] = parts(today);
+const lastMonth = addMonths(key(y, m, 1), -1);
+return {
+today: [today, today],
+yesterday: [addDays(today, -1), addDays(today, -1)],
+last7: [addDays(today, -6), today],
+last30: [addDays(today, -29), today],
+thisMonth: [key(y, m, 1), today],
+lastMonth: [lastMonth, key(y, m, 0)],
+thisYear: [key(y, 1, 1), today],
+};
+}
+return { key, parts, addDays, addMonths, monthLength, weekday, weeks, isoWeek, days, presets };
+})();
+const __ds_behaviours_calendar = (() => {
+const { key, parts, addDays, addMonths, weekday, weeks, isoWeek, days, presets } = __ds_shared_dates;
+function calendar(Alpine) {
+Alpine.data('dsCalendar', () => {
+let control = null;
+return {
+dsValue: null,
+dsOpen: false,
+dsSummary: '',
+dsReady: false,
+init() {
+control = wire(this.$el, (value, summary) => {
+this.dsValue = value;
+this.dsSummary = summary;
+}, () => {
+this.dsOpen = false;
+});
+this.$watch('dsValue', (value) => control.set(value));
+this.$watch('dsOpen', (open) => control.opened(open));
+this.dsReady = true;
+},
+destroy() {
+control?.teardown();
+},
+};
+});
+}
+const month = (iso) => iso.slice(0, 7) + '-01';
+function wire(root, report, close) {
+let o = {};
+let observer = null;
+const q = (selector) => [...root.querySelectorAll(selector)];
+const inputs = () => q('[data-ds-cal-input]');
+const blocks = () => q('[data-ds-cal-month]');
+const trigger = () => root.querySelector('[data-ds-date-trigger]');
+const range = () => o.mode === 'range';
+function fromInputs() {
+const values = inputs().map((input) => input.value).filter(Boolean);
+return range() ? [...new Set(values)].sort() : o.mode === 'single' ? values.slice(0, 1) : [...new Set(values)].sort();
+}
+function read() {
+o = JSON.parse(root.dataset.dsCalendar || '{}');
+o.disabledDates = new Set(o.disabledDates ?? []);
+o.events = o.events ?? {};
+if (o.mode === 'multiple') inputs().filter((input) => !input.value).forEach((input) => input.remove());
+for (const input of inputs()) input.type = 'hidden';
+const fallback = root.querySelector('[data-ds-cal-fallback]');
+if (fallback) fallback.hidden = true;
+}
+read();
+let value = fromInputs();
+let draft = value.slice();
+let hovered = null;
+let active = null;
+let cursor = month(blocks()[0]?.dataset.dsCalMonth + '-01');
+const shownCount = () => blocks().filter((b) => b.getClientRects().length).length || blocks().length;
+const inView = (iso) => iso >= cursor && iso < addMonths(cursor, shownCount());
+function off(iso) {
+if ((o.min && iso < o.min) || (o.max && iso > o.max)) return true;
+if (o.disabledDates.has(iso) || (o.disabledDays ?? []).includes(weekday(iso))) return true;
+if (range() && draft.length === 1) {
+const span = Math.abs(days(draft[0], iso)) + 1;
+if ((o.minDays && span < o.minDays) || (o.maxDays && span > o.maxDays)) return true;
+}
+return false;
+}
+function label(iso) {
+const [y, m, d] = parts(iso);
+const text = `${o.names.long[weekday(iso)]} ${d} ${o.names.months[m - 1]} ${y}`;
+const mark = o.events[iso];
+if (typeof mark === 'number') return `${text}, ${o.words[mark === 1 ? 'event' : 'events'].replace(':count', mark)}`;
+return mark ? `${text}, ${o.words.marked}` : text;
+}
+function stop() {
+if (active && inView(active)) return active;
+return [...draft, o.today].find((iso) => iso && inView(iso)) ?? cursor;
+}
+function draw() {
+const [lo, hi] = range() && draft.length ? [draft[0], draft[1] ?? (hovered && hovered !== draft[0] ? hovered : draft[0])].sort() : [null, null];
+active = stop();
+blocks().forEach((block, i) => {
+const first = addMonths(cursor, i);
+const [y, m] = parts(first);
+const name = `${o.names.months[m - 1]} ${y}`;
+block.dataset.dsCalMonth = first.slice(0, 7);
+block.querySelector('[data-ds-cal-grid]').setAttribute('aria-label', name);
+const heading = block.querySelector('[data-ds-cal-label]');
+if (heading) heading.textContent = name;
+for (const select of block.querySelectorAll('[data-ds-cal-jump]')) {
+const want = String(select.dataset.dsCalJump === 'year' ? y : m);
+if (![...select.options].some((option) => option.value === want)) select.add(new Option(want, want));
+select.value = want;
+}
+const rows = weeks(y, m, o.weekStart);
+while (rows.length < 6) rows.push(rows[rows.length - 1].map((iso) => addDays(iso, 7)));
+block.querySelectorAll('[data-ds-cal-row]').forEach((row, r) => {
+row.hidden = r >= weeks(y, m, o.weekStart).length;
+const week = row.querySelector('[data-ds-cal-week]');
+if (week) week.textContent = isoWeek(rows[r]);
+row.querySelectorAll('[data-ds-cal-day]').forEach((button, c) => {
+const iso = rows[r][c];
+const outside = iso.slice(0, 7) !== first.slice(0, 7);
+const selected = draft.includes(iso);
+const mark = o.events[iso];
+const dot = button.querySelector('[data-ds-cal-mark]');
+button.dataset.day = iso;
+button.querySelector('[data-ds-cal-num]').textContent = parts(iso)[2];
+button.setAttribute('aria-label', label(iso));
+button.hidden = outside && !o.outside;
+button.tabIndex = iso === active && !outside ? 0 : -1;
+button.toggleAttribute('data-outside', outside);
+button.toggleAttribute('data-selected', selected);
+button.toggleAttribute('data-between', lo !== null && iso > lo && iso < hi);
+button.toggleAttribute('data-today', iso === o.today);
+if (iso === o.today) button.setAttribute('aria-current', 'date');
+else button.removeAttribute('aria-current');
+if (off(iso)) button.setAttribute('aria-disabled', 'true');
+else button.removeAttribute('aria-disabled');
+button.parentElement.setAttribute('aria-selected', String(selected));
+dot.hidden = !mark;
+dot.textContent = typeof mark === 'number' ? mark : '';
+if (typeof mark === 'string') dot.dataset.tone = mark;
+else delete dot.dataset.tone;
+});
+});
+});
+for (const preset of q('[data-ds-cal-preset]')) {
+const [from, to] = presetRange(preset);
+preset.setAttribute('aria-pressed', String(draft.length === 2 && draft[0] === from && draft[1] === to));
+}
+observer?.takeRecords();
+}
+function presetRange(preset) {
+const named = preset.dataset.dsCalPreset;
+return named ? presets(o.today)[named] : [preset.dataset.from, preset.dataset.to];
+}
+function show(next, announce = true) {
+next = month(next);
+if (next === cursor) return;
+cursor = next;
+draw();
+if (!announce) return;
+const live = root.querySelector('[data-ds-cal-live]');
+const names = blocks().slice(0, shownCount()).map((_, i) => {
+const [y, m] = parts(addMonths(cursor, i));
+return `${o.names.months[m - 1]} ${y}`;
+});
+if (live) live.textContent = names.join(' – ');
+const [year, m] = parts(cursor);
+root.dispatchEvent(new CustomEvent('month-change', { bubbles: true, detail: { year, month: m } }));
+}
+function focusDay(iso) {
+active = iso;
+if (!inView(iso)) show(iso < cursor ? iso : addMonths(month(iso), 1 - shownCount()));
+else draw();
+root.querySelector(`[data-ds-cal-day][data-day="${iso}"]:not([data-outside])`)?.focus();
+}
+function summary(list) {
+const display = (iso) => {
+const [y, m, d] = parts(iso);
+return new Date(y, m - 1, d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+};
+if (!list.length) return '';
+return range() ? `${display(list[0])} – ${list[1] ? display(list[1]) : '…'}` : list.map(display).join(', ');
+}
+function shape(list) {
+if (o.mode === 'single') return list[0] ?? '';
+return range() ? [list[0] ?? '', list[1] ?? ''] : list.slice();
+}
+function write(list) {
+let fields = inputs();
+if (o.mode === 'multiple') {
+const holder = root.querySelector('[data-ds-cal-fallback]');
+fields.forEach((field) => field.remove());
+fields = list.map((day) => {
+const field = document.createElement('input');
+field.type = 'hidden';
+if (o.name !== null) field.name = `${o.name}[]`;
+field.dataset.dsCalInput = '';
+field.value = day;
+holder.append(field);
+return field;
+});
+return fields[fields.length - 1] ?? root;
+}
+fields.forEach((field, i) => {
+field.value = list[i] ?? '';
+});
+return fields[list.length > 1 ? 1 : 0] ?? root;
+}
+function commit(announce = true) {
+value = draft.slice();
+const from = write(value);
+report(shape(value), summary(value));
+observer?.takeRecords();
+if (!announce) return;
+from.dispatchEvent(new Event('input', { bubbles: true }));
+from.dispatchEvent(new Event('change', { bubbles: true }));
+}
+function finish(complete) {
+hovered = null;
+draw();
+if (o.confirm) return;
+commit();
+if (complete && o.popover) {
+close();
+trigger()?.focus();
+}
+}
+function choose(iso) {
+if (off(iso)) return;
+active = iso;
+if (o.mode === 'single') {
+draft = [iso];
+return finish(true);
+}
+if (o.mode === 'multiple') {
+draft = draft.includes(iso) ? draft.filter((d) => d !== iso) : [...draft, iso].sort();
+return finish(false);
+}
+draft = draft.length === 1 ? [draft[0], iso].sort() : [iso];
+finish(draft.length === 2);
+}
+function onClick(event) {
+const day = event.target.closest('[data-ds-cal-day]');
+if (day) return choose(day.dataset.day);
+if (event.target.closest('[data-ds-cal-prev]')) return show(addMonths(cursor, -1));
+if (event.target.closest('[data-ds-cal-next]')) return show(addMonths(cursor, 1));
+const preset = event.target.closest('[data-ds-cal-preset]');
+if (preset) {
+draft = presetRange(preset).slice();
+const last = addMonths(month(draft[1]), 1 - shownCount());
+show(last > draft[0] ? last : draft[0]);
+return finish(true);
+}
+if (event.target.closest('[data-ds-cal-clear]')) {
+draft = [];
+return finish(false);
+}
+if (event.target.closest('[data-ds-cal-apply]')) {
+commit();
+close();
+return trigger()?.focus();
+}
+if (event.target.closest('[data-ds-cal-cancel]')) {
+close();
+trigger()?.focus();
+}
+}
+function onKey(event) {
+const day = event.target.closest('[data-ds-cal-day]')?.dataset.day;
+if (!day) return;
+const back = getComputedStyle(root).direction === 'rtl' ? 1 : -1;
+const lead = (weekday(day) - o.weekStart + 7) % 7;
+const by = {
+ArrowLeft: () => addDays(day, back),
+ArrowRight: () => addDays(day, -back),
+ArrowUp: () => addDays(day, -7),
+ArrowDown: () => addDays(day, 7),
+PageUp: () => addMonths(day, event.shiftKey ? -12 : -1),
+PageDown: () => addMonths(day, event.shiftKey ? 12 : 1),
+Home: () => addDays(day, -lead),
+End: () => addDays(day, 6 - lead),
+}[event.key];
+if (!by) return;
+event.preventDefault();
+focusDay(by());
+}
+function onOver(event) {
+const day = event.target.closest?.('[data-ds-cal-day]')?.dataset.day ?? null;
+if (!range() || draft.length !== 1 || day === hovered) return;
+hovered = day;
+draw();
+}
+function onJump(event) {
+const select = event.target.closest('[data-ds-cal-jump]');
+if (!select) return;
+const [y, m] = parts(cursor);
+show(select.dataset.dsCalJump === 'year' ? key(Number(select.value), m, 1) : key(y, Number(select.value), 1));
+}
+const grids = root.querySelector('[data-ds-cal-months]');
+root.addEventListener('click', onClick);
+grids.addEventListener('keydown', onKey);
+grids.addEventListener('mouseover', onOver);
+grids.addEventListener('focusin', onOver);
+grids.addEventListener('mouseleave', onOver);
+grids.addEventListener('change', onJump);
+observer = new MutationObserver(() => {
+read();
+const now = fromInputs();
+if (now.join() !== value.join()) {
+value = now;
+draft = now.slice();
+report(shape(value), summary(value));
+}
+draw();
+});
+draw();
+report(shape(value), summary(value));
+observer.observe(root, { subtree: true, childList: true, attributes: true, characterData: true });
+return {
+set(next) {
+const list = (Array.isArray(next) ? next : [next]).filter((d) => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}/.test(d)).map((d) => d.slice(0, 10));
+const normal = o.mode === 'single' ? list.slice(0, 1) : [...new Set(list)].sort();
+if (normal.join() === value.join()) return;
+draft = normal;
+commit(false);
+if (normal.length && !inView(normal[0])) show(normal[0], false);
+else draw();
+},
+opened(open) {
+if (open) return;
+draft = value.slice();
+hovered = null;
+draw();
+},
+teardown() {
+observer.disconnect();
+root.removeEventListener('click', onClick);
+grids.removeEventListener('keydown', onKey);
+grids.removeEventListener('mouseover', onOver);
+grids.removeEventListener('focusin', onOver);
+grids.removeEventListener('mouseleave', onOver);
+grids.removeEventListener('change', onJump);
+},
+};
+}
+return { calendar };
+})();
 const __ds_shared_roving = (() => {
 const UNUSABLE = ':is(:disabled, [aria-disabled="true"])';
 function roving(root, options) {
@@ -6140,6 +6819,8 @@ return { tree };
 })();
 const __ds_blade_ui = (() => {
 const { anchorDirective } = __ds_behaviours_anchor;
+const { avatarUpload } = __ds_behaviours_avatar_upload;
+const { calendar } = __ds_behaviours_calendar;
 const { chart } = __ds_behaviours_chart;
 const { clamp } = __ds_behaviours_clamp;
 const { clear } = __ds_behaviours_clear;
@@ -6177,7 +6858,7 @@ const { timePicker } = __ds_behaviours_time_picker;
 const { toggleGroup } = __ds_behaviours_toggle_group;
 const { toolbar } = __ds_behaviours_toolbar;
 const { tree } = __ds_behaviours_tree;
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split, swap, teamSwitcher, moneyInput, phoneInput, search, kbdShortcut, shortcutInput, colour, mention];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split, swap, teamSwitcher, moneyInput, phoneInput, search, kbdShortcut, shortcutInput, colour, mention, calendar, avatarUpload];
 const REGISTERED = Symbol.for('shipbytes.blade-ui');
 function bladeUi(Alpine) {
 if (!Alpine || Alpine[REGISTERED]) return;

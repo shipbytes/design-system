@@ -115,7 +115,7 @@ group, so it starts no session and sets no cookie, and it works under
 
 **A page that cannot reach the route** (a static export, an HTML email
 preview, a host whose routing will not take a package's) can carry the script
-in the page instead, about 194 kB (49 kB compressed), uncached:
+in the page instead, about 217 kB (55 kB compressed), uncached:
 
 ```blade
 <x-ds::scripts inline />
@@ -220,6 +220,8 @@ use the component.
 | `dsMention` | Behind `ds::mention-input`. Makes the textarea a combobox while a trigger (`@`) is being typed: the list under the trigger character (measured with a mirror, so wrapped, scrolled and right-to-left text all work), ranked as the command palette ranks, Up, Down, Enter, Tab and Escape while it is open and never while it is not; writes the chosen row in through Undo, posts its id from a hidden input and stops posting it when the text is broken; dispatches a debounced `search` with `{ trigger, query }` from the field; binds `wire:model` / `x-model` to the text. |
 | `dsColour` | Behind `ds::color-picker`, with a `dsPopover` for the panel. Shows the swatch and panel in place of the browser's colour input; drags and keys the saturation and brightness area and the hue and opacity sliders; reads typed colours forgivingly (hex, `rgb()`, `hsl()`, the basic names) and leaves text that is not one as typed and invalid; keeps the presets, the contrast ratio and the posted string (in `format`) in step; offers the EyeDropper where there is one; binds `wire:model` / `x-model` to the posted string. |
 | `dsSearch` | Behind `ds::input`'s `expanding`. Escape clears, then collapses with focus on the icon button; the button and a key typed on it go to the field; `shortcut` opens it from anywhere. |
+| `dsCalendar` | Behind `ds::calendar` and `ds::date-picker`. Redraws the month grid the server drew (one day, a range or several; one to three months), with the ARIA date-grid keys (arrows, PageUp/PageDown a month, Shift for a year, Home/End the week); previews a half-made range under the pointer or focus and swaps the ends on an earlier second pick; keeps the posted inputs in step and dispatches `input` and `change` from them; dispatches `month-change` with `{ year, month }`; binds `wire:model` / `x-model` through `x-modelable`. In the date picker, also the popover, the presets, `minDays` / `maxDays` and the Apply / Cancel draft. |
+| `dsAvatarUpload` | Behind `ds::avatar-upload`. Takes a photo from Change, a drop or a paste, checks its type and size, and opens the crop dialog: drag, pinch, the wheel, the slider and the keys move and zoom it, Rotate turns it. Apply draws the square crop to a canvas at `outputSize`, puts it in the real file input (so a form posts it and `wire:model` uploads it), dispatches `crop` with `{ blob, width, height }`, and shows it. Remove ticks `{name}_remove`. Nothing is uploaded by the script. |
 | `dsTree` | Behind `ds::tree`. One Tab stop for the tree; the arrow keys, Home, End, type-ahead and `*`; opens and closes folders (dispatching `expand` and `collapse`), selects or checks rows with tri-state parents, keeps the posted inputs in step, and binds `wire:model` / `x-model` both ways. |
 | `x-ds-roll` | A directive, behind `ds::counter` when its value comes from the server. Rolls the digits when a re-render (a Livewire morph) changes the number; with `.in`, rolls up from zero the first time the counter is half in view. Instant under reduced motion. |
 | `x-ds-scroll-shadows` | A directive, behind `ds::scroll-area`. Where the browser cannot draw the edge shadows from CSS (no scroll-driven animations), marks each edge that has more content past it, on scroll and on resize. Does nothing where CSS can. |
@@ -244,7 +246,7 @@ pressed. In your own `x-data` the same cause reads as Alpine's
 `ds::segmented-control`, which uses it without any `ds…` behaviour, works and
 posts the same without it: Alpine skips a directive it does not know, and the
 chosen segment keeps the face CSS draws. `x-ds-anchor` keeps an overlay on
-screen, and the dropdown, select, combobox, date picker and tooltip open at
+screen, and the dropdown, select, combobox and tooltip open at
 their `placement` without it, as they did before 2.0: near the bottom of the
 window or inside a box with `overflow: hidden` they run off the page or are
 cut off, and nothing reports it. `x-ds-roll` only animates a counter whose
@@ -300,14 +302,14 @@ lets them choose light, dark or system, and remembers it:
 `illuminate/view` and `blade-heroicons`, and nothing else. Every component works
 in a plain Blade view.
 
-Forty-one need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
+Forty-three need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
 framework: **modal, drawer, sheet, dropdown, select, combobox, date-picker,
 accordion, file-upload, tooltip, sub-nav, user-menu, otp-input, tag-input, number-field,
 password-strength, copy-button, toolbar, toggle-group, popover, hover-card,
 context-menu, theme-switcher, confirm-button, hold-button, confirm-popover,
 tree, expandable-text, slider, time-picker, inline-edit, command-palette,
 sortable-list, split, swap-button, team-switcher, money-input, phone-input,
-shortcut-input, mention-input, color-picker**.
+shortcut-input, mention-input, color-picker, calendar, avatar-upload**.
 `sub-nav` only to open and close: without Alpine, the section holding the
 current page is open and the rest are closed, as the server rendered them.
 `tree` likewise draws its folders, selection and links from PHP and posts
@@ -328,7 +330,11 @@ posts its text, and the ids of the mentions the server found in it.
 `color-picker` is the browser's own colour input beside the text field,
 posting `#rrggbb`; with `presetsOnly` it is native radios and needs neither.
 A slider's `histogram` stays as the server drew it, and its `inputs` stay
-hidden. `user-menu` is a dropdown, and so needs Alpine alone.
+hidden. `date-picker` is the browser's own date field (two for a range),
+posting the same names; `calendar` is the month grid as the server drew it,
+with native date fields under it that post the value; `avatar-upload` is a
+plain file input, posting the original for the server to crop, and a Remove
+checkbox. `user-menu` is a dropdown, and so needs Alpine alone.
 
 Eight more use it for **optional props**, and work without them otherwise:
 `checkbox`'s `indeterminate`, `nav-item`'s `collapsedWhen`, `toast`'s
@@ -358,7 +364,7 @@ alternative written from the data, which is a complete chart. A treemap
 whose tiles have links is a group of links either way, each its own Tab
 stop.
 
-`dropdown`, `select`, `combobox`, `date-picker` and `tooltip` need Alpine, and
+`dropdown`, `select`, `combobox` and `tooltip` need Alpine, and
 use the package's script to stay on screen: with it they flip away from the
 window's edge and escape a box with `overflow: hidden`; without it they open
 at their `placement`, as before 2.0.
@@ -376,12 +382,13 @@ the top on a page change, and get it from Livewire.
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
 ```
 
-Twenty-nine of them, **otp-input, tag-input, number-field, password-strength,
+Thirty-two of them, **otp-input, tag-input, number-field, password-strength,
 copy-button, toolbar, toggle-group, popover, hover-card, context-menu,
 theme-switcher, confirm-button, hold-button, confirm-popover, tree,
 expandable-text, slider, time-picker, inline-edit, command-palette,
 sortable-list, split, swap-button, team-switcher, money-input, phone-input,
-shortcut-input, mention-input and color-picker**, and
+shortcut-input, mention-input, color-picker, date-picker, calendar and
+avatar-upload**, and
 `input`'s `reveal` and `announcement-bar`'s dismissal, need Alpine **and** [`<x-ds::scripts />`](#3-add-the-script)
 above it, and say so on their page.
 
@@ -604,6 +611,23 @@ Tags are what `^1.0` resolves against:
 ```bash
 composer update shipbytes/blade-ui
 ```
+
+### From 1.x to 2.0
+
+- **`ds::date-picker` needs the package's script.** Put
+  [`<x-ds::scripts />`](#3-add-the-script) in the layout, above Alpine. Its
+  calendar is now the one `ds::calendar` draws, rendered by the server, so it
+  is right before any script runs (the day marked today is the server's, not
+  the browser's). Without the script it is the browser's own date field, or
+  two for a range, and posts the same names: `{name}`, or `{name}_start` and
+  `{name}_end`, as `Y-m-d`.
+- **Its keys follow the ARIA date grid:** Home and End go to the start and
+  end of the **week** (they went to the ends of the month), and
+  Shift+PageUp / Shift+PageDown move a **year**.
+- **A second pick before a range's start swaps the ends**, where 1.x started
+  the range again from there.
+- `wire:model` and `x-model` on the date picker now bind the value (`Y-m-d`,
+  or `[from, to]`).
 
 ## Troubleshooting
 

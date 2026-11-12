@@ -2724,13 +2724,59 @@
         <p>A calendar for one date or a range. Every value is a <code>Y-m-d</code> string, never a <code>Date</code> &mdash; <code>new Date('2026-03-29')</code> is UTC midnight, which west of Greenwich is the 28th.</p>
     </header>
 
-    <div class="ds-note">A range posts <em>two fields</em>. Two dates are two values, and squeezing them into one string means every consumer writing the same parser.</div>
+    <div class="ds-note">A range posts <em>two fields</em>. Two dates are two values, and squeezing them into one string means every consumer writing the same parser. The calendar in the popover is the <a href="#calendar">calendar</a>&rsquo;s grid, which needs the package&rsquo;s script; the gallery loads none, so these are what a page without it gets: the browser&rsquo;s own date fields, posting the same names.</div>
 
     <div class="{{ $plate }}">
-        <div class="ds-plate-label">Range <span>&middot; endpoints inverse, the span washed &mdash; shown open</span></div>
-        <div class="mx-auto max-w-sm">
-            <x-ds::date-picker name="g-period" label="Reporting period" :range="true" :value="['2026-09-07', '2026-09-19']" />
-            <div class="h-96" aria-hidden="true"></div>
+        <div class="ds-plate-label">One day, and a range <span>&middot; without the script: native date fields</span></div>
+        <div class="mx-auto flex max-w-sm flex-col gap-6">
+            <x-ds::date-picker name="g-due" label="Due date" value="2026-09-30" min="2026-09-14" help="Anything after today." />
+            <x-ds::date-picker name="g-period" label="Reporting period" :range="true" :value="['2026-09-07', '2026-09-19']" :months="2" :presets="true" :confirm="true" today="2026-09-14" />
+        </div>
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Calendar --}}
+<section class="ds-spec" id="calendar">
+    <header class="ds-spec-head">
+        <h2>Calendar</h2>
+        <p>The month grid on its own, always visible. One day, a range or several, with markers for the days that have something on. The same grid the date picker opens.</p>
+    </header>
+
+    <div class="ds-note">Drawn by the server, so it is right before any script runs; without the script, native date fields under it post the value. Today is the server&rsquo;s, never the browser&rsquo;s clock. The gallery loads no script, so these are the server&rsquo;s drawing.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">One day <span>&middot; weekends off, markers, week numbers</span></div>
+        <x-ds::calendar name="g-cal" label="Delivery day" value="2026-09-17" today="2026-09-14" min="2026-09-07" :disabledDays="[0, 6]" :showWeekNumbers="true"
+            :events="['2026-09-08' => 'success', '2026-09-10' => 'warning', '2026-09-22' => 3, '2026-09-24' => 'danger']" />
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Range over two months <span>&middot; outside days, size sm</span></div>
+        <x-ds::calendar name="g-stay" aria-label="Stay" :range="true" :months="2" :value="['2026-09-24', '2026-10-03']" today="2026-09-14" :showOutsideDays="true" size="sm" :jump="false" />
+    </div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">Several days <span>&middot; size lg, week from Sunday</span></div>
+        <x-ds::calendar name="g-off" aria-label="Days off" :multiple="true" :value="['2026-09-04', '2026-09-11', '2026-09-25']" today="2026-09-14" :weekStartsOn="0" size="lg" :jump="false" />
+    </div>
+</section>
+
+{{-- ─────────────────────────────────────────── Avatar upload --}}
+<section class="ds-spec" id="avatar-upload">
+    <header class="ds-spec-head">
+        <h2>Avatar upload</h2>
+        <p>A profile photo or a logo: the avatar, Change and Remove, and a crop dialog that makes whatever was chosen a square of a known size. It chooses and crops; the host&rsquo;s form or Livewire uploads.</p>
+    </header>
+
+    <div class="ds-note">The gallery loads no script, so these are what a page without it gets: a plain file input posting the original photo, for the server to crop, and a Remove checkbox. With the script both are hidden behind Change and Remove, and the crop goes into the same input.</div>
+
+    <div class="{{ $plate }}">
+        <div class="ds-plate-label">No photo yet <span>&middot; a square logo, uploading, an error</span></div>
+        <div class="mx-auto flex max-w-md flex-col gap-6">
+            <x-ds::avatar-upload name="g-photo" alt="Ada Lovelace" :maxSize="2097152" help="JPEG, PNG or WebP, up to 2 MB." />
+            <x-ds::avatar-upload name="g-logo" label="Logo" shape="square" alt="Acme Holdings" size="lg" />
+            <x-ds::avatar-upload name="g-busy" alt="Grace Hopper" :uploading="true" :progress="60" />
+            <x-ds::avatar-upload name="g-bad" alt="Ada Lovelace" error="The photo must be an image." />
         </div>
     </div>
 </section>

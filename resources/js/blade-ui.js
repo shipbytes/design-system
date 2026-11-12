@@ -12,6 +12,8 @@
  * registers nothing. The conventions are in CLAUDE.md under "The shared script".
  */
 import { anchorDirective } from './behaviours/anchor.js';
+import { avatarUpload } from './behaviours/avatar-upload.js';
+import { calendar } from './behaviours/calendar.js';
 import { chart } from './behaviours/chart.js';
 import { clamp } from './behaviours/clamp.js';
 import { clear } from './behaviours/clear.js';
@@ -50,7 +52,7 @@ import { toggleGroup } from './behaviours/toggle-group.js';
 import { toolbar } from './behaviours/toolbar.js';
 import { tree } from './behaviours/tree.js';
 
-const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split, swap, teamSwitcher, moneyInput, phoneInput, search, kbdShortcut, shortcutInput, colour, mention];
+const BEHAVIOURS = [clipboard, otp, tagInput, numberField, password, glide, toolbar, toggleGroup, anchorDirective, popover, hoverCard, contextMenu, theme, dismiss, inlineConfirm, hold, confirmDialog, roll, chart, clamp, clear, tree, slider, timePicker, inlineEdit, scrollShadows, commandPalette, sortable, split, swap, teamSwitcher, moneyInput, phoneInput, search, kbdShortcut, shortcutInput, colour, mention, calendar, avatarUpload];
 
 // Symbol.for, not a module-level flag. Two copies of this script, say the
 // inlined one AND a Vite import, are two separate modules with two separate
