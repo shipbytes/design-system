@@ -12,7 +12,7 @@
 A design system for Laravel and Blade, with design tokens any other stack can
 use from plain CSS or JavaScript.
 
-**56 Blade components**, a spec and a documentation page for each, design tokens
+**64 Blade components**, a spec and a documentation page for each, design tokens
 with light and dark values, and three test suites — including one that drives
 every interactive component in a real browser.
 
@@ -38,7 +38,7 @@ compiled CSS; the install is one `composer require` and three lines of CSS. Add
 `@shipbytes/design-tokens` only if your own JavaScript needs the token *values*
 — a chart palette reading `tokens.js` rather than repeating hex literals.
 
-**Laravel with Inertia + React?** Skip `blade-ui` — 56 Blade components you
+**Laravel with Inertia + React?** Skip `blade-ui` — 64 Blade components you
 cannot render are not useful — and take `@shipbytes/design-tokens`: the same
 `tokens.css` and `theme.css`, so your own React components draw from the same
 values. If you have both, Blade marketing pages and a React app behind login,
@@ -213,13 +213,15 @@ changes call the component instead of reloading the page.
 `illuminate/view` and `blade-heroicons`, and nothing else. It works the same in a
 plain Blade view or inside a Livewire component.
 
-Fifteen need [Alpine](https://alpinejs.dev) — `modal`, `drawer`, `sheet`,
+Seventeen need [Alpine](https://alpinejs.dev) — `modal`, `drawer`, `sheet`,
 `dropdown`, `select`, `combobox`, `date-picker`, `accordion`, `file-upload`,
-`tooltip`, `otp-input`, `tag-input`, `number-field`, `password-strength` and
-`copy-button`, the last five with the package's own script as well — plus one
-optional prop each on `checkbox`, `nav-item`, `toast` and `input`, and the
-pagination views' Livewire variants, which get it from Livewire. Everything else
-is plain Blade and CSS.
+`tooltip`, `otp-input`, `tag-input`, `number-field`, `password-strength`,
+`copy-button`, `toolbar` and `toggle-group`, the last seven with the package's
+own script as well — plus one optional prop each on `checkbox`, `nav-item`,
+`toast` and `input`, and the pagination views' Livewire variants, which get it
+from Livewire. `segmented-control` slides its highlight when Alpine and the
+script are there and works the same without them. Everything else is plain
+Blade and CSS.
 
 They hold no state of their own — the host declares it and the component reads
 it, which is what keeps the same markup usable from plain Blade, Livewire or

@@ -179,7 +179,7 @@ include takes that one and you pass nothing.
 ### What it registers
 
 `dsClipboard` is yours to use in your own markup as well as through the
-components. The other five work against the markup their component renders,
+components. The others work against the markup their component renders,
 found by its `data-ds-*` attributes, and are not meant to be written by hand:
 use the component.
 
@@ -191,6 +191,9 @@ use the component.
 | `dsNumberField` | Behind `ds::number-field`. The step buttons: one press, press-and-hold, the disabled state at a bound. |
 | `dsPassword` | Behind `ds::input`'s `reveal`. Toggles the field it `aria-controls` between hidden and shown, and hides it again on submit. |
 | `dsPasswordStrength` | Behind `ds::password-strength`. Scores the input named by `for` and sets `data-level` and the words. |
+| `dsToolbar` | Behind `ds::toolbar`. One Tab stop for the toolbar, with the arrow keys, Home and End moving between its buttons. |
+| `dsToggleGroup` | Behind `ds::toggle-group`. Presses and releases toggles, keeps the hidden inputs and the ARIA state in step, binds `wire:model` / `x-model` both ways, and gives a group outside a toolbar its own arrow keys. |
+| `x-ds-glide` | A directive, behind `ds::segmented-control`, `ds::toolbar` and `ds::toggle-group`: the highlight that slides to the chosen item, or with `.hover` follows the pointer and keyboard focus. |
 
 ### When it is missing
 
@@ -204,6 +207,11 @@ or call Alpine.plugin(bladeUi) where Alpine is bundled.
 The component renders, because the server rendered it, and does nothing when
 pressed. In your own `x-data` the same cause reads as Alpine's
 `dsClipboard is not defined`.
+
+`x-ds-glide` is the one registration that is silent when missing, on purpose.
+It only adds the sliding highlight, and `ds::segmented-control`, which uses it
+without any `ds…` behaviour, works and posts the same without it: Alpine skips
+a directive it does not know, and the chosen segment keeps the face CSS draws.
 
 ## 4. Use a component
 
@@ -234,14 +242,18 @@ How you decide to put it there is yours: a user setting, a cookie, or
 `illuminate/view` and `blade-heroicons`, and nothing else. Every component works
 in a plain Blade view.
 
-Fifteen need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
+Seventeen need [Alpine](https://alpinejs.dev) — a single 15 kB script, not a
 framework: **modal, drawer, sheet, dropdown, select, combobox, date-picker,
 accordion, file-upload, tooltip, otp-input, tag-input, number-field,
-password-strength, copy-button**.
+password-strength, copy-button, toolbar, toggle-group**.
 
 Four more use it for **one optional prop** each, and work without it otherwise:
 `checkbox`'s `indeterminate`, `nav-item`'s `collapsedWhen`, `toast`'s
 `dismiss`, and `input`'s `reveal`. Skip those props and you need no JavaScript at all.
+
+`segmented-control` uses Alpine and the package's script only to slide its
+highlight. Without them it is a plain radio group with the chosen segment
+drawn by CSS.
 
 The pagination views' Livewire variants also use Alpine, for the scroll back to
 the top on a page change, and get it from Livewire.
@@ -250,8 +262,8 @@ the top on a page change, and get it from Livewire.
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
 ```
 
-Five of them, **otp-input, tag-input, number-field, password-strength and
-copy-button**, and
+Seven of them, **otp-input, tag-input, number-field, password-strength,
+copy-button, toolbar and toggle-group**, and
 `input`'s `reveal`, need Alpine **and** [`<x-ds::scripts />`](#3-add-the-script)
 above it, and say so on their page.
 

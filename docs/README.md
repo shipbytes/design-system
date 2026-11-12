@@ -1,6 +1,6 @@
 # Shipbytes Blade UI — documentation
 
-Fifty-six Blade components for Laravel, plus two pagination views. Presentation
+Sixty-four Blade components for Laravel, plus two pagination views. Presentation
 only: no state, no framework assumptions beyond Blade itself.
 
 **New here?** Start with [Getting started](getting-started.md) — install, three
@@ -24,6 +24,10 @@ prop table, copy-paste examples, and the mistakes worth avoiding.
 | [Copy button](components/copy-button.md) | Copies a value and confirms in place — needs Alpine and the script |
 | [Rating](components/rating.md) | Stars to choose a score, or to show one |
 | [Chip group](components/chip-group.md) | Pressable filter chips, one or many, or links |
+| [Segmented control](components/segmented-control.md) | One of a few views or modes, side by side |
+| [Button group](components/button-group.md) | Related buttons joined into one shape, and the split button |
+| [Toolbar](components/toolbar.md) | A row of tools that is one Tab stop — needs Alpine and the script |
+| [Toggle group](components/toggle-group.md) | Buttons that stay pressed, one or many — needs Alpine and the script |
 | [Radio cards](components/radio-cards.md) | Card-shaped options to compare: plans, shipping |
 | [Select](components/select.md) | Styled listbox — needs Alpine |
 | [Combobox](components/combobox.md) | Filtering select, single or multiple — needs Alpine |
@@ -94,12 +98,13 @@ plain Blade view. The one opt-in exception is the pagination views' Livewire
 variants, which emit `wire:click` for a component that uses `WithPagination`.
 
 [Alpine](https://alpinejs.dev) — a single 15 kB script, not a framework — is
-needed by fifteen components, and by four optional props:
+needed by seventeen components, and by four optional props:
 
 | | Needs Alpine |
 |---|---|
 | `modal` `drawer` `sheet` `dropdown` `select` `combobox` `date-picker` `accordion` `file-upload` `tooltip` | **Always.** Their whole behaviour is state the browser has no markup for. |
-| `otp-input` `tag-input` `number-field` `password-strength` `copy-button` | **Always, and the package's script too.** Each renders its value from PHP and posts without JavaScript, but its behaviour is the script's. |
+| `otp-input` `tag-input` `number-field` `password-strength` `copy-button` `toolbar` `toggle-group` | **Always, and the package's script too.** Each renders its value from PHP and posts without JavaScript, but its behaviour is the script's. |
+| `segmented-control` | **Never.** With Alpine and the package's script, its highlight slides; without them, the chosen segment draws its own face, and nothing throws. |
 | `input` | Only for `reveal`, which also needs the package's script. |
 | `checkbox` | Only for `indeterminate`. Without it the box renders unchecked — which is what a screen reader announces, so the feature is absent rather than lying. |
 | `nav-item` | Only for `collapsedWhen`. Omit it for a permanently expanded rail. |
@@ -109,7 +114,7 @@ needed by fifteen components, and by four optional props:
 
 The package also ships a small script of its own, the behaviours several
 components share, which goes in the layout as `<x-ds::scripts />` above Alpine.
-The five above that need it, and `input`'s `reveal`, say so at the top of
+The seven above that need it, and `input`'s `reveal`, say so at the top of
 their pages. See [Add the script](getting-started.md#3-add-the-script).
 
 `stat-tile` pushes its own count-up script to a `scripts` stack — plain

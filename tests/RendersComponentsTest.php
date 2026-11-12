@@ -127,6 +127,7 @@ final class RendersComponentsTest extends TestCase
                 'panel-row' => 'panel',
                 'radio-card' => 'radio-cards',
                 'radio-group' => 'radio',
+                'segment' => 'segmented-control',
                 'sheet-item' => 'sheet',
                 'step' => 'stepper',
                 'tab' => 'tabs',
@@ -134,6 +135,9 @@ final class RendersComponentsTest extends TestCase
                 'table-cell' => 'table',
                 'table-row' => 'table',
                 'toast-region' => 'toast',
+                'toggle' => 'toggle-group',
+                'toolbar-button' => 'toolbar',
+                'toolbar-separator' => 'toolbar',
             ];
 
             if (isset($parents[$component])) {
@@ -252,6 +256,16 @@ final class RendersComponentsTest extends TestCase
 
             preg_match('/@props\(\[(.*?)^\]\)/ms', $source, $block);
             preg_match_all("/'([a-zA-Z][\w-]*)'\s*(?:=>|,)/", $block[1] ?? '', $declared);
+
+            // A view with a class behind it (button-group) declares its props
+            // as the class's constructor rather than in @props.
+            $class = 'Shipbytes\\BladeUi\\View\\Components\\'.str_replace('-', '', ucwords($name, '-'));
+            if (class_exists($class)) {
+                foreach ((new \ReflectionMethod($class, '__construct'))->getParameters() as $parameter) {
+                    $declared[1][] = $parameter->getName();
+                }
+            }
+
             $propsOf[$name] = $declared[1];
 
             // Variables the template renders that are not props, minus Blade's

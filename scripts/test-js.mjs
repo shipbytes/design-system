@@ -170,6 +170,20 @@ async function bladeFiles(dir) {
     return out;
 }
 
+/*
+  Directives a view may use with no Behaviour::data() scope, because skipping
+  them costs an animation and nothing else. The rule below exists because a
+  directive Alpine has no handler for is skipped in silence; that is a trap
+  when the directive carries behaviour, and harmless when the view renders the
+  whole state from PHP and the directive only moves something to match it.
+
+  `ds-glide` slides a highlight to the item the server already drew as chosen.
+  The segmented control is radios and CSS, so it must work, and not throw,
+  where the script is missing: test-behaviour.mjs loads it on a page with no
+  include and checks both. A directive goes on this list only with that test.
+*/
+const ENHANCEMENTS = new Set(['ds-glide']);
+
 const used = new Map(); // "data:dsX" -> [files]
 const rawData = [];
 const loneDirectives = [];
@@ -189,7 +203,7 @@ for (const file of await bladeFiles(join(ROOT, 'resources/views'))) {
 
     const directives = [...src.matchAll(/\bx-(ds-[a-z][a-z0-9-]*)/g)].map((m) => m[1]);
     directives.forEach((name) => note(`directive:${name}`));
-    if (directives.length && !viaHelper.length) loneDirectives.push(rel);
+    if (directives.some((name) => !ENHANCEMENTS.has(name)) && !viaHelper.length) loneDirectives.push(rel);
 }
 
 expect(!rawData.length, 'every component asks for a behaviour through Support\\Behaviour::data()',

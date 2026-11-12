@@ -41,9 +41,13 @@ package.json      @shipbytes/design-tokens   Composer reads composer.json from
 
 src/              the service provider
   View/Components/Scripts.php   ds::scripts, the include (a class, not a view)
+  View/Components/ButtonGroup.php  ds::button-group's props: a class so the
+                                buttons can @aware a key no other component
+                                has (see the class, and ButtonGroupTest)
   Http/ScriptController.php     serves the script at the route the include links
   Support/Behaviour.php         the x-data expression for a shared behaviour
   Support/Field.php             reads the field recipe (partials/field.php)
+  Support/Tray.php              reads the tray recipe (partials/tray.php)
 config/           blade-ui.php — icon aliases, default icon size
 resources/views/  the Blade components + the two pagination views and
                   their two Livewire variants
@@ -58,10 +62,17 @@ resources/views/  the Blade components + the two pagination views and
                                 consumer's Tailwind scans it; ds::input's 1.x
                                 output is held byte for byte by
                                 InputUnchangedTest
+  partials/tray.php             the tray recipe: toolbar, toggle-group and
+                                their items share it (tray, item, highlight,
+                                separator), read through Support\Tray
+  partials/tray-item.blade.php  a toolbar button's or toggle's inside: icon,
+                                words (sr-only when iconOnly), optional tooltip
 resources/js/     the shared script's source: plain ES modules, hand-edited
   blade-ui.js       the Alpine plugin; lists every behaviour
   global.js         the classic-script entry ds::scripts serves
   behaviours/       one file per behaviour
+  shared/           helpers more than one behaviour imports (roving.js:
+                    the roving tabindex toolbar and toggle-group use)
                   (export-ignored: consumers get dist/, not the modules)
 
 tokens/           DTCG source. Edited by hand, like resources/js/.
@@ -340,7 +351,12 @@ uncaught. A DIRECTIVE has no such hook: Alpine skips an `x-ds-*` it has no
 handler for, in silence, the same way it skips `x-trap` without the focus
 plugin. So a component never relies on a directive alone; `test-js.mjs` fails a
 view that uses `x-ds-*` without a `Behaviour::data()` scope, and one that writes
-a bare `x-data="ds…"`.
+a bare `x-data="ds…"`. The one exemption is a directive that is only an
+enhancement, listed in `ENHANCEMENTS` there: `x-ds-glide`, whose absence leaves
+a segmented control exactly as correct, with the face CSS draws. Silence is the
+right failure for decoration and the wrong one for behaviour, so a directive
+joins that list only if the component works and looks right without it, and
+the behaviour suite renders it in a host with no script to prove so.
 
 **`defer` on an INLINE script does nothing.** The behaviour harness wrote Alpine
 into the head as an inline script marked `defer`, which runs on the spot and
@@ -358,6 +374,21 @@ render test compiled against that passed while deliberately broken, because
 something else in the repo happened to name the class. `@import "tailwindcss"
 source(none)` plus one explicit `@source` is what makes the check mean anything.
 A consumer's own import should auto-detect; ours must not.
+
+**`focus:outline-hidden` beats `focus-visible:outline-2`.** In v4 it sets the
+outline style to none on every focus, and `outline-2` sets only the width, so
+the ring is never drawn. `ds::button` shipped that way until batch 04: its
+focus ring had never shown. Write the `focus-visible:` ring alone.
+
+**No `&` or `>` in an arbitrary variant.** `[&>*]:…` is escaped to `&amp;`
+and `&gt;` in the rendered attribute, so a Tailwind compiling from rendered
+HTML (the docs, the gallery, the render test) sees a different class and
+emits nothing. Use `*:`, `*:first:`, `in-data-…:` and the like.
+
+**`@aware` takes a key from the nearest ancestor that has it, whatever
+component that is.** A button reading `@aware(['size'])` would take the size of
+a `ds::modal size="lg"` it sits in. Share settings down through a key no other
+component has: see View/Components/ButtonGroup.php.
 
 ## Conventions
 
@@ -542,17 +573,19 @@ generated, so after editing `resources/js/` run `npm run build` before
 
 ## State
 
-**Built — 56 components**, plus `ds::pagination` and `ds::simple-pagination`
+**Built — 64 components**, plus `ds::pagination` and `ds::simple-pagination`
 (and their `-livewire` variants):
 
 accordion, accordion-item, alert, avatar, avatar-group, badge, bottom-nav,
 bottom-nav-item, breadcrumb, breadcrumb-item, button, checkbox, chip,
-chip-group, combobox, copy-button, date-picker, drawer, dropdown, dropdown-item,
-empty-state, file-upload, icon, input, modal, nav-item, number-field, otp-input,
-panel, panel-row, password-strength, progress, radio, radio-card, radio-cards,
-radio-group, rating, select, sheet, sheet-item, skeleton, stat-tile, step,
-stepper, switch, tab, tab-panel, table, table-cell, table-row, tabs, tag-input,
-toast, toast-region, tooltip, usage-meter.
+button-group, chip-group, combobox, copy-button, date-picker, drawer, dropdown,
+dropdown-item, empty-state, file-upload, icon, input, modal, nav-item,
+number-field, otp-input, panel, panel-row, password-strength, progress, radio,
+radio-card, radio-cards, radio-group, rating, segment, segmented-control,
+select, sheet, sheet-item, skeleton, stat-tile, step, stepper, switch, tab,
+tab-panel, table, table-cell, table-row, tabs, tag-input, toast, toast-region,
+toggle, toggle-group, toolbar, toolbar-button, toolbar-separator, tooltip,
+usage-meter.
 
 **Every built component has a spec.**
 
@@ -561,7 +594,8 @@ three lines of CSS, every component rendering styled in light and dark.
 
 **Needs Alpine:** modal, drawer, sheet, dropdown, select, combobox, date-picker,
 accordion (with accordion-item), file-upload, tooltip, otp-input, tag-input,
-number-field, password-strength, copy-button — always. Plus ONE optional prop each on
+number-field, password-strength, copy-button, toolbar (with toolbar-button and
+toolbar-separator), toggle-group (with toggle) — always. Plus ONE optional prop each on
 checkbox (`indeterminate`), nav-item (`collapsedWhen`), toast (`dismiss`) and
 input (`reveal`), and the pagination views' Livewire variants, whose scroll to
 the top is an `x-on:click` that Livewire's bundled Alpine runs. Everything else
@@ -572,15 +606,20 @@ Livewire variants are opt-in. Counted from the directives in the views on
 
 **Needs the shared script:** otp-input (`dsOtp`), tag-input (`dsTagInput`),
 number-field (`dsNumberField`), password-strength (`dsPasswordStrength`),
-copy-button (`dsClipboard`, which is also documented for direct use), and
-input's `reveal` (`dsPassword`).
+copy-button (`dsClipboard`, which is also documented for direct use),
+toolbar (`dsToolbar`, `x-ds-glide.hover`), toggle-group (`dsToggleGroup`,
+`x-ds-glide.hover`), and input's `reveal` (`dsPassword`). segmented-control
+uses `x-ds-glide` as an enhancement only; see the shared script section.
 
 **Plain Blade and CSS, no script, by design:** rating, chip-group (with chip)
 and radio-cards (with radio-card) are native radios or checkboxes styled by
 `has-checked:` and sibling variants. Their groups learn about their children
 from the rendered slot (a component's slot renders before the component), and
 write the host's `wire:model` / `x-model` onto every child input through a
-`data-ds-*-input` hook; see specs/chip-group.md.
+`data-ds-*-input` hook; see specs/chip-group.md. segmented-control (with
+segment) is built the same way, and slides a highlight when the script is
+there. button-group is plain Blade too: joins by custom properties its
+buttons' corners read.
 
 **How those behaviours are written** (batch 02 set the pattern): the Blade view
 renders the whole correct state, value and disabled flags included, and marks
@@ -683,7 +722,7 @@ until a screen needs it more than a trailing View button.
 - **Upload transport for `file-upload`.** It is a field, not an uploader.
 - **A date-and-time picker.** Two questions; a control that answers both does
   neither well.
-- **Segmented control, colour picker, rich text.** None have come up.
+- **Colour picker, rich text.** Neither has come up.
 
 ## The docs site (shipbytes.dev)
 
@@ -717,7 +756,7 @@ Rules the conversion imposes on the Markdown:
 - A callout `> **Needs Alpine.** See [getting started](../getting-started.md#alpine).`
   on every page of the ten Alpine components, and "— needs Alpine" in that
   component's row in `docs/README.md` ("— needs Alpine and the script" for the
-  five that use the shared script, whose callout is the one above).
+  seven that use the shared script, whose callout is the one above).
 
 **Merging to master rebuilds the site automatically** (GitHub push webhook → the
 rebuild Worker → the site's deploy workflow, ~2 minutes; branches and tags are

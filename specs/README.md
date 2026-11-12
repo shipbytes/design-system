@@ -67,12 +67,18 @@ independent implementations the same component rather than three lookalikes.
 | [rating.md](rating.md) | Stars over radios, "No rating", the readonly image |
 | [chip-group.md](chip-group.md) | Filter chips, inputs or links, binding through the group |
 | [radio-cards.md](radio-cards.md) | Card-shaped radios, columns, stable ids |
+| [segmented-control.md](segmented-control.md) | Radios or links in a track, the glide directive, why no script is needed |
+| [button-group.md](button-group.md) | Joined buttons, the split button, why it is a class |
+| [toolbar.md](toolbar.md) | One Tab stop, roving focus, the hover highlight, pressed |
+| [toggle-group.md](toggle-group.md) | Single and multiple toggles, what posts, inside a toolbar |
 
 Sub-components are covered by their parent: `table-cell` and `table-row` in
 table.md, `panel-row` in panel.md, `sheet-item` in sheet.md, `dropdown-item` in
 dropdown.md, `bottom-nav-item` in bottom-nav.md, `breadcrumb-item` in
 breadcrumb.md, `tab` and `tab-panel` in tabs.md, `step` in stepper.md, `radio-group` in radio.md,
-`chip` in chip-group.md, `radio-card` in radio-cards.md, and `toast-region` in toast.md.
+`chip` in chip-group.md, `radio-card` in radio-cards.md, `segment` in
+segmented-control.md, `toolbar-button` and `toolbar-separator` in toolbar.md,
+`toggle` in toggle-group.md, and `toast-region` in toast.md.
 
 **Every built component now has a spec.** Specs are written **alongside** their
 implementation, not before it and not after — a speculative spec for a component

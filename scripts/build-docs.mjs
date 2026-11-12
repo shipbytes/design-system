@@ -260,6 +260,11 @@ const OPERATE = {
     },
     // Pressed for real: the image shows the copied face the reader sees, for
     // the 1.5 s it lasts, beside a button at rest.
+    // A pointer over one toolbar item, so the image shows the highlight the
+    // toolbar draws under it. Dispatched on the item and bubbling to the
+    // toolbar, where x-ds-glide listens; nothing at the document does.
+    toolbar: async (pane) =>
+        pane.locator('[data-shot-hover]').dispatchEvent('pointermove', { bubbles: true, pointerType: 'mouse' }),
     'copy-button': async (pane) =>
         pane.locator('[data-shot-press]').dispatchEvent('click', { bubbles: false }),
     // Real files, set on the real input, so the list and the thumbnail are the
@@ -385,6 +390,12 @@ const lowContrast = await tab.evaluate(() => {
 
         const style = getComputedStyle(el);
         if (style.visibility === 'hidden' || style.display === 'none') continue;
+
+        // A visually hidden label (`sr-only`: a 1px clipped box) is read aloud,
+        // never seen, so it has no contrast to fail. It also usually carries no
+        // colour of its own, and would report the page's inherited black.
+        const box = el.getBoundingClientRect();
+        if (box.width <= 1 && box.height <= 1) continue;
 
         // Inactive controls are exempt from WCAG 1.4.3, and dimming them is the
         // point — a disabled menu item that reads at full strength is worse.
