@@ -87,6 +87,10 @@ All three block the page:
 A confirmation is a modal at every width. A list of choices below `lg` is a
 sheet.
 
+Not every confirmation needs to stop the page. A row action or a setting can
+ask in place, beside its button, or by being held: see
+[which confirmation do I use?](confirm-button.md#which-confirmation-do-i-use)
+
 ## What you get for free
 
 - Focus moves into the panel on open and **returns to the trigger** on close.
