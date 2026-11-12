@@ -363,6 +363,36 @@
         <button type="button" id="glide-grow" @click="document.getElementById('glide-c').textContent = 'Charlie, now much longer'">grow</button>
     </div>
 
+    {{-- ── x-ds-anchor on its own, in markup no component wrote ──
+         Each panel sits inside a box that would defeat it: one clips with
+         overflow hidden, one is transformed and so becomes the containing
+         block of anything fixed inside it. The panels carry absolute
+         fallback classes, as the overlays that will adopt this do. The wide
+         panel is wider than the room to the right of its reference, and the
+         tall one is taller than the window. --}}
+    <div class="mt-6" x-data="{ anchorOpen: false, anchorWide: false, anchorTall: false, anchorBoxed: false }">
+        <div id="anchor-clip" class="relative h-10 w-64 overflow-hidden border border-border">
+            <button type="button" id="anchor-ref" @click="anchorOpen = ! anchorOpen">Anchor</button>
+            <div id="anchor-panel" x-show="anchorOpen" x-ds-anchor="{ open: anchorOpen, reference: $el.previousElementSibling, placement: 'bottom-start' }"
+                class="absolute top-full left-0 z-50 mt-2 h-40 w-48 border border-border bg-surface">Panel</div>
+        </div>
+        <div class="flex justify-end">
+            <button type="button" id="anchor-wide-ref" @click="anchorWide = ! anchorWide">Wide</button>
+            <div id="anchor-wide" x-show="anchorWide" x-ds-anchor="{ open: anchorWide, reference: $el.previousElementSibling, placement: 'bottom-start' }"
+                class="absolute z-50 h-20 w-[30rem] border border-border bg-surface">Wide panel</div>
+        </div>
+        <div>
+            <button type="button" id="anchor-tall-ref" @click="anchorTall = ! anchorTall">Tall</button>
+            <div id="anchor-tall" x-show="anchorTall" x-ds-anchor="{ open: anchorTall, reference: $el.previousElementSibling, placement: 'bottom-start' }"
+                class="absolute z-50 h-[1400px] w-48 border border-border bg-surface">Tall panel</div>
+        </div>
+        <div id="anchor-transformed" class="ml-24 mt-4 h-10 w-64 [transform:translateZ(0)]">
+            <button type="button" id="anchor-boxed-ref" @click="anchorBoxed = ! anchorBoxed">Boxed</button>
+            <div id="anchor-boxed" x-show="anchorBoxed" x-ds-anchor="{ open: anchorBoxed, reference: $el.previousElementSibling, placement: 'right-start', offset: 4 }"
+                class="absolute z-50 h-24 w-40 border border-border bg-surface">Boxed panel</div>
+        </div>
+    </div>
+
     {{-- ── dsClipboard, from the shared script ──
          No component uses it yet, so this is the markup a component would
          emit, through the same helper. --}}

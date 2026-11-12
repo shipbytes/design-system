@@ -1594,6 +1594,125 @@ await check('with reduced motion it jumps', async () => {
     return duration === '0s' || `transition-duration ${duration}`;
 });
 
+// ---------------------------------------------------------------- anchor
+
+/** A panel's box, its reference's, the viewport, and the side it took. */
+const anchorBoxes = (panel, reference) => page.evaluate(([p, r]) => {
+    const el = document.querySelector(p);
+    const a = el.getBoundingClientRect();
+    const b = document.querySelector(r).getBoundingClientRect();
+    return {
+        panel: { left: a.left, top: a.top, right: a.right, bottom: a.bottom, width: a.width, height: a.height },
+        ref: { left: b.left, top: b.top, right: b.right, bottom: b.bottom },
+        vw: document.documentElement.clientWidth,
+        vh: document.documentElement.clientHeight,
+        side: el.dataset.side,
+        shown: getComputedStyle(el).display !== 'none',
+        // What is actually painted at the panel's centre: the panel, or
+        // whatever clipped it.
+        onTop: el.contains(document.elementFromPoint(a.left + a.width / 2, a.top + a.height / 2)),
+    };
+}, [panel, reference]);
+
+/** Inside the viewport, less the 8 px margin: true, or by how much it is not. */
+const insideViewport = (box, margin = 8) => {
+    const out = Math.max(
+        margin - box.panel.left,
+        margin - box.panel.top,
+        box.panel.right - (box.vw - margin),
+        box.panel.bottom - (box.vh - margin),
+    );
+    return out <= 0.5 || `${Math.round(out)}px outside the viewport less its margin`;
+};
+
+group('x-ds-anchor on its own (markup no component wrote)');
+
+await page.evaluate(() => document.getElementById('anchor-ref').scrollIntoView({ block: 'center' }));
+await settle(100);
+await page.click('#anchor-ref');
+await settle(250);
+
+await check('placed below its reference, start-aligned, 8 px off it', async () => {
+    const b = await anchorBoxes('#anchor-panel', '#anchor-ref');
+    if (!b.shown) return 'not shown';
+    if (b.side !== 'bottom') return `data-side is ${b.side}`;
+    const gap = Math.round(b.panel.top - b.ref.bottom);
+    const lean = Math.round(b.panel.left - b.ref.left);
+    return (gap === 8 && lean === 0) || `${gap}px below and ${lean}px across from the reference`;
+});
+
+await check('not clipped by the overflow-hidden box it sits in (position: fixed)', async () => {
+    const b = await anchorBoxes('#anchor-panel', '#anchor-ref');
+    const clip = await page.evaluate(() => document.getElementById('anchor-clip').getBoundingClientRect().bottom);
+    if (b.panel.bottom <= clip) return 'the panel never leaves the box, so this proves nothing';
+    return b.onTop || 'something else is painted where the panel is: the box clipped it';
+});
+
+await check('follows its reference on scroll', async () => {
+    await page.mouse.wheel(0, 120);
+    await settle(150);
+    const b = await anchorBoxes('#anchor-panel', '#anchor-ref');
+    const gap = Math.round(b.panel.top - b.ref.bottom);
+    return gap === 8 || `after scrolling it is ${gap}px below the reference`;
+});
+
+await check('flips above when the reference reaches the bottom of the window', async () => {
+    await page.evaluate(() => document.getElementById('anchor-ref').scrollIntoView({ block: 'end' }));
+    await settle(150);
+    const b = await anchorBoxes('#anchor-panel', '#anchor-ref');
+    if (b.side !== 'top') return `data-side is ${b.side}`;
+    const gap = Math.round(b.ref.top - b.panel.bottom);
+    if (gap !== 8) return `${gap}px above the reference`;
+    return insideViewport(b);
+});
+
+await check('stops listening once closed', async () => {
+    await page.click('#anchor-ref');
+    await settle(250);
+    const before = await page.evaluate(() => document.getElementById('anchor-panel').style.top);
+    await page.evaluate(() => document.getElementById('anchor-ref').scrollIntoView({ block: 'center' }));
+    await settle(150);
+    const after = await page.evaluate(() => document.getElementById('anchor-panel').style.top);
+    return before === after || `the closed panel moved from ${before} to ${after}`;
+});
+
+await check('shifts back inside the viewport when wider than the room beside its reference', async () => {
+    await page.evaluate(() => document.getElementById('anchor-wide-ref').scrollIntoView({ block: 'center' }));
+    await page.click('#anchor-wide-ref');
+    await settle(250);
+    const b = await anchorBoxes('#anchor-wide', '#anchor-wide-ref');
+    await page.click('#anchor-wide-ref');
+    await settle(200);
+    if (b.ref.left + b.panel.width < b.vw - 8) return 'there was room after all, so this proves nothing';
+    if (Math.round(b.panel.top - b.ref.bottom) !== 8) return 'it moved off its side';
+    return insideViewport(b);
+});
+
+await check('taller than the window: capped at the room there is, scrolling inside', async () => {
+    await page.evaluate(() => document.getElementById('anchor-tall-ref').scrollIntoView({ block: 'center' }));
+    await page.click('#anchor-tall-ref');
+    await settle(250);
+    const b = await anchorBoxes('#anchor-tall', '#anchor-tall-ref');
+    const style = await page.evaluate(() => getComputedStyle(document.getElementById('anchor-tall')).overflowY);
+    await page.click('#anchor-tall-ref');
+    await settle(200);
+    if (style !== 'auto') return `overflow-y is ${style}`;
+    return insideViewport(b);
+});
+
+await check('lands beside its reference inside a transformed ancestor (its containing block)', async () => {
+    await page.evaluate(() => document.getElementById('anchor-boxed-ref').scrollIntoView({ block: 'center' }));
+    await page.click('#anchor-boxed-ref');
+    await settle(250);
+    const b = await anchorBoxes('#anchor-boxed', '#anchor-boxed-ref');
+    await page.click('#anchor-boxed-ref');
+    await settle(200);
+    if (b.side !== 'right') return `data-side is ${b.side}`;
+    const gap = Math.round(b.panel.left - b.ref.right);
+    const lean = Math.round(b.panel.top - b.ref.top);
+    return (gap === 4 && lean === 0) || `${gap}px right of and ${lean}px down from the reference`;
+});
+
 // ---------------------------------------------------------------- segmented control
 
 group('segmented control (radios and CSS; x-ds-glide when the script is there)');
