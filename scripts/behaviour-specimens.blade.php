@@ -454,6 +454,21 @@
         </x-ds::popover>
     </div>
 
+    {{-- ── sortable table: plain links, no script ──
+         The hrefs are fragments, so a press stays on the page and the test
+         reads where it went. --}}
+    <div class="mt-6 max-w-lg">
+        <x-ds::table id="sort-table" sort="total" direction="desc" sortUrl="#sort-{key}-{direction}" :columns="[
+            ['label' => 'Report', 'key' => 'name', 'sortable' => true],
+            ['label' => 'Total', 'key' => 'total', 'align' => 'right', 'sortable' => true],
+        ]">
+            <x-ds::table-row>
+                <x-ds::table-cell>Q3 revenue</x-ds::table-cell>
+                <x-ds::table-cell align="right">£1,200</x-ds::table-cell>
+            </x-ds::table-row>
+        </x-ds::table>
+    </div>
+
     {{-- ── hover card (dsHoverCard, x-ds-anchor) ──
          Inside running text, as a name in a sentence, with a link in the
          card for Tab to reach; and one at the right edge of a clipping box,

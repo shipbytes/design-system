@@ -561,6 +561,33 @@
     @endforeach
 </div>
 
+{{-- ─────────────────────────── table-sortable
+     Sorted by Total, descending. Report is sortable too, and shows its arrow
+     only under the pointer or keyboard focus, which one image of two panes
+     cannot hold in both. --}}
+<div data-shot="table-sortable" class="shot shot-wide">
+    @foreach ($themes as $t)
+        <div x-data="{ shown: true }" class="pane bg-surface-sunken {{ $t }}">
+            <x-ds::table sort="total" direction="desc" sortUrl="#{key}-{direction}" :columns="[
+                ['label' => 'Report', 'key' => 'name', 'sortable' => true],
+                ['label' => 'Status', 'width' => 'w-32'],
+                ['label' => 'Total', 'key' => 'total', 'align' => 'right', 'sortable' => true],
+            ]">
+                <x-ds::table-row>
+                    <x-ds::table-cell>Q3 revenue</x-ds::table-cell>
+                    <x-ds::table-cell :nowrap="true"><x-ds::badge tone="success">Ready</x-ds::badge></x-ds::table-cell>
+                    <x-ds::table-cell align="right" class="tabular-nums">£12,400</x-ds::table-cell>
+                </x-ds::table-row>
+                <x-ds::table-row>
+                    <x-ds::table-cell>Churn by cohort</x-ds::table-cell>
+                    <x-ds::table-cell :nowrap="true"><x-ds::badge tone="warning">Running</x-ds::badge></x-ds::table-cell>
+                    <x-ds::table-cell align="right" class="tabular-nums">£3,150</x-ds::table-cell>
+                </x-ds::table-row>
+            </x-ds::table>
+        </div>
+    @endforeach
+</div>
+
 {{-- ─────────────────────────── tabs --}}
 <div data-shot="tabs" class="shot">
     @foreach ($themes as $t)

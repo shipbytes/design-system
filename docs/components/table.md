@@ -37,12 +37,89 @@ Each entry is either a **label**, or an array:
 | `label` | string | The header text. An empty string reserves the column without a heading — for an actions column. |
 | `align` | `left` `center` `right` | Defaults to `left`. |
 | `width` | Tailwind class | Fixes the column width. |
+| `sortable` | bool | The reader can sort by this column: its header becomes a link or button. See [Sorting](#sorting). |
+| `key` | string | The name the server sorts this column by. Required with `sortable`; the entry's own array key works too. |
 
 Omit `columns` entirely and supply your own `<thead>` in the slot.
 
 > **`width` is a class from *your* source.** It works because Tailwind scans your
 > views and finds the literal `w-36` there. Build it dynamically — `'w-'.$n` — and
 > it silently has no rule and no width. Write it out.
+
+## Sorting
+
+The table says which column the rows are sorted by and lets the reader ask for
+another order. **It never sorts anything itself**: your query does, from the
+`sort` and `direction` it is given.
+
+```blade
+<x-ds::table
+    :sort="request('sort', 'created_at')"
+    :direction="request('direction', 'desc')"
+    :columns="[
+        ['label' => 'Report', 'key' => 'name', 'sortable' => true],
+        'Status',
+        ['label' => 'Total', 'key' => 'total', 'align' => 'right', 'sortable' => true],
+        ['label' => 'Created', 'key' => 'created_at', 'sortable' => true],
+    ]"
+>
+    @foreach ($reports as $report) … @endforeach
+</x-ds::table>
+```
+
+```php
+$reports = Report::query()
+    ->orderBy(in_array($request->sort, ['name', 'total', 'created_at']) ? $request->sort : 'created_at',
+              $request->direction === 'asc' ? 'asc' : 'desc')
+    ->paginate();
+```
+
+Each sortable header is a link. A press on the sorted column asks for the
+other direction; a press on any other asks for ascending. By default the link
+is the current URL with `sort` and `direction` set in the query string and
+`page` dropped, since a new order starts on page one. Validate both against a
+list of your own before they reach a query, as above.
+
+![Sortable table](../images/table-sortable.png)
+
+| Prop | Type | Default | What it does |
+|---|---|---|---|
+| `sort` | string | — | The `key` of the column the rows are sorted by. |
+| `direction` | string | `asc` | `asc` or `desc`. |
+| `sortUrl` | string, Closure | — | Where a header links instead of the default: a pattern such as `/reports?order={key}&dir={direction}`, or `fn ($key, $direction) => route('reports.index', [...])`. `{direction}` is the one the press asks for. |
+| `sortAction` | string, Closure | — | For Livewire: the header becomes a button with this `wire:click`, a pattern such as `sortBy('{key}')` or a closure. Wins over `sortUrl`. |
+
+### With Livewire
+
+```blade
+<x-ds::table :sort="$sort" :direction="$direction" sortAction="sortBy('{key}')" :columns="$columns">
+```
+
+```php
+public string $sort = 'created_at';
+public string $direction = 'desc';
+
+public function sortBy(string $key): void
+{
+    $this->direction = $this->sort === $key && $this->direction === 'asc' ? 'desc' : 'asc';
+    $this->sort = $key;
+    $this->resetPage();
+}
+```
+
+A plain link would reload the page, which is why Livewire gets a button. The
+default link reads the current request's URL, which inside a Livewire update is
+Livewire's own endpoint: pass `sortAction`, not nothing.
+
+### What the reader sees
+
+- The sorted column's label is full strength, with an arrow: up for
+  ascending, down for descending.
+- Every other sortable header shows a faint up-and-down arrow under the
+  pointer or keyboard focus, in space that is always kept, so the label never
+  moves.
+- On a right-aligned column the arrow sits inside the label, so the label's
+  edge stays on the figures' edge.
 
 ## `table-row` and `table-cell`
 
@@ -99,8 +176,21 @@ reader needs to know *what* is empty:
 </x-ds::table>
 ```
 
+## Accessibility
+
+- Headers are `th scope="col"`.
+- The sorted column's header carries `aria-sort="ascending"` or
+  `"descending"`; no other header has `aria-sort`, so a screen reader names
+  one sort and only one.
+- Each sortable header is a real link or button inside the `th`, named by its
+  label, reachable by Tab and pressed with Enter. The arrow is decorative
+  (`aria-hidden`): the state is in `aria-sort`.
+
 ## Don't
 
+- **Don't sort in the view.** The table presents an order; the query makes it.
+- **Don't pass `sort` and `direction` from the request into a query
+  unchecked.** Compare them against your own list of columns.
 - **Don't make the row itself the link.** See above: link a cell.
 - **Don't build `width` dynamically.** See above.
 - **Don't use a table for layout.**

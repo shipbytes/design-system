@@ -2024,6 +2024,52 @@ group('hover card on a touch screen');
     await touch.close();
 }
 
+// ---------------------------------------------------------------- sortable table
+
+const sortIconOpacity = (n) => page.evaluate((i) =>
+    getComputedStyle(document.querySelectorAll('#sort-table th svg')[i]).opacity, n);
+
+group('sortable table (links, no script)');
+
+await page.evaluate(() => document.getElementById('sort-table').scrollIntoView({ block: 'center' }));
+await pointerAway();
+await settle(200);
+
+await check('one header says how the rows are sorted, with its arrow showing', async () => {
+    const r = await page.evaluate(() => [...document.querySelectorAll('#sort-table th')].map((th) => th.getAttribute('aria-sort')));
+    if (JSON.stringify(r) !== JSON.stringify([null, 'descending'])) return `aria-sort ${JSON.stringify(r)}`;
+    return (await sortIconOpacity(1)) === '1' || 'the sorted arrow is hidden';
+});
+
+await check('an unsorted sortable header shows its affordance on hover only', async () => {
+    if ((await sortIconOpacity(0)) !== '0') return 'visible at rest';
+    await page.hover('#sort-table th:first-child a');
+    await settle(250);
+    const shown = await sortIconOpacity(0);
+    await pointerAway();
+    await settle(250);
+    return shown === '1' || `opacity ${shown} under the pointer`;
+});
+
+await check('and on keyboard focus', async () => {
+    await page.focus('#hc-after');
+    await page.evaluate(() => document.querySelector('#sort-table th:first-child a').focus());
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await settle(250);
+    const focused = await page.evaluate(() => document.activeElement === document.querySelector('#sort-table th:first-child a'));
+    if (!focused) return `focus on ${await active()}`;
+    return (await sortIconOpacity(0)) === '1' || 'hidden while focused';
+});
+
+await check('a press asks for the other direction on the sorted column, ascending on the rest', async () => {
+    await page.click('#sort-table th:nth-child(2) a');
+    const second = await page.evaluate(() => location.hash);
+    await page.click('#sort-table th:first-child a');
+    const first = await page.evaluate(() => location.hash);
+    return (second === '#sort-total-asc' && first === '#sort-name-asc') || `went to ${second} and ${first}`;
+});
+
 // ---------------------------------------------------------------- segmented control
 
 group('segmented control (radios and CSS; x-ds-glide when the script is there)');

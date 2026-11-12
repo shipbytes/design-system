@@ -847,6 +847,31 @@
     </div>
 
     <div class="{{ $plate }}">
+        <div class="ds-plate-label">Sortable <span>&middot; sorted by Joined, newest first &middot; hover or tab to User or Projects for their faint arrow</span></div>
+        <div>
+            <x-ds::table sort="joined" direction="desc" sortUrl="#table" :columns="[
+                ['label' => 'User', 'key' => 'name', 'sortable' => true],
+                ['label' => 'Role', 'width' => 'w-24'],
+                ['label' => 'Projects', 'key' => 'projects', 'align' => 'right', 'width' => 'w-28', 'sortable' => true],
+                ['label' => 'Joined', 'key' => 'joined', 'width' => 'w-36', 'sortable' => true],
+            ]">
+                @foreach ([
+                    ['Tobias Okonkwo', 'User', '2', 'Aug 19, 2026'],
+                    ['Amara Reyes', 'Admin', '14', 'Mar 04, 2026'],
+                    ['Sunniva Kall', 'User', '7', 'Jan 22, 2026'],
+                ] as [$name, $role, $count, $joined])
+                    <x-ds::table-row>
+                        <x-ds::table-cell class="font-medium text-fg">{{ $name }}</x-ds::table-cell>
+                        <x-ds::table-cell>{{ $role }}</x-ds::table-cell>
+                        <x-ds::table-cell align="right" class="tabular-nums">{{ $count }}</x-ds::table-cell>
+                        <x-ds::table-cell :nowrap="true">{{ $joined }}</x-ds::table-cell>
+                    </x-ds::table-row>
+                @endforeach
+            </x-ds::table>
+        </div>
+    </div>
+
+    <div class="{{ $plate }}">
         <div class="ds-plate-label">Empty <span>&middot; the header stays &mdash; the reader needs to know what is empty</span></div>
         <div>
             <x-ds::table :columns="['User', ['label' => 'Role', 'width' => 'w-24'], ['label' => 'Joined', 'width' => 'w-36']]">

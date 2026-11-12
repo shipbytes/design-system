@@ -371,6 +371,36 @@ final class Specimens
                 </x-ds::table>
                 BLADE,
 
+            /*
+             * Sortable headers: a link per sortable column, the sorted one
+             * with aria-sort and its arrow, a right-aligned one with the
+             * arrow inside; and the Livewire form, buttons with wire:click.
+             */
+            'table/sortable' => <<<'BLADE'
+                <x-ds::table sort="total" direction="desc" sortUrl="/reports?sort={key}&direction={direction}" :columns="[
+                    ['label' => 'Report', 'key' => 'name', 'sortable' => true],
+                    'Status',
+                    'total' => ['label' => 'Total', 'align' => 'right', 'sortable' => true],
+                    ['label' => '', 'width' => 'w-14'],
+                ]">
+                    <x-ds::table-row>
+                        <x-ds::table-cell>Q3 revenue</x-ds::table-cell>
+                        <x-ds::table-cell>Ready</x-ds::table-cell>
+                        <x-ds::table-cell align="right">£1,200</x-ds::table-cell>
+                        <x-ds::table-cell></x-ds::table-cell>
+                    </x-ds::table-row>
+                </x-ds::table>
+                <x-ds::table sort="name" sortAction="sortBy('{key}')" :columns="[
+                    ['label' => 'Report', 'key' => 'name', 'sortable' => true],
+                    ['label' => 'Runs', 'key' => 'runs', 'align' => 'center', 'sortable' => true],
+                ]">
+                    <x-ds::table-row>
+                        <x-ds::table-cell>Q3 revenue</x-ds::table-cell>
+                        <x-ds::table-cell align="center">4</x-ds::table-cell>
+                    </x-ds::table-row>
+                </x-ds::table>
+                BLADE,
+
             'nav-item/all' => <<<'BLADE'
                 <x-ds::nav-item href="/" label="Dashboard" :active="true">
                     <x-slot:icon><x-ds::icon name="home" /></x-slot:icon>
